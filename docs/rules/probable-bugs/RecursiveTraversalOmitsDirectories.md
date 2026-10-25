@@ -29,12 +29,13 @@ Reported:
 
 ## Detection
 
-- Enabled policy requires directory nodes as well as leaves. Report construction of RecursiveIteratorIterator wrapping a proven RecursiveDirectoryIterator, directly or through RecursiveCallbackFilterIterator, when mode is omitted or explicitly LEAVES_ONLY. Highlight constructor call.
+- Enabled policy requires directory nodes as well as leaves. Report construction of RecursiveIteratorIterator wrapping a proven RecursiveDirectoryIterator, directly or through RecursiveCallbackFilterIterator, when the mode is omitted. Highlight constructor call.
 - Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
 - SELF_FIRST and CHILD_FIRST satisfy the policy. Unknown iterator source and arbitrary recursive iterators are excluded.
+- An explicit mode, `LEAVES_ONLY` included, is not reported: the code states which nodes it wants (8 of 17 sampled findings on Symfony passed `LEAVES_ONLY` to list files only).
 - Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix

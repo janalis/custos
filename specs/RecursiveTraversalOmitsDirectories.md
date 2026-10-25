@@ -14,13 +14,14 @@ Include parent nodes when traversing directories. This opt-in inspection applies
 
 ## Detection
 
-- D1. Enabled policy requires directory nodes as well as leaves. Report construction of RecursiveIteratorIterator wrapping a proven RecursiveDirectoryIterator, directly or through RecursiveCallbackFilterIterator, when mode is omitted or explicitly LEAVES_ONLY. Highlight constructor call.
+- D1. Enabled policy requires directory nodes as well as leaves. Report construction of RecursiveIteratorIterator wrapping a proven RecursiveDirectoryIterator, directly or through RecursiveCallbackFilterIterator, when the mode is omitted. Highlight constructor call.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
 - E1. SELF_FIRST and CHILD_FIRST satisfy the policy. Unknown iterator source and arbitrary recursive iterators are excluded.
+- E3. An explicit mode, `LEAVES_ONLY` included, is not reported: the code states which nodes it wants (8 of 17 sampled findings on Symfony passed `LEAVES_ONLY` to list files only).
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore RecursiveTraversalOmitsDirectories` and `@noinspection RecursiveTraversalOmitsDirectories` suppress this inspection.
 
 ## Report

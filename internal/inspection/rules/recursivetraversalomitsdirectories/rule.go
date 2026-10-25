@@ -31,12 +31,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if semanticquery.NativeConstruction(ctx, source, "RecursiveDirectoryIterator") == nil {
 		return
 	}
-	mode := semanticquery.CallArgument(c.Args, 1, "mode")
-	if mode != nil {
-		v, known := semanticquery.NativeContractInt(ctx, mode)
-		if !known || v != 0 {
-			return
-		}
+	// An explicit mode, LEAVES_ONLY included, states which nodes the code
+	// wants (E3).
+	if semanticquery.CallArgument(c.Args, 1, "mode") != nil {
+		return
 	}
 	ctx.ReportNode(c, message)
 }
