@@ -125,6 +125,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - IssetConstructsCanBeMerged, CascadeStringReplacement, OpAssignShortSyntax,
   IfReturnReturnSimplification and StrTrUsageAsStrReplace no longer offer a
   quick-fix that would drop a comment.
+- OneTimeUseVariables no longer deletes a doc comment typing another
+  variable when it inlines one.
 - PhpUnitTests no longer reports a `@covers` class target as unresolved
   when the test's own parent is not indexed (the framework is missing).
 - TypeUnsafeArraySearch takes class constants holding plain strings

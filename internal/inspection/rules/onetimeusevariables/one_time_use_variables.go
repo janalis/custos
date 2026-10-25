@@ -143,8 +143,8 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportNode(lhs, "Variable $"+name+" is used only once; inline its value.", diagnostic.Fix{
 		Title: "Inline the variable",
 		Edits: func() []diagnostic.TextEdit {
-			del := astquery.WithTrailingWhitespace(ctx.File, ps.Span())              // F2, F4
-			if doc, ok := astquery.DocCommentBefore(ctx.File, ps.Span().Start); ok { // F1
+			del := astquery.WithTrailingWhitespace(ctx.File, ps.Span())                                                                          // F2, F4
+			if doc, ok := astquery.DocCommentBefore(ctx.File, ps.Span().Start); ok && !otuForeignDoc(string(ctx.Src[doc.Start:doc.End]), name) { // F1
 				// custos: with the whitespace up to the statement, so no
 				// indentation-only line is left behind
 				del.Start = doc.Start
@@ -157,6 +157,22 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 			return append(edits, diagnostic.TextEdit{Span: subject.Span(), NewText: text}) // F3
 		},
 	})
+}
+
+// otuForeignDoc reports whether doc comment text types, with @var, a
+// variable other than name: it is about that one and stays (F1).
+func otuForeignDoc(text, name string) bool {
+	for _, t := range phpdoc.Parse(text).All("var") {
+		typ, rest := phpdoc.SplitType(t.Text)
+		v := phpdoc.VarName(rest)
+		if strings.HasPrefix(typ, "$") {
+			v = phpdoc.VarName(typ)
+		}
+		if v != "" && v != name {
+			return true
+		}
+	}
+	return false
 }
 
 // otuBindsByRef reports whether a destructuring pattern, nested patterns

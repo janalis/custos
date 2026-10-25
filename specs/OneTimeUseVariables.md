@@ -146,7 +146,9 @@ When D1/D2/D3 + D4–D9 (D8b included) all hold, report.
 ## Fix
 
 - **F1** If the assignment statement is immediately preceded (as its previous
-  non-whitespace sibling) by a doc comment `/** … */`, delete that comment.
+  non-whitespace sibling) by a doc comment `/** … */`, delete that comment,
+  unless (custos) a `@var` tag in it names another variable
+  (`/** @var Manager $element */`): it is about that one and stays.
   (Whitespace before the comment is left as is.)
 - **F2** Delete the whitespace run immediately following the assignment
   statement (so the consumer moves into the assignment's position).
