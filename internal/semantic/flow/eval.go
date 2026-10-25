@@ -1261,6 +1261,13 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			if known && (bits&64 == 0 || bits&1 != 0) {
 				v.Safe |= HTMLScript
 			}
+		case "http_build_query":
+			// Every key and value is URL-encoded and joined by `=` and the
+			// separator, so no line break unless the numeric prefix or the
+			// separator brings one; an `&` may still start an entity.
+			if plainQueryPart(args, values, "numeric_prefix", 1) && plainQueryPart(args, values, "arg_separator", 2) {
+				v.Safe |= Header
+			}
 		case "number_format":
 			// Digits, a sign and the separators, which PHP chooses unless
 			// they are given.

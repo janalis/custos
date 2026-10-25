@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- UntrustedHeaderValue no longer reports request data passed through
+  `urlencode()`, `rawurlencode()`, `base64_encode()`, `bin2hex()` or
+  `http_build_query()`, whose output holds no line break.
 - UnqualifiedReference no longer says a backslash in a callback string such
   as `'\strval'` allows compile-time binding: a callback string always names
   a global function, and the message now says so.

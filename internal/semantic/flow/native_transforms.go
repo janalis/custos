@@ -51,12 +51,13 @@ var transforms = map[string]transform{
 	"str_pad": {keepsQuotes: true},
 
 	// Their output alphabets hold no markup or quote delimiter, nor a colon
-	// that could start a URL scheme; only some hold no character that ends
-	// an unquoted attribute value.
-	"urlencode":     {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted},
-	"rawurlencode":  {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted},
-	"base64_encode": {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL},
-	"bin2hex":       {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted},
+	// that could start a URL scheme, nor a line break that could end a
+	// header; only some hold no character that ends an unquoted attribute
+	// value.
+	"urlencode":     {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted | Header},
+	"rawurlencode":  {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted | Header},
+	"base64_encode": {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | Header},
+	"bin2hex":       {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted | Header},
 	"intval":        {safe: everyContext},
 	"floatval":      {safe: everyContext},
 
@@ -118,6 +119,25 @@ func (e *Env) filtered(filter Value) Context {
 		return 0
 	}
 	return filterSafety[strings.TrimPrefix(k.FQN, `\`)]
+}
+
+// plainQueryPart reports whether the http_build_query() argument at
+// position, named name, is absent or a string literal holding no line
+// break, so it cannot bring one into the query.
+func plainQueryPart(list *syntax.ArgList, values []Value, name string, position int) bool {
+	if absent(list, name, position) {
+		return true
+	}
+	given, ok := passed(list, values, name, position)
+	if !ok || !given.Complete {
+		return false
+	}
+	lit, isLit := syntax.UnwrapParens(given.Expr).(*syntax.Literal)
+	if !isLit || lit.LitKind != syntax.LitString {
+		return false
+	}
+	text, known := literalText(lit)
+	return known && !strings.ContainsAny(text, "\r\n")
 }
 
 // absent reports whether a call provably passes nothing for the parameter
