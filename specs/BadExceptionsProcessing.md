@@ -65,6 +65,9 @@ swallowed or its cause is lost).
 ## Exceptions (no report)
 
 - **E1** A `try` block with 0–3 statements.
+- **E1a** (custos) A `try` statement without `catch` clauses (`try { … }
+  finally { … }`), whatever its size: nothing is caught, so which statement
+  throws does not matter.
 - **E2** A catch variable that is referenced at least once in its body
   (read, written, passed on, used inside a closure).
 - **E2b** A catch variable that is referenced later in the same scope
@@ -178,3 +181,7 @@ function cleanup($handle) {
   conformance is unaffected.
 - Whether an empty statement `;` inside the block counts as a statement is
   unverified upstream. custos does not count empty statements.
+- **`try … finally` (custos diverges, E1a).** Upstream counts the statements
+  of any `try` block. Without a `catch`, the block only guarantees the
+  cleanup in `finally` (a lock released, a handler restored); nothing is
+  caught, so splitting it does not make a failing call easier to find.

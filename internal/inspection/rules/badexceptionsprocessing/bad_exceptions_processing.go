@@ -19,7 +19,9 @@ func (badExceptionsProcessing) Kinds() []syntax.NodeKind {
 func (badExceptionsProcessing) Check(ctx *analysis.Context, n syntax.Node) {
 	switch x := n.(type) {
 	case *syntax.Try:
-		if x.Body == nil || countStmts(x.Body.Stmts) <= 3 { // D1/E1
+		// custos: without a catch nothing is caught, so which statement
+		// throws does not matter; the finally only cleans up (E1a).
+		if x.Body == nil || len(x.Catches) == 0 || countStmts(x.Body.Stmts) <= 3 { // D1/E1
 			return
 		}
 		s := x.Span()
