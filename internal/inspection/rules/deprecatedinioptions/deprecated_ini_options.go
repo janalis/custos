@@ -1,6 +1,7 @@
 package deprecatedinioptions
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -81,6 +82,82 @@ var deprecatedIni = map[string]iniDirective{
 	"session.sid_bits_per_character": {phpversion.PHP84, 0, ""},
 }
 
+// defaultValued holds the directives PHP only deprecates when set to a value
+// other than their default: whether a written value (as ini_set() receives
+// it) is that default.
+var defaultValued = map[string]func(string) bool{
+	"assert.active":                  iniBoolIs(true),
+	"assert.bail":                    iniBoolIs(false),
+	"assert.callback":                func(v string) bool { return v == "" },
+	"assert.exception":               iniBoolIs(true),
+	"assert.warning":                 iniBoolIs(true),
+	"session.sid_length":             iniIntIs(32),
+	"session.sid_bits_per_character": iniIntIs(4),
+}
+
+func iniBoolIs(want bool) func(string) bool {
+	return func(v string) bool {
+		switch strings.ToLower(v) {
+		case "on", "yes", "true":
+			return want
+		case "", "off", "no", "false", "none":
+			return !want
+		}
+		n, err := strconv.Atoi(v)
+		return err == nil && (n != 0) == want
+	}
+}
+
+func iniIntIs(want int) func(string) bool {
+	return func(v string) bool {
+		n, err := strconv.Atoi(v)
+		return err == nil && n == want
+	}
+}
+
+// iniValue returns the string ini_set() receives for a literal value.
+func iniValue(e syntax.Expr) (string, bool) {
+	if s, ok := astquery.QuotedStringContent(e); ok {
+		return s, !strings.Contains(s, `\`)
+	}
+	if b, ok := astquery.BoolConst(e); ok {
+		if b {
+			return "1", true
+		}
+		return "", true
+	}
+	switch x := e.(type) {
+	case *syntax.ConstFetch:
+		return "", strings.EqualFold(strings.TrimPrefix(x.Name.Value, `\`), "null")
+	case *syntax.Literal:
+		if n, ok := astquery.ParseIntLiteral(x.Raw); ok && x.LitKind == syntax.LitInt {
+			return strconv.FormatInt(n, 10), true
+		}
+	}
+	return "", false
+}
+
+// keepsDefault reports a read, a restore or an assignment of the default
+// value of a directive deprecated only for other values (E5).
+func keepsDefault(fn, directive string, call *syntax.FuncCall) bool {
+	isDefault, ok := defaultValued[directive]
+	if !ok {
+		return false
+	}
+	if fn == "ini_get" || fn == "ini_restore" {
+		return true
+	}
+	if len(call.Args.Args) < 2 {
+		return false
+	}
+	arg, ok := call.Args.Args[1].(*syntax.Arg)
+	if !ok || arg.Unpack || arg.Name != nil && arg.Name.Value != "value" {
+		return false
+	}
+	v, ok := iniValue(arg.Value)
+	return ok && isDefault(v)
+}
+
 func (deprecatedIniOptions) ID() string { return "DeprecatedIniOptions" }
 func (deprecatedIniOptions) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
@@ -91,7 +168,8 @@ func (deprecatedIniOptions) Check(ctx *analysis.Context, n syntax.Node) {
 	if call.Args == nil || len(call.Args.Args) == 0 {
 		return
 	}
-	switch ctx.GlobalFunctionName(call) { // D1
+	fn := ctx.GlobalFunctionName(call)
+	switch fn { // D1
 	case "ini_set", "ini_get", "ini_alter", "ini_restore":
 	default:
 		return
@@ -106,7 +184,7 @@ func (deprecatedIniOptions) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	directive := strings.ToLower(raw)
 	d, ok := deprecatedIni[directive] // D3
-	if !ok {
+	if !ok || keepsDefault(fn, directive, call) {
 		return
 	}
 	var msg string

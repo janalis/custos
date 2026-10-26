@@ -113,6 +113,16 @@ listed: reading or setting them is not deprecated in itself.
   removed version when the entry has no deprecated version).
 - **E4** Other functions (`ini_get_all`, `get_cfg_var`), method calls named
   like the targets.
+- **E5** Directives PHP only deprecates when given a value other than their
+  default: `assert.active`, `assert.exception`, `assert.warning` (default
+  on), `assert.bail` (default off), `assert.callback` (default empty),
+  `session.sid_length` (default 32) and `session.sid_bits_per_character`
+  (default 4). Reading or restoring them is not reported, nor is setting
+  them (second argument, positional or named `value`) to a literal equal to
+  the default: an integer, `true`/`false`/`null`, or a quoted string read
+  the way PHP reads ini values (`on`/`yes`/`true` and `off`/`no`/`false`/
+  `none`/empty for switches, a decimal number otherwise). Any other or
+  unknown value is reported.
 
 ## Report
 
@@ -173,3 +183,8 @@ PHP 7.0.0*, `track_errors` reports *deprecated since PHP 7.2.0*, and
   and 7.2/7.3 deprecations removed in 8.0 are still called "deprecated" at
   8.x. custos adds those directives and removal versions (directive table).
   Upstream's fixture runs at 5.6, where none of the additions apply.
+- **Default values (custos, E5).** PHP 8.3 and 8.4 deprecate the `assert.*`
+  and `session.sid_*` directives only when a script sets a non-default
+  value; reading them, restoring them or setting the default (Symfony's
+  `ini_set('assert.active', 1)`) raises nothing, so custos does not report
+  those calls.

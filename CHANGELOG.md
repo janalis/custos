@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- DeprecatedIniOptions no longer reports reading, restoring or setting to
+  their default value the `assert.*` and `session.sid_*` directives, which
+  PHP only deprecates when given another value (`ini_set('assert.active', 1)`).
 - SuspiciousLoop no longer reports a `for` condition list whose expressions
   before the last are assignments, increments or calls
   (`for ($x = 0; $c = $x * 2, $x++ < 75;)`): they run on every iteration
