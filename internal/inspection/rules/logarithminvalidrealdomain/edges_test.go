@@ -12,8 +12,10 @@ func TestEdges(t *testing.T) {
 		source string
 		want   int
 	}{
-		{"log10(0);", 1},
-		{"log1p(-1);", 1},
+		{"log10(0);", 0}, // a written-out -INF (E3)
+		{"log1p(-1);", 0},
+		{"$z = 0; log10($z);", 1},
+		{"$m = -1; log1p($m);", 1},
 		{"log1p(-0.5);", 0},
 		{"log(2,1);", 1},
 		{"log(2,0);", 1},

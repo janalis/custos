@@ -29,8 +29,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if name != "log" && name != "log10" && name != "log1p" {
 		return
 	}
-	value, known := number(ctx, semanticquery.CallArgument(c.Args, 0, "num"))
+	arg := semanticquery.CallArgument(c.Args, 0, "num")
+	value, known := number(ctx, arg)
 	bad := known && ((name == "log1p" && value <= -1) || (name != "log1p" && value <= 0))
+	// E3: `log(0)` and `log1p(-1)` written out are the way to get -INF.
+	if bad && literalBoundary(arg, name) {
+		bad = false
+	}
 	if name == "log" {
 		base, known := number(ctx, semanticquery.CallArgument(c.Args, 1, "base"))
 		bad = bad || (known && (base <= 0 || base == 1))
@@ -61,4 +66,30 @@ func number(ctx *analysis.Context, e syntax.Expr) (float64, bool) {
 	}
 	n, err := strconv.ParseFloat(strings.ReplaceAll(lit.Raw, "_", ""), 64)
 	return sign * n, err == nil
+}
+
+// literalBoundary reports whether e is written as a number literal equal to
+// the edge of the domain of name (0, or -1 for log1p), whose logarithm is
+// -INF without any warning.
+func literalBoundary(e syntax.Expr, name string) bool {
+	x := syntax.UnwrapParens(e)
+	neg := false
+	if u, ok := x.(*syntax.Unary); ok && u.Op.Kind == syntax.TMinus {
+		neg, x = true, syntax.UnwrapParens(u.Expr)
+	}
+	lit, ok := x.(*syntax.Literal)
+	if !ok || lit.LitKind == syntax.LitString {
+		return false
+	}
+	n, err := strconv.ParseFloat(strings.ReplaceAll(lit.Raw, "_", ""), 64)
+	if err != nil {
+		return false
+	}
+	if neg {
+		n = -n
+	}
+	if name == "log1p" {
+		return n == -1
+	}
+	return n == 0
 }

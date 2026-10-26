@@ -34,6 +34,7 @@ Reported:
 ## Exceptions (no report)
 
 - Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- An argument written directly as a number literal at the edge of the domain (`log(0)`, `log10(0.0)`, `-log(0)` for +INF, `log1p(-1)`, parentheses allowed) is not reported: PHP returns -INF without a warning, and code spells it out to get an infinity. The same value reached through a variable or a computation, any value past the edge, and an invalid base stay reported.
 - Both @custos-ignore LogarithmInvalidRealDomain and @noinspection LogarithmInvalidRealDomain suppress this native rule.
 
 ## Fix
