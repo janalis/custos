@@ -45,6 +45,9 @@ Applies to every function-like declaration: named functions, methods
   methods and constructors are still reported: no parent dictates their
   parameters.
 - E3: a private method in the parent does not trigger E2.
+- E4 (custos, see Divergences): the default value is a `new` expression
+  (`$clock = new SystemClock()`, PHP 8.1): an object default is the modern
+  replacement for `= null` followed by `$clock ??= new SystemClock();`.
 
 ## Report
 
@@ -95,6 +98,7 @@ $cb = function (<weak_warning descr="Prefer null as the default value for this p
 
 ## Divergences
 
+- E4: upstream also asks for `null` instead of a `new` default value.
 - **Unresolved ancestors (custos diverges, E2a).** Upstream reports a
   method whose class extends a parent it cannot resolve (a framework base
   class outside the analyzed tree, such as `setUp($importViews = TRUE)` on

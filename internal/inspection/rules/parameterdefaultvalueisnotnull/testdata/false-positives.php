@@ -9,3 +9,13 @@ class Leaf extends Mid implements Countable {
     protected function render($mode = 'text') {}
     public function count(): int { return 0; }
 }
+
+class Clocked
+{
+    public function __construct(
+        private $clock = new SystemClock(),
+    ) {
+    }
+
+    public function at($zone = (new DefaultZone)) {}
+}

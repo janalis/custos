@@ -28,6 +28,9 @@ func (parameterDefaultValueIsNotNull) Check(ctx *analysis.Context, n syntax.Node
 		if p.Default == nil || p.Default.Span().Len() == 0 || syntax.IsNullConst(syntax.UnwrapParens(p.Default)) { // D1
 			continue
 		}
+		if _, ok := syntax.UnwrapParens(p.Default).(*syntax.New); ok { // E4: `= new Clock()` already replaces `= null` plus `??=`
+			continue
+		}
 		if p.Type != nil && !pdvTypeHasNull(ctx, p.Type) { // D2 / E1
 			continue
 		}
