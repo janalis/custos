@@ -1,6 +1,7 @@
 package longinheritancechain
 
 import (
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -9,7 +10,9 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/stubs"
 )
 
 // longInheritanceChain reports classes with too many ancestor classes.
@@ -59,6 +62,9 @@ func (longInheritanceChain) Check(ctx *analysis.Context, n syntax.Node) {
 			next = ix.Class(cur.Parent, ctx.PHP)
 		}
 		count++
+		if licThirdParty(cur, ctx.PHP) { // D3a: a library or builtin class ends the project's chain
+			break
+		}
 		if next != nil {
 			nfqn := strings.TrimPrefix(next.FQN, `\`)
 			if licStopClasses[nfqn] {
@@ -75,4 +81,10 @@ func (longInheritanceChain) Check(ctx *analysis.Context, n syntax.Node) {
 	if count >= ctx.Int("COMPLAIN_THRESHOLD") && !semanticquery.DocHasTag(ctx.File, cl, "deprecated") { // D4
 		ctx.ReportSeverity(cl.Name.Span(), diagnostic.SeverityInfo, strconv.Itoa(count)+" levels of parent classes; prefer composition over deep inheritance.")
 	}
+}
+
+// licThirdParty reports whether c is declared outside the project's own
+// sources: a builtin stub, or a file under a `vendor` directory.
+func licThirdParty(c *index.Class, ver phpversion.Version) bool {
+	return stubs.Index().Class(c.FQN, ver) == c || strings.Contains("/"+filepath.ToSlash(c.File), "/vendor/")
 }

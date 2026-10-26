@@ -44,6 +44,12 @@ Applies to every named class-like declaration that can have a parent class
   - an unresolvable parent simply ends the walk (it is not counted).
   So `count` is the number of resolvable ancestors, truncated at the first
   stop class at grandparent level or above.
+- **D3a** (custos, see Divergences) A third-party ancestor ends the walk too:
+  when `cur` (the direct parent included) is a builtin class or is declared
+  in a file under a `vendor` directory, it is counted and the walk stops.
+  The project only controls its own layers: `class UserRepository extends
+  ServiceEntityRepository` counts 1, however deep the library's own
+  hierarchy is.
 - **D4** Report when `count >= COMPLAIN_THRESHOLD` and the class is not
   marked `@deprecated` in its doc comment.
 
@@ -129,6 +135,9 @@ namespace App\Widgets {
 
 ## Divergences
 
+- **D3a — custos diverges from upstream.** Upstream counts every
+  resolvable ancestor, library internals included, so extending a deep
+  framework class is reported although the project cannot shorten it.
 - Cycles not passing through the class itself (`A extends B`, `B extends C`,
   `C extends B`) would loop forever upstream. custos stops the walk on any
   already-visited class.
