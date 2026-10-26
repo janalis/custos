@@ -14,6 +14,11 @@ import (
 type missingOrEmptyGroupStatement struct{}
 
 func (missingOrEmptyGroupStatement) ID() string { return "MissingOrEmptyGroupStatement" }
+
+// Semantic marks the rule as needing types: an empty foreach over an
+// iterator runs it for its effects (E5).
+func (missingOrEmptyGroupStatement) Semantic() {}
+
 func (missingOrEmptyGroupStatement) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{
 		syntax.KIf, syntax.KElseIf, syntax.KElse, syntax.KForeach,
@@ -50,6 +55,9 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 	kw, _ := astquery.TokenAfter(ctx.File, n.Span().Start)
 	kwSpan := syntax.Span{Start: kw.Start, End: kw.End}
 	if b, ok := body.(*syntax.Block); ok {
+		if fe, ok := n.(*syntax.Foreach); ok && iterates(ctx, fe.Expr) { // E5
+			return
+		}
 		if len(b.Stmts) == 0 && ctx.Bool("REPORT_EMPTY_BODY") { // D2
 			ctx.Report(kwSpan, "This construct has an empty body block.")
 		}
@@ -120,6 +128,21 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 			return []diagnostic.TextEdit{{Span: span, NewText: open + lead + stmt + closing}}
 		},
 	})
+}
+
+// iterates reports whether e is known to be an iterator rather than an
+// array: `iterable`, \Traversable or a subtype of it (\Generator included).
+// Looping over it without a body drains it for its effects.
+func iterates(ctx *analysis.Context, e syntax.Expr) bool {
+	for _, a := range ctx.TypeOf(e).Atoms() {
+		if strings.EqualFold(a, "iterable") {
+			return true
+		}
+		if strings.HasPrefix(a, `\`) && !strings.HasSuffix(a, "]") && ctx.Index().IsSubtype(a, `\Traversable`, ctx.PHP) {
+			return true
+		}
+	}
+	return false
 }
 
 // closesAfter reports whether a close tag follows pos on the same line.

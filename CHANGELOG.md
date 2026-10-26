@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MissingOrEmptyGroupStatement no longer reports an empty `foreach` over a
+  value known to be an iterator (`iterable`, `\Traversable` and its
+  subtypes, generators): the loop drains it for its effects.
 - UnsetConstructsCanBeMerged no longer merges long `unset()` statements
   written on separate lines into one line of hundreds of characters: past
   120 characters the merged call keeps one line per original statement.

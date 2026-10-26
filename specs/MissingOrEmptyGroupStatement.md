@@ -1,8 +1,8 @@
 ---
 id: MissingOrEmptyGroupStatement
 group: Code style
-kind: syntax
-needs: []
+kind: semantic
+needs: [types, index]
 php: { min: "", max: "" }
 ---
 
@@ -45,6 +45,13 @@ to the `if`.
 - E4: alternative syntax bodies (`if (…): … endif;`, `foreach (…): … endforeach;`,
   `while (…): … endwhile;`, `for (…): … endfor;`, `else:` / `elseif (…):`)
   are not reported by D1 (see Divergences).
+- E5: a `foreach` whose subject is known to be an iterator — typed
+  `iterable`, `\Traversable`, or a class or interface extending or
+  implementing it (`\Iterator`, `\Generator`, a generator function's
+  result) — is not reported by D2: looping over it with an empty body runs
+  the iterator for its effects (draining a stream that must throw, warming
+  a lazy collection). A subject of unknown type or an array is still
+  reported.
 
 ## Report
 
@@ -148,6 +155,11 @@ if ($ready) { ; }            // not empty: contains an empty statement
 In `views/page.blade.php` nothing is reported (E2).
 
 ## Divergences
+
+- **Draining iterators (custos diverges, E5).** Upstream reports every
+  empty body. An empty `foreach` over an iterator is how a test drains a
+  response stream that must fail (Symfony's HTTP client test case), so
+  custos does not report it when the subject is known to be one.
 
 - Alternative syntax (E4): upstream behavior depends on how the IDE models the
   colon-syntax body; it is not covered by upstream fixtures. custos never
