@@ -10,7 +10,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Without a `comparisonStyle` in `custos.json`, the comparison style comes
   from the project's PHP-CS-Fixer configuration (`.php-cs-fixer.php`, then
   `.php-cs-fixer.dist.php`): its `yoda_style` rule, or the `@Symfony` and
-  `@PhpCsFixer` rule sets, which enable it. Projects formatted to
+  `@PhpCsFixer` rule sets, which enable it; else from Mago's
+  `yoda-conditions` rule in `mago.toml` or `mago.dist.toml`. Projects formatted to
   `null === $x` no longer get every comparison reported, and quick-fixes
   write the order their formatter keeps.
 - `custos analyse` and `custos fix` keep the declarations of the files they

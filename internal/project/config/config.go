@@ -127,7 +127,10 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 	}
 	switch strings.ToLower(f.ComparisonStyle) {
 	case "":
-		c.ComparisonStyle, _ = csFixerStyleRead(read)
+		var found bool
+		if c.ComparisonStyle, found = csFixerStyleRead(read); !found {
+			c.ComparisonStyle, _ = magoStyleRead(read)
+		}
 	case "regular":
 	case "yoda":
 		c.ComparisonStyle = analysis.StyleYoda

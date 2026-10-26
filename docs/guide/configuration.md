@@ -27,7 +27,7 @@ custos reads `custos.json` from the project root. Every key is optional.
 | Key | Meaning |
 |---|---|
 | `php` | Target PHP version: 5.3–5.6, 7.0–7.4, or 8.0–8.5. See [Target PHP version](#target-php-version). |
-| `comparisonStyle` | `"regular"` (`$x === null`) or `"yoda"` (`null === $x`): the operand order that comparison rules expect and that quick-fixes write. Without it, the project's PHP-CS-Fixer configuration decides (see [Comparison style](#comparison-style)); otherwise `"regular"`. |
+| `comparisonStyle` | `"regular"` (`$x === null`) or `"yoda"` (`null === $x`): the operand order that comparison rules expect and that quick-fixes write. Without it, the project's PHP-CS-Fixer or Mago configuration decides (see [Comparison style](#comparison-style)); otherwise `"regular"`. |
 | `shortOpenTag` | Treat `<?` as an opening tag, as with PHP's `short_open_tag` setting. Default `false`. |
 | `flow.assertions` | Trust `assert()` calls as guards. Default `false`. See [Assertions](#assertions). |
 | `flow.order` | Summarize cross-file flow in the order the last run saved, as [`--flow-order`](./cli#paths) does; the language server honors it too. Default `false`. |
@@ -101,7 +101,13 @@ not given), custos reads `.php-cs-fixer.php`, or else
   `identical` to `false`, means `regular`; any other value means `yoda`;
 - without one, enabling the `@Symfony` or `@PhpCsFixer` rule set (or their
   `:risky` variants), which include `yoda_style`, means `yoda`;
-- otherwise, or without such a file, the style is `regular`.
+- without a PHP-CS-Fixer file, or when it says nothing about the order,
+  custos reads `mago.toml`, or else `mago.dist.toml`: when Mago's
+  `yoda-conditions` lint rule is enabled (`[linter.rules]` entry
+  `yoda-conditions = { enabled = true, mode = "require" }`, or a
+  `[linter.rules.yoda-conditions]` table), mode `deny` means `regular` and
+  `require`, its default, means `yoda`;
+- otherwise the style is `regular`.
 
 ## PHPUnit version
 
