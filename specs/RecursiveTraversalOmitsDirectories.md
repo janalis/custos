@@ -22,6 +22,7 @@ Include parent nodes when traversing directories. This opt-in inspection applies
 
 - E1. SELF_FIRST and CHILD_FIRST satisfy the policy. Unknown iterator source and arbitrary recursive iterators are excluded.
 - E3. An explicit mode, `LEAVES_ONLY` included, is not reported: the code states which nodes it wants (8 of 17 sampled findings on Symfony passed `LEAVES_ONLY` to list files only).
+- E4. Code that keeps only files is not reported, since leaving directories out is what it wants: the construction is the first argument of a `RegexIterator` construction (a filter on entry names), or it is consumed only by `foreach` loops whose bodies call `isFile()` or `getExtension()` on the loop's value variable. The construction must then be the loop's source itself, or the right side of a plain assignment to a local that the same variable scope reads only as the source of such loops. A loop testing `isDir()`, a destructured loop value or any other read of the local keeps the report.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore RecursiveTraversalOmitsDirectories` and `@noinspection RecursiveTraversalOmitsDirectories` suppress this inspection.
 
 ## Report

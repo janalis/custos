@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- RecursiveTraversalOmitsDirectories no longer reports a traversal that
+  keeps only files: one filtered by a `RegexIterator`, or read by loops
+  that test each entry with `isFile()` or `getExtension()`.
 - NullPointerException reports a nullable value once when its first
   dereference throws on null and always runs (`$box->open(); $box->close();`
   reports only the first call), instead of repeating the report for every
