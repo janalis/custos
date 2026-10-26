@@ -440,6 +440,8 @@ func TestCompoundOnly(t *testing.T) {
 		"": {false, false}, "array": {true, false}, "?array": {true, true}, "array|null": {true, true}, "Countable|array": {true, false},
 		"iterable": {true, false}, "callable": {true, false}, "object": {true, false}, "array|string": {false, false}, "mixed": {false, false},
 		"array|false": {false, false}, "string": {false, false}, `\Traversable|array`: {true, false},
+		"GdImage": {true, false}, `?\CurlHandle`: {true, true}, "GdImage|false": {false, false}, "positive-int": {false, false},
+		"array||int": {false, false}, "Ünïcode": {true, false},
 	} {
 		if compound, nullable := compoundOnly(declared); compound != want[0] || nullable != want[1] {
 			t.Errorf("compoundOnly(%q)=%v,%v", declared, compound, nullable)

@@ -121,6 +121,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- Failure-check rules (ImageDecodeFailureUnchecked, FileReadFailureUnchecked
+  and the others sharing their flow proofs) now count a PHP function with a
+  class-typed parameter, such as `imagesx(GdImage $image)`, as proof that
+  the value it received was not `false`: on PHP 8 it would have thrown a
+  `TypeError`. A second use after `imagesx($image)` is no longer reported.
 - UntrustedHeaderValue no longer reports a header built from `json_encode()`
   output without `JSON_PRETTY_PRINT`: JSON escapes line breaks.
 - SuspiciousAssignments no longer reports a write after an `if` that only

@@ -1105,12 +1105,21 @@ func compoundOnly(declared string) (bool, bool) {
 	for declared != "" {
 		var part string
 		part, declared, _ = strings.Cut(declared, "|")
-		switch strings.ToLower(strings.TrimPrefix(part, `\`)) {
+		switch name := strings.ToLower(strings.TrimPrefix(part, `\`)); name {
 		case "null":
 			nullable = true
-		case "array", "iterable", "callable", "object", "countable", "traversable", "iterator", "arrayaccess", "closure":
-		default:
+		case "array", "iterable", "callable", "object":
+		case "int", "float", "string", "bool", "false", "true", "mixed", "resource", "void", "never", "static", "self", "":
 			return false, false
+		default:
+			// A class (GdImage, CurlHandle, Countable): PHP's own functions
+			// throw for false given to it since PHP 8. Doc-only spellings
+			// (`positive-int`, `list<int>`) are no class names.
+			if strings.ContainsFunc(name, func(r rune) bool {
+				return !(r == '_' || r == '\\' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r >= 0x80)
+			}) {
+				return false, false
+			}
 		}
 	}
 	return true, nullable
