@@ -96,9 +96,11 @@ func (disconnectedForeachInstruction) Check(ctx *analysis.Context, n syntax.Node
 	}
 	suggestClone := ctx.Bool("SUGGEST_USING_CLONE")
 	guarded := false          // custos: an earlier statement may leave the iteration
+	stateWritten := false     // custos: an earlier statement wrote files or process state
 	for i, s := range stmts { // pass 2
-		connected := guarded
+		connected := guarded || stateWritten && dfiCalls(s)
 		guarded = guarded || dfiMayLeave(s)
+		stateWritten = stateWritten || dfiWritesState(ctx, s)
 		for name := range deps[i] {
 			if modified[name] || dfiBoundElsewhere(bound[name], i) {
 				connected = true
@@ -415,6 +417,45 @@ var dfiPerIterationFuncs = func() map[string]bool {
 	}
 	return m
 }()
+
+// dfiStateWriters are built-ins that change files or process state a later
+// call may read: the file system, the environment, ini settings, the
+// working directory, the locale and the default time zone (lower-case).
+var dfiStateWriters = func() map[string]bool {
+	m := map[string]bool{}
+	for _, f := range strings.Fields(`file_put_contents fwrite fputs fputcsv fprintf vfprintf fflush
+		ftruncate touch unlink rename copy mkdir rmdir symlink link chmod chown chgrp
+		putenv ini_set chdir setlocale date_default_timezone_set`) {
+		m[f] = true
+	}
+	return m
+}()
+
+// dfiWritesState reports whether s calls one of the built-ins above.
+func dfiWritesState(ctx *analysis.Context, s syntax.Stmt) bool {
+	found := false
+	syntax.Inspect(s, func(x syntax.Node) bool {
+		if c, ok := x.(*syntax.FuncCall); ok && dfiStateWriters[ctx.GlobalFunctionName(c)] {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+// dfiCalls reports whether s calls a function or method or creates an
+// object, any of which may read what an earlier statement wrote.
+func dfiCalls(s syntax.Stmt) bool {
+	found := false
+	syntax.Inspect(s, func(x syntax.Node) bool {
+		switch x.(type) {
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+			found = true
+		}
+		return !found
+	})
+	return found
+}
 
 // dfiPerIteration reports whether s outputs (echo, print), yields, calls one
 // of the functions above or a callback held in a variable: running it once

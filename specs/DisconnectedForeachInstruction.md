@@ -284,6 +284,16 @@ foreach ($rows as $row) {
   functions) is not reported either: `yield $separator;` hands one value to
   the consumer per iteration, and yielding it once before the loop changes
   the generated sequence.
+- **State written for later calls (custos diverges).** Once a statement of
+  the body calls a built-in that changes files or process state
+  (`file_put_contents`, `fwrite`, `fputs`, `fputcsv`, `fprintf`,
+  `vfprintf`, `fflush`, `ftruncate`, `touch`, `unlink`, `rename`, `copy`,
+  `mkdir`, `rmdir`, `symlink`, `link`, `chmod`, `chown`, `chgrp`, `putenv`,
+  `ini_set`, `chdir`, `setlocale`, `date_default_timezone_set`), every
+  later statement of the body that calls a function or method or creates
+  an object is connected: it may read what was written
+  (`file_put_contents($config, $case); $this->assertNotSame(0, $this->cli());`
+  runs the command against each written configuration).
 - **Nested destructuring (custos diverges).** Upstream looks one array
   literal up from a variable, so the inner targets of
   `[$id, [$first, $last]] = $row;` are plain reads and a later

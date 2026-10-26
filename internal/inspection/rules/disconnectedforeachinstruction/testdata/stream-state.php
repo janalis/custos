@@ -10,6 +10,10 @@ function replay($data, $lock, array $items, callable $onWarning)
         set_error_handler($onWarning);
         handle($item);
         restore_error_handler();
+        fstat($data); // reads the stream ftruncate() changed
+    }
+    foreach ($items as $item) {
+        handle($item);
         <weak_warning descr="Statement does not depend on the loop; move it out.">fstat($data);</weak_warning>
     }
 }
