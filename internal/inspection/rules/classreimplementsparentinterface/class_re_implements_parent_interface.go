@@ -63,9 +63,15 @@ func (classReImplementsParentInterface) Check(ctx *analysis.Context, n syntax.No
 			ctx.ReportNode(cl.Implements[i], msgs[i])
 			continue
 		}
-		ctx.ReportNode(cl.Implements[i], msgs[i], diagnostic.Fix{
+		entry := cl.Implements[i]
+		ctx.ReportNode(entry, msgs[i], diagnostic.Fix{
 			Title: "Remove the redundant interface",
-			Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{edit} },
+			Edits: func() []diagnostic.TextEdit {
+				if imp, ok := criImportEdit(f, cl, entry); ok { // F5
+					return []diagnostic.TextEdit{imp, edit}
+				}
+				return []diagnostic.TextEdit{edit}
+			},
 		})
 	}
 }
@@ -105,4 +111,68 @@ func criRemoveEdit(f *syntax.File, ext *syntax.Name, list []*syntax.Name, redund
 	// F3: the preceding comma plus the entry.
 	comma, _ := astquery.FindToken(f, syntax.Span{Start: list[idx-1].Span().End, End: entry.Start}, syntax.TComma)
 	return diagnostic.TextEdit{Span: syntax.Span{Start: comma.Start, End: entry.End}}
+}
+
+// criImportEdit deletes the `use` import of an unqualified entry when that
+// import names only it and the alias appears nowhere else in the file
+// (F5): in the class's namespace, the import, the entry and nothing else
+// mention it.
+func criImportEdit(f *syntax.File, cl *syntax.ClassLike, entry *syntax.Name) (diagnostic.TextEdit, bool) {
+	alias := entry.Value
+	if strings.ContainsRune(alias, '\\') {
+		return diagnostic.TextEdit{}, false
+	}
+	stmts, scope := f.Stmts, f.Src
+	if ns, ok := cl.Parent().(*syntax.Namespace); ok { // an import only reaches its namespace
+		stmts, scope = ns.Stmts, f.Src[ns.Span().Start:ns.Span().End]
+	}
+	var use *syntax.Use
+	for _, st := range stmts {
+		u, ok := st.(*syntax.Use)
+		if !ok || u.Type != syntax.UseNormal || u.Prefix != nil || len(u.Items) != 1 {
+			continue
+		}
+		it := u.Items[0]
+		name := it.Name.Value[strings.LastIndexByte(it.Name.Value, '\\')+1:]
+		if it.Alias != nil {
+			name = it.Alias.Value
+		}
+		if strings.EqualFold(name, alias) {
+			use = u
+		}
+	}
+	if use == nil || criMentions(scope, alias) != 2 {
+		return diagnostic.TextEdit{}, false
+	}
+	span := use.Span()
+	start := span.Start - uint32(len(astquery.IndentBefore(f.Src, span.Start)))
+	end := int(span.End)
+	for end < len(f.Src) && (f.Src[end] == ' ' || f.Src[end] == '\t' || f.Src[end] == '\r') {
+		end++
+	}
+	if f.Src[start-1] == '\n' && end < len(f.Src) && f.Src[end] == '\n' { // the import fills its line
+		span = syntax.Span{Start: start, End: uint32(end) + 1}
+		if f.Src[start-2] == '\n' && end+1 < len(f.Src) && f.Src[end+1] == '\n' { // between blank lines: keep one
+			span.End++
+		}
+	}
+	return diagnostic.TextEdit{Span: span}, true
+}
+
+// criMentions counts the case-insensitive whole-word occurrences of name in
+// src, comments and strings included.
+func criMentions(src []byte, name string) int {
+	low, key := strings.ToLower(string(src)), strings.ToLower(name)
+	n := 0
+	for i := 0; ; {
+		j := strings.Index(low[i:], key)
+		if j < 0 {
+			return n
+		}
+		at, end := i+j, i+j+len(key)
+		if (at == 0 || !astquery.NameByte(low[at-1])) && (end == len(low) || !astquery.NameByte(low[end])) {
+			n++
+		}
+		i = end
+	}
 }

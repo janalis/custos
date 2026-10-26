@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ClassReImplementsParentInterface fixes also delete the `use` import of the
+  removed interface when nothing else in the namespace mentions it, instead
+  of leaving it unused.
 - AutoloadingIssues no longer reports a script that declares a class and
   instantiates it or calls it statically in its own top-level code: no
   autoloader looks for that class.

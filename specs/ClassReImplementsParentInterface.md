@@ -87,6 +87,14 @@ list as left by the previous ones.
 When every entry of a list is redundant, the successive fixes end with F1 and
 the whole `implements` clause disappears.
 
+- **F5** When the entry is an unqualified name brought in by a `use`
+  import that names only it (`use Lib\Contract;` or `use Lib\Contract as
+  C;`, not a group or multi-name import), in the same namespace, and the
+  imported name appears nowhere else in the file as a whole word (case
+  folded; code, comments and strings all count), the fix also deletes that
+  import: the whole line when the import fills it (and one of the blank
+  lines around it when it sat between two), otherwise just the statement.
+
 ## Options
 
 None.
@@ -151,6 +159,8 @@ namespace Store {
 
 ## Divergences
 
+- **F5 — custos diverges from upstream.** Upstream leaves the import of
+  the removed interface in place, unused.
 - **Version-aware built-in hierarchy (E4).** A deliberate custos guard, not
   taken from upstream: a built-in link to an interface PHP does not declare
   at the configured target version is ignored, because removing the entry
