@@ -37,6 +37,7 @@ Reported:
 ## Exceptions (no report)
 
 - Nontruncating modes, already-held established locks, unrelated handles and unknown modes are excluded.
+- A lock file is not reported: the scope of the `fopen` call must also read or write through the same handle variable (`fwrite`, `fputs`, `fputcsv`, `fprintf`, `vfprintf`, `fread`, `fgets`, `fgetc`, `fgetcsv`, `fscanf`, `fpassthru`, `stream_get_contents` or `stream_copy_to_stream` given it as an argument). A file that is only locked and closed, or whose handle is stored for later, holds no content its truncation could destroy.
 - Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 - A later `flock` that only requests a shared lock (`LOCK_SH`) or releases one (`LOCK_UN`), with or without `LOCK_NB`, is not an exclusive lock and produces no report. The same holds when the operation is missing, dynamic or only partly known.
 

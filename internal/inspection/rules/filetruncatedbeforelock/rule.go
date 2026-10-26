@@ -49,8 +49,37 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		// LOCK_UN (3) shares a bit with LOCK_EX (2), so compare the whole
 		// operation once the optional LOCK_NB (4) modifier is masked out.
 		if operation, known := semanticquery.FileLockOperation(ctx, semanticquery.CallArgument(lock.Args, 1, "operation")); known && operation&^4 == 2 {
-			ctx.ReportNode(c, message)
+			if holdsData(ctx, c, variable.Name) { // E4
+				ctx.ReportNode(c, message)
+			}
 			return
 		}
 	}
+}
+
+// dataCalls read or write the content of a stream.
+var dataCalls = map[string]bool{
+	"fwrite": true, "fputs": true, "fputcsv": true, "fprintf": true, "vfprintf": true,
+	"fread": true, "fgets": true, "fgetc": true, "fgetcsv": true, "fscanf": true,
+	"fpassthru": true, "stream_get_contents": true, "stream_copy_to_stream": true,
+}
+
+// holdsData reports whether the scope of the fopen call reads or writes
+// through the handle held in name (E4): a file that is only locked and
+// closed is a lock file, with no content its truncation could destroy.
+func holdsData(ctx *analysis.Context, open *syntax.FuncCall, name string) bool {
+	for _, call := range ctx.Flow().Calls(syntax.EnclosingVariableScope(open)) {
+		c, ok := call.Node.(*syntax.FuncCall)
+		if !ok || !dataCalls[call.Name] {
+			continue
+		}
+		for _, a := range c.Args.Args {
+			if arg, ok := a.(*syntax.Arg); ok {
+				if v, ok := arg.Value.(*syntax.Variable); ok && v.Name == name {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

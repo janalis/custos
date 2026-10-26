@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- FileTruncatedBeforeLock no longer reports a lock file: a handle that is
+  only locked and closed, never read or written, holds no content that
+  opening it with `w` could destroy.
 - AlterInForeach no longer asks to unset a by-reference loop variable that
   the next statement binds by reference again (`$list[] = &$v;`), using the
   lingering reference on purpose.
