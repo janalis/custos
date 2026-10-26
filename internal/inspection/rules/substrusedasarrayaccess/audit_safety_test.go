@@ -34,6 +34,8 @@ func TestAuditSafety(t *testing.T) {
 		{"decremented in loop", "<?php function f(string $s) { $o = 0; while (g()) { echo substr($s, $o, 1); $o--; } }", 0, ""},
 		{"top-level global", "<?php $s = 'abc'; $o = 0; g(); echo substr($s, $o, 1);", 0, ""},
 		{"local offset", "<?php function f(string $s) { $o = 0; $c = function () use ($o) { return $o; }; $c(); return substr($s, $o, 1); }", 1, "<?php function f(string $s) { $o = 0; $c = function () use ($o) { return $o; }; $c(); return ($s[$o] ?? ''); }"},
+		{"argument", "<?php function f(string $s) { return strtolower(substr($s, 0, 1)); }", 1, "<?php function f(string $s) { return strtolower($s[0] ?? ''); }"},
+		{"named argument", "<?php function f(string $s) { return g(c: substr($s, 0, 1)); }", 1, "<?php function f(string $s) { return g(c: $s[0] ?? ''); }"},
 		{"known zero", "<?php $s = 'abc'; substr($s, 0, 1);", 1, "<?php $s = 'abc'; ($s[0] ?? '');"},
 		{"known negative one", "<?php function f(string $s) { $offset = -1; return substr($s, $offset, 1); }", 1, "<?php function f(string $s) { $offset = -1; return ($s[strlen($s) - 1] ?? ''); }"},
 	} {

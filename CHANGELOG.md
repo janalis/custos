@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- SubStrUsedAsArrayAccess fixes no longer wrap the replacement in extra
+  parentheses when the call is a function argument:
+  `strtolower(substr($s, 0, 1))` becomes `strtolower($s[0] ?? '')`.
 - NestedPositiveIfStatements fixes no longer parenthesize a parent
   condition that already binds tighter than `&&` (`$a == $b && $c`), and
   move the merged code one indentation level out instead of keeping its

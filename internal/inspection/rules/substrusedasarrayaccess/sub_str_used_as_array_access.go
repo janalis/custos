@@ -63,6 +63,9 @@ func (subStrUsedAsArrayAccess) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	repl := "(" + access + " ?? '')"
+	if arg, ok := call.Parent().(*syntax.Arg); ok && !arg.Unpack { // F1: an argument needs no parentheses
+		repl = access + " ?? ''"
+	}
 	ctx.Report(span, "Use '"+repl+"' (string offset access) instead.", diagnostic.Fix{
 		Title: "Replace with '" + repl + "'",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },

@@ -104,7 +104,9 @@ without a fix.
 
 - **F1** (PHP ≥ 8.0 only) Replace `S` with the wrapped replacement text. The
   produced code has **no** padding inside the parentheses: `($s[$i] ?? '')`,
-  `($s[strlen($s) - 1] ?? '')`. The inserted `strlen` is written `\strlen`
+  `($s[strlen($s) - 1] ?? '')`. As a call argument (not unpacked with
+  `...`), the parentheses are left out: `strtolower(substr($s, 0, 1))` →
+  `strtolower($s[0] ?? '')`. The inserted `strlen` is written `\strlen`
   when an unqualified call at that position would not reach the global
   function (a `use function` import under that name, or a same-named function declared in the current namespace).
 - No fix below PHP 8.0.
