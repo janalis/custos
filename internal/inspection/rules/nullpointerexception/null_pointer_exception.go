@@ -130,7 +130,7 @@ func (u *npeUnit) strategyChains() {
 		switch mc.Var.(type) {
 		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 			t := u.chainBaseType(mc.Var)
-			if t.HasAny("null", "void") {
+			if t.HasAny("null", "void") && !t.HasAny("mixed") { // a null beside mixed claims nothing more
 				seen := false
 				for _, e := range tested {
 					if astquery.Equivalent(u.ctx.File, e, mc.Var) {

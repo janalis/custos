@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- NullPointerException no longer reports a call chained on a method
+  documented with `mixed` beside `null` (`@return Box|mixed|null`).
 - NullPointerException no longer reports dereferences in unreachable code,
   such as statements left after a `break` in a `case`.
 - ParameterDefaultValueIsNotNull no longer asks for `null` instead of a
