@@ -69,7 +69,7 @@ func (isIterableCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		return false
 	}
-	if walk(top) { // D7
+	if walk(top) && !declinedNearby(ctx.File, top.Span()) { // D7, E6
 		ctx.ReportNode(call, "Use 'is_iterable("+ctx.Text(subject)+")' instead of the is_array()/instanceof Traversable pair.", pairFix(ctx, call, parent, argVal)...)
 	}
 }
@@ -139,4 +139,24 @@ func unstableOperand(ctx *analysis.Context, e syntax.Expr) bool {
 		return !found
 	})
 	return found
+}
+
+// declinedNearby reports whether a comment on the lines of span mentions
+// is_iterable (`// don't use is_iterable(), it's slow` after the
+// condition): the pair is kept on purpose (E6).
+func declinedNearby(f *syntax.File, span syntax.Span) bool {
+	start, end := int(span.Start), int(span.End)
+	for start > 0 && f.Src[start-1] != '\n' {
+		start--
+	}
+	for end < len(f.Src) && f.Src[end] != '\n' {
+		end++
+	}
+	for i := astquery.TokenIndex(f, uint32(start)); i < len(f.Tokens) && int(f.Tokens[i].Start) < end; i++ {
+		t := f.Tokens[i]
+		if (t.Kind == syntax.TComment || t.Kind == syntax.TDocComment) && strings.Contains(strings.ToLower(string(f.Src[t.Start:t.End])), "is_iterable") {
+			return true
+		}
+	}
+	return false
 }

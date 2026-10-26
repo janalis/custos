@@ -78,6 +78,10 @@ nested parentheses of the same `||` chain.
   and stream readers/writers (`fgets`, `fread`, `fwrite`, …). Ordinary
   function and method calls (`$o->rows()`, `load($x)`) stay reported: nothing
   shows they are unstable, and the report has no fix for them.
+- **E6** (custos, see Divergences) A comment on a line of the reported
+  condition mentions `is_iterable` (`if (\is_array($p) || $p instanceof
+  \Traversable) { // don't use is_iterable(), it's slow`): the pair is
+  kept on purpose. Comments on other lines do not count.
 
 ## Report
 
@@ -163,6 +167,8 @@ function walkAll($bag, $other) {
 
 ## Divergences
 
+- **E6 — custos diverges from upstream.** Upstream reports a pair whose
+  line explains in a comment why it does not use `is_iterable()`.
 - Only `\Traversable` itself is accepted; sub-interfaces
   (`Iterator`, `IteratorAggregate`) are not treated as equivalent, matching
   upstream.
