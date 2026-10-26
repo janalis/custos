@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MagicMethodsValidity no longer asks for a `__set` companion in a class
+  that unsets one of its own properties (`unset($this->service)`) so that
+  `__get` initializes it lazily.
 - ForgottenDebugOutput no longer reports `error_log()` inside the methods of
   a PSR-3 logger (a class implementing `Psr\Log\LoggerInterface`), whose
   output it is.

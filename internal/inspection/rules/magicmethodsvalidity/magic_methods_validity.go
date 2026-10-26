@@ -340,7 +340,7 @@ func (c *magicCheck) noReturn() {
 }
 
 func (c *magicCheck) pair(companion string) {
-	if c.declares(strings.ToLower(companion)) {
+	if c.declares(strings.ToLower(companion)) || c.unsetsOwnProperty() {
 		return
 	}
 	// custos: the class using a trait, or an unindexed ancestor, may
@@ -354,6 +354,26 @@ func (c *magicCheck) pair(companion string) {
 		}
 	}
 	c.report(c.name + " needs a companion " + companion + " method.")
+}
+
+// unsetsOwnProperty reports whether the class unsets one of its properties
+// (`unset($this->service)`): reading it then goes through __get, which
+// initializes it lazily without needing __set.
+func (c *magicCheck) unsetsOwnProperty() bool {
+	found := false
+	syntax.Inspect(c.cl, func(n syntax.Node) bool {
+		if u, ok := n.(*syntax.Unset); ok {
+			for _, v := range u.Vars {
+				if pf, ok := v.(*syntax.PropertyFetch); ok {
+					if this, ok := pf.Var.(*syntax.Variable); ok && this.Name == "this" {
+						found = true
+					}
+				}
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 func (c *magicCheck) hasOverride() bool {
