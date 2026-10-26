@@ -17,6 +17,9 @@ class Cursor
         }
         foreach ($pairs as $name => $count) {
         }
+        // Every element becomes a reference.
+        foreach ($rows as &$row) {
+        }
         return [$last, $name, $a, $b];
     }
 

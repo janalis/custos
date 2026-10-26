@@ -190,7 +190,9 @@ while ($ok) break;
   `foreach` body whose key or value goes to a property, an array element
   or a `list()` (`foreach ($pairs as $this->name => $this->value) {}`), or
   to a variable read after the loop, keeps the last key or value on
-  purpose: it is not reported.
+  purpose: it is not reported. Nor is an empty body with a by-reference
+  value (`foreach ($values as &$value) {}`), which visits every element
+  to turn it into a reference.
 - **`$this` in a trait (custos diverges, D4).** `foreach ($this as $el) {
   return false; }` inside a trait method tests the using class (a
   Traversable collection, CakePHP's `CollectionTrait::isEmpty()`) for

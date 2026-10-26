@@ -85,7 +85,9 @@ func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		// custos: an empty body that stores every key or value in turn
 		// keeps the last ones (`foreach ($a as $s->key => $s->value) {}`).
-		if last == nil && (keepsLast(fe, fe.Key) || keepsLast(fe, fe.Value)) {
+		// A by-reference value turns every element into a reference
+		// (`foreach ($a as &$v) {}`).
+		if last == nil && (fe.ByRef || keepsLast(fe, fe.Key) || keepsLast(fe, fe.Value)) {
 			return
 		}
 		// custos: `foreach ($this as …)` in a trait iterates the using

@@ -121,6 +121,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- LoopWhichDoesNotLoop no longer reports an empty `foreach` with a by-reference value (`foreach ($a as &$v) {}`), which turns every element into a reference.
 - StreamOpenFailureUnchecked and FileReadFailureUnchecked treat any `php://temp…` name, such as `php://temp,`, as a stream that always opens: PHP only reads the `temp` prefix.
 - MkdirRaceCondition no longer reports `mkdir()` of a randomly named directory (built with `random_bytes()`, `uniqid()` and the like). Its quick-fix accepted a directory someone else had created in advance.
 - PhpUnitTests no longer suggests an assertion method that the test base class does not have, such as a custom `TestSuite` that declares only `assertTrue()`; the quick-fix called a missing method.
