@@ -1,6 +1,7 @@
 package curlsslserverspoofing
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -234,7 +235,7 @@ func curlSettingSite(ctx *analysis.Context, k *syntax.ConstFetch) (site syntax.N
 			return nil, nil
 		}
 		arr, ok := p.Parent().(*syntax.Array)
-		if !ok || curlDestructuring(arr) { // list() / destructuring read the option
+		if !ok || curlDestructuring(arr) || curlNameMap(arr) { // list() / destructuring read the option; E7
 			return nil, nil
 		}
 		return p, p.Value
@@ -262,6 +263,27 @@ func curlSettingSite(ctx *analysis.Context, k *syntax.ConstFetch) (site syntax.N
 // curlDestructuring reports whether arr is (part of) a destructuring
 // pattern: an assignment target or a foreach value, possibly nested in
 // other arrays or list().
+// curlNameMap reports whether every element of arr has a non-numeric string
+// literal value (`[CURLOPT_SSL_VERIFYPEER => 'verify_peer', …]`): the array
+// maps options to names, it does not set them (E7).
+func curlNameMap(arr *syntax.Array) bool {
+	for _, it := range arr.Items {
+		var v syntax.Expr
+		if it != nil { // an empty slot only parses in a pattern
+			v = it.Value
+		}
+		lit, ok := v.(*syntax.Literal)
+		if !ok || lit.LitKind != syntax.LitString || len(lit.Raw) < 2 {
+			return false
+		}
+		text := strings.TrimSpace(lit.Raw[1 : len(lit.Raw)-1])
+		if _, err := strconv.ParseFloat(text, 64); err == nil || text == "" {
+			return false
+		}
+	}
+	return true
+}
+
 func curlDestructuring(arr *syntax.Array) bool {
 	var cur syntax.Expr = arr
 	for {

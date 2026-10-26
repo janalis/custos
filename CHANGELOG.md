@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- CurlSslServerSpoofing no longer reports an array that maps cURL options to
+  names (`[CURLOPT_SSL_VERIFYPEER => 'verify_peer', …]`) as if it disabled
+  verification.
 - PotentialMalware no longer reports `get_defined_functions()` in code that
   never calls a function by a computed name, such as an error handler
   suggesting close names for an undefined function.

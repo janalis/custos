@@ -103,6 +103,10 @@ Each discovered value is classified:
   `$dev ? 0 : true` (P) contain an "enable" → not reported.
 - **E4** Values that cannot be classified (`getenv('VERIFY')`, `10`).
 - **E5** Other `CURLOPT_*` constants.
+- **E7** (custos, see Divergences) D2 in an array literal whose every
+  element value is a string literal with non-numeric, non-blank content
+  (`[CURLOPT_PROXY => 'proxy', CURLOPT_SSL_VERIFYPEER => 'verify_peer']`):
+  such an array maps options to names, it does not set them.
 - **E6** A disabling value that cannot be the one set: a local variable's
   earlier value replaced on every path before the use
   (`$verify = false; $verify = resolve($config);`), or a property default
@@ -161,6 +165,8 @@ function fetch($handle, $insecure)
 
 ## Divergences
 
+- **E7 — custos diverges from upstream.** Upstream reports an array
+  that maps cURL options to names as if it set them to strings.
 - **Destructuring patterns (custos diverges).** A `key => $var` element of
   an array used as a destructuring target is not a setting; custos skips
   it (E2) instead of discovering the target variable's earlier values
