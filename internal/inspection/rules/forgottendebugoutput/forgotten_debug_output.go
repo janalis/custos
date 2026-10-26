@@ -76,6 +76,11 @@ func debugEntries(ctx *analysis.Context) []string {
 }
 
 func (forgottenDebugOutput) Check(ctx *analysis.Context, n syntax.Node) {
+	// E8: test fixtures (child scripts, expected-output generators) print
+	// what their test reads.
+	if strings.Contains(strings.ReplaceAll(ctx.File.Path, `\`, "/"), "/Fixtures/") {
+		return
+	}
 	entries := ctx.Memo("entries", func() any { return debugEntries(ctx) }).([]string)
 	if debugCallableSyntax(n) { // E5: f(...) only creates a Closure
 		return

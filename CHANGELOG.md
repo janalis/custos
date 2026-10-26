@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ForgottenDebugOutput no longer reports files under a `Fixtures`
+  directory, whose dumped output their tests read.
 - TypeUnsafeComparison no longer asks for `===` between arrays: `==`
   compares their key/value pairs in any order, which `===` would change.
 - LogarithmInvalidRealDomain no longer reports `log(0)` or `log1p(-1)`

@@ -152,6 +152,9 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
   extension (`if (\function_exists('xdebug_get_function_stack') && $trace
   = xdebug_get_function_stack())`) uses it on purpose. A probe combined
   with `||`, or for another function, proves nothing.
+- **E8** (custos, see Divergences) Files under a `/Fixtures/` directory:
+  test fixtures, such as a child script whose dumped output the test
+  reads, print on purpose. Other test files are still checked.
 
 ## Report
 
@@ -222,6 +225,8 @@ function work($order, Probe $probe, Quiet $quiet) {
 
 ## Divergences
 
+- **E8 — custos diverges from upstream.** Upstream reports debug output in
+  test fixtures whose output the tests read.
 - **E7 — custos diverges from upstream.** Upstream reports debug
   functions called after `function_exists()` confirmed them, such as
   Symfony's trace builder reading `xdebug_get_function_stack()`.
