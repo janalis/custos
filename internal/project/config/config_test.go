@@ -113,6 +113,46 @@ func TestComposerWithoutUsableVersion(t *testing.T) {
 	}
 }
 
+// TestPHPVersionFile: without a composer version, `.php-version` pins the
+// target; an empty or unsupported pin falls back to the default.
+func TestPHPVersionFile(t *testing.T) {
+	for body, want := range map[string]phpversion.Version{
+		"5.6\n":       phpversion.PHP56,
+		"8.2.12\r\nx": phpversion.PHP82,
+		"\n8.1":       phpversion.Default,
+		"system":      phpversion.Default,
+		"9.0":         phpversion.Default,
+	} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "composer.json"), []byte(`{"require": {}}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, ".php-version"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		c, err := Load(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		src := ".php-version"
+		if want == phpversion.Default {
+			src = "default"
+		}
+		if c.PHP != want || c.PHPSource != src {
+			t.Errorf("%q: got php=%s src=%s", body, c.PHP, c.PHPSource)
+		}
+	}
+	dir := t.TempDir()
+	for name, body := range map[string]string{"composer.json": `{"require": {"php": ">=8.1"}}`, ".php-version": "7.4"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if c, err := Load(dir); err != nil || c.PHP != phpversion.PHP81 {
+		t.Fatalf("composer.json must win: %v %v", c, err)
+	}
+}
+
 // TestLoadWithoutWorkingDirectory: a relative start directory cannot be
 // resolved when the working directory is gone and $PWD is unset. getcwd
 // fails on macOS for an unreadable directory and on Linux (even as root)

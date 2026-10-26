@@ -85,7 +85,9 @@ The first of these that is set decides:
 2. `php` in `custos.json`;
 3. `config.platform.php` in `composer.json`;
 4. the lowest version that `require.php` in `composer.json` allows;
-5. PHP 8.4.
+5. the version pinned by `.php-version` at the project root (as read by
+   phpenv or the Symfony CLI): its first line, such as `8.2` or `8.2.12`;
+6. PHP 8.4.
 
 `custos analyse --stats` shows which version was used and where it came from.
 

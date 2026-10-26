@@ -62,7 +62,7 @@ type Config struct {
 	FlowOrder       bool
 	Root            string // directory of custos.json / composer.json (or cwd)
 	PHP             phpversion.Version
-	PHPSource       string // where PHP came from: config | composer | default
+	PHPSource       string // where PHP came from: config | composer | .php-version | default
 	ComparisonStyle analysis.ComparisonStyle
 	ShortOpenTag    bool
 	Paths           []string
@@ -119,6 +119,8 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 	default:
 		if v, ok := composerPHPRead(read); ok {
 			c.PHP, c.PHPSource = v, "composer"
+		} else if v, ok := phpVersionFileRead(read); ok {
+			c.PHP, c.PHPSource = v, ".php-version"
 		} else {
 			c.PHP, c.PHPSource = phpversion.Default, "default"
 		}
@@ -275,6 +277,21 @@ func findRoot(dir string) (string, error) {
 var versionRe = regexp.MustCompile(`(\d+)\.(\d+)`)
 
 // composerPHPRead reads config.platform.php, else the lowest version in require.php.
+// phpVersionFileRead reads the version that `.php-version` (phpenv, the
+// Symfony CLI and similar tools) pins: its first line, `8.2` or `8.2.12`.
+func phpVersionFileRead(read func(string) ([]byte, error)) (phpversion.Version, bool) {
+	b, err := read(".php-version")
+	if err != nil {
+		return 0, false
+	}
+	line, _, _ := strings.Cut(string(b), "\n")
+	if strings.TrimSpace(line) == "" {
+		return 0, false
+	}
+	v, err := phpversion.Parse(line)
+	return v, err == nil
+}
+
 func composerPHPRead(read func(string) ([]byte, error)) (phpversion.Version, bool) {
 	b, err := read("composer.json")
 	if err != nil {
