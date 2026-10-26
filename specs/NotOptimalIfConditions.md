@@ -189,6 +189,11 @@ always stored.
     setlocale define array_pop array_shift sort next reset`, and any
     `session_*`, `curl_*`, `ob_*`, `socket_*`, `ftp_*`, `stream_*`, `posix_*`,
     `pcntl_*`, `mysqli_*`, `pg_*` function;
+  - a call to `class_exists`, `interface_exists`, `trait_exists` or
+    `enum_exists` unless its second argument is written positionally as the
+    literal `false`: with autoloading on, an unknown name loads and runs a
+    file, which the other checks may rely on
+    (`!class_exists($c) && !interface_exists($c, false)`);
   - a call that passes an argument at a by-reference parameter position of
     the resolved function, even when the function is in the purity list
     (`preg_match($re, $s, $m)` is impure, `preg_match($re, $s)` is pure);
@@ -471,6 +476,15 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   calls), although `is_file()` asks the operating system about the path. A
   call to a filesystem function costs 50 in custos, more than any in-memory
   expression of ordinary size.
+- **Autoloading checks are side effects (custos diverges from upstream,
+  S4).** Upstream lists `class_exists()` and its siblings among the free
+  checks, so `!in_array(PHP_SAPI, ['cli', 'phpdbg'], true) && class_exists(Request::class)`
+  was told to call `class_exists()` first, although it may run the
+  autoloader (Symfony's `VarDumper`), and
+  `!class_exists($c) && !interface_exists($c, false)` could be turned
+  around although the second check relies on the autoloading the first one
+  did. custos never moves them unless autoloading is turned off with a
+  literal `false`.
 - **Type guards stay first (custos diverges from upstream, S5).** When
   `prev` narrows a variable (null/false/true comparison, `instanceof`,
   `is_*()`), moving a `cur` that uses that variable ahead of it can run

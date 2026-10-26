@@ -121,6 +121,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- NotOptimalIfConditions no longer moves `class_exists()`,
+  `interface_exists()`, `trait_exists()` or `enum_exists()` calls that may
+  run the autoloader: loading the class is a side effect that later checks
+  can rely on (`!class_exists($c) && !interface_exists($c, false)`).
 - MissingOrEmptyGroupStatement no longer reports an empty `foreach` over a
   value known to be an iterator (`iterable`, `\Traversable` and its
   subtypes, generators): the loop drains it for its effects.

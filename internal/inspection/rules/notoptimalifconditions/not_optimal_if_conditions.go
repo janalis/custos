@@ -117,6 +117,26 @@ var filesystemFunctions = map[string]bool{
 	"lstat": true, "realpath": true, "glob": true, "disk_free_space": true, "disk_total_space": true,
 }
 
+// autoloadingFunctions run the autoloader for an unknown name unless their
+// second argument is false (custos): that loads and executes a file, which
+// a later check may depend on (`!class_exists($c) && !interface_exists($c,
+// false)`), so the call is a side effect (S4).
+var autoloadingFunctions = map[string]bool{
+	"class_exists": true, "interface_exists": true, "trait_exists": true, "enum_exists": true,
+}
+
+// mayAutoload reports whether the call leaves autoloading on: no second
+// argument, or one other than a literal false (named, spread and
+// first-class callable forms included).
+func mayAutoload(call *syntax.FuncCall) bool {
+	args, ok := astquery.ArgValues(call.Args)
+	if !ok || len(args) < 2 {
+		return true
+	}
+	v, known := astquery.BoolConst(args[1])
+	return !known || v
+}
+
 // notOptimalArgsCost sums the argument costs (calls always carry an
 // argument list).
 func notOptimalArgsCost(ctx *analysis.Context, l *syntax.ArgList) int {
@@ -591,7 +611,7 @@ func notOptimalImpure(ctx *analysis.Context, e syntax.Expr) bool {
 				impure = true
 				return false
 			}
-			if semanticquery.ArgBindsByRef(c.Args, f.Params, true) {
+			if semanticquery.ArgBindsByRef(c.Args, f.Params, true) || autoloadingFunctions[name] && mayAutoload(c) {
 				impure = true
 				return false
 			}
