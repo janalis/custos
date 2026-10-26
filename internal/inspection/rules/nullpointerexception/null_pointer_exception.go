@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/phpdoc"
 	"custos/internal/php/syntax"
@@ -60,6 +61,14 @@ type npeUnit struct {
 	fn     syntax.Node
 	body   *syntax.Block
 	report func(syntax.Span)
+}
+
+// emit reports span for node n unless n sits in code that control never
+// reaches (after a `break`, `return`, `throw`, … in its statement list).
+func (u *npeUnit) emit(n syntax.Node, span syntax.Span) {
+	if flowquery.Reachable(n, u.fn) {
+		u.report(span)
+	}
 }
 
 // npeObjectOnly reports whether t (minus null/void) is a non-empty set of
@@ -131,7 +140,7 @@ func (u *npeUnit) strategyChains() {
 				}
 				if !seen {
 					if tok, ok := astquery.NextSignificant(u.ctx.File, mc.Var.Span().End); ok && tok.Kind == syntax.TObjectOperator {
-						u.report(syntax.Span{Start: tok.Start, End: tok.End})
+						u.emit(mc, syntax.Span{Start: tok.Start, End: tok.End})
 					}
 				}
 			}
@@ -321,7 +330,7 @@ func (u *npeUnit) walk(name string, decl *syntax.Assign) {
 			rep = false
 		}
 		if rep {
-			u.report(v.Span())
+			u.emit(v, v.Span())
 		}
 		if stop {
 			return

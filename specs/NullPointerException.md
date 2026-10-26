@@ -261,6 +261,10 @@ walk for this name, *skip* goes to the next usage:
 - **E8** Chained calls on a call previously null-tested in the unit;
   chained calls whose base is a parenthesised expression or a variable.
 - **E9** Abstract methods; methods in test contexts.
+- **E11** Dereferences in code that control never reaches: a statement
+  that follows, in its statement list (or in an enclosing one), a `return`,
+  `throw`, `break`, `continue`, `exit` or another statement that never
+  completes, unless a `goto` label lets a jump land in between.
 
 ## Report
 
@@ -377,6 +381,8 @@ function visit(?Node $item) {
 
 ## Divergences
 
+- **E11 — custos diverges from upstream.** Upstream also reports
+  dereferences in unreachable code, such as after a `break` in a `case`.
 - Case-insensitive assertion names (custos diverges from upstream).
   Upstream compares the assertion method names (U5) and `is_null`
   case-sensitively, so `self::AssertNotNull($v)` or `IS_NULL($v)` — which
