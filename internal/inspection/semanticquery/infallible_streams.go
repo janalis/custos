@@ -11,8 +11,9 @@ import (
 var infallibleStreams = []string{"php://memory", "php://temp", "php://input", "php://output", "php://stdin", "php://stdout", "php://stderr"}
 
 // InfallibleOpen reports whether fopen call opens one of PHP's own streams
-// named by a literal: php://memory and php://temp (with or without
-// options), php://input, php://output and the standard streams.
+// named by a literal: php://memory (with or without options), php://temp
+// followed by anything (PHP only reads the prefix: `php://temp,` opens),
+// php://input, php://output and the standard streams.
 func InfallibleOpen(call *syntax.FuncCall) bool {
 	lit, ok := syntax.UnwrapParens(CallArgument(call.Args, 0, "filename")).(*syntax.Literal)
 	if !ok {
@@ -24,7 +25,7 @@ func InfallibleOpen(call *syntax.FuncCall) bool {
 	}
 	name = strings.ToLower(name)
 	for _, s := range infallibleStreams {
-		if name == s || (s == "php://memory" || s == "php://temp") && strings.HasPrefix(name, s+"/") {
+		if name == s || s == "php://memory" && strings.HasPrefix(name, s+"/") || s == "php://temp" && strings.HasPrefix(name, s) {
 			return true
 		}
 	}

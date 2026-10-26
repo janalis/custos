@@ -8,6 +8,8 @@ function buffers(string $data): string
     fwrite($temp, $data);
     $upper = fopen('PHP://TEMP', 'r+');
     rewind($upper);
+    $stray = fopen('php://temp,', 'w+'); // only the temp prefix counts
+    rewind($stray);
     $out = fopen("php://output", 'w');
     fwrite($out, $data);
     $err = fopen('php://stderr', 'w');
@@ -22,6 +24,8 @@ function others(string $path): void
     <warning descr="Check that the stream opened successfully.">fwrite($fd, 'x')</warning>;
     $filtered = fopen('php://filter/read=string.rot13/resource=' . $path, 'r');
     <warning descr="Check that the stream opened successfully.">fread($filtered, 8)</warning>;
+    $suffixed = fopen('php://memoryx', 'r+');
+    <warning descr="Check that the stream opened successfully.">fwrite($suffixed, 'x')</warning>;
     $named = fopen($path, 'r');
     <warning descr="Check that the stream opened successfully.">fread($named, 8)</warning>;
     $number = fopen(0, 'r');
