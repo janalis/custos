@@ -19,6 +19,13 @@ func TestReviewSafety(t *testing.T) {
 		findings     int
 		fixed        string
 	}{
+		{"self assignment", "<?php function f(string $k) {\n    $k = (string) $k;\n    return $k;\n}\n", 1, "<?php function f(string $k) {\n    return $k;\n}\n"},
+		{"self assignment sharing its line", "<?php function f(string $k) { $k = (string) ($k); return $k; }", 1, "<?php function f(string $k) {  return $k; }"},
+		{"self assignment with comment", "<?php function f(string $k) {\n    $k = (string) $k; // keep\n    return $k;\n}\n", 1, ""},
+		{"self assignment with inner comment", "<?php function f(string $k) { $k = /* s */ (string) $k; }", 1, ""},
+		{"self assignment at end of file", "<?php function f(string $k) { $k = (string) $k; }", 1, "<?php function f(string $k) {  }"},
+		{"other target", "<?php function f(string $k) {\n    $j = (string) $k;\n    return $j;\n}\n", 1, "<?php function f(string $k) {\n    $j = $k;\n    return $j;\n}\n"},
+		{"nested assignment", "<?php function f(string $k) { return $k = (string) $k; }", 1, ""},
 		{"by-reference function", "<?php function fill(&$o) { $o = 'x'; } function f() { $n = 0; fill($n); return (int) $n; }", 0, ""},
 		{"unresolved method after cast", "<?php function f($o, int $n) { $c = (int) $n; $o->missing($n); return $c; }", 0, ""},
 		{"unresolved function", "<?php function f() { $n = 0; missing($n); return (int) $n; }", 0, ""},

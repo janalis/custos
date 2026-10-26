@@ -126,10 +126,51 @@ func (unnecessaryCasting) report(ctx *analysis.Context, u *syntax.Unary, msg str
 	if del.Start == 0 || strings.IndexByte(" \t\r\n([,={!;:?>&|*/%^~@", ctx.File.Src[del.Start-1]) >= 0 {
 		sep = ""
 	}
+	// F3: `$v = (string) $v;` would become a self-assignment; drop the
+	// statement instead (its whole line when it stands alone).
+	if p, _ := astquery.ParentSkipParens(u); p != nil {
+		if a, ok := p.(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef &&
+			astquery.Equivalent(ctx.File, a.Var, syntax.UnwrapParens(u.Expr)) {
+			st, ok := a.Parent().(*syntax.ExprStmt)
+			if !ok || astquery.HasComment(ctx.File, st.Span()) || castTrailingComment(ctx.File, st.Span().End) {
+				ctx.Report(u.Op.Span, msg) // a self-assignment is no fix
+				return
+			}
+			del, sep = castStatementLine(ctx.File.Src, st.Span()), ""
+		}
+	}
 	ctx.Report(u.Op.Span, msg, diagnostic.Fix{
 		Title: "Remove the cast",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: del, NewText: sep}} },
 	})
+}
+
+// castTrailingComment reports whether a comment follows off on its line.
+func castTrailingComment(f *syntax.File, off uint32) bool {
+	// The token list ends with EOF, which is neither whitespace nor a comment.
+	for i := astquery.TokenIndex(f, off); ; i++ {
+		t := f.Tokens[i]
+		switch {
+		case t.Kind == syntax.TComment || t.Kind == syntax.TDocComment:
+			return true
+		case t.Kind != syntax.TWhitespace || strings.Contains(string(f.Src[t.Start:t.End]), "\n"):
+			return false
+		}
+	}
+}
+
+// castStatementLine widens a statement's span to its whole line, line
+// break included, when nothing else shares that line.
+func castStatementLine(src []byte, span syntax.Span) syntax.Span {
+	start := span.Start - uint32(len(astquery.IndentBefore(src, span.Start)))
+	end := int(span.End)
+	for end < len(src) && (src[end] == ' ' || src[end] == '\t' || src[end] == '\r') {
+		end++
+	}
+	if start > 0 && src[start-1] == '\n' && end < len(src) && src[end] == '\n' {
+		return syntax.Span{Start: start, End: uint32(end) + 1}
+	}
+	return span
 }
 
 // castStrictTypes computes the normalised strict type of a (T1–T4).

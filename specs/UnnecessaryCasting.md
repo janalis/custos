@@ -263,6 +263,12 @@ visited at most once, parentheses removed first:
   `~` `@`, after which no operand can merge into another token:
   `return(int)count($a)` → `return count($a)`; `10 -(int)-$b` →
   `10 - -$b`; `$s.(string)2` → `$s. 2`; `[(int)$n]` → `[$n]`.
+- **F3** (custos) A cast that is the whole right side of a plain `=`
+  assigning back to its own operand (`$key = (string) $key;`) would leave a
+  self-assignment: the fix deletes the statement instead, with its line when
+  nothing else shares it. When that assignment is not a statement of its
+  own, or a comment sits inside it or after it on its line, the report
+  stays without a fix.
 
 ## Options
 
