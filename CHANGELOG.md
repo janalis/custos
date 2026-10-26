@@ -121,6 +121,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MissingOrEmptyGroupStatement keeps the braces of its quick-fix on the same line in one-line template islands (`<?php if ($a) print "x" ?>`), instead of spreading them over three lines inside the HTML.
 - CryptographicallySecureRandomness no longer suggests `random_bytes()` in the fallback branch that runs once `function_exists('random_bytes')` failed.
 - TraitsPropertiesConflicts no longer reports a promoted constructor property that declares a trait property the same way: promotion has to declare it.
 - MagicMethodsValidity no longer asks a decorator constructor that takes an instance of its parent class (`__construct(private parent $inner)`) to call the parent constructor.

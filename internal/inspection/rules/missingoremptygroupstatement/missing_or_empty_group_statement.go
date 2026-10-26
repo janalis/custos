@@ -86,14 +86,20 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 			// custos: a statement ended by a close tag (`if ($h) echo "x" ?>`)
 			// gets a `;` and the brace before the tag, not after it in the
 			// HTML; both go before any comment that precedes the tag.
-			stmt, tail := text, ""
+			stmt, tail, end := text, "", bs.End
 			if at, ok := closeTagSplit(ctx.File, bs); ok {
-				stmt, tail = text[:at-bs.Start]+";", text[at-bs.Start:]
+				stmt, tail, end = text[:at-bs.Start]+";", text[at-bs.Start:], at
 				if strings.HasPrefix(tail, "?>") {
 					tail = " " + tail
 				}
 			}
+			// custos: a one-line template island (`<?php if ($a) print "x"
+			// ?>` inside an attribute) keeps its block on that line.
+			inline := !strings.Contains(string(ctx.Src[kwSpan.Start:end]), "\n") && (tail != "" || closesAfter(ctx.File, bs.End))
 			closing := "\n" + indent + "}" + tail
+			if inline {
+				closing = " }" + tail
+			}
 			// custos: a comment between the header and the body (`for (…)
 			// // note`) would swallow a brace placed after it; open the
 			// block right after the header instead and keep the body
@@ -104,13 +110,25 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 					{Span: bs, NewText: stmt + closing},
 				}
 			}
-			span, open := bs, "{\n"
-			if ws, ok := astquery.TokenBefore(ctx.File, bs.Start); ok && ws.Kind == syntax.TWhitespace {
-				span.Start, open = ws.Start, " {\n"
+			span, open, lead := bs, "{\n", indent+"    "
+			if inline {
+				open, lead = "{ ", ""
 			}
-			return []diagnostic.TextEdit{{Span: span, NewText: open + indent + "    " + stmt + closing}}
+			if ws, ok := astquery.TokenBefore(ctx.File, bs.Start); ok && ws.Kind == syntax.TWhitespace {
+				span.Start, open = ws.Start, " "+open
+			}
+			return []diagnostic.TextEdit{{Span: span, NewText: open + lead + stmt + closing}}
 		},
 	})
+}
+
+// closesAfter reports whether a close tag follows pos on the same line.
+func closesAfter(f *syntax.File, pos uint32) bool {
+	i := astquery.TokenIndex(f, pos)
+	for i < len(f.Tokens) && f.Tokens[i].Kind == syntax.TWhitespace && !strings.Contains(string(f.Src[f.Tokens[i].Start:f.Tokens[i].End]), "\n") {
+		i++
+	}
+	return i < len(f.Tokens) && f.Tokens[i].Kind == syntax.TCloseTag
 }
 
 // closeTagSplit returns the end of the body's last significant token when a

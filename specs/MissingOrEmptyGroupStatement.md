@@ -66,6 +66,9 @@ to the `if`.
   compared output only needs whitespace between `{`, the statement and `}`).
   For `do stmt; while (c);` only `stmt;` is wrapped; the `while (c);` tail is
   preserved.
+- F1a (custos): when the construct and its body sit on one line that a
+  close tag ends (`<?php if ($a) print "x" ?>` inside an HTML attribute),
+  the block stays on that line: `if ($a) { print "x"; } ?>`.
 - D2 has no fix.
 
 ## Options
