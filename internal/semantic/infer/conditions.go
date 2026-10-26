@@ -334,6 +334,15 @@ func (e *Env) condAsserts(c syntax.Expr, name string, truthy bool, t types.Type)
 
 // narrowAtoms keeps (truthy) or removes (falsy) the atoms matching a type check.
 func narrowAtoms(t types.Type, atoms []string, truthy bool) types.Type {
+	// iterable and callable may each hold an array of unknown elements
+	// (`[$object, 'method']` for a callable).
+	if truthy && slices.Contains(atoms, "array") && (t.Has("iterable") || t.Has("callable")) {
+		rest := t.Without("iterable", "callable")
+		if len(rest.Atoms()) == 0 {
+			return types.Array
+		}
+		return types.Union(narrowAtoms(rest, atoms, true), types.Array)
+	}
 	match := func(a string) bool {
 		for _, x := range atoms {
 			if a == x || (x == "array" && strings.HasSuffix(a, "[]")) || (x == "object" && strings.HasPrefix(a, `\`) && !strings.HasSuffix(a, "[]")) ||

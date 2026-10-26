@@ -128,7 +128,7 @@ func BenchmarkNullsafeChains(b *testing.B) {
 
 func TestOrdinaryOffsetDoesNotPrimeReceiver(t *testing.T) {
 	check(t, `<?php
-function inspect(callable $handler) {
+function inspect(Closure|string $handler) {
  if ($handler instanceof Closure) {
   $handler = [random_int(0, 1) ? new stdClass() : 'Worker', 'run'];
   $handler[0] ?: $handler = 'free';
