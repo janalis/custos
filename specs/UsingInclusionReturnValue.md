@@ -38,6 +38,13 @@ objects or functions; inclusion should be a standalone statement.
   `$loaded or include_once 'helpers.php';`). As a left operand, or when the
   whole expression is used (`$ok = $a || require 'a.php';`), it is still
   reported.
+- **E3** `return require 'x.php';` in top-level code (outside every
+  function, method, closure and arrow function), again through `@` and
+  parentheses: the file forwards to another one and hands its value on to
+  whoever included it, as front controllers, routers for the built-in web
+  server and configuration files do. Inside a function-like, or when the
+  inclusion is only part of the returned expression (`return $a ?: include
+  'b.php';`), it is still reported.
 
 ## Report
 
@@ -79,6 +86,8 @@ function settings(array $env) {
 
 ## Divergences
 
+- **E3 — custos diverges from upstream.** Upstream reports a file-level
+  `return require ...;` that forwards to another file.
 - **D2 — custos diverges from upstream.** Upstream checks only the direct
   parent, so `@include 'optional.php';` (and a parenthesized inclusion used
   as a statement) is reported although its value is discarded. custos looks
