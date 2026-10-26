@@ -106,7 +106,17 @@ func criRemoveEdit(f *syntax.File, ext *syntax.Name, list []*syntax.Name, redund
 	// entries are always separated by one.
 	if keptAfter { // F2: entry plus the following comma
 		comma, _ := astquery.NextSignificant(f, entry.End)
-		return diagnostic.TextEdit{Span: syntax.Span{Start: entry.Start, End: comma.End}}
+		span := syntax.Span{Start: entry.Start, End: comma.End}
+		// An entry on a line of its own takes the line with it.
+		indent := astquery.IndentBefore(f.Src, entry.Start)
+		end := int(comma.End)
+		for end < len(f.Src) && (f.Src[end] == ' ' || f.Src[end] == '\t' || f.Src[end] == '\r') {
+			end++
+		}
+		if start := entry.Start - uint32(len(indent)); f.Src[start-1] == '\n' && end < len(f.Src) && f.Src[end] == '\n' {
+			span = syntax.Span{Start: start, End: uint32(end) + 1}
+		}
+		return diagnostic.TextEdit{Span: span}
 	}
 	// F3: the preceding comma plus the entry.
 	comma, _ := astquery.FindToken(f, syntax.Span{Start: list[idx-1].Span().End, End: entry.Start}, syntax.TComma)

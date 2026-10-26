@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ClassReImplementsParentInterface fixes on a multi-line `implements` list
+  remove the line of the dropped entry instead of leaving a line of spaces.
 - ReferencingObjects no longer reports test code, whose fixtures declare
   by-reference objects on purpose for tests that compare the signature.
 - UnusedConstructorDependencies no longer reports test classes and

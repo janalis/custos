@@ -72,7 +72,10 @@ list as left by the previous ones.
 - **F2** The list has several entries and this is the **first** one: delete
   the entry and the comma that follows it (skipping at most one whitespace
   run between entry and comma); whitespace after the comma stays.
-  `implements A, B` → `implements  B`.
+  `implements A, B` → `implements  B`. When the entry and its comma fill a line of their own
+  (only indentation before the entry, only whitespace after the comma), the
+  whole line goes: `implements\n  A,\n  B,\n  C` without `A` becomes
+  `implements\n  B,\n  C`.
 - **F3** The list has several entries and this is **not** the first one:
   delete the entry and the comma preceding it (skipping at most one
   whitespace run between comma and entry); the whitespace before the comma
