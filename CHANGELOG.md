@@ -121,6 +121,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MkdirRaceCondition no longer reports `mkdir()` of a randomly named directory (built with `random_bytes()`, `uniqid()` and the like). Its quick-fix accepted a directory someone else had created in advance.
 - PhpUnitTests no longer suggests an assertion method that the test base class does not have, such as a custom `TestSuite` that declares only `assertTrue()`; the quick-fix called a missing method.
 - DateTimeConstantsUsage no longer reports, or rewrites to ATOM, the initializer of a constant that declares an ISO8601 alias (`const ISO8601 = DATE_ISO8601;`).
 - ForeachInvariants no longer suggests `foreach` when the counter is passed by reference to a `self::`, `static::` or `parent::` method; the rewrite broke loops that skip ahead.

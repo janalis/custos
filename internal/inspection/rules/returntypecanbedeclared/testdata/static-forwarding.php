@@ -80,3 +80,12 @@ final class Plain extends Upload
         return $made;
     }
 }
+
+// parent:: in a class without a parent names no class.
+class Orphan
+{
+    public static function lost()
+    {
+        return parent::make();
+    }
+}

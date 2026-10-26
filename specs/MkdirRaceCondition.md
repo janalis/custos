@@ -88,6 +88,12 @@ treated as an error, and its result must not be ignored.
   passed as an argument, `elseif`/`while` conditions, ternaries, casts,
   operands of non-logical operators such as `mkdir($d) xor $dry` or
   `mkdir($d) === null`).
+- **E6** (custos) Every value the directory argument can hold (itself, or
+  every value assigned to the variable it names) is built with a call to
+  `random_bytes`, `random_int`, `uniqid`, `mt_rand` or `rand`: a freshly
+  named private directory (`mkdir(sys_get_temp_dir() . '/gpg' .
+  bin2hex(random_bytes(8)), 0700)`) must fail when it already exists, and an
+  `is_dir()` fallback would accept a directory planted by someone else.
 
 ## Report
 

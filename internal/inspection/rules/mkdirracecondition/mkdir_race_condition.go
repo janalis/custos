@@ -47,6 +47,9 @@ func (mkdirRaceCondition) Check(ctx *analysis.Context, n syntax.Node) {
 	if semanticquery.InTestContext(ctx, call) { // D2
 		return
 	}
+	if mkdirFreshName(ctx, dirArg) { // E6
+		return
+	}
 	keys := mkdirDirKeys(ctx, dirArg)
 	if mkdirUsedAsLock(ctx, call, keys) {
 		return
@@ -403,4 +406,37 @@ func mkdirNorm(s string) string {
 		}
 		return r
 	}, s)
+}
+
+// mkdirRandom lists the functions whose result makes a directory name that
+// nobody else can have created first.
+var mkdirRandom = map[string]bool{"random_bytes": true, "random_int": true, "uniqid": true, "mt_rand": true, "rand": true}
+
+// mkdirFreshName implements E6: every value the directory argument can hold
+// is built from a random value. Creating such a directory must fail when it
+// already exists, so an is_dir() fallback would trust a planted directory.
+func mkdirFreshName(ctx *analysis.Context, dirArg syntax.Expr) bool {
+	values := []syntax.Expr{dirArg}
+	if _, ok := syntax.UnwrapParens(dirArg).(*syntax.Variable); ok {
+		vs, complete := semanticquery.LocalValuesComplete(ctx.Types(), dirArg)
+		if !complete || len(vs) == 0 {
+			return false
+		}
+		values = vs
+	}
+	for _, v := range values {
+		random := false
+		syntax.Inspect(v, func(n syntax.Node) bool {
+			if c, ok := n.(*syntax.FuncCall); ok {
+				if _, name, ok := astquery.CallName(c); ok && mkdirRandom[strings.ToLower(name)] {
+					random = true
+				}
+			}
+			return !random
+		})
+		if !random {
+			return false
+		}
+	}
+	return true
 }
