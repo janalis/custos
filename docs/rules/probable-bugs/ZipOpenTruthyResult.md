@@ -48,7 +48,7 @@ Reported:
 
 ## Fix
 
-F1. In the proven truthiness condition replace the call with (originalCall === true); preserve all original argument bytes and call evaluation count. For negated condition use originalCall !== true. No fix in numeric comparisons or assignments whose value is used elsewhere.
+F1. In the proven truthiness condition replace the call with `originalCall === true` (it is the whole condition, so no parentheses are added); preserve all original argument bytes and call evaluation count. For a negated condition replace the negation with `originalCall !== true`. With the yoda comparison style the constant comes first: `true === originalCall`, `true !== originalCall`. No fix in numeric comparisons or assignments whose value is used elsewhere.
 
 Comments introduced by `#` are comments too: suppress a fix whenever its replacement would discard them, just as for line and block comments.
 

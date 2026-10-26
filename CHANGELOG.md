@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ZipOpenTruthyResult fixes write `$zip->open($f) !== true` (or
+  `true !== $zip->open($f)` with the yoda style) instead of
+  `($zip->open($f)!==true)`.
 - ClassReImplementsParentInterface fixes on a multi-line `implements` list
   remove the line of the dropped entry instead of leaving a line of spaces.
 - ReferencingObjects no longer reports test code, whose fixtures declare

@@ -39,8 +39,9 @@ func TestContracts(t *testing.T) {
 			}
 			cfg := analysis.Config{Only: []string{"ZipOpenTruthyResult"}}
 			var side struct {
-				PHP     string         `json:"php"`
-				Options map[string]any `json:"options"`
+				PHP             string         `json:"php"`
+				ComparisonStyle string         `json:"comparisonStyle"`
+				Options         map[string]any `json:"options"`
 			}
 			settings, err := os.ReadFile(strings.TrimSuffix(path, ".php") + ".json")
 			if err == nil {
@@ -48,6 +49,9 @@ func TestContracts(t *testing.T) {
 					t.Fatal(err)
 				}
 				cfg.PHP = phpversion.MustParse(side.PHP)
+				if side.ComparisonStyle == "yoda" {
+					cfg.ComparisonStyle = analysis.StyleYoda
+				}
 				cfg.Rules = map[string]analysis.RuleConfig{"ZipOpenTruthyResult": {Options: side.Options}}
 			} else if !os.IsNotExist(err) {
 				t.Fatal(err)
