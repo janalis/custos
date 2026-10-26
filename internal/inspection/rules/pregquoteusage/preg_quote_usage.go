@@ -29,7 +29,7 @@ func (pregQuoteUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, "preg_quote") { // D1
 		return
 	}
-	if pregQuoteDelimiterEscaped(ctx, call) || pregQuoteDelimiterFree(ctx, call) { // E3
+	if pregQuoteDelimiterEscaped(ctx, call) || pregQuoteDelimiterFree(ctx, call) || pregQuoteStoredEscaped(ctx, call) { // E3
 		return
 	}
 	ctx.Report(astquery.NamePartSpan(call.Name.(*syntax.Name)), "Pass the pattern delimiter to preg_quote() as its second argument.")
@@ -39,8 +39,11 @@ func (pregQuoteUsage) Check(ctx *analysis.Context, n syntax.Node) {
 // concatenated into (or the sprintf() format it is an argument of) visibly
 // starts with a delimiter that preg_quote() escapes anyway: the first
 // non-blank character of the leftmost string literal of the concatenation.
-func pregQuoteDelimiterEscaped(ctx *analysis.Context, call *syntax.FuncCall) bool {
-	var top syntax.Node = call
+func pregQuoteDelimiterEscaped(ctx *analysis.Context, quoted syntax.Node) bool {
+	top := quoted
+	if is, ok := quoted.Parent().(*syntax.InterpolatedString); ok {
+		top = is // "{^[$chars]++}": the string holding the quoted text
+	}
 	for {
 		parent, child := astquery.ParentSkipParens(top)
 		if b, ok := parent.(*syntax.Binary); ok && b.Op.Kind == syntax.TDot {
@@ -66,6 +69,8 @@ func pregQuoteDelimiterEscaped(ctx *analysis.Context, call *syntax.FuncCall) boo
 			}
 			first = inner.Left
 		}
+	} else if is, ok := top.(*syntax.InterpolatedString); ok {
+		first = is
 	} else if arg, ok := top.Parent().(*syntax.Arg); ok {
 		// sprintf('|^%s$|', preg_quote($x))
 		args := arg.Parent().(*syntax.ArgList)
@@ -80,12 +85,70 @@ func pregQuoteDelimiterEscaped(ctx *analysis.Context, call *syntax.FuncCall) boo
 	if first == nil {
 		return false
 	}
-	v, ok := astquery.QuotedStringValue(syntax.UnwrapParens(first))
+	v, ok := pregQuoteLeadingText(syntax.UnwrapParens(first))
 	v = strings.TrimLeft(v, " \t\n\r\v\f")
 	if !ok || v == "" {
 		return false
 	}
 	return strings.IndexByte(pregQuoteEscapes(ctx), v[0]) >= 0
+}
+
+// pregQuoteLeadingText returns the value of a string literal, or the literal
+// text an interpolated double-quoted string starts with when it holds no
+// escape.
+func pregQuoteLeadingText(e syntax.Expr) (string, bool) {
+	is, ok := e.(*syntax.InterpolatedString)
+	if !ok {
+		return astquery.QuotedStringValue(e)
+	}
+	part, ok := is.Parts[0].(*syntax.StringPart)
+	if !ok || is.Heredoc || is.Backtick || strings.Contains(part.Raw, `\`) {
+		return "", false
+	}
+	return part.Raw, true
+}
+
+// pregQuoteStoredEscaped reports whether the call is stored in a local
+// variable (`$chars = preg_quote($chars);`) that, from there on, is never
+// written again and only read inside patterns whose delimiter preg_quote()
+// escapes anyway (`"{^[$chars]++}"`).
+func pregQuoteStoredEscaped(ctx *analysis.Context, call *syntax.FuncCall) bool {
+	parent, child := astquery.ParentSkipParens(call)
+	as, ok := parent.(*syntax.Assign)
+	if !ok || as.Value != child || as.Op.Kind != syntax.TEqual {
+		return false
+	}
+	v, ok := as.Var.(*syntax.Variable)
+	if !ok || v.NameExpr != nil || v.Name == "this" {
+		return false
+	}
+	if _, ok := as.Parent().(*syntax.ExprStmt); !ok {
+		return false
+	}
+	scope := syntax.EnclosingFuncLike(as)
+	if scope == nil {
+		return false // file scope: included files share the variable
+	}
+	reads, ok := 0, true
+	syntax.Inspect(scope, func(n syntax.Node) bool {
+		if !ok {
+			return false
+		}
+		if n != scope && syntax.IsFuncLike(n) {
+			if _, arrow := n.(*syntax.ArrowFunction); !arrow {
+				ok = !astquery.MentionsVariable(n, v.Name) // a closure capturing it
+				return false
+			}
+		}
+		x, isVar := n.(*syntax.Variable)
+		if !isVar || x == v || x.NameExpr != nil || x.Name != v.Name || x.Span().Start < as.Span().End {
+			return true
+		}
+		reads++
+		ok = pregQuoteDelimiterEscaped(ctx, x)
+		return ok
+	})
+	return ok && reads > 0
 }
 
 // pregQuoteEscapes lists the characters preg_quote() escapes by itself.

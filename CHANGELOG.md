@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- PregQuoteUsage no longer reports `$chars = preg_quote($chars);` when the
+  variable is then only read inside patterns whose delimiter preg_quote()
+  escapes anyway, including interpolated ones (`"{^[$chars]++}"`).
 - MagicMethodsValidity no longer asks for a `__set` companion in a class
   that unsets one of its own properties (`unset($this->service)`) so that
   `__get` initializes it lazily.

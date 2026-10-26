@@ -79,7 +79,17 @@ $re4 = $quoter->preg_quote($needle);
   the format of the `sprintf()` call it is an argument of
   (`sprintf('{^%s}', preg_quote($x))`) — and is one of those characters,
   passing it changes nothing and custos does not report (E3). `/`, `~`,
-  `%`, `@` and invisible delimiters are still reported.
+  `%`, `@` and invisible delimiters are still reported. A double-quoted
+  string interpolating the quoted text counts the same way, by the
+  literal text it starts with when that holds no escape
+  (`"{^[$chars]++}"`).
+- **Stored quotes (custos diverges).** When the call is the whole value of
+  a plain assignment statement to a local variable of a function
+  (`$chars = preg_quote($chars);`), and every later mention of that
+  variable in the function is a read inside a pattern whose visible
+  delimiter preg_quote() escapes (as above), not reported. A later write,
+  a classic closure using the variable, or any other read keeps the report
+  (Symfony's `AbstractUnicodeString::trim()`).
 - **Rewritten quotes (custos diverges).** The E3 delimiter check also
   looks through `str_replace(…, …, preg_quote($x))` (the subject) and
   `strtr(preg_quote($x), …)`: the classic glob-to-regex
