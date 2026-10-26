@@ -417,6 +417,40 @@ func nullDefault(e syntax.Expr) bool {
 	return ok && strings.EqualFold(c.Name.Value, "null")
 }
 
+// ThisEffects lists what body does to `$this` (see Method.Inits): the
+// properties it assigns (`p`) and the methods it calls (`m()`, lower-case),
+// each once, nested closures, functions and classes aside.
+func ThisEffects(body *syntax.Block) []string {
+	var out []string
+	add := func(s string) {
+		if !slices.Contains(out, s) {
+			out = append(out, s)
+		}
+	}
+	onThis := func(e syntax.Expr) bool {
+		v, ok := e.(*syntax.Variable)
+		return ok && v.NameExpr == nil && v.Name == "this"
+	}
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return false
+		case *syntax.Assign:
+			if f, ok := x.Var.(*syntax.PropertyFetch); ok && onThis(f.Var) {
+				if id, ok := f.Name.(*syntax.Identifier); ok {
+					add(id.Value)
+				}
+			}
+		case *syntax.MethodCall:
+			if id, ok := x.Name.(*syntax.Identifier); ok && onThis(x.Var) {
+				add(strings.ToLower(id.Value) + "()")
+			}
+		}
+		return true
+	})
+	return out
+}
+
 // forwardsMessage reports whether constructor m passes its first parameter
 // unchanged as the first argument of `parent::__construct()` (see
 // Method.ForwardsMessage).
@@ -530,6 +564,9 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	if strings.EqualFold(m.Name.Value, "__construct") {
 		meth.StoresParams, meth.Stores = storedParams(m)
 		meth.ForwardsMessage = !x.stub && forwardsMessage(m)
+		if !x.stub && m.Body != nil {
+			meth.Inits = ThisEffects(m.Body)
+		}
 		meth.CtorTpl = x.ctorTemplates(d, m.Params, at)
 	}
 	if m.Body != nil {

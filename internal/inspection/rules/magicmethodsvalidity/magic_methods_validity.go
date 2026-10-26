@@ -408,12 +408,39 @@ func (c *magicCheck) callsParent() {
 			return true
 		})
 	}
-	if called || (pm.StoresParams && c.setsAll(pm.Stores)) {
+	if called || (pm.StoresParams && c.setsAll(pm.Stores)) || c.redoes(pm.Inits) {
 		return
 	}
 	declaring := strings.TrimPrefix(pm.Class, `\`)
 	declaring = astquery.LastNamePart(declaring)
 	c.report(c.name + " does not call " + declaring + "::" + c.name + "().")
+}
+
+// redoes reports whether the constructor does itself everything the parent
+// constructor does to the object (inits, see index.Method.Inits) when that
+// includes calling methods of the object: it re-implements the parent's
+// initialisation (Symfony's DescriptorHelper registers its own descriptors)
+// instead of forgetting it (custos, see Divergences).
+func (c *magicCheck) redoes(inits []string) bool {
+	calls := false
+	for _, e := range inits {
+		calls = calls || strings.HasSuffix(e, "()")
+	}
+	if !calls || c.m.Body == nil {
+		return false
+	}
+	done := index.ThisEffects(c.m.Body)
+	for _, p := range c.m.Params {
+		if len(p.Modifiers) > 0 {
+			done = append(done, p.Var.Name)
+		}
+	}
+	for _, e := range inits {
+		if !slices.Contains(done, e) {
+			return false
+		}
+	}
+	return true
 }
 
 // helperCallsParent reports whether a call of method on the object itself

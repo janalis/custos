@@ -167,9 +167,14 @@ type Method struct {
 	// parameter unchanged to `parent::__construct()` as the first argument,
 	// never writes that parameter and assigns no `message` property: the
 	// message stays the caller's. Never set for builtins.
-	ForwardsMessage bool     `json:"fwdMsg,omitempty"`
-	CSPRNG          bool     `json:"csprng,omitempty"` // see Function.CSPRNG
-	Stores          []string `json:"storesProps,omitempty"`
+	ForwardsMessage bool `json:"fwdMsg,omitempty"`
+	// Inits lists, for a project constructor, what its body (nested
+	// closures and classes aside) does to the object: the properties it
+	// assigns as `$this->p = …` (`p`) and the methods it calls as
+	// `$this->m(…)` (`m()`, lower-case). Never set for builtins.
+	Inits  []string `json:"inits,omitempty"`
+	CSPRNG bool     `json:"csprng,omitempty"` // see Function.CSPRNG
+	Stores []string `json:"storesProps,omitempty"`
 	// Magic marks a method declared only by a class `@method` tag: a real
 	// declaration in the class or its ancestors wins over it (FindMethod).
 	Magic   bool        `json:"magic,omitempty"`

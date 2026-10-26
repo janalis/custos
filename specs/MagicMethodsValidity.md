@@ -390,6 +390,17 @@ interface Printable { public function __toString(); }
   values the child overwrites or sets itself (Dolibarr's `$this->db = $db`
   pattern, ~280 reports). A parent constructor doing anything else, or a
   child leaving one of its properties unset, is still reported.
+- **Re-implemented parent constructors (custos diverges).** C-parent does
+  not report a constructor whose parent constructor calls at least one
+  method on the object (`$this->m()`, outside nested closures and classes)
+  when the constructor itself does everything the parent's does to the
+  object: it calls each of those methods on `$this` (method names compared
+  case-insensitively) and assigns each property the parent assigns as
+  `$this->p = …` (or promotes a parameter of that name). It takes over the
+  parent's initialization rather than forgetting it (Symfony's
+  `DescriptorHelper` registers its own descriptors instead of the
+  parent's). A constructor that skips any of those calls or properties is
+  still reported.
 - **Parent call through a helper (custos).** A constructor (or other magic
   method) that calls, as `$this->m()`, `self::m()` or `static::m()`, a
   method of its class or of a trait it uses that no subclass can replace
