@@ -123,6 +123,12 @@ a container `C`):
   class/interface type.
 - **E9** Plain-variable containers rebound by destructuring or through a
   reference in the same scope (D8).
+- **E10** (custos) A D6 report on a container that is itself an element read
+  with a key other than a literal or a constant (`$days[$key]['total']`),
+  when `S` has an `array` or `string` member: the container's type merges
+  the values stored under every key of the array, and the key only selects
+  one of them (`$days` holds integers under `'total'` and arrays under the
+  dynamic keys). Literal and constant keys are still checked.
 
 ## Report
 
@@ -200,6 +206,9 @@ function ok($m, $c, $n) {
 
 ## Divergences
 
+- **E10 — custos diverges from upstream.** Upstream reports an element
+  read with a dynamic key whenever another key of the same array holds a
+  scalar.
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (`S` empty, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - Built-in return types are stub-dependent. Upstream's fixture expects no
   report for `explode(...)[0]`-style containers whose stub type is

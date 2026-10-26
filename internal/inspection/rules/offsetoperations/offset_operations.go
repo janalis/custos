@@ -225,6 +225,9 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 		if offsetRebound(ctx, access.Var) {
 			return
 		}
+		if offsetDynamicElement(access.Var) && (offsetHas(s, "array") || offsetHas(s, "string")) { // E10
+			return
+		}
 		ctx.ReportNode(access, "'"+ctx.Text(access.Var)+"' does not support offset access (types: "+strings.Join(s, "|")+").")
 		return
 	}
@@ -352,4 +355,19 @@ func quietOffsetRead(access *syntax.ArrayDimFetch) bool {
 		}
 		return false
 	}
+}
+
+// offsetDynamicElement reports whether e is an element read with a key that
+// is not a literal or a constant (`$days[$k]`): its type merges the values
+// stored under every key, while the key selects only one of them (E10).
+func offsetDynamicElement(e syntax.Expr) bool {
+	d, ok := e.(*syntax.ArrayDimFetch)
+	if !ok || d.Dim == nil {
+		return false
+	}
+	switch syntax.UnwrapParens(d.Dim).(type) {
+	case *syntax.Literal, *syntax.ConstFetch, *syntax.ClassConstFetch:
+		return false
+	}
+	return true
 }
