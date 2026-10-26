@@ -79,11 +79,27 @@ func (staticLambdaBinding) Check(ctx *analysis.Context, n syntax.Node) {
 		return true
 	})
 	for _, c := range found {
-		if probed { // F2: binding an object would flip the probe
+		if probed || noObjectAround(n) { // F2, F3
 			ctx.Report(c.span, c.msg)
 			continue
 		}
 		ctx.Report(c.span, c.msg, fix)
+	}
+}
+
+// noObjectAround reports whether fn is defined, through any nesting of
+// closures, in a static method: no closure there captures an object (F3).
+func noObjectAround(fn syntax.Node) bool {
+	f := syntax.EnclosingFuncLike(fn)
+	for {
+		switch x := f.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction:
+			f = syntax.EnclosingFuncLike(x)
+		case *syntax.Method:
+			return x.Modifiers.Has(syntax.TStatic)
+		default:
+			return false
+		}
 	}
 }
 

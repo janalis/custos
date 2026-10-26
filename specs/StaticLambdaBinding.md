@@ -82,6 +82,10 @@ Visit every anonymous function: classic closures and arrow functions.
   closure an object would silently turn the probe's answer around
   (`isset($this) ? $this->x : null` returns `null` today and the property
   once `static` is gone). The reports are kept, without a fix.
+- **F3** No fix either when the inspected function is defined inside a
+  static method, directly or through other closures and arrow functions:
+  without `static` it would still capture no object, and the `$this` would
+  fail the same way. The reports are kept, without a fix.
 
 ## Options
 
@@ -178,3 +182,7 @@ class Widget extends Base {
   `empty($this)`, which run fine without an object; its fix then changes
   what they return. custos does not report the probe (E5) and withholds the
   fix for the other reports of a function that contains one (F2).
+- **No object to capture (custos diverges from upstream).** Upstream
+  offers to remove `static` everywhere. In a static method (php-src's
+  `gen_stub.php`) the closure would still have no `$this`, so the fix only
+  hides the error; custos keeps the report without a fix (F3).

@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- StaticLambdaBinding no longer offers to remove `static` from a closure
+  defined in a static method: the closure would still have no `$this`. The
+  report stays, without a fix.
 - TypeUnsafeComparison no longer warns about `'true' != $content['success']`
   when the other operand may be a boolean (unknown, `mixed` or `bool`): the
   loose comparison accepts both `true` and `'true'` on purpose.
