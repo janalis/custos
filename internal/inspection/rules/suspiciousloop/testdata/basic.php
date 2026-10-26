@@ -1,5 +1,6 @@
 <?php
 <error descr="Only the last expression of the 'for' condition is evaluated as the condition; combine them with && or ||.">for</error> ($n = 0; $n < 5, $n != 3; $n++) {}
+<error descr="Only the last expression of the 'for' condition is evaluated as the condition; combine them with && or ||.">for</error> ($n = 0; $c = $n * 2, $n < 5, $n != 3; $n++) {}
 
 function scan(array $rows, $pos) {
     <error descr="Loop variable '$rows' overwrites a function parameter.">foreach</error> ($rows as $rows) {}

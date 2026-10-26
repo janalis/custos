@@ -5,6 +5,20 @@ import (
 	"custos/internal/php/syntax"
 )
 
+// sideEffectsFirst reports whether every condition expression before the
+// last one is an assignment, an increment or a call: run for its effect each
+// iteration, not meant as a condition (E5).
+func sideEffectsFirst(cond []syntax.Expr) bool {
+	for _, e := range cond[:len(cond)-1] {
+		switch syntax.UnwrapParens(e).(type) {
+		case *syntax.Assign, *syntax.IncDec, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // suspiciousLoop reports `for` conditions with several expressions and loop
 // variables overwriting parameters or outer loop variables.
 type suspiciousLoop struct{}
@@ -24,7 +38,7 @@ func (suspiciousLoop) Check(ctx *analysis.Context, n syntax.Node) {
 	kwLen := uint32(len("foreach"))
 	if f, ok := n.(*syntax.For); ok {
 		kwLen = uint32(len("for"))
-		if len(f.Cond) >= 2 { // D1
+		if len(f.Cond) >= 2 && !sideEffectsFirst(f.Cond) { // D1, E5
 			ctx.Report(syntax.Span{Start: s.Start, End: s.Start + kwLen}, suspiciousLoopMultiCondMsg)
 		}
 	}

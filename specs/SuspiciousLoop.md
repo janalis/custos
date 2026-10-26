@@ -53,6 +53,11 @@ Applies to `for` and `foreach` statements.
   `for`/`foreach` variable; closure `use` variables are not parameters.
 - **E3** Outer loops beyond a function/closure boundary.
 - **E4** With `VERIFY_VARIABLES_OVERRIDE` false, D2–D4 are skipped entirely.
+- **E5** D1 is not reported when every expression before the last is an
+  assignment (plain or compound), an increment/decrement or a function,
+  method or static call: such a list runs statements on each iteration and
+  only means the last expression as the condition
+  (`for ($x = 0; $c = $x * 2, $x++ < 75;)`).
 
 ## Report
 
@@ -112,6 +117,12 @@ foreach ($matrix as $row => $cols) {
 ```
 
 ## Divergences
+
+- **Statements before the condition (custos diverges, D1).** Upstream
+  reports any condition section with several expressions. custos stays
+  silent when all but the last are assignments, increments or calls (E5):
+  they run for their effect each iteration, as in php-src's benchmark
+  loops, and joining them with `&&` would change what the loop does.
 
 - **Loops going on from the given value (custos diverges, D2).** Upstream
   counts any assignment of the `for` init. `for ($index += $direction; …)`
