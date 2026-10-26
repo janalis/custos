@@ -23,8 +23,8 @@ class Cell
     public function named(?Tint $tint, ?bool $on)
     {
         $a = Box::draw($on, tint: $tint);
-        $b = Box::paint($on, tint: <warning descr="Possible null dereference.">$tint</warning>);
         $c = Box::draw($on, unknown: $tint);
+        $b = Box::paint($on, tint: <warning descr="Possible null dereference.">$tint</warning>);
         return $a . $b . $c;
     }
 

@@ -230,6 +230,18 @@ walk for this name, *skip* goes to the next usage:
   included; a write to `$n->p` or `$n[…]` is not one) that can reach `v`
   without passing the condition again, a by-reference use, or, for a
   `static` local, a call that may run the function again.
+- **U13** (custos, see Divergences) After a report, the walk *stops* when
+  the reported usage throws on null and always runs before the code after
+  it: it is a U8 method call, a U9 call of the variable, a U10 `clone` or a
+  U11 argument (not a U7 element or U8 property read, which only warn on
+  null); its statement is an expression statement, `return` or `echo`
+  directly in the statement list that holds `A` (the body of `F` for a
+  parameter); and on the
+  way up to that statement no operator can skip it: it is not the right
+  operand of `&&`, `||`, `and`, `or` or `??`, not a ternary branch, not
+  inside a closure, and no nullsafe `?->` access lies above it.
+  `$box->open(); $box->close();` reports the first call only: the second
+  one only runs when the first did not throw.
 
 ## Exceptions (no report)
 
@@ -384,6 +396,9 @@ function visit(?Node $item) {
 
 ## Divergences
 
+- **U13 — custos diverges from upstream.** Upstream reports every
+  dereference of the same nullable value, even after one that always runs
+  and would already have thrown.
 - **E11 — custos diverges from upstream.** Upstream also reports
   dereferences in unreachable code, such as after a `break` in a `case`.
 - Case-insensitive assertion names (custos diverges from upstream).

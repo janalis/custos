@@ -114,6 +114,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- NullPointerException reports a nullable value once when its first
+  dereference throws on null and always runs (`$box->open(); $box->close();`
+  reports only the first call), instead of repeating the report for every
+  later use.
 - When neither `custos.json` nor `composer.json` sets a PHP version, the
   version pinned by a `.php-version` file at the project root is used
   instead of the PHP 8.4 default, so a PHP 5.6 project is no longer offered

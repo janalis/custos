@@ -15,7 +15,7 @@ func TestSmallArrayPrecision(t *testing.T) {
  * @param array<string, array{a: int}> $x
  * @param array<string, array{b: string}> $y
  */
-function run(?array $places, array $ids, $id, ?string $s, $object, array $x, array $y, array $plain, array $lists) {
+function run(?array $places, array $ids, $id, ?string $s, $object, array $x, array $y, array $plain, array $lists, ?\DateTime $when) {
     array_map(static function (?array $place) { t('nullable', $place); return 1; }, $places ?? []);
     array_map(static function (array $place) { t('notNull', $place); return 1; }, $places ?? []);
     t('arrow', array_map(fn ($i): array => ['y' => $i], $ids));
@@ -24,6 +24,7 @@ function run(?array $places, array $ids, $id, ?string $s, $object, array $x, arr
     t('cast', (array) $id);
     t('castNullable', (array) $s);
     t('castObject', (array) $object);
+    t('castClass', (array) $when);
     t('replaceRecursive', array_replace_recursive($x, $y));
     t('replaceUnknown', array_replace_recursive($x, $object));
     t('replacePlain', array_replace_recursive($x, $plain));
@@ -39,6 +40,7 @@ function run(?array $places, array $ids, $id, ?string $s, $object, array $x, arr
 		"cast":             "int[]|string[]",
 		"castNullable":     "string[]",
 		"castObject":       "array",
+		"castClass":        "array",
 		"replaceRecursive": "array[]<non-empty array{a?: int, b?: string}>",
 		"replaceUnknown":   "array",
 		"replacePlain":     "array",

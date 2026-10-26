@@ -331,9 +331,60 @@ func (u *npeUnit) walk(name string, decl *syntax.Assign) {
 		}
 		if rep {
 			u.emit(v, v.Span())
+			if u.provesNonNull(v, decl) { // U13: later code only runs when $v was an object
+				return
+			}
 		}
 		if stop {
 			return
+		}
+	}
+}
+
+// provesNonNull reports whether the reported usage v throws on null (a
+// method call on it, calling it, cloning it or passing it to an object-only
+// parameter) and runs whenever the statements after it run: its statement
+// belongs to the list that holds the declaration (the function body for a
+// parameter) and no operator on the way can skip it.
+func (u *npeUnit) provesNonNull(v *syntax.Variable, decl *syntax.Assign) bool {
+	switch v.Parent().(type) {
+	case *syntax.MethodCall, *syntax.FuncCall, *syntax.Clone, *syntax.Arg:
+	default:
+		return false // a property or element read on null only warns
+	}
+	var base syntax.Node = u.body
+	if decl != nil { // D5: a declaration is an expression statement of its own
+		base = decl.Parent().Parent()
+	}
+	child := syntax.Node(v)
+	// Every usage lies in a statement of F, so the climb ends in the switch.
+	for n := v.Parent(); ; child, n = n, n.Parent() {
+		switch x := n.(type) {
+		case *syntax.ExprStmt, *syntax.Return, *syntax.Echo:
+			return n.Parent() == base
+		case *syntax.Binary:
+			switch x.Op.Kind {
+			case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr, syntax.TCoalesce:
+				if x.Left != child {
+					return false
+				}
+			}
+		case *syntax.Ternary:
+			if x.Cond != child {
+				return false
+			}
+		case *syntax.MethodCall:
+			if x.NullSafe && x.Var != child {
+				return false
+			}
+		case *syntax.PropertyFetch:
+			if x.NullSafe && x.Var != child {
+				return false
+			}
+		case *syntax.Arg, *syntax.ArgList, *syntax.StaticCall, *syntax.FuncCall, *syntax.New, *syntax.Assign,
+			*syntax.Paren, *syntax.ArrayDimFetch, *syntax.Unary, *syntax.Clone:
+		default:
+			return false
 		}
 	}
 }

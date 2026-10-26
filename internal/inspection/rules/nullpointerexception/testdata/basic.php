@@ -14,7 +14,7 @@ class Node
         $head->value = 2;
 
         $x = clone <warning descr="Possible null dereference.">$tail</warning>;
-        $this->take(<warning descr="Possible null dereference.">$tail</warning>);
+        $this->take($tail); // clone already threw on null
         echo $tail->value ?? 'none';
         if (isset($tail->value['a'])) {}
         if ($tail) {
@@ -33,7 +33,7 @@ class Node
         }
         $n = $this->next();
         <warning descr="Possible null dereference.">$n</warning>->next();
-        <warning descr="Possible null dereference.">$n</warning>['k'];
+        $n['k']; // the call above already threw on null
         $n = new Node();
         $n->value = 0;
 
