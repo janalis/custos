@@ -23,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	call := n.(*syntax.FuncCall)
-	if !semanticquery.NativeBuiltin(ctx, call, "password_hash") {
+	if !semanticquery.NativeBuiltin(ctx, call, "password_hash") || semanticquery.InTestContext(ctx, call) { // E3
 		return
 	}
 	algorithm, ok := syntax.UnwrapParens(semanticquery.CallArgument(call.Args, 1, "algo")).(*syntax.ConstFetch)

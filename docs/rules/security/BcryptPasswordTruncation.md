@@ -34,6 +34,7 @@ Reported:
 ## Exceptions (no report)
 
 - Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Test code is not reported: a file whose name ends with `Test.php`, `Spec.php` or `.phpt` or whose path has a `/Fixtures/` directory, or a class whose name ends with `Test` or whose namespace has a `Tests` or `Test` segment. Tests hash over-long passwords on purpose to check how the 72-byte limit is handled.
 - Both standard suppression forms suppress this native ID.
 
 ## Fix
