@@ -61,13 +61,13 @@ func (phpUnitDeprecations) Check(ctx *analysis.Context, n syntax.Node) {
 	switch name {
 	case "assertEquals", "assertNotEquals":
 		if args != nil && !puForeignAssertion(ctx, n, name) {
-			checkEqualsArgs(ctx, name, args.Args)
+			checkEqualsArgs(ctx, n, name, args.Args)
 		}
 	case "assertFileNotExists", "assertDirectoryNotExists":
-		if ver < 91 || puForeignAssertion(ctx, n, name) { // E2, E5
+		repl := renamedAssertions[name]
+		if ver < 91 || puForeignAssertion(ctx, n, name) || puCompatibilityLayer(ctx, n, repl) { // E2, E5, E6
 			return
 		}
-		repl := renamedAssertions[name]
 		span := id.Span()
 		ctx.Report(span, name+"() was deprecated by PHPUnit 9.1; call "+repl+"() instead.", diagnostic.Fix{
 			Title: "Rename to " + repl + "()",
@@ -107,10 +107,58 @@ func puForeignAssertion(ctx *analysis.Context, n syntax.Node, name string) bool 
 	return len(classes) > 0
 }
 
+var equalsReplacements = map[int]string{3: "WithDelta", 5: "Canonicalizing", 6: "IgnoringCase"}
+
+// puCompatibilityLayer implements E6: the call belongs to code that keeps
+// older PHPUnit versions working, so the replacement API repl may not exist
+// there. It sits in a method named repl (a polyfill, which the replacement
+// would turn into a method calling itself), or under an `if`, `elseif` or
+// ternary whose condition asks `method_exists(…, 'repl')`.
+func puCompatibilityLayer(ctx *analysis.Context, call syntax.Node, repl string) bool {
+	for p := call.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
+		var conds []syntax.Expr
+		switch x := p.(type) {
+		case *syntax.If:
+			conds = append(conds, x.Cond)
+			for _, ei := range x.ElseIfs {
+				conds = append(conds, ei.Cond)
+			}
+		case *syntax.Ternary:
+			conds = append(conds, x.Cond)
+		}
+		for _, c := range conds {
+			if puAsksMethodExists(ctx, c, repl) {
+				return true
+			}
+		}
+	}
+	m, ok := syntax.EnclosingFuncLike(call).(*syntax.Method)
+	return ok && strings.EqualFold(m.Name.Value, repl)
+}
+
+// puAsksMethodExists reports whether cond calls the builtin method_exists()
+// with the literal method name repl.
+func puAsksMethodExists(ctx *analysis.Context, cond syntax.Expr, repl string) bool {
+	found := false
+	syntax.Inspect(cond, func(n syntax.Node) bool {
+		c, ok := n.(*syntax.FuncCall)
+		if !ok || found || !ctx.IsGlobalFunctionCall(c, "method_exists") || c.Args == nil || len(c.Args.Args) < 2 {
+			return !found
+		}
+		if arg, ok := c.Args.Args[1].(*syntax.Arg); ok {
+			if lit, ok := arg.Value.(*syntax.Literal); ok && lit.LitKind == syntax.LitString && len(lit.Raw) > 2 {
+				found = strings.EqualFold(lit.Raw[1:len(lit.Raw)-1], repl)
+			}
+		}
+		return !found
+	})
+	return found
+}
+
 var equalsParamIndex = map[string]int{"delta": 3, "maxDepth": 4, "canonicalize": 5, "ignoreCase": 6}
 
 // checkEqualsArgs implements D1/D2.
-func checkEqualsArgs(ctx *analysis.Context, name string, args []syntax.Expr) {
+func checkEqualsArgs(ctx *analysis.Context, call syntax.Node, name string, args []syntax.Expr) {
 	many := len(args) > 3
 	for i, a := range args {
 		idx := i
@@ -134,6 +182,9 @@ func checkEqualsArgs(ctx *analysis.Context, name string, args []syntax.Expr) {
 		case 6:
 			msg = "PHPUnit 8.0 deprecated the ignoreCase argument; call " + name + "IgnoringCase() instead."
 		default:
+			continue
+		}
+		if repl := equalsReplacements[idx]; repl != "" && puCompatibilityLayer(ctx, call, name+repl) { // E6
 			continue
 		}
 		ctx.ReportNode(a, msg)

@@ -68,6 +68,16 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
   an instance call has a receiver other than `$this` whose type is unknown.
   `$this`, an unresolvable static class, a class without such a method, and
   receivers resolving to PHPUnit's own declaration are still checked.
+- **E6** (custos, see Divergences) Compatibility layers, for findings that
+  name a replacement (RENAMED, DELTA, CANON, CASE): the call sits in a
+  method named like the replacement, case-insensitively (a polyfill such as
+  `assertFileDoesNotExist()` calling `assertFileNotExists()`, which the
+  rename would turn into a method calling itself), or anywhere under an
+  `if`, `elseif` or ternary of the same function whose condition calls the
+  builtin `method_exists()` with the replacement's name as a string literal
+  second argument (`if (method_exists($this, 'assertEqualsWithDelta')) {…}
+  else { $this->assertEquals($a, $b, '', .5); }`): older PHPUnit versions
+  run it. DEPTH findings, which have no replacement, stay.
 
 ## Report
 
@@ -161,6 +171,9 @@ final class ExportTest
 
 ## Divergences
 
+- **E6 — custos diverges from upstream.** Upstream reports polyfills and
+  `method_exists()` fallbacks, and its rename fix turns a polyfill into a
+  method that calls itself.
 - **PHPUnit version when `PHP_UNIT_VERSION` is unset (custos diverges):**
   upstream assumes `PHPUNIT80`, so a PHPUnit 7 project is told that
   `assertEquals`' delta argument is deprecated. When the option is not

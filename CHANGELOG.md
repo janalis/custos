@@ -121,6 +121,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- PhpUnitDeprecations no longer reports old assertion APIs in compatibility
+  code: a polyfill method named after the replacement (whose rename fix
+  made it call itself forever) or a `method_exists()` fallback for older
+  PHPUnit versions.
 - DisconnectedForeachInstruction no longer reports a call made after the
   loop body wrote a file or process state, such as a command run after
   `file_put_contents()` rewrote its configuration: the call may read what
