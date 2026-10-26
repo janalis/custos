@@ -50,7 +50,10 @@ Visit every function call.
   - An empty array literal `[]` is not skipped by E1.
   - (custos) An item may also be a class constant fetched through a class
     name (`self::USER`, `Webform::PAGE`, not `static::`, which a subclass
-    may redefine) whose initializer is such a string literal.
+    may redefine) whose initializer is such a string literal, wherever the
+    class is declared. A constant declared in another file counts only when
+    its initializer is one quoted string with no quote, `$` or backslash
+    inside.
 - **E2** *Matching types*: the inferred type of `N` (unknown parts removed)
   consists of exactly one type `T`, the inferred type of `H` (unknown parts
   removed) consists of exactly one type `A`, and `A` equals `T` with a leading

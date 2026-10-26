@@ -121,6 +121,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- TypeUnsafeArraySearch no longer reports `in_array()` over class constants declared in another file whose values are plain non-numeric strings.
 - Type inference keeps the array an `iterable` or `callable` parameter may
   hold when `is_array()` narrows it, instead of keeping only an array
   literal assigned on another path; UnnecessaryCasting no longer reports

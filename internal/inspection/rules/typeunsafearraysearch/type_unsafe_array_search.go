@@ -116,6 +116,7 @@ func stringLiteralContent(ctx *analysis.Context, e syntax.Expr) (string, bool) {
 					return raw, true
 				}
 			}
+			return indexedStringConst(ctx, cf)
 		}
 		return "", false
 	}
@@ -125,4 +126,24 @@ func stringLiteralContent(ctx *analysis.Context, e syntax.Expr) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// indexedStringConst reads a class constant declared in another file: its
+// indexed initializer, when that is a single plain quoted string (no
+// interpolation, no concatenation).
+func indexedStringConst(ctx *analysis.Context, cf *syntax.ClassConstFetch) (string, bool) {
+	id, ok := cf.Name.(*syntax.Identifier)
+	cls := ctx.Types().ClassRef(cf.Class)
+	if !ok || cls == "" {
+		return "", false
+	}
+	k := ctx.Index().FindConst(cls, id.Value, ctx.PHP)
+	if k == nil || k.Case || len(k.Value) < 2 {
+		return "", false
+	}
+	q, body := k.Value[0], k.Value[1:len(k.Value)-1]
+	if q != '\'' && q != '"' || k.Value[len(k.Value)-1] != q || strings.ContainsRune(body, rune(q)) || q == '"' && strings.ContainsAny(body, `$\`) {
+		return "", false
+	}
+	return body, true
 }
