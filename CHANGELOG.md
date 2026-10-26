@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ProperNullCoalescingOperatorUsage no longer reports a lookup of one key
+  in two maps of different objects (`$nodes[$id] ?? $groups[$id]`).
 - IsIterableCanBeUsed no longer reports an `is_array()`/`instanceof
   Traversable` pair whose line explains in a comment why it avoids
   `is_iterable()`.

@@ -117,7 +117,12 @@ not `null`):
   `!(self::$override ?? true)`, a cache slot set to `false` so that `??=`
   does not compute it again) → no report. (A comparison on the left is a
   `bool` already: D4 finds the sides complementary.)
-- D6: not complementary, not related, and none of D5a–D5e applies →
+- D5f: lookups in two maps (custos diverges). Both operands are element
+  reads (`$a[k]`, parentheses aside) and both type sets hold class types
+  only: `$nodes[$id] ?? $groups[$id]` looks one key up in two maps of
+  different objects that the code then uses alike. Plain variables or
+  properties of unrelated classes are still reported.
+- D6: not complementary, not related, and none of D5a–D5f applies →
   report.
 
 ## Exceptions (no report)

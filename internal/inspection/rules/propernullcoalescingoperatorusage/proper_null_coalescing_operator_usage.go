@@ -83,7 +83,7 @@ func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax
 		}
 	}
 	if complementary || pncoScalarOnly(lt) && pncoScalarOnly(rt) && !pncoNeverNull(b.Left) || pncoBoolSentinel(b) || r.related(ctx, lt, rt) || r.sameFamily(ctx, lt, rt) ||
-		pncoCallableValue(ctx, b.Left, rt) || pncoCallableValue(ctx, b.Right, lt) {
+		pncoCallableValue(ctx, b.Left, rt) || pncoCallableValue(ctx, b.Right, lt) || pncoLookups(b, lt, rt) {
 		return
 	}
 	ctx.Report(b.Span(), "Operand types of '??' do not match ("+pncoSetString(lt)+" vs "+pncoSetString(rt)+").")
@@ -266,6 +266,25 @@ func (properNullCoalescingOperatorUsage) family(ctx *analysis.Context, set map[s
 		}
 	}
 	return false
+}
+
+// pncoLookups implements D5f: both operands are element reads holding
+// objects only: `$nodes[$id] ?? $groups[$id]` looks one key up in two maps
+// whose objects the code then uses alike.
+func pncoLookups(b *syntax.Binary, lt, rt map[string]bool) bool {
+	for _, side := range []syntax.Expr{b.Left, b.Right} {
+		if _, ok := syntax.UnwrapParens(side).(*syntax.ArrayDimFetch); !ok {
+			return false
+		}
+	}
+	for _, set := range []map[string]bool{lt, rt} {
+		for t := range set {
+			if !strings.HasPrefix(t, `\`) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func pncoSetString(s map[string]bool) string {
