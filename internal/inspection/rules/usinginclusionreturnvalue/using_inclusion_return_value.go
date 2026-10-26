@@ -17,20 +17,35 @@ func (usingInclusionReturnValue) Kinds() []syntax.NodeKind {
 }
 
 func (usingInclusionReturnValue) Check(ctx *analysis.Context, n syntax.Node) {
-	parent := n.Parent()
-	for { // D2: look through `@` and parentheses
+	cur := n
+	for { // D2: look through `@`, parentheses and (E2) a guarding operator
+		parent := cur.Parent()
 		if u, ok := parent.(*syntax.Unary); ok && u.Op.Kind == syntax.TAt {
-			parent = u.Parent()
+			cur = u
 			continue
 		}
-		if p, ok := parent.(*syntax.Paren); ok {
-			parent = p.Parent()
+		if _, ok := parent.(*syntax.Paren); ok {
+			cur = parent
+			continue
+		}
+		if b, ok := parent.(*syntax.Binary); ok && b.Right == cur && guardOp(b.Op.Kind) {
+			cur = b
 			continue
 		}
 		break
 	}
-	if _, ok := parent.(*syntax.ExprStmt); ok { // E1
+	if _, ok := cur.Parent().(*syntax.ExprStmt); ok { // E1, E2
 		return
 	}
 	ctx.ReportNode(n, usingInclusionReturnValueMsg)
+}
+
+// guardOp reports the operators whose right operand only runs depending on
+// the left one: `class_exists($c, false) || require $file;`.
+func guardOp(k syntax.TokenKind) bool {
+	switch k {
+	case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr, syntax.TCoalesce:
+		return true
+	}
+	return false
 }

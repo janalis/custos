@@ -30,6 +30,14 @@ objects or functions; inclusion should be a standalone statement.
 - **E1** `require 'x.php';` / `include_once('y.php');` as a statement of its own
   (top level or inside any block), also when silenced or parenthesized:
   `@include 'x.php';`, `(require 'x.php');`.
+- **E2** The inclusion is the right operand of `||`, `&&`, `or`, `and` or
+  `??` (again through `@` and parentheses), and that expression is itself a
+  statement of its own, also through further such operators: the inclusion
+  only runs on a condition and its value is discarded
+  (`class_exists($class, false) || require $file;`,
+  `$loaded or include_once 'helpers.php';`). As a left operand, or when the
+  whole expression is used (`$ok = $a || require 'a.php';`), it is still
+  reported.
 
 ## Report
 
@@ -76,3 +84,7 @@ function settings(array $env) {
   as a statement) is reported although its value is discarded. custos looks
   through `@` and parentheses before deciding whether the inclusion is a
   statement of its own.
+- **E2 — custos diverges from upstream.** Upstream reports an inclusion
+  guarded by a logical operator in a statement of its own
+  (`class_exists($c, false) || require $file;`), although nothing reads its
+  value.
