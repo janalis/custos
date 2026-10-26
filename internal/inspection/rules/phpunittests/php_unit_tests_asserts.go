@@ -56,6 +56,9 @@ func putCheckCall(ctx *analysis.Context, c phpunit.PuCall) {
 		if !ok {
 			continue
 		}
+		if putLacksMethod(ctx, c, sug.name) { // E12
+			return
+		}
 		msg := sug.msg
 		if msg == "" {
 			msg = "Use '" + sug.name + "()' instead."
@@ -67,6 +70,25 @@ func putCheckCall(ctx *analysis.Context, c phpunit.PuCall) {
 		ctx.ReportNode(c.Node, msg, fixes...)
 		return
 	}
+}
+
+// putLacksMethod reports whether the receiver is a class whose whole
+// hierarchy is known, which declares the called assertion but no method
+// named name: a test base of its own (the redis extension's TestSuite), not
+// PHPUnit.
+func putLacksMethod(ctx *analysis.Context, c phpunit.PuCall, name string) bool {
+	var classes []string
+	if n, named := c.Recv.(*syntax.Name); named {
+		classes = []string{phpunit.PuResolveClassName(ctx, n)}
+	} else {
+		classes = ctx.TypeOf(c.Recv).Classes()
+	}
+	if len(classes) != 1 {
+		return false
+	}
+	ix, cls := ctx.Index(), strings.TrimPrefix(classes[0], `\`)
+	return ix.AncestorsComplete(cls, ctx.PHP) && ix.FindMethod(cls, c.Ident.Value, ctx.PHP) != nil &&
+		ix.FindMethod(cls, name, ctx.PHP) == nil
 }
 
 // putRenameFix renames the call and rebuilds its argument list.

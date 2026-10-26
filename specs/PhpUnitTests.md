@@ -398,6 +398,12 @@ integer/float literal, optionally with a unary minus.
   `array`.
 - **E11** Disabled option groups (see Options): with `PROMOTE_PHPUNIT_API`
   off only D15, D16 (and D17 if enabled) run.
+- **E12** (custos) Part B when the receiver (`$this`, a typed object,
+  `self`, `static`, `parent` or a class name) is one class whose whole
+  hierarchy is known, that class has the called assertion, and it has no
+  method with the suggested name: a test base of the project's own (a
+  `TestSuite` declaring only `assertTrue()`), where the suggestion would
+  call a method that does not exist.
 
 ## Report
 
