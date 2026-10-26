@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- UnusedConstructorDependencies no longer reports test classes and
+  fixtures, whose private properties tests read by reflection.
 - BcryptPasswordTruncation no longer reports test code, which hashes
   over-long passwords on purpose to check the 72-byte limit.
 - Failure-check rules (ImageDecodeFailureUnchecked, FileReadFailureUnchecked

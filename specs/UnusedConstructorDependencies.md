@@ -84,6 +84,11 @@ Visit every class's own constructor.
   `__destruct()`: holding it keeps the object alive, delaying its
   destructor until this object goes away (Doctrine DBAL's mysqli `Result`
   keeps its `Statement`).
+- **E8** (custos, see Divergences) Classes in a test context: the file name
+  ends with `Test.php`, `Spec.php` or `.phpt` or the path has a
+  `/Fixtures/` directory, or the class name ends with `Test` or its
+  namespace has a `Tests` or `Test` segment. Test fixtures keep values that
+  their tests read by reflection.
 
 ## Report
 
@@ -160,6 +165,8 @@ class Mailer
 
 ## Divergences
 
+- **E8 — custos diverges from upstream.** Upstream also reports test
+  fixtures whose private properties the tests read by reflection.
 - **D4/D4a — custos diverges from upstream.** Upstream counts references
   inside closures defined in the constructor as constructor references: a
   property written directly in the constructor and read by a closure or

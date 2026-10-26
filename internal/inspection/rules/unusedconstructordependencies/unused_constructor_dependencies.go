@@ -26,6 +26,11 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 	if cl.ClassKind != syntax.KindClass || cl.Span().Len() == 0 { // D1
 		return
 	}
+	// E8: test classes and fixtures keep values their tests read by
+	// reflection.
+	if ctx.IsTestFile() || astquery.IsTestClassFQN(ctx.Names().DeclFQN(cl)) {
+		return
+	}
 	var ctor *syntax.Method
 	hasProps := false
 	var traits []*syntax.Name
