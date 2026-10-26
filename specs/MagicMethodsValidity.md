@@ -374,6 +374,11 @@ interface Printable { public function __toString(); }
   `false`, `0`, `''`, `'0'`, `[]`), `isset($p)` or `$p !== null` on a
   `null` default (`if ($options) { $this->setOptions($options); }` with
   `$options = []`, laminas-code's generators).
+- **Decorators of the parent (custos diverges).** C-parent does not report
+  a method that takes a parameter typed `parent` or the parent class
+  (nullable included): `__construct(private parent $event)` wraps an
+  instance of the parent and forwards to it, so its own parent part is
+  never used.
 - **Single-underscore hooks (custos diverges, D15).** `_construct()`,
   `_get()`, `_call()`… are not reported when the class hierarchy also
   declares the real magic method (`__construct()` calling

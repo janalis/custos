@@ -408,12 +408,33 @@ func (c *magicCheck) callsParent() {
 			return true
 		})
 	}
-	if called || (pm.StoresParams && c.setsAll(pm.Stores)) || c.redoes(pm.Inits) {
+	if called || (pm.StoresParams && c.setsAll(pm.Stores)) || c.redoes(pm.Inits) || c.wrapsParent(parent) {
 		return
 	}
 	declaring := strings.TrimPrefix(pm.Class, `\`)
 	declaring = astquery.LastNamePart(declaring)
 	c.report(c.name + " does not call " + declaring + "::" + c.name + "().")
+}
+
+// wrapsParent reports whether the method takes an instance of the parent
+// class (`__construct(private parent $inner)`): a decorator that forwards to
+// the wrapped object instead of initialising its own parent part.
+func (c *magicCheck) wrapsParent(parent string) bool {
+	for _, p := range c.m.Params {
+		t := p.Type
+		if nt, ok := t.(*syntax.NullableType); ok {
+			t = nt.Type
+		}
+		n, ok := t.(*syntax.Name)
+		if !ok {
+			continue
+		}
+		if strings.EqualFold(n.Value, "parent") ||
+			strings.EqualFold(strings.TrimPrefix(c.ctx.Names().Class(n.Value, n.Span().Start), `\`), strings.TrimPrefix(parent, `\`)) {
+			return true
+		}
+	}
+	return false
 }
 
 // redoes reports whether the constructor does itself everything the parent
