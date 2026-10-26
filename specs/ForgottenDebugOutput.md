@@ -143,6 +143,15 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
   `switch ($this->debugOutput) { case 'error_log': error_log($s); }`. The
   output is a feature behind a switch, not a leftover. `else` branches and
   calls inside the condition itself are still reported.
+- **E7** (custos, see Divergences) Feature probe: a function call that
+  only runs once the builtin `function_exists()` held for that same
+  function name (a string literal, compared case-insensitively, leading
+  `\` ignored): in the body of an `if`/`elseif`, the right operand of
+  `&&`/`and`, or the first branch of a full ternary, whose condition is
+  that call or has it as an operand of `&&`/`and`. Code probing for an
+  extension (`if (\function_exists('xdebug_get_function_stack') && $trace
+  = xdebug_get_function_stack())`) uses it on purpose. A probe combined
+  with `||`, or for another function, proves nothing.
 
 ## Report
 
@@ -213,6 +222,9 @@ function work($order, Probe $probe, Quiet $quiet) {
 
 ## Divergences
 
+- **E7 — custos diverges from upstream.** Upstream reports debug
+  functions called after `function_exists()` confirmed them, such as
+  Symfony's trace builder reading `xdebug_get_function_stack()`.
 - **Name case (custos diverges).** Upstream compares function names, method
   names, the declaring class and `ob_start` case-sensitively, so
   `VAR_DUMP($x)`, `Debug::Dump($x)` or a listed method whose class is

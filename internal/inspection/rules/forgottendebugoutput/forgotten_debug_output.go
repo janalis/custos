@@ -89,7 +89,7 @@ func (forgottenDebugOutput) Check(ctx *analysis.Context, n syntax.Node) {
 		if want, ok := debugArgAllowance[strings.ToLower(name)]; ok && astquery.ArgCount(x) == want { // D3
 			return
 		}
-		if debugOutputBuffered(ctx.File, x) || debugCaptured(ctx.File, x) || debugGated(x) || debugInWrapper(ctx, x, entries) { // D4
+		if debugOutputBuffered(ctx.File, x) || debugCaptured(ctx.File, x) || debugGated(x) || debugInWrapper(ctx, x, entries) || debugFeatureChecked(ctx, x, name) { // D4, E7
 			return
 		}
 		ctx.ReportNode(x, debugOutputMsg)
@@ -281,6 +281,59 @@ func debugGated(call syntax.Node) bool {
 		}
 		if cond != nil && debugNamed(cond) {
 			return true
+		}
+	}
+	return false
+}
+
+// debugFeatureChecked reports whether call only runs once
+// `function_exists('name')` held (E7): in the body of an `if`/`elseif`, the
+// right operand of `&&`/`and` or the first branch of a ternary whose
+// condition asks for that very function. Code that probes for an extension
+// (`xdebug_get_function_stack()` to build a trace) uses it on purpose.
+func debugFeatureChecked(ctx *analysis.Context, call syntax.Node, name string) bool {
+	child := call
+	for n := call.Parent(); n != nil && !syntax.IsFuncLike(n); child, n = n, n.Parent() {
+		var cond syntax.Expr
+		switch x := n.(type) {
+		case *syntax.If:
+			if child == syntax.Node(x.Body) {
+				cond = x.Cond
+			}
+		case *syntax.ElseIf:
+			if child == syntax.Node(x.Body) {
+				cond = x.Cond
+			}
+		case *syntax.Binary:
+			if (x.Op.Kind == syntax.TBooleanAnd || x.Op.Kind == syntax.TAnd) && child == syntax.Node(x.Right) {
+				cond = x.Left
+			}
+		case *syntax.Ternary:
+			if x.Then != nil && child == syntax.Node(x.Then) {
+				cond = x.Cond
+			}
+		}
+		if cond != nil && debugAsksFunction(ctx, cond, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// debugAsksFunction reports whether cond, or one of the operands of `&&`
+// or `and` it is made of, is a call of the builtin function_exists() with
+// the literal name.
+func debugAsksFunction(ctx *analysis.Context, cond syntax.Expr, name string) bool {
+	switch x := syntax.UnwrapParens(cond).(type) {
+	case *syntax.Binary:
+		if x.Op.Kind == syntax.TBooleanAnd || x.Op.Kind == syntax.TAnd {
+			return debugAsksFunction(ctx, x.Left, name) || debugAsksFunction(ctx, x.Right, name)
+		}
+	case *syntax.FuncCall:
+		if ctx.IsGlobalFunctionCall(x, "function_exists") {
+			lit, ok := syntax.UnwrapParens(semanticquery.CallArgument(x.Args, 0, "function")).(*syntax.Literal)
+			return ok && lit.LitKind == syntax.LitString && len(lit.Raw) > 2 &&
+				strings.EqualFold(strings.TrimLeft(lit.Raw[1:len(lit.Raw)-1], `\`), name)
 		}
 	}
 	return false
