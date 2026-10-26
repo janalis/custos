@@ -89,13 +89,15 @@ body content. This only happens when `C`'s body is a braced block.
   - `PC` is wrapped as `(PC)` whenever its right edge would absorb the
     appended `&& CC`: the parent condition is an assignment, a ternary
     (including the short `?:` form), an `instanceof`, a binary expression
-    whose operator is anything other than `&&` (e.g. `??`, `and`, `==`, `.`,
-    …), a `print`, `include`/`require`, `throw`, `yield`/`yield from` or
-    arrow function, or it ends in one of those: a prefix operator (`!`, `-`,
-    `@`, a cast, legacy `clone`) applied to such an operand
-    (`!$row = load()`), or a `&&` chain whose rightmost operand is one
-    (`$a && $row = load()`). Otherwise (plain `&&` chain, variable, call,
-    `!$a`, parenthesised expression, …) it is used as is.
+    whose operator binds as loosely as `&&` or looser (`||`, `??`, `and`,
+    `or`, `xor`, `|>`), a `print`, `include`/`require`, `throw`,
+    `yield`/`yield from` or arrow function, or it ends in one of those: a
+    prefix operator (`!`, `-`, `@`, a cast, legacy `clone`) applied to such
+    an operand (`!$row = load()`), or a binary expression of any other
+    operator (`&&`, `==`, `.`, …) whose right operand is one
+    (`$a && $row = load()`, `$a == $row = load()`). Otherwise (plain `&&`
+    chain, comparison, variable, call, `!$a`, parenthesised expression, …)
+    it is used as is: `if ($a == $b) { if ($c) {} }` → `if ($a == $b && $c) {}`.
   - `CC` is wrapped as `(CC)` when it binds looser than `&&`: a ternary
     (either form) or a binary `??` or `xor`. An `and` child keeps its meaning
     unwrapped and an assignment child is already the whole right operand, so
@@ -114,6 +116,11 @@ body content. This only happens when `C`'s body is a braced block.
   by the full text of `C` (including `C`'s own `elseif`/`else` branches), with
   preserved comments inserted into `C`'s body. The text between `else` and
   `{` is kept, giving `else if (…) …`.
+- Indentation (both cases): the moved text (`C`'s body in Case A, `C` in
+  Case B) loses one level: each of its lines after the first that starts
+  with the indentation of `C`'s line is moved to the indentation of the
+  parent block's opening line instead. The text is kept as is when a line
+  break lies inside a string, heredoc or inline HTML within it.
 
 ## Options
 

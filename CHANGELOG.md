@@ -114,6 +114,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- NestedPositiveIfStatements fixes no longer parenthesize a parent
+  condition that already binds tighter than `&&` (`$a == $b && $c`), and
+  move the merged code one indentation level out instead of keeping its
+  old nesting depth.
 - ThrowRawException no longer asks for a message when the exception's own
   constructor may supply one: a constructor that substitutes a default for
   an empty message, rewrites it or sets `$this->message` is no longer

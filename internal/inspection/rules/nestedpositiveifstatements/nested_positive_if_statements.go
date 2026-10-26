@@ -91,7 +91,11 @@ func npiWrapParent(e syntax.Expr) bool {
 		*syntax.Throw, *syntax.Yield, *syntax.YieldFrom, *syntax.ArrowFunction:
 		return true
 	case *syntax.Binary:
-		return e.Op.Kind != syntax.TBooleanAnd || npiWrapParent(e.Right)
+		switch e.Op.Kind {
+		case syntax.TBooleanOr, syntax.TOr, syntax.TAnd, syntax.TXor, syntax.TCoalesce, syntax.TPipe:
+			return true
+		}
+		return npiWrapParent(e.Right) // `==`, `.`, … bind tighter than `&&`
 	case *syntax.Unary: // `!$row = load()`, `@$u = $v`, `(bool) $u = $v`
 		return npiWrapParent(e.Expr)
 	case *syntax.Clone:
@@ -204,9 +208,13 @@ func npiLosesComments(f *syntax.File, block *syntax.Block, c *syntax.If, kept ..
 	return false
 }
 
+// npiWithComments returns the text of n, moved one level out to the
+// indentation of the parent block, with the comments before c inserted at
+// the start of c's braced body.
 func npiWithComments(f *syntax.File, block *syntax.Block, c *syntax.If, n syntax.Node) string {
 	ns := n.Span()
-	text := string(f.Src[ns.Start:ns.End])
+	outer := astquery.LineIndent(f.Src, block.Span().Start)
+	text := astquery.Reindent(f, ns, outer)
 	body, ok := c.Body.(*syntax.Block)
 	if !ok || body.Alt || body.Span().Len() == 0 || f.Src[body.Span().Start] != '{' {
 		return text
@@ -224,7 +232,10 @@ func npiWithComments(f *syntax.File, block *syntax.Block, c *syntax.If, n syntax
 	if len(comments) == 0 {
 		return text
 	}
-	at := body.Span().Start + 1 - ns.Start
+	at := int(body.Span().Start + 1 - ns.Start)
+	if text != string(f.Src[ns.Start:ns.End]) {
+		at = len(astquery.Reindent(f, syntax.Span{Start: ns.Start, End: ns.Start + uint32(at)}, outer))
+	}
 	indent := astquery.IndentBefore(f.Src, c.Span().Start)
 	var b strings.Builder
 	b.WriteString(text[:at])

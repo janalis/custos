@@ -1,5 +1,11 @@
 package astquery
 
+import (
+	"strings"
+
+	"custos/internal/php/syntax"
+)
+
 // LineIndent returns the leading spaces and tabs of the line containing
 // byte offset off.
 func LineIndent(src []byte, off uint32) string {
@@ -38,4 +44,34 @@ func IsSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\
 // text placed right next to it would merge with it.
 func NameByte(c byte) bool {
 	return c == '_' || c >= 0x80 || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+// Reindent returns the source of span with each line after its first moved
+// from the indentation of the span's first line to indent (lines not
+// starting with that indentation are kept). It keeps the text when a line
+// break lies inside a string, heredoc or inline HTML, whose content would
+// change.
+func Reindent(f *syntax.File, span syntax.Span, indent string) string {
+	text := string(f.Src[span.Start:span.End])
+	if !strings.Contains(text, "\n") {
+		return text
+	}
+	for i := TokenIndex(f, span.Start); i < len(f.Tokens); i++ {
+		t := f.Tokens[i]
+		if t.Start >= span.End {
+			break
+		}
+		if t.Kind != syntax.TWhitespace && t.Kind != syntax.TComment && t.Kind != syntax.TDocComment &&
+			strings.Contains(string(f.Src[t.Start:t.End]), "\n") {
+			return text
+		}
+	}
+	base := LineIndent(f.Src, span.Start)
+	lines := strings.Split(text, "\n")
+	for i := 1; i < len(lines); i++ {
+		if rest, ok := strings.CutPrefix(lines[i], base); ok {
+			lines[i] = indent + rest
+		}
+	}
+	return strings.Join(lines, "\n")
 }

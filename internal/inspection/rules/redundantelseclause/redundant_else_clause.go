@@ -106,7 +106,7 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 				raw := text(syntax.Span{Start: bs.Start + 1, End: bs.End - 1})
 				inner := strings.TrimSpace(raw)
 				first := bs.Start + 1 + uint32(len(raw)-len(strings.TrimLeft(raw, " \t\r\n")))
-				inner = redundantElseDedent(ctx.File, inner, first, nl[1:])
+				inner = astquery.Reindent(ctx.File, syntax.Span{Start: first, End: first + uint32(len(inner))}, nl[1:])
 				switch {
 				case inner == "":
 				case strings.HasPrefix(inner, ";") && gap == "":
@@ -124,34 +124,6 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 			return []diagnostic.TextEdit{{Span: removed, NewText: gap + moved}}
 		},
 	})
-}
-
-// redundantElseDedent moves the clause's lines, which start at offset
-// first, from the indentation of its first line to indent. It keeps the
-// text when a line break lies inside a string, heredoc or inline HTML,
-// whose content would change.
-func redundantElseDedent(f *syntax.File, inner string, first uint32, indent string) string {
-	if !strings.Contains(inner, "\n") {
-		return inner
-	}
-	for i := astquery.TokenIndex(f, first); i < len(f.Tokens); i++ {
-		t := f.Tokens[i]
-		if t.Start >= first+uint32(len(inner)) {
-			break
-		}
-		if t.Kind != syntax.TWhitespace && t.Kind != syntax.TComment && t.Kind != syntax.TDocComment &&
-			strings.Contains(string(f.Src[t.Start:t.End]), "\n") {
-			return inner
-		}
-	}
-	base := astquery.LineIndent(f.Src, first)
-	lines := strings.Split(inner, "\n")
-	for i := 1; i < len(lines); i++ {
-		if rest, ok := strings.CutPrefix(lines[i], base); ok {
-			lines[i] = indent + rest
-		}
-	}
-	return strings.Join(lines, "\n")
 }
 
 // redundantElseMovable reports whether the clause's code can move after the
