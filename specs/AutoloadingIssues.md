@@ -54,6 +54,13 @@ the declarations in it.
 - **E4** Namespaced classes never get the PSR-0 `_` extraction: in namespace
   `App`, class `Pkg_Item` in `Item.php` is reported, in `Pkg_Item.php` it is
   not.
+- **E5** Scripts: code of the file outside its class-like and function
+  declarations (at file level or in a namespace) instantiates the declared
+  class or calls one of its static methods, written with any name ending in
+  `N` (case-insensitive): `$kernel = new CheckKernel();` after
+  `class CheckKernel {}` in `check.php`. The file runs its own class, so no
+  autoloader looks for it. Uses inside function and class bodies (named or
+  anonymous) do not count, nor does `N::class`.
 
 ## Report
 
@@ -141,6 +148,8 @@ class Shop_Cart_Item {}
 
 ## Divergences
 
+- **E5 — custos diverges from upstream.** Upstream also reports a script
+  that declares a class and then uses it itself.
 - Conditional declarations (a class declared inside an `if` at file level) and
   whether they count as top-level definitions are unverified upstream.
   custos counts only declarations that are direct statements of the file or

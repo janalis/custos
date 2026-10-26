@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- AutoloadingIssues no longer reports a script that declares a class and
+  instantiates it or calls it statically in its own top-level code: no
+  autoloader looks for that class.
 - SubStrUsedAsArrayAccess fixes no longer wrap the replacement in extra
   parentheses when the call is a function argument:
   `strtolower(substr($s, 0, 1))` becomes `strtolower($s[0] ?? '')`.

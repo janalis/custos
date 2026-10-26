@@ -64,5 +64,39 @@ func (autoloadingIssues) CheckFile(ctx *analysis.Context) {
 	if strings.HasSuffix(base, "class-"+strings.ReplaceAll(strings.ToLower(n), "_", "-")+".php") { // E1
 		return
 	}
+	if usesOwnClass(ctx.File.Stmts, n) { // E5: a script declaring a class for its own use
+		return
+	}
 	ctx.Report(decl.Name.Span(), autoloadingIssuesMsg)
+}
+
+// usesOwnClass reports whether code outside the file's declarations
+// instantiates class n or calls one of its static methods (E5).
+func usesOwnClass(stmts []syntax.Stmt, n string) bool {
+	named := func(e syntax.Expr) bool {
+		c, ok := e.(*syntax.Name)
+		return ok && strings.EqualFold(c.Value[strings.LastIndexByte(c.Value, '\\')+1:], n)
+	}
+	found := false
+	for _, st := range stmts {
+		switch st := st.(type) {
+		case *syntax.Namespace:
+			found = found || usesOwnClass(st.Stmts, n)
+			continue
+		case *syntax.ClassLike, *syntax.Function:
+			continue
+		}
+		syntax.Inspect(st, func(x syntax.Node) bool {
+			switch x := x.(type) {
+			case *syntax.ClassLike, *syntax.Function:
+				return false
+			case *syntax.New:
+				found = found || named(x.Class)
+			case *syntax.StaticCall:
+				found = found || named(x.Class)
+			}
+			return !found
+		})
+	}
+	return found
 }
