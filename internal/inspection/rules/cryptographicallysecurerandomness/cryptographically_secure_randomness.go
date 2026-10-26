@@ -1,6 +1,8 @@
 package cryptographicallysecurerandomness
 
 import (
+	"strings"
+
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
@@ -33,7 +35,7 @@ func (cryptographicallySecureRandomness) Check(ctx *analysis.Context, n syntax.N
 		return
 	}
 	nameSpan := astquery.NamePartSpan(name)
-	if ctx.PHP.AtLeast(phpversion.PHP70) { // D1
+	if ctx.PHP.AtLeast(phpversion.PHP70) && !randomBytesMissing(ctx, call) { // D1, E7
 		ctx.ReportSeverity(nameSpan, diagnostic.SeverityInfo, "Use random_bytes() for cryptographically secure randomness.")
 	}
 	// custos: from PHP 7.4 openssl_random_pseudo_bytes() throws instead of
@@ -184,4 +186,54 @@ func isFalse(e syntax.Expr) bool {
 		v = v[1:]
 	}
 	return len(v) == 5 && (v[0]|0x20) == 'f' && (v[1]|0x20) == 'a' && (v[2]|0x20) == 'l' && (v[3]|0x20) == 's' && (v[4]|0x20) == 'e'
+}
+
+// randomBytesMissing implements E7: call only runs once a test found
+// random_bytes() missing, in the `else`/`elseif` of an `if` chain an earlier
+// condition of which is `function_exists('random_bytes')`, or in the body of
+// `if (!function_exists('random_bytes'))`. Such code is the fallback for
+// PHP 5 that random_bytes() cannot replace.
+func randomBytesMissing(ctx *analysis.Context, call syntax.Node) bool {
+	for cur := call; cur.Parent() != nil; cur = cur.Parent() {
+		switch p := cur.Parent().(type) {
+		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction:
+			return false
+		case *syntax.If:
+			if p.Body == cur {
+				if u, ok := syntax.UnwrapParens(p.Cond).(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim && probesRandomBytes(ctx, u.Expr) {
+					return true
+				}
+				continue
+			}
+			if cur == syntax.Node(p.Cond) {
+				continue
+			}
+			if probesRandomBytes(ctx, p.Cond) {
+				return true
+			}
+			for _, ei := range p.ElseIfs {
+				if ei == cur {
+					break
+				}
+				if probesRandomBytes(ctx, ei.Cond) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// probesRandomBytes reports `function_exists('random_bytes')`.
+func probesRandomBytes(ctx *analysis.Context, e syntax.Expr) bool {
+	c, ok := syntax.UnwrapParens(e).(*syntax.FuncCall)
+	if !ok || !ctx.IsGlobalFunctionCall(c, "function_exists") || c.Args == nil || len(c.Args.Args) != 1 {
+		return false
+	}
+	lit, ok := astquery.ArgValue(c.Args.Args[0]).(*syntax.Literal)
+	if !ok {
+		return false
+	}
+	v, ok := syntax.LiteralStringValue(lit)
+	return ok && strings.EqualFold(strings.TrimPrefix(v, `\`), "random_bytes")
 }

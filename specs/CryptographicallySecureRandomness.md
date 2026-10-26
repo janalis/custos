@@ -94,6 +94,12 @@ produced for one call; checks are independent unless noted.
   negated somewhere in the same function (see Divergences for the further
   truthiness and `true` comparisons custos accepts).
 - **E6** D3: the assignment is itself strictly compared with `false`.
+- **E7** (custos) D1: the call only runs once a test found `random_bytes()`
+  missing: in an `elseif`/`else` branch of an `if` chain an earlier
+  condition of which is exactly `function_exists('random_bytes')`, or in the
+  body of `if (!function_exists('random_bytes'))`, within the same
+  function. Such code is the fallback for PHP 5, where `random_bytes()`
+  does not exist.
 
 ## Report
 
