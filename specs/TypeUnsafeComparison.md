@@ -92,6 +92,11 @@ string literal here).
   is an `(int)`, `(float)` or `(string)` cast of the other, or a string
   interpolating it alone (`(int) $v == $v`, `"$n" != $n`), which tests
   whether the conversion keeps the value.
+- **D5c** (custos) The comparison is not an *array equality*: one
+  operand's type is known and made of arrays only, and the other's is
+  unknown, `mixed` or arrays only. `==` on arrays holds when they have the
+  same key/value pairs in any order; `===` also requires the same order and
+  element types, a different test (`find($path) == $expected`).
 - **D6** Then report kind H.
 
 At most one report per expression (M, S or H).
@@ -278,6 +283,8 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
 
 ## Divergences
 
+- **D5c — custos diverges from upstream.** Upstream asks for `===`
+  between arrays, which also compares the order of their elements.
 - **Unions with convertible members (custos diverges, D2).** Upstream
   reports kind M as soon as one class of the operand's type has no
   `__toString()`. With `Name|Identifier|ComplexType`, the comparison with a

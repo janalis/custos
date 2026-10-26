@@ -92,6 +92,11 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 	if tucObjectsOnly(ctx, b.Left) && tucObjectsOnly(ctx, b.Right) {
 		return
 	}
+	// Arrays: == compares their key/value pairs in any order, === also
+	// their order and element types — a different question (D5c, custos).
+	if tucArrayEquality(ctx, b.Left, b.Right) || tucArrayEquality(ctx, b.Right, b.Left) {
+		return
+	}
 	// custos: loose comparisons meant as such (D5a, D5b).
 	if tucEmptinessTest(ctx, b.Left, b.Right) || tucEmptinessTest(ctx, b.Right, b.Left) ||
 		tucCastTest(ctx, b.Left, b.Right) || tucCastTest(ctx, b.Right, b.Left) {
@@ -286,6 +291,26 @@ func tucObjectsOnly(ctx *analysis.Context, e syntax.Expr) bool {
 		}
 	}
 	return len(parts) > 0
+}
+
+// tucArrayEquality reports whether arr is known to be an array and other may
+// only be one too (its type is unknown, mixed or arrays only) (D5c).
+func tucArrayEquality(ctx *analysis.Context, arr, other syntax.Expr) bool {
+	parts := tucNormalizedParts(ctx, arr)
+	if len(parts) == 0 {
+		return false
+	}
+	for _, p := range parts {
+		if p != "array" {
+			return false
+		}
+	}
+	for _, p := range tucNormalizedParts(ctx, other) {
+		if p != "array" && p != "mixed" {
+			return false
+		}
+	}
+	return true
 }
 
 // tucComparableObject implements D5.
