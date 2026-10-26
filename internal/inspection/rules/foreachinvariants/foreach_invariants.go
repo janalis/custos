@@ -557,11 +557,10 @@ func foreachInvCallParams(ctx *analysis.Context, call syntax.Node) ([]index.Para
 		return m.Params, true
 	case *syntax.StaticCall:
 		id, ok := c.Name.(*syntax.Identifier)
-		name, ok2 := c.Class.(*syntax.Name)
-		if !ok || !ok2 {
+		fqn := ctx.Types().ClassRef(c.Class) // self::, static:: and parent:: included
+		if !ok || fqn == "" {
 			return nil, false
 		}
-		fqn := ctx.Names().Class(name.Value, name.Span().Start)
 		m := ctx.Index().FindMethod(fqn, id.Value, ctx.PHP)
 		if m == nil {
 			return nil, false

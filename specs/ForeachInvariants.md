@@ -94,7 +94,8 @@ A `for` statement `L` is reported when all of the following hold:
     (`[$i, $x] = …`, `list(, $n) = …`);
   - `++` / `--` (prefix or postfix) on it;
   - passing it as an argument at a by-reference parameter position of a call
-    that resolves to a known function/method (user code or stubs);
+    that resolves to a known function/method (user code or stubs;
+    `self::`, `static::` and `parent::` calls resolve in the enclosing class);
     unresolved calls are not considered writes;
   - `foreach (… as $i)` / `foreach (… as $k => $i)` value or key target,
     `unset($i)`, `global $i`, `static $i`, `&$i` in a by-reference

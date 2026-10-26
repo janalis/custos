@@ -12,6 +12,12 @@ class Cursor {
         }
     }
     public static function shift(&$v) {}
+    public static function skip(array $tokens) {
+        for ($k = 0; $k < count($tokens); ++$k) {   // E8: self:: method by-reference argument
+            echo $tokens[$k];
+            self::shift($k);
+        }
+    }
     public function move(&$v) {}
 }
 function scan(array $tokens) {
