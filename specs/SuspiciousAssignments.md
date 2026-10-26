@@ -127,6 +127,9 @@ body, unless it is in a test context (E6).
   - find the first direct statement of the block that is a **plain**
     assignment expression statement whose target is `≡ T` (compound
     assignments such as `$v .= 'x'` do not count); none → nothing;
+  - (custos, see Divergences) that assignment binds a reference
+    (`$v = &$a[$k];`) → nothing: the write after the `if` goes through the
+    reference, as D17 already allows;
   - let `S` be the statement following it inside the block; if `S` is an `if`,
     consider only its condition, otherwise the whole statement. If any node
     strictly inside that region is `≡ T` (same kind) → nothing;
@@ -316,6 +319,9 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
 
 ## Divergences
 
+- **D16 reference bindings (custos diverges).** Upstream reports
+  `if ($key) { $out = &$byKey[$key]; } $out = $data;`, which writes through
+  the reference the `if` binds.
 - **`iterable` (custos diverges, D20).** An `iterable` is an array or a
   `Traversable`; upstream reports destructuring it as a value that is not an
   array, although a declared `iterable` is often the array the caller

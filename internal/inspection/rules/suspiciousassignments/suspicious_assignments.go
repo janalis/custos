@@ -423,13 +423,16 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 			return
 		}
 		idx := -1
+		var found *syntax.Assign
 		for i, s := range blk.Stmts {
 			if pa := saStmtAssign(s); pa != nil && saIsPlain(pa) && astquery.EquivalentFoldNames(ctx.File, pa.Var, t) {
-				idx = i
+				idx, found = i, pa
 				break
 			}
 		}
-		if idx < 0 {
+		// custos: `$v = &$a[$k];` binds a reference that the write after
+		// the 'if' then goes through, as in D17.
+		if idx < 0 || found.ByRef {
 			return
 		}
 		// custos: the conditional value may be read by any later statement

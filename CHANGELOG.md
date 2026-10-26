@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- SuspiciousAssignments no longer reports a write after an `if` that only
+  binds a reference (`if ($key) { $out = &$byKey[$key]; } $out = $data;`):
+  the write goes through that reference.
 - CurlSslServerSpoofing no longer reports an array that maps cURL options to
   names (`[CURLOPT_SSL_VERIFYPEER => 'verify_peer', …]`) as if it disabled
   verification.
