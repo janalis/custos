@@ -15,3 +15,8 @@ function redirect(array $query, string $separator, array $rest)
     <error descr="Reject line breaks and validate this header value.">header('Location: /h?' . http_build_query($_GET, ...$rest))</error>;
     <error descr="Reject line breaks and validate this header value.">header('Location: /g?' . http_build_query($_GET, '', $separator))</error>;
 }
+header('X-Data: ' . json_encode($_GET));
+header('X-Data: ' . json_encode($_GET, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+header('X-Data: ' . json_encode($_GET, flags: JSON_THROW_ON_ERROR));
+<error descr="Reject line breaks and validate this header value.">header('X-Data: ' . json_encode($_GET, JSON_PRETTY_PRINT))</error>;
+<error descr="Reject line breaks and validate this header value.">header('X-Data: ' . json_encode($_GET, $_GET['flags']))</error>;

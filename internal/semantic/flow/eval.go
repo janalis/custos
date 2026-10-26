@@ -1261,6 +1261,11 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			if known && (bits&64 == 0 || bits&1 != 0) {
 				v.Safe |= HTMLScript
 			}
+			// Strings escape CR and LF as `\r` and `\n`; only
+			// JSON_PRETTY_PRINT (128) puts line breaks between members.
+			if known && bits&128 == 0 {
+				v.Safe |= Header
+			}
 		case "http_build_query":
 			// Every key and value is URL-encoded and joined by `=` and the
 			// separator, so no line break unless the numeric prefix or the

@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- UntrustedHeaderValue no longer reports a header built from `json_encode()`
+  output without `JSON_PRETTY_PRINT`: JSON escapes line breaks.
 - SuspiciousAssignments no longer reports a write after an `if` that only
   binds a reference (`if ($key) { $out = &$byKey[$key]; } $out = $data;`):
   the write goes through that reference.
