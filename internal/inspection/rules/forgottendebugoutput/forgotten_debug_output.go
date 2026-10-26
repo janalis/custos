@@ -94,7 +94,7 @@ func (forgottenDebugOutput) Check(ctx *analysis.Context, n syntax.Node) {
 		if want, ok := debugArgAllowance[strings.ToLower(name)]; ok && astquery.ArgCount(x) == want { // D3
 			return
 		}
-		if debugOutputBuffered(ctx.File, x) || debugCaptured(ctx.File, x) || debugGated(x) || debugInWrapper(ctx, x, entries) || debugFeatureChecked(ctx, x, name) { // D4, E7
+		if debugOutputBuffered(ctx.File, x) || debugCaptured(ctx.File, x) || debugGated(x) || debugInWrapper(ctx, x, entries) || debugFeatureChecked(ctx, x, name) || debugLoggerOutput(ctx, x, name) { // D4, E7, E9
 			return
 		}
 		ctx.ReportNode(x, debugOutputMsg)
@@ -260,6 +260,20 @@ func debugInWrapper(ctx *analysis.Context, n syntax.Node, entries []string) bool
 		return fqn != "" && debugHasEntry(entries, `\`+fqn+"::"+fn.Name.Value)
 	}
 	return false
+}
+
+// debugLoggerOutput implements E9: error_log() in a method of a PSR-3
+// logger is the logger's own output (Symfony's HttpKernel Logger).
+func debugLoggerOutput(ctx *analysis.Context, call syntax.Node, name string) bool {
+	if !strings.EqualFold(name, "error_log") {
+		return false
+	}
+	m, ok := syntax.EnclosingFuncLike(call).(*syntax.Method)
+	if !ok {
+		return false
+	}
+	fqn := ctx.Types().ClassFQN(syntax.EnclosingClass(m))
+	return fqn != "" && ctx.Index().IsSubtype(`\`+fqn, `\Psr\Log\LoggerInterface`, ctx.PHP)
 }
 
 // debugGated implements E6: the call runs only when an enclosing `if` or

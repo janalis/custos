@@ -155,6 +155,11 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
 - **E8** (custos, see Divergences) Files under a `/Fixtures/` directory:
   test fixtures, such as a child script whose dumped output the test
   reads, print on purpose. Other test files are still checked.
+- **E9** (custos, see Divergences) Logger output: an `error_log()` call
+  whose nearest enclosing function-like is a method of a class that is, or
+  extends or implements, `\Psr\Log\LoggerInterface`. Writing to the error
+  log is what such a logger does. Other debug functions in it are still
+  reported.
 
 ## Report
 
@@ -225,6 +230,10 @@ function work($order, Probe $probe, Quiet $quiet) {
 
 ## Divergences
 
+- **E9 — custos diverges from upstream.** Upstream reports `error_log()`
+  everywhere. In a PSR-3 logger (Symfony's HttpKernel `Logger`, which
+  falls back to the error log without a stream) it is the logger's
+  intended output, not a leftover.
 - **E8 — custos diverges from upstream.** Upstream reports debug output in
   test fixtures whose output the tests read.
 - **E7 — custos diverges from upstream.** Upstream reports debug
