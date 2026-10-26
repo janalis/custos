@@ -21,6 +21,9 @@ func (referencingObjects) Kinds() []syntax.NodeKind {
 }
 
 func (r referencingObjects) Check(ctx *analysis.Context, n syntax.Node) {
+	if semanticquery.InTestContext(ctx, n) { // E7: test fixtures pin signatures their tests compare
+		return
+	}
 	switch x := n.(type) {
 	case *syntax.Param:
 		r.checkParam(ctx, x)

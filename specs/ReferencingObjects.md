@@ -112,6 +112,11 @@ caller's variable.
 - **E6** Promoted constructor parameters (`public Foo &$x`).
 - **E4** Closures / arrow functions.
 - **E5** Plain assignments `$x = new Foo()`.
+- **E7** (custos, see Divergences) Code in a test context: the file name
+  ends with `Test.php`, `Spec.php` or `.phpt` or the path has a
+  `/Fixtures/` directory, or the enclosing class name ends with `Test` or
+  its namespace has a `Tests` or `Test` segment. Fixtures there declare
+  by-reference objects on purpose, for tests that compare the signature.
 
 ## Report
 
@@ -202,6 +207,8 @@ $fn = function (DOMNode &$node) {};
 
 ## Divergences
 
+- **E7 — custos diverges from upstream.** Upstream also reports test
+  fixtures, and its fix rewrites signatures that their tests assert.
 - Upstream deletes "the token before the name (after skipping one whitespace
   run)"; for a by-reference variadic `Foo &...$rest` that token is `...`,
   so the fix would drop the variadic marker instead of `&`. custos always
