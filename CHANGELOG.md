@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- TypeUnsafeComparison no longer warns about `'true' != $content['success']`
+  when the other operand may be a boolean (unknown, `mixed` or `bool`): the
+  loose comparison accepts both `true` and `'true'` on purpose.
 - DeprecatedIniOptions no longer reports reading, restoring or setting to
   their default value the `assert.*` and `session.sid_*` directives, which
   PHP only deprecates when given another value (`ini_set('assert.active', 1)`).

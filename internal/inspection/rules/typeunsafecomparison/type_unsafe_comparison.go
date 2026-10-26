@@ -70,6 +70,9 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		if val, known := tucLiteralValue(lit, content); known && val != "" && !astquery.IsComparisonNumericString(val) { // D3
+			if strings.EqualFold(val, "true") && tucMayBeBool(ctx, other) { // D3a
+				return
+			}
 			if !tucStrictSafe(ctx, other, val) {
 				ctx.ReportSeverity(span, diagnostic.SeverityWarning, "Use '"+strict+"' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.")
 				return
@@ -103,6 +106,14 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ctx.ReportSeverity(span, diagnostic.SeverityInfo, "Prefer '"+strict+"' to avoid implicit type juggling.") // D6
+}
+
+// tucMayBeBool reports whether e may hold a boolean: a type that is unknown,
+// mixed or holds bool or true. `'true' == $v` then accepts both the boolean
+// and the string (decoded JSON, form input), a test === would narrow (D3a).
+func tucMayBeBool(ctx *analysis.Context, e syntax.Expr) bool {
+	t := ctx.TypeOf(e)
+	return t.IsUnknown() || t.Has("mixed") || t.Has("bool") || t.Has("true")
 }
 
 // tucEmptinessTest reports whether falsy is a boolean-like constant

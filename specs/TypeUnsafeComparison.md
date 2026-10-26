@@ -68,6 +68,11 @@ string literal here).
   - numeric (no kind S): `'0'`, `'42'`, `'-3'`, `'+7'`, `'1.25'`, `'.5'`,
     `'1.'`, `'1e3'`, `'-2.5E-3'`, `' 1'`, `"7\n"`, `"\x31"`;
   - non-numeric (kind S): `'abc'`, `'1e'`, `'.'`, `'0x1A'`, `'1_000'`.
+- **D3a** (custos) A literal whose value is `true` (any case) compared with
+  an operand whose type is unknown, `mixed` or holds `bool` or `true` is
+  not reported at all: the comparison accepts both the boolean `true` and
+  the string `'true'` (a decoded JSON flag, a form field), which `===`
+  would narrow to one of them.
 - Otherwise (empty, numeric or statically unknown literal) continue with
   step 2.
 
@@ -297,6 +302,11 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
   conversion (`(int) $v == $v`) rely on loose equality: `===` changes their
   result. custos does not suggest it there (laminas-code, twig, predis,
   webmozart/assert).
+- **Boolean-or-string flags (custos diverges, D3a).** Upstream reports
+  `'true' != $content['success']` on a decoded JSON payload as a string
+  comparison. The loose comparison deliberately accepts `true` and
+  `'true'` alike (Symfony's notifier bridges), so custos stays silent when
+  the other operand may be a boolean.
 - **Numeric-string grammar (custos diverges):** upstream's numeric test only
   knows plain decimals, so exponent forms (`'1e3'`), a trailing dot (`'1.'`)
   and whitespace-padded numbers (`' 1'`) get the strict fix although PHP
