@@ -16,6 +16,10 @@ type unsetConstructsCanBeMerged struct{}
 
 const unsetConstructsCanBeMergedMsg = "Consecutive unset() calls; merge them into one."
 
+// unsetMaxLine is the width past which a merge of statements written on
+// several lines keeps one line per statement (F1a).
+const unsetMaxLine = 120
+
 func (unsetConstructsCanBeMerged) ID() string { return "UnsetConstructsCanBeMerged" }
 func (unsetConstructsCanBeMerged) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KUnset}
@@ -85,14 +89,28 @@ func (unsetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.Report(cur.Span(), unsetConstructsCanBeMergedMsg, diagnostic.Fix{
 		Title: "Merge the unset() calls",
 		Edits: func() []diagnostic.TextEdit {
-			var args []string
+			var args, groups []string
 			for _, st := range append([]syntax.Stmt{first}, merged...) {
+				var group []string
 				for _, v := range st.(*syntax.Unset).Vars {
-					args = append(args, ctx.Text(v))
+					group = append(group, ctx.Text(v))
 				}
+				args = append(args, group...)
+				groups = append(groups, strings.Join(group, ", "))
 			}
 			// F1: regenerate the first statement (normalises `unset ( $x )`).
-			edits := []diagnostic.TextEdit{{Span: first.Span(), NewText: "unset(" + strings.Join(args, ", ") + ");"}}
+			text := "unset(" + strings.Join(args, ", ") + ");"
+			indent := astquery.LineIndent(f.Src, first.Span().Start)
+			last := merged[len(merged)-1].Span().End
+			if len(indent)+len(text) > unsetMaxLine && bytes.IndexByte(f.Src[first.Span().End:last], '\n') >= 0 {
+				// F1a: one line per merged statement rather than one long line.
+				unit := "    "
+				if strings.HasPrefix(indent, "\t") {
+					unit = "\t"
+				}
+				text = "unset(\n" + indent + unit + strings.Join(groups, ",\n"+indent+unit) + "\n" + indent + ");"
+			}
+			edits := []diagnostic.TextEdit{{Span: first.Span(), NewText: text}}
 			for _, st := range merged {
 				edits = append(edits, diagnostic.TextEdit{Span: astquery.WithLeadingWhitespace(f, st.Span())})
 			}

@@ -32,6 +32,18 @@ func TestReviewSafety(t *testing.T) {
 		{"comment on its own line", "<?php unset($a);\n// why\nunset($b);", 1, "<?php unset($a, $b);\n// why\n"},
 		{"trailing comma", "<?php unset($a,); unset($b,);", 1, "<?php unset($a, $b);"},
 		{"run of three", "<?php unset($a); unset($b); unset($c);", 2, "<?php unset($a, $b, $c);"},
+		{
+			"long merge", "<?php\nfunction f() {\n    unset($_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL']);\n    unset($_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']);\n}", 1,
+			"<?php\nfunction f() {\n    unset(\n        $_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL'],\n        $_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']\n    );\n}",
+		},
+		{
+			"long merge with tabs", "<?php\nfunction f() {\n\tunset($_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL']);\n\tunset($_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']);\n}", 1,
+			"<?php\nfunction f() {\n\tunset(\n\t\t$_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL'],\n\t\t$_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']\n\t);\n}",
+		},
+		{
+			"long merge on one line", "<?php unset($_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL']); unset($_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']);", 1,
+			"<?php unset($_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL'], $_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']);",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			src := []byte(tc.source)
