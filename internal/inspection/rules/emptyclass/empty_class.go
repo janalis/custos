@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -55,6 +56,11 @@ func (emptyClass) Check(ctx *analysis.Context, n syntax.Node) {
 	// custos: a holder of type aliases for static analyzers
 	// (`@phpstan-type Row array{…}`) is imported by name (E8).
 	if semanticquery.DocHasTag(ctx.File, cl, "phpstan-type") || semanticquery.DocHasTag(ctx.File, cl, "psalm-type") {
+		return
+	}
+	// Test doubles and fixtures are empty on purpose: the tests only need
+	// a distinct class name or type (E9).
+	if ctx.IsTestFile() || astquery.IsTestClassFQN(ctx.Names().DeclFQN(cl)) {
 		return
 	}
 	if parent := ctx.Names().ParentFQN(cl); parent != "" { // D4

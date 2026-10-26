@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- EmptyClass no longer reports empty classes in test files and test
+  namespaces, where dummy classes are empty on purpose.
 - NotOptimalIfConditions no longer asks to move a check before a strict
   `in_array($v, ..., true)` that narrows the `$v` it uses, such as
   `in_array($k, KEYS, true) && array_key_exists($k, $map)`: reordered, a

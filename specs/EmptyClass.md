@@ -51,6 +51,11 @@ weight or an unfinished stub.
 - **E8** (custos) Classes whose doc comment defines a type alias with
   `@phpstan-type` or `@psalm-type`: other files import the alias through
   the class (`@phpstan-import-type Row from Rows`), which is its purpose.
+- **E9** (custos) Classes in a test context: the file name ends with
+  `Test.php`, `Spec.php` or `.phpt` or the path has a `/Fixtures/`
+  directory, or the class name ends with `Test` or its namespace has a
+  `Tests` or `Test` segment. Test doubles and fixtures are empty on purpose:
+  the tests only need a distinct class name or type.
 - **E7** (custos) Declarations nested in a block (`if (…) { class A {} }`):
   a conditional declaration is usually the empty fallback of a version
   check whose other branch declares the full class or trait.
@@ -103,6 +108,8 @@ $x = new class {};
 
 ## Divergences
 
+- **E9 — custos diverges from upstream.** Upstream also reports empty
+  test doubles and fixtures.
 - `#[\Deprecated]` attributes are not considered by upstream (docblock tag
   only). custos does not treat the attribute as a deprecation marker either,
   but a class carrying it is still not reported: any attribute exempts the
