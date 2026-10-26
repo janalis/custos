@@ -417,6 +417,54 @@ func nullDefault(e syntax.Expr) bool {
 	return ok && strings.EqualFold(c.Name.Value, "null")
 }
 
+// forwardsMessage reports whether constructor m passes its first parameter
+// unchanged as the first argument of `parent::__construct()` (see
+// Method.ForwardsMessage).
+func forwardsMessage(m *syntax.Method) bool {
+	if m.Body == nil || len(m.Params) == 0 {
+		return false
+	}
+	first := m.Params[0].Var.Name
+	isFirst := func(e syntax.Expr) bool {
+		v, ok := e.(*syntax.Variable)
+		return ok && v.NameExpr == nil && v.Name == first
+	}
+	passed, kept := false, true
+	syntax.Inspect(m.Body, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return false
+		case *syntax.Assign:
+			if isFirst(x.Var) || x.ByRef && isFirst(x.Value) {
+				kept = false
+			}
+			if f, ok := x.Var.(*syntax.PropertyFetch); ok {
+				if id, ok := f.Name.(*syntax.Identifier); ok && strings.EqualFold(id.Value, "message") {
+					kept = false
+				}
+			}
+		case *syntax.IncDec:
+			kept = kept && !isFirst(x.Var)
+		case *syntax.StaticCall:
+			cls, named := x.Class.(*syntax.Name)
+			id, ok := x.Name.(*syntax.Identifier)
+			if named && ok && strings.EqualFold(cls.Value, "parent") && strings.EqualFold(id.Value, "__construct") {
+				var arg *syntax.Arg
+				if x.Args != nil && len(x.Args.Args) > 0 {
+					arg, _ = x.Args.Args[0].(*syntax.Arg)
+				}
+				if arg != nil && arg.Name == nil && !arg.Unpack && isFirst(arg.Value) {
+					passed = true
+				} else {
+					kept = false
+				}
+			}
+		}
+		return true
+	})
+	return passed && kept
+}
+
 func storedParams(m *syntax.Method) (bool, []string) {
 	if m.Body == nil {
 		return false, nil
@@ -481,6 +529,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	}
 	if strings.EqualFold(m.Name.Value, "__construct") {
 		meth.StoresParams, meth.Stores = storedParams(m)
+		meth.ForwardsMessage = !x.stub && forwardsMessage(m)
 		meth.CtorTpl = x.ctorTemplates(d, m.Params, at)
 	}
 	if m.Body != nil {

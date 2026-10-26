@@ -63,6 +63,15 @@ be the thrown operand.
 - **E5** Thrown values that are not `new` expressions (`throw $e`,
   `throw make()`).
 - **E6** `REPORT_MISSING_ARGUMENTS` off disables D3 entirely (D2 unaffected).
+- **E7** Zero-argument `new` of a class whose effective constructor is
+  user-defined and does not plainly forward its first parameter: D3 only
+  applies when that constructor passes its first parameter, unchanged and
+  positionally, as the first argument of `parent::__construct()`, never
+  writes or aliases that parameter and assigns no `message` property
+  (nested closures and classes aside). A constructor that substitutes a
+  default (`if (!$message) { $message = 'No sets.'; }`), prefixes it,
+  assigns `$this->message`, or never calls the parent constructor may give
+  the exception its own message.
 
 ## Report
 
@@ -192,6 +201,9 @@ throw new Exception\Declined('card'); // resolves to \Exception\Declined (via th
 
 ## Divergences
 
+- **E7 — custos diverges from upstream.** Upstream reports a zero-argument
+  `new` whenever the constructor has three parameters, even when its body
+  substitutes a default message for an empty one.
 - **D3 — custos diverges from upstream.** Upstream looks only at the thrown
   class's own property list, so `class NotFound extends BaseError {}` where
   `BaseError` sets `protected $message = 'not found';` is reported as

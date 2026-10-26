@@ -57,6 +57,9 @@ func (throwRawException) Check(ctx *analysis.Context, n syntax.Node) {
 	if ctor == nil || len(ctor.Params) != 3 {
 		return
 	}
+	if !ctor.Builtin && !ctor.ForwardsMessage { // E7: the constructor may set its own message
+		return
+	}
 	if _, own := cls.Props["message"]; own {
 		return
 	}

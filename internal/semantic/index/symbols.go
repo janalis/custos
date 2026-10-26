@@ -162,9 +162,14 @@ type Method struct {
 	// of the constructor, plain `=`), besides promoted parameters; Stores
 	// lists the properties it sets (assigned or promoted). Never set for
 	// builtins.
-	StoresParams bool     `json:"stores,omitempty"`
-	CSPRNG       bool     `json:"csprng,omitempty"` // see Function.CSPRNG
-	Stores       []string `json:"storesProps,omitempty"`
+	StoresParams bool `json:"stores,omitempty"`
+	// ForwardsMessage is set for a project constructor that hands its first
+	// parameter unchanged to `parent::__construct()` as the first argument,
+	// never writes that parameter and assigns no `message` property: the
+	// message stays the caller's. Never set for builtins.
+	ForwardsMessage bool     `json:"fwdMsg,omitempty"`
+	CSPRNG          bool     `json:"csprng,omitempty"` // see Function.CSPRNG
+	Stores          []string `json:"storesProps,omitempty"`
 	// Magic marks a method declared only by a class `@method` tag: a real
 	// declaration in the class or its ancestors wins over it (FindMethod).
 	Magic   bool        `json:"magic,omitempty"`
