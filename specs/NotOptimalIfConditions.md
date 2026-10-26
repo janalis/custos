@@ -153,8 +153,12 @@ always stored.
 - **S5 (type guard — custos divergence, see Divergences)**: `prev`
   (itself or any sub-expression, not inside a closure or arrow function)
   compares a plain variable `$v` with `null`, `true` or `false` (`===`,
-  `!==`, `==`, `!=`, either side), tests `$v instanceof …`, or passes `$v`
-  as the first argument of a global `is_*` function; coupled if `cur`
+  `!==`, `==`, `!=`, either side), tests `$v instanceof …`, passes `$v`
+  as the first argument of a global `is_*` function, or passes it as the
+  needle of a global `in_array` call whose `strict` argument (third, or
+  named) is the constant `true`, which narrows `$v` to the haystack's
+  values (`in_array($k, KEYS, true) && array_key_exists($k, $map)`, where a
+  non-key `$k` would throw); coupled if `cur`
   itself or any sub-expression of `cur` is a variable named `v`.
 - **S6 (guarded operation — custos divergence, see Divergences)**: `cur`
   (itself or any sub-expression) contains an operation that can fail on its

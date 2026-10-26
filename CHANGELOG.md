@@ -114,6 +114,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- NotOptimalIfConditions no longer asks to move a check before a strict
+  `in_array($v, ..., true)` that narrows the `$v` it uses, such as
+  `in_array($k, KEYS, true) && array_key_exists($k, $map)`: reordered, a
+  non-key value would throw.
 - RecursiveTraversalOmitsDirectories no longer reports a traversal that
   keeps only files: one filtered by a `RegexIterator`, or read by loops
   that test each entry with `isFile()` or `getExtension()`.

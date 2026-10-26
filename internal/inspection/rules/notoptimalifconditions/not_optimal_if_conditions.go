@@ -442,6 +442,10 @@ func typeGuarded(ctx *analysis.Context, prev, cur syntax.Expr) bool {
 			if args, ok := astquery.CallArgValues(g); ok && len(args) > 0 && strings.HasPrefix(name, "is_") {
 				guard(args[0])
 			}
+			// A strict in_array() narrows the needle to the haystack's values.
+			if strict, ok := astquery.BoolConst(semanticquery.CallArgument(g.Args, 2, "strict")); ok && strict && name == "in_array" {
+				guard(semanticquery.CallArgument(g.Args, 0, "needle"))
+			}
 		}
 		return true
 	})

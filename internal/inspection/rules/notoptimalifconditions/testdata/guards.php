@@ -23,6 +23,11 @@ function guards(?Row $o, $v, string $path, string $base)
     if (\strlen($o->name) === \PHP_INT_MAX && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$o > 1</weak_warning>) {}
     if (!(null === $o || \strlen($o->name) === 0) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$v > 0</weak_warning>) {}
     if (\in_array(1, [fn($o) => null === $o]) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$o</weak_warning>) {} // a closure's own check
+    if (\in_array($v, ['a', 'b'], true) && \array_key_exists($v, $_GET)) {}
+    if (\in_array($v, ['a', 'b'], strict: true) && \array_key_exists($v, $_GET)) {}
+    if (\in_array($v, ['a', 'b']) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">\array_key_exists($v, $_GET)</weak_warning>) {}
+    if (\in_array($v, ['a', 'b'], false) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">\array_key_exists($v, $_GET)</weak_warning>) {}
+    if (\in_array($path, ['a', 'b'], true) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">\array_key_exists($v, $_GET)</weak_warning>) {}
     if (!(\is_string($o->name) && \strlen($o->name) === 0) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$o > 0</weak_warning>) {}
 }
 
