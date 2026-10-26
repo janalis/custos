@@ -45,6 +45,11 @@ and should be used instead.
   `date_iso8601`).
 - **E2** `ISO8601` constants declared by user classes (including a redeclared
   `ISO8601` in a `DateTime` subclass) or unresolvable accesses.
+- **E3** The whole initializer of a constant declaration whose own name
+  contains `ISO8601` (any case): `const ISO8601 = DATE_ISO8601;`,
+  `public const LEGACY_ISO8601 = \DateTime::ISO8601;`. Such a constant is an
+  alias that keeps the legacy format on purpose; switching it to ATOM would
+  change what the alias means.
 
 ## Report
 

@@ -121,6 +121,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- DateTimeConstantsUsage no longer reports, or rewrites to ATOM, the initializer of a constant that declares an ISO8601 alias (`const ISO8601 = DATE_ISO8601;`).
 - ForeachInvariants no longer suggests `foreach` when the counter is passed by reference to a `self::`, `static::` or `parent::` method; the rewrite broke loops that skip ahead.
 - TypeUnsafeArraySearch no longer reports `in_array()` over class constants declared in another file whose values are plain non-numeric strings.
 - Type inference keeps the array an `iterable` or `callable` parameter may

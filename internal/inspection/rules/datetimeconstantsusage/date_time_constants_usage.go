@@ -19,6 +19,9 @@ func (dateTimeConstantsUsage) Kinds() []syntax.NodeKind {
 }
 
 func (dateTimeConstantsUsage) Check(ctx *analysis.Context, n syntax.Node) {
+	if item, ok := n.Parent().(*syntax.ConstItem); ok && strings.Contains(strings.ToUpper(item.Name.Value), "ISO8601") { // E3
+		return
+	}
 	switch x := n.(type) {
 	case *syntax.ConstFetch: // D1
 		if semanticquery.GlobalConstName(ctx, x) != "DATE_ISO8601" {
