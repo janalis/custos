@@ -28,7 +28,7 @@ class Shape {
  * @property $weight
  */
 class Box extends Shape {
-    use <weak_warning descr="Box and trait HasColor both declare property $color.">HasColor</weak_warning>, <error descr="Box and trait HasSize both declare property $size.">HasSize</error>;
+    use <weak_warning descr="Shape and trait HasColor both declare property $color.">HasColor</weak_warning>, <error descr="Shape and trait HasSize both declare property $size.">HasSize</error>;
     use HasMeta;
 
     /** @Column */

@@ -63,8 +63,8 @@ class Box extends Shape {
 Reported:
 
 <ul>
-<li>line 31: Box and trait HasColor both declare property $color.</li>
-<li>line 31: Box and trait HasSize both declare property $size.</li>
+<li>line 31: Shape and trait HasColor both declare property $color.</li>
+<li>line 31: Shape and trait HasSize both declare property $size.</li>
 <li>line 36: Box and trait HasMeta both declare property $label.</li>
 <li>line 37: Box and trait HasMeta both declare property $weight.</li>
 </ul>

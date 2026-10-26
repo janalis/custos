@@ -41,14 +41,14 @@ namespace App {
         public int $rank = 0;
     }
     final class Page extends Node {
-        use Localised, <weak_warning descr="Page and trait Coded both declare property $code.">Coded</weak_warning>, Titled, <error descr="Page and trait Kinded both declare property $kind.">Kinded</error>;
+        use Localised, <weak_warning descr="Node and trait Coded both declare property $code.">Coded</weak_warning>, Titled, <error descr="Node and trait Kinded both declare property $kind.">Kinded</error>;
 
         public string <error descr="Page and trait Titled both declare property $title.">$title</error> = '' {
             set(string $v) { $this->title = trim($v); }
         }
     }
     final class Note extends Node {
-        use <weak_warning descr="Note and trait Tagged both declare property $tag.">Tagged</weak_warning>; // parent hooks are ignored in check B
+        use <weak_warning descr="Node and trait Tagged both declare property $tag.">Tagged</weak_warning>; // parent hooks are ignored in check B
     }
     final class Post {
         use Hooked;

@@ -9,7 +9,7 @@ class Base {
     public $color = [1, 2];
 }
 class Child extends Base {
-    use <weak_warning descr="Child and trait Nested both declare property $color.">Nested</weak_warning>;
+    use <weak_warning descr="Base and trait Nested both declare property $color.">Nested</weak_warning>;
 }
 class Other {
     use Nested;

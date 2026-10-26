@@ -131,8 +131,9 @@ Checks A and B are independent; both may report for the same class.
   defaults differ, info (weak warning) when they are the same. Several
   properties may produce several reports on the same reference.
 - Message (both): `{class} and trait {trait} both declare property ${name}.`
-  where `{class}` is the inspected class's short name and `{trait}` the
-  trait's short name.
+  where `{class}` is the short name of the class declaring the property (the
+  inspected class for A, its parent for B; custos, see Divergences) and
+  `{trait}` the trait's short name.
 
 ## Fix
 
@@ -179,7 +180,7 @@ class Shape {
  * @property $weight
  */
 class Box extends Shape {
-    use <weak_warning descr="Box and trait HasColor both declare property $color.">HasColor</weak_warning>, <error descr="Box and trait HasSize both declare property $size.">HasSize</error>;
+    use <weak_warning descr="Shape and trait HasColor both declare property $color.">HasColor</weak_warning>, <error descr="Shape and trait HasSize both declare property $size.">HasSize</error>;
     use HasMeta;
 
     /** @Column */
@@ -213,7 +214,7 @@ trait Titled {
     public string $title = '';
 }
 final class Page extends Node {
-    use Localised, <weak_warning descr="Page and trait Coded both declare property $code.">Coded</weak_warning>, Titled;
+    use Localised, <weak_warning descr="Node and trait Coded both declare property $code.">Coded</weak_warning>, Titled;
 
     public string <error descr="Page and trait Titled both declare property $title.">$title</error> = '' {
         set(string $v) { $this->title = trim($v); }
@@ -223,6 +224,8 @@ final class Page extends Node {
 
 ## Divergences
 
+- **B message (custos diverges).** For a parent property the message names
+  the parent, which declares it, rather than the class using the trait.
 - **Attributed trait re-declarations of parent properties (custos
   diverges, B).** Upstream reports a trait property that re-declares an
   inherited one even when it only adds attributes, the PHP 8 way of mapping

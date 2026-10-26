@@ -38,5 +38,5 @@ class BaseCounter {
     public static $label = 'a';
 }
 class Report extends BaseCounter {
-    use <error descr="Report and trait Tracks both declare property $label.">Tracks</error>;
+    use <error descr="BaseCounter and trait Tracks both declare property $label.">Tracks</error>;
 }

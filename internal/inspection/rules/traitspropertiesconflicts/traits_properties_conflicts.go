@@ -72,9 +72,8 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(traits) == 0 {
 		return
 	}
-	className := cl.Name.Value
-	msg := func(t *index.Class, prop string) string {
-		return className + " and trait " + astquery.LastNamePart(t.FQN) + " both declare property $" + prop + "."
+	msg := func(owner string, t *index.Class, prop string) string {
+		return owner + " and trait " + astquery.LastNamePart(t.FQN) + " both declare property $" + prop + "."
 	}
 	first := func(name string) (*index.Class, *index.Property) {
 		for _, t := range traits {
@@ -101,9 +100,9 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 			if attributed { // re-declared to attach attributes (mapping metadata)
 				return
 			}
-			ctx.ReportSeverity(v.Span(), diagnostic.SeverityInfo, msg(t, v.Name))
+			ctx.ReportSeverity(v.Span(), diagnostic.SeverityInfo, msg(cl.Name.Value, t, v.Name))
 		case tpcDiffers:
-			ctx.ReportSeverity(v.Span(), diagnostic.SeverityError, msg(t, v.Name))
+			ctx.ReportSeverity(v.Span(), diagnostic.SeverityError, msg(cl.Name.Value, t, v.Name))
 		}
 	}
 	classReadonly := cl.Modifiers.Has(syntax.TReadonly)
@@ -177,7 +176,7 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 			sev = diagnostic.SeverityInfo
 		}
-		ctx.ReportSeverity(ref.Span(), sev, msg(t, q.Name))
+		ctx.ReportSeverity(ref.Span(), sev, msg(astquery.LastNamePart(parent.FQN), t, q.Name)) // the parent declares it
 	}
 }
 

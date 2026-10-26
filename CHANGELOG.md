@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- TraitsPropertiesConflicts names the parent class, which declares the
+  property, when a trait re-declares a parent property, instead of the
+  child class that only uses the trait.
 - UndeclaredDynamicProperty no longer reports writes through `$this` in a
   closure handed to `Closure::bind()`, `bindTo()` or `call()`, where
   `$this` is the object the closure is bound to.
