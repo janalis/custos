@@ -86,7 +86,7 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 
 	// A. own properties: compatible duplicates are weak, incompatible ones
 	// (a fatal error in PHP) are errors; undecidable pairs stay silent.
-	reportOwn := func(v *syntax.Variable, own *index.Property, attributed bool) {
+	reportOwn := func(v *syntax.Variable, own *index.Property, deliberate bool) {
 		t, tp := first(v.Name)
 		if t == nil {
 			return
@@ -97,7 +97,7 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		switch cmp {
 		case tpcSame:
-			if attributed { // re-declared to attach attributes (mapping metadata)
+			if deliberate {
 				return
 			}
 			ctx.ReportSeverity(v.Span(), diagnostic.SeverityInfo, msg(cl.Name.Value, t, v.Name))
@@ -125,7 +125,7 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 				if it.Default != nil {
 					own.Default = ctx.Text(it.Default)
 				}
-				reportOwn(it.Var, own, len(m.Attrs) > 0)
+				reportOwn(it.Var, own, len(m.Attrs) > 0) // attributes: re-declared to attach mapping metadata
 			}
 		case *syntax.Method:
 			if !strings.EqualFold(m.Name.Value, "__construct") {
@@ -135,12 +135,14 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 				if len(p.Modifiers) == 0 || p.Var == nil || p.Var.Name == "" {
 					continue
 				}
-				// A promoted property never has a default value of its own.
+				// A promoted property never has a default value of its own,
+				// and promotion requires declaring it: a compatible pair is
+				// the price of the constructor.
 				reportOwn(p.Var, &index.Property{
 					Name: p.Var.Name, Visibility: tpcVisibility(p.Modifiers),
 					Readonly: classReadonly || p.Modifiers.Has(syntax.TReadonly), Type: tpcTypeString(ctx, p.Type), Promoted: true,
 					Hooked: len(p.Hooks) > 0,
-				}, len(p.Attrs) > 0)
+				}, true)
 			}
 		}
 	}

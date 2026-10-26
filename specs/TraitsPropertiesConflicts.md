@@ -78,6 +78,9 @@ Helper predicates:
   - if `p` carries a PHP attribute (`#[...]`, also on a promoted
     constructor parameter), a *compatible* pair is not reported (custos
     diverges, see Divergences); incompatible pairs still are;
+  - if `p` is a promoted constructor parameter, a *compatible* pair is not
+    reported either (custos diverges): promotion has to declare the
+    property, so the duplicate is the price of the constructor;
   - walk `Traits` in order and take the first trait `T` for which
     `find(T, p.name)` exists; stop there (later traits are not consulted);
   - *compatible* pair → report on `p`'s name (weak); *incompatible* pair →
@@ -245,6 +248,12 @@ final class Page extends Node {
   a *compatible* pair when the own property carries an attribute; an
   *incompatible* one is still an error (PHP refuses to compose the class
   regardless of attributes).
+- **Promoted re-declarations (custos diverges, A).** A class that replaces
+  the constructor of a trait it uses and promotes the same property
+  (`__construct(private array $items)` next to the trait's
+  `private array $items;`) has no other way to write it with promotion.
+  custos does not report such a *compatible* pair; an *incompatible* one is
+  still an error.
 - **Full compatibility criteria (custos diverges).** Upstream decides
   between the weak and the error report from the default value alone, so a
   trait `protected int $hits = 0` against a class `public $hits = 0` is
