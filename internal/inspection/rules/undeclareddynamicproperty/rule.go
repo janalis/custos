@@ -33,6 +33,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
+	if reboundThis(property.Var) { // E3
+		return
+	}
 	classes := ctx.TypeOf(property.Var).Classes()
 	if len(classes) != 1 {
 		return
@@ -80,6 +83,50 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ctx.ReportNode(property, message)
+}
+
+// reboundThis reports whether e is `$this` inside a closure handed to a
+// call named bind, bindTo or call (`Closure::bind(fn, $obj, Scope::class)`,
+// `$fn->call($obj)`): `$this` is then the object it is bound to, of a class
+// the closure does not name.
+func reboundThis(e syntax.Expr) bool {
+	v, ok := e.(*syntax.Variable)
+	if !ok || v.NameExpr != nil || v.Name != "this" {
+		return false
+	}
+	fn, ok := syntax.EnclosingFuncLike(v).(*syntax.Closure)
+	if !ok {
+		return false
+	}
+	var target syntax.Node = fn
+	for {
+		p := target.Parent()
+		if _, paren := p.(*syntax.Paren); !paren {
+			break
+		}
+		target = p
+	}
+	var name syntax.Expr
+	switch c := target.Parent().(type) {
+	case *syntax.MethodCall: // `(function () {…})->bindTo($obj)` or `->call($obj)`; arguments sit in an Arg
+		name = c.Name
+	case *syntax.Arg: // `Closure::bind(function () {…}, $obj)`
+		switch call := c.Parent().Parent().(type) {
+		case *syntax.StaticCall:
+			name = call.Name
+		case *syntax.MethodCall:
+			name = call.Name
+		}
+	}
+	id, ok := name.(*syntax.Identifier)
+	if !ok {
+		return false
+	}
+	switch strings.ToLower(id.Value) {
+	case "bind", "bindto", "call":
+		return true
+	}
+	return false
 }
 
 func guardedPropertyPresent(ctx *analysis.Context, at *syntax.Assign, property *syntax.PropertyFetch, name string) bool {

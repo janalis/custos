@@ -34,6 +34,7 @@ Reported:
 ## Exceptions (no report)
 
 - stdClass descendants, AllowDynamicProperties classes, classes implementing __set, unknown hierarchies and existing properties are excluded.
+- `$this` inside a closure that is handed straight to a call named `bind`, `bindTo` or `call` (`\Closure::bind(function () { $this->listeners = []; }, $context, Context::class)`, `(function () {…})->call($object)`) is the object the closure gets bound to, not an instance of the enclosing class: writes through it are not reported. A closure stored first and bound later is still read as the enclosing class.
 - Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
