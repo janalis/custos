@@ -58,7 +58,7 @@ func releasedAfter(f *syntax.File, loop syntax.Node, name string) bool {
 		return true
 	case *syntax.ExprStmt:
 		_, ok := nx.Expr.(*syntax.Throw)
-		return ok
+		return ok || takesReference(nx, name)
 	case *syntax.Unset:
 		for _, v := range nx.Vars {
 			if vn, ok := astquery.PlainVariableName(v); ok && vn == name {
@@ -67,6 +67,33 @@ func releasedAfter(f *syntax.File, loop syntax.Node, name string) bool {
 		}
 	}
 	return false
+}
+
+// takesReference reports whether the statement binds a new reference to
+// the variable (`$list[] = &$v;`, `$all = [&$v];`): it uses the reference
+// the loop left on purpose (custos).
+func takesReference(st syntax.Stmt, name string) bool {
+	found := false
+	syntax.Inspect(st, func(n syntax.Node) bool {
+		var target syntax.Expr
+		switch x := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction:
+			return false
+		case *syntax.Assign:
+			if x.ByRef {
+				target = x.Value
+			}
+		case *syntax.ArrayItem:
+			if x.ByRef {
+				target = x.Value
+			}
+		}
+		if vn, ok := astquery.PlainVariableName(target); ok && vn == name {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // outerLoopLeaving returns the loop enclosing loop when it mentions name

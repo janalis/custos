@@ -64,6 +64,9 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
   - `N` is an `unset(...)` statement with at least one argument that is a
     plain variable whose name equals `V`'s name (case-sensitive; other
     arguments ignored).
+  - (custos, see Divergences) `N` is an expression statement that binds a
+    new reference to `V` (`$list[] = &$v;`, `$all = [&$v];`; nested
+    closures aside): it uses the reference the loop left on purpose.
 - **D3a** When D3 does not apply and the foreach is inside another loop
   (`foreach`, `for`, `while` or `do`) of the same function that mentions
   no variable named like `V` outside the foreach (in its header or its
@@ -210,6 +213,9 @@ function tail(array $list) {
 
 ## Divergences
 
+- **Deliberate reference reuse (custos diverges).** Upstream reports a
+  by-reference loop followed by `$list[] = &$v;`, which keeps the
+  reference on purpose.
 - **Unset arguments tested individually (custos diverges):** upstream applies
   the "is a plain variable" test to the first unset argument instead of the
   argument being examined, so `unset($a['k'], $v)` reports nothing, while
