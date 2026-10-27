@@ -103,19 +103,44 @@ func (issetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 					continue
 				}
 				if b.Len() > 0 {
-					b.WriteString(sep)
+					b.WriteString(lineBreakSep(ctx.File, outer(frags[i-1]).Span().End, outer(f).Span().Start, sep))
 				}
 				if i == first { // F1: the merged check takes the first hit's place
 					b.WriteString(merged.String())
-				} else if p, ok := f.Parent().(*syntax.Paren); ok {
-					b.WriteString(ctx.Text(p))
 				} else {
-					b.WriteString(ctx.Text(f))
+					b.WriteString(ctx.Text(outer(f)))
 				}
 			}
 			return []diagnostic.TextEdit{{Span: span, NewText: b.String()}}
 		},
 	})
+}
+
+// outer returns the fragment with the parentheses written around it.
+func outer(f syntax.Expr) syntax.Node {
+	if p, ok := f.Parent().(*syntax.Paren); ok {
+		return p
+	}
+	return f
+}
+
+// lineBreakSep returns the separator written before a fragment: sep, or,
+// when the source broke the line between the two fragments, the operator
+// with the same line break and indentation, on the side it was written
+// (F1a).
+func lineBreakSep(f *syntax.File, from, to uint32, sep string) string {
+	gap := string(f.Src[from:to])
+	nl := strings.LastIndexByte(gap, '\n')
+	if nl < 0 {
+		return sep
+	}
+	indent := gap[nl+1:]
+	indent = indent[:len(indent)-len(strings.TrimLeft(indent, " \t"))]
+	op := strings.TrimSpace(sep)
+	if strings.IndexAny(gap, "&|") < nl {
+		return " " + op + "\n" + indent
+	}
+	return "\n" + indent + op + " "
 }
 
 // issetFragment returns the isset construct a chain fragment qualifies with:

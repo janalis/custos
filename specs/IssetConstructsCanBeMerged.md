@@ -98,7 +98,12 @@ applied and the file re-analyzed.
      fragment's **immediate** parent is a parenthesized expression, the text
      of that parenthesized expression is used instead (exactly one level of
      parentheses restored).
-  3. Join the fragments with `" && "` (`&&`) or `" || "` (`||`).
+  3. Join the fragments with `" && "` (`&&`) or `" || "` (`||`), except
+     where the source broke the line between a fragment and the one before
+     it (custos, F1a): the separator then keeps that line break and the
+     indentation of the new line, with the operator at the end of the
+     previous line or at the start of the new one as written there
+     (`isset($a, $b) &&` ending a line keeps `&&` there).
   No extra parentheses are added around the result.
 - **F2 — guarded second check.** When at least one fragment sits between the
   two hits, the fix is offered only if every argument of the second hit is a

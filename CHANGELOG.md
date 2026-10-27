@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- IssetConstructsCanBeMerged keeps the line breaks of a condition written
+  over several lines instead of joining it onto one line.
 - NotOptimalIfConditions no longer moves `class_exists()`,
   `interface_exists()`, `trait_exists()` or `enum_exists()` calls that may
   run the autoloader: loading the class is a side effect that later checks
