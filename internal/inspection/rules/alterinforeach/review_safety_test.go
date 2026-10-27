@@ -18,13 +18,13 @@ func TestReviewSafety(t *testing.T) {
 		findings     int
 	}{
 		{"empty statement", "<?php function f($a) { foreach ($a as &$v) {}; unset($v); }", 0},
-		{"empty statement then use", "<?php function f($a) { foreach ($a as &$v) {}; echo 1; }", 1},
+		{"empty statement then use", "<?php function f($a) { foreach ($a as &$v) { g(); }; echo 1; }", 1},
 		{"switch break", "<?php function f($a) { switch ($a) { case 1: foreach ($a as &$v) {} break; } unset($v); }", 0},
 		{"loop break", "<?php function f($a) { while (1) { foreach ($a as &$v) {} break; } unset($v); }", 0},
 		{"levelled break", "<?php function f($a) { while (1) { while (1) { foreach ($a as &$v) {} break 2; } } unset($v); }", 0},
 		{"continue", "<?php function f($a) { while (1) { foreach ($a as &$v) {} continue; } unset($v); }", 0},
 		{"outer loop writes", "<?php function f($a) { while (1) { $v = 0; foreach ($a as &$v) {} continue; } unset($v); }", 1},
-		{"stray break", "<?php function f($a) { foreach ($a as &$v) {} break; }", 1},
+		{"stray break", "<?php function f($a) { foreach ($a as &$v) { g(); } break; }", 1},
 		{"earlier by-ref loop", "<?php function f($a, $b) { foreach ($a as &$v) {} foreach ($b as $v) {} unset($v); }", 1},
 		{"by-ref parameter", "<?php function f($a, &$v) { foreach ($a as $v) {} unset($v); }", 0},
 		{"by-value parameter", "<?php function f($a, $v) { foreach ($a as $v) {} unset($v); }", 1},

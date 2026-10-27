@@ -40,6 +40,9 @@ func (r alterInForeach) Check(ctx *analysis.Context, n syntax.Node) {
 
 // checkByRef implements part A (D1-D3).
 func (alterInForeach) checkByRef(ctx *analysis.Context, f *syntax.Foreach, name string) {
+	if b, ok := f.Body.(*syntax.Block); ok && len(b.Stmts) == 0 && !touchedLater(ctx.File, f, name) { // E8
+		return
+	}
 	// D3a: an outer loop that leaves the variable to the inner one may
 	// release it instead.
 	for loop := syntax.Node(f); loop != nil; loop = outerLoopLeaving(loop, name) {
@@ -48,6 +51,34 @@ func (alterInForeach) checkByRef(ctx *analysis.Context, f *syntax.Foreach, name 
 		}
 	}
 	ctx.ReportNode(f.Value, "Unset '$"+name+"' right after the loop: it is still a reference to the last element.")
+}
+
+// touchedLater reports whether name (or a variable-variable) appears after
+// loop in its function, or before it inside a loop that encloses it and may
+// come back to it (E8).
+func touchedLater(file *syntax.File, loop *syntax.Foreach, name string) bool {
+	var scope syntax.Node = file
+	from := loop.Span()
+	for a := loop.Parent(); a != nil; a = a.Parent() {
+		if syntax.IsFuncLike(a) {
+			scope = a
+			break
+		}
+		switch a.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			from.Start = a.Span().Start
+		}
+	}
+	found := false
+	syntax.Inspect(scope, func(x syntax.Node) bool {
+		s := x.Span()
+		if v, ok := x.(*syntax.Variable); ok && (v.NameExpr != nil || v.Name == name) &&
+			(s.Start >= from.Start && s.Start < loop.Span().Start || s.Start >= from.End) {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // releasedAfter reports whether the follower of loop ends the reference

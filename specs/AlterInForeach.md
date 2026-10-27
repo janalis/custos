@@ -146,6 +146,11 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
 - **E7** (custos, see Divergences) Part A: only empty statements, or a plain
   `break;` out of the enclosing loop/switch, stand between the loop and the
   `unset`/`return`/`throw`/end of body.
+- **E8** (custos, see Divergences) Part A: the loop body is empty (`{}`)
+  and `V` is not mentioned after the loop in its function (or file), nor
+  before it inside a loop that encloses it; a variable-variable counts as
+  a mention. Such a loop only turns the elements into references, and
+  nothing can write through the variable it leaves.
 - **E4** Part C: option off; append form `$a[] = …`; non-variable index
   (`$a[$k + 1]`, `$a['x']`); container/key not matching the foreach; the
   assignment inside a closure/function nested in the loop.
@@ -212,6 +217,12 @@ function tail(array $list) {
 (Highlighting above assumes `SUGGEST_USING_VALUE_BY_REF = true`.)
 
 ## Divergences
+
+- **Reference-making loops (custos diverges, E8).** Upstream reports
+  `foreach ($keys as &$key) {}` followed by code that never touches
+  `$key`. The empty loop exists to turn the array's elements into
+  references (redis extension tests); the reference it leaves is never
+  written through.
 
 - **Deliberate reference reuse (custos diverges).** Upstream reports a
   by-reference loop followed by `$list[] = &$v;`, which keeps the

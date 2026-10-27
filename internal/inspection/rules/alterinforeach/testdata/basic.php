@@ -9,17 +9,17 @@ function climb(array $list, $flag) {
     unset($b);
 
     if ($flag) {
-        foreach ($list as &<warning descr="Unset '$c' right after the loop: it is still a reference to the last element.">$c</warning>) {}
+        foreach ($list as &<warning descr="Unset '$c' right after the loop: it is still a reference to the last element.">$c</warning>) { f(); }
     } elseif ($list) {
         echo 1;
     }
 
     while ($flag) {
-        foreach ($list as &<warning descr="Unset '$d' right after the loop: it is still a reference to the last element.">$d</warning>) {}
+        foreach ($list as &<warning descr="Unset '$d' right after the loop: it is still a reference to the last element.">$d</warning>) { f(); }
     }
     echo 2;
 
-    if ($flag) foreach ($list as &<warning descr="Unset '$e' right after the loop: it is still a reference to the last element.">$e</warning>) {} else echo 3;
+    if ($flag) foreach ($list as &<warning descr="Unset '$e' right after the loop: it is still a reference to the last element.">$e</warning>) { f(); } else echo 3;
 
     foreach ($list as &$g) {}
     // plain comment

@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- AlterInForeach no longer reports an empty by-reference loop
+  (`foreach ($keys as &$key) {}`) whose variable is never used afterwards:
+  it only turns the elements into references.
 - AutoloadingIssues no longer reports a file that also declares functions:
   no autoloader loads it by class name (php-src's extension stubs).
 - PhpUnitTests puts a literal or constant first when it turns
