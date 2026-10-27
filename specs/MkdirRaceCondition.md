@@ -58,8 +58,8 @@ treated as an error, and its result must not be ignored.
   suggested form is the *and*-form when `inverted` is true, else the
   *or*-form. Fix F2.
 - **D6** `C` is a logical binary expression `B`:
-  - if `B`'s right operand is `exit`/`die` (`mkdir(...) or die(...)`) → no
-    report;
+  - if `B`'s right operand is `exit`/`die` (`mkdir(...) or die(...)`), or a
+    call that cannot return (E2) → no report;
   - if `T` is `B`'s right operand and `B`'s parent is itself a binary
     expression, use that parent as `B'` for the next check, else `B' = B`;
   - look at `B'`'s right operand and every function call nested in it; if
@@ -77,7 +77,10 @@ treated as an error, and its result must not be ignored.
 
 - **E1** Result stored: `$ok = mkdir($d);` (also inside parentheses or after
   `!`/`@`).
-- **E2** `mkdir(...) or die(...)` / `or exit`.
+- **E2** `mkdir(...) or die(...)` / `or exit`, or `or f(...)` where `f`
+  cannot return (custos): its result type is `never`, or it is a function
+  of the same file whose body holds no `return` and ends with an `exit`,
+  `die` or `throw` statement (`or error('…')` in php-src's test runner).
 - **E3** An `is_dir()` re-check of the same directory in the right operand
   of the (outer) logical expression: `!is_dir($d) && !mkdir($d) && !is_dir($d)`,
   `mkdir($d) || is_dir($d)`, `!mkdir($d = $cfg->path()) && !is_dir($d)`.

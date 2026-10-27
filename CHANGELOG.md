@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MkdirRaceCondition treats `mkdir(...) or error(...)` like `or die` when
+  `error()` cannot return: declared `never`, or a function of the same file
+  that ends with `exit` or `throw` and never returns.
 - CallableParameterUseCaseInTypeContext no longer reports a nullable call
   result assigned to a parameter when a strict `null` test right there
   leaves the function (`if (null === $length = $this->indexOf(…)) return;`).

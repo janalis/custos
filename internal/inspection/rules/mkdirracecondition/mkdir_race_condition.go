@@ -180,7 +180,7 @@ locate:
 			return []diagnostic.TextEdit{{Span: target.Span(), NewText: repl}}
 		}})
 	case *syntax.Binary: // D6
-		if syntax.ExitInvocation(c.Right) {
+		if syntax.ExitInvocation(c.Right) || neverReturns(ctx, c.Right) { // E2
 			return
 		}
 		outer := c
@@ -347,6 +347,52 @@ func mkdirDir(ctx *analysis.Context, dirArg syntax.Expr) (string, bool) {
 		return text, false
 	}
 	return text, true
+}
+
+// neverReturns reports a call that cannot return (E2, custos): its type is
+// `never`, or it calls a function of this file whose body holds no return
+// and ends with exit or throw (`or error('…')` in php-src's run-tests.php).
+func neverReturns(ctx *analysis.Context, e syntax.Expr) bool {
+	call, ok := syntax.UnwrapParens(e).(*syntax.FuncCall)
+	if !ok {
+		return false
+	}
+	if ctx.TypeOf(call).OnlyOf("never") {
+		return true
+	}
+	name, ok := call.Name.(*syntax.Name)
+	if !ok {
+		return false
+	}
+	var decl *syntax.Function
+	syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
+		if fn, ok := n.(*syntax.Function); ok && fn.Name != nil && strings.EqualFold(fn.Name.Value, astquery.LastNamePart(name.Value)) {
+			decl = fn
+		}
+		return decl == nil
+	})
+	if decl == nil || decl.Body == nil || len(decl.Body.Stmts) == 0 {
+		return false
+	}
+	returns := false
+	syntax.Inspect(decl.Body, func(n syntax.Node) bool {
+		switch n.(type) {
+		case *syntax.Return:
+			returns = true
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return n == syntax.Node(decl)
+		}
+		return !returns
+	})
+	if returns {
+		return false
+	}
+	last, ok := decl.Body.Stmts[len(decl.Body.Stmts)-1].(*syntax.ExprStmt)
+	if !ok {
+		return false
+	}
+	_, throws := syntax.UnwrapParens(last.Expr).(*syntax.Throw)
+	return throws || syntax.ExitInvocation(last.Expr)
 }
 
 // guardedByIsDir reports whether statement st is the body, or in the body,
