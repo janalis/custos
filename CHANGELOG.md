@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- CallableParameterUseCaseInTypeContext no longer reports a nullable call
+  result assigned to a parameter when a strict `null` test right there
+  leaves the function (`if (null === $length = $this->indexOf(…)) return;`).
 - UnserializeExploits no longer reports `unserialize()` of the program's
   own `serialize()` output kept in a variable and edited with literal
   replacements (Symfony's Definition-to-ChildDefinition cast).

@@ -288,6 +288,74 @@ func (cp *cpState) checkIs(v *syntax.Variable, set map[string]bool) {
 	cp.ctx.ReportNode(call, msg)
 }
 
+// cpNullLeaves reports whether a strict null test of the assigned variable
+// leaves the code path at once: the assignment is the tested operand
+// (`if (null === $p = f()) { return; }`) or the statement right after it
+// tests the variable that way.
+func cpNullLeaves(f *syntax.File, as *syntax.Assign, name string) bool {
+	if cmp, _ := astquery.ParentSkipParens(as); cpNullTest(cmp, name, as) {
+		guard, _ := astquery.ParentSkipParens(cmp)
+		return cpLeavingIf(guard)
+	}
+	st, ok := as.Parent().(*syntax.ExprStmt)
+	if !ok {
+		return false
+	}
+	list, i, ok := astquery.StmtList(f, st)
+	if !ok || i+1 >= len(list) {
+		return false
+	}
+	next, ok := list[i+1].(*syntax.If)
+	return ok && cpNullTest(syntax.UnwrapParens(next.Cond), name, nil) && cpLeavingIf(next)
+}
+
+// cpNullTest reports `null === X` or `X === null` (also `==`) where X is the
+// assignment as, or the variable name when as is nil.
+func cpNullTest(n syntax.Node, name string, as *syntax.Assign) bool {
+	b, ok := n.(*syntax.Binary)
+	if !ok || b.Op.Kind != syntax.TIsIdentical && b.Op.Kind != syntax.TIsEqual {
+		return false
+	}
+	other := b.Right
+	if syntax.IsNullConst(b.Right) {
+		other = b.Left
+	} else if !syntax.IsNullConst(b.Left) {
+		return false
+	}
+	other = syntax.UnwrapParens(other)
+	if as != nil {
+		return other == syntax.Expr(as)
+	}
+	v, ok := other.(*syntax.Variable)
+	return ok && v.NameExpr == nil && v.Name == name
+}
+
+// cpLeavingIf reports an `if` without else branches whose body ends by
+// leaving: return, throw, exit, break or continue.
+func cpLeavingIf(n syntax.Node) bool {
+	guard, ok := n.(*syntax.If)
+	if !ok || guard.Else != nil || len(guard.ElseIfs) > 0 {
+		return false
+	}
+	last := guard.Body
+	if b, ok := last.(*syntax.Block); ok {
+		if len(b.Stmts) == 0 {
+			return false
+		}
+		last = b.Stmts[len(b.Stmts)-1]
+	}
+	switch st := last.(type) {
+	case *syntax.Return, *syntax.Break, *syntax.Continue:
+		return true
+	case *syntax.ExprStmt:
+		switch st.Expr.(type) {
+		case *syntax.Throw, *syntax.Exit:
+			return true
+		}
+	}
+	return false
+}
+
 // docGuard reports whether the check enforces a type only the docblock
 // declares (custos): the parameter has no native type and the check, maybe
 // negated, is the whole condition of an `if` whose body only throws
@@ -413,6 +481,11 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 				delete(r, "null")
 			}
 		}
+	}
+	if r["null"] && cpNullLeaves(cp.ctx.File, as, v.Name) {
+		// custos: `if (null === $p = find()) { return; }` never keeps the
+		// null in the parameter.
+		delete(r, "null")
 	}
 	if r["mixed"] { // D7d: mixed covers every type; custos skips (E3)
 		return

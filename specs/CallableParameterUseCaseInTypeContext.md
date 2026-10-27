@@ -430,7 +430,11 @@ function untyped($flag = null) {
   `bool` is the call's failure marker and dropped next to any other type
   (`$tmp = tempnam(…); … $path = $tmp;`). Its `null` is still checked: a
   lookup miss kept in a variable and assigned to a non-nullable parameter
-  is reported.
+  is reported, unless a strict `null` test of the parameter leaves at once:
+  the assignment is the tested operand (`if (null === $length =
+  $this->indexOf(…)) { return …; }`) or the next statement is such a test,
+  an `if` without else whose body ends with `return`, `throw`, `exit`,
+  `break` or `continue` (Symfony's string `AbstractString`).
 - **Booleans and null in arithmetic (custos diverges).** With the sound
   arithmetic above, operands made only of int, bool and null give an int
   (PHP counts them as 0, 0 and 1): `$end = strtotime($start) + 60` is an
