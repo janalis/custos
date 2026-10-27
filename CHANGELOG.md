@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ForeachInvariants writes `foreach (array_keys($c) as $i)` when no element
+  access of the loop body can use a value variable, instead of declaring a
+  `$iValue` that stays unused.
 - MissingOrEmptyGroupStatement no longer reports an empty `foreach` kept
   for the last entry it leaves: its target is a property or array element,
   or its variable is used after the loop.

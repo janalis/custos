@@ -274,6 +274,9 @@ counter text with `Value` appended (`$i` → `$iValue`, `$idx` → `$idxValue`).
    modified in step 1, kept verbatim).
 3. If, after step 1, no variable named like the counter remains anywhere in
    the body, drop `<i> => ` so the header is `foreach (<c> as <iValue>)`.
+   When step 1 replaced no access at all (custos), the header is
+   `foreach (array_keys(<c>) as <i>)` instead: a value variable would
+   never be used.
 4. Limit cleanup: in the enclosing function body, count nodes structurally
    equal to the limit `X` (after the loop was replaced). If exactly one
    remains and it is the left side of a plain assignment that is a statement

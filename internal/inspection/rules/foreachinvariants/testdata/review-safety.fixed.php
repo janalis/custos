@@ -36,13 +36,13 @@ function scopes(array $names) {
 }
 // Writes below the element keep the container.
 function subWrites(array $a) {
-    foreach ($a as $i => $iValue) { $a[$i]['n']++; }
-    foreach ($a as $i => $iValue) { unset($a[$i]['tmp']); }
-    foreach ($a as $i => $iValue) { sort($a[$i]['t']); }
-    foreach ($a as $i => $iValue) { foreach ($a[$i] as &$v) { $v = 0; } unset($v); }
-    foreach ($a as $i => $iValue) { list($a[$i]['x'], $y) = [9, 8]; }
-    foreach ($a as $i => $iValue) { $x = [&$a[$i]['k']]; $x[0] = 1; }
-    foreach ($a as $i => $iValue) { return $a[$i]['r']; }
+    foreach (array_keys($a) as $i) { $a[$i]['n']++; }
+    foreach (array_keys($a) as $i) { unset($a[$i]['tmp']); }
+    foreach (array_keys($a) as $i) { sort($a[$i]['t']); }
+    foreach (array_keys($a) as $i) { foreach ($a[$i] as &$v) { $v = 0; } unset($v); }
+    foreach (array_keys($a) as $i) { list($a[$i]['x'], $y) = [9, 8]; }
+    foreach (array_keys($a) as $i) { $x = [&$a[$i]['k']]; $x[0] = 1; }
+    foreach (array_keys($a) as $i) { return $a[$i]['r']; }
     foreach ($a as $iValue) {
         echo $iValue['n'], strlen($iValue['s']), $iValue['o']->p, $iValue['a'] . $iValue['b'][0];
         if ($iValue['f']) {}

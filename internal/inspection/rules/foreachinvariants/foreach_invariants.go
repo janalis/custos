@@ -309,6 +309,11 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 		header += cName + " => "
 	}
 	header += valName + ") "
+	if len(repl) == 0 {
+		// custos: no element access was replaced; a value variable would
+		// stay unused, so only the keys are walked.
+		header = "foreach (array_keys(" + ctx.Text(container) + ") as " + cName + ") "
+	}
 	edits := []diagnostic.TextEdit{{Span: l.Span(), NewText: header + b.String()}}
 	// F1.4: limit cleanup.
 	// custos: only a variable's assignment; a property write is state.
