@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- PropertyInitializationFlaws no longer reports a constructor assignment
+  of the default value after earlier code may have changed the property
+  (`$this->init();` then `$this->sent = false;`): it resets the property.
 - AlterInForeach no longer reports an empty by-reference loop
   (`foreach ($keys as &$key) {}`) whose variable is never used afterwards:
   it only turns the elements into references.

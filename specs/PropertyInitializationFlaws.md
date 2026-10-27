@@ -130,6 +130,11 @@ least one statement.
   qualify.
 - **E7** Properties with hooks in Check 2: writes can execute a setter,
   and hooks can observe the original backing value.
+- **E8** (custos, see Divergences) D5 when an earlier statement of the
+  constructor body assigns the same `$this->name` (at any depth), or runs
+  code that can reach the object (`$this->init()`, `parent::__construct()`,
+  a call passed `$this`): the property may no longer hold its default, so
+  the assignment resets it.
 
 ## Report
 
@@ -344,6 +349,10 @@ final class Job
 ```
 
 ## Divergences
+
+- **Resetting after earlier code (custos diverges, E8).** Upstream reports
+  `$this->sent = false;` as writing the default even after
+  `$this->init();` set it to true; removing it would change the object.
 
 - **Re-declarations changing the type (custos diverges, D2).** Upstream
   asks to drop a re-declaration whose default repeats the parent's even

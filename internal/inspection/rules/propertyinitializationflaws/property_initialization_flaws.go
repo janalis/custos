@@ -1,6 +1,7 @@
 package propertyinitializationflaws
 
 import (
+	"maps"
 	"strings"
 
 	"custos/internal/diagnostic"
@@ -262,8 +263,13 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 	// custos: properties read (or modified in place) so far, this statement
 	// included; the default of such a property is observed before the write.
 	read := pifReads{names: map[string]bool{}}
+	// custos: properties assigned by earlier statements; writing the default
+	// afterwards resets them.
+	set := map[string]bool{}
 	for _, st := range m.Body.Stmts { // D4
 		read.collect(st)
+		was := maps.Clone(set)
+		pifAssigned(st, set)
 		mayReturn := pifHasReturn(st)
 		before := escaped
 		escaped = escaped || pifReachesThis(st)
@@ -296,7 +302,7 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 			d = nil
 		}
 		if (d == nil && syntax.IsNullConst(as.Value)) || (d != nil && astquery.EquivalentFoldNames(ctx.File, as.Value, d)) { // D5
-			if !pifNullableTyped(ctx, c.prop.Type) {
+			if !pifNullableTyped(ctx, c.prop.Type) && !before && !was[id.Value] { // E8
 				ctx.Report(es.Span(), pifMsgWrites)
 			}
 			continue
@@ -316,6 +322,23 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 		reported[id.Value] = true
 		ctx.Report(d.Span(), pifMsgReplaced, pifRemoveDefault(c.item))
 	}
+}
+
+// pifAssigned adds to set the properties st assigns as `$this->name`, at
+// any depth.
+func pifAssigned(st syntax.Node, set map[string]bool) {
+	syntax.Inspect(st, func(x syntax.Node) bool {
+		if as, ok := x.(*syntax.Assign); ok {
+			if pf, ok := as.Var.(*syntax.PropertyFetch); ok {
+				if v, ok := pf.Var.(*syntax.Variable); ok && v.Name == "this" {
+					if id, ok := pf.Name.(*syntax.Identifier); ok {
+						set[id.Value] = true
+					}
+				}
+			}
+		}
+		return true
+	})
 }
 
 // pifReads accumulates what the constructor has observed of the object:
