@@ -70,8 +70,11 @@ Visit every method call expression.
 ## Report
 
 - Variant A (D6): range = the `$this` variable token only. Severity: warning.
-  Message: `Static method {name}() called through $this; use self::{name}().`
-  where `{name}` is the declared name of the resolved method.
+  Message: `Static method {name}() called through $this; use {kw}::{name}().`
+  where `{name}` is the declared name of the resolved method and `{kw}` is
+  `self` when the method cannot be overridden (it is private or final, or
+  the enclosing class-like is a final class or an enum), `static`
+  otherwise (custos, see Divergences).
 - Variant B (D7): range = the whole method call expression, from the start of
   the receiver to the closing `)` of the argument list (no trailing `;`).
   Severity: warning. Message: `Static method {name}() called on an instance; call it with ::.`
@@ -79,9 +82,10 @@ Visit every method call expression.
 
 ## Fix
 
-- **F1** Variant A only: replace `$this` with `self` and the `->` operator with
-  `::`; everything else (method name, arguments, whitespace) is kept:
-  `$this->build($x)` → `self::build($x)`.
+- **F1** Variant A only: replace `$this` with `{kw}` (as in the message) and
+  the `->` operator with `::`; everything else (method name, arguments,
+  whitespace) is kept: `$this->build($x)` → `static::build($x)`, or
+  `self::build($x)` for a private or final method or in a final class.
 - **F2** No fix (the report stays) when `$this` is the first token of a
   `{$…}` interpolation part of a double-quoted string, heredoc or backtick
   command, whether the call is the whole part (`"{$this->build(1)}"`) or the
@@ -116,7 +120,7 @@ class Palette {
     }
 
     public function render() {
-        $a = <warning descr="Static method shade() called through $this; use self::shade().">$this</warning>->shade(2);
+        $a = <warning descr="Static method shade() called through $this; use static::shade().">$this</warning>->shade(2);
         $b = $this->tint();
         $c = $this->staticTone();
         $d = self::shade(3);
@@ -138,7 +142,7 @@ After fix:
 
 ```php
 <?php
-        $a = self::shade(2);
+        $a = static::shade(2);
 ```
 
 (variant B occurrences stay unchanged).

@@ -49,7 +49,7 @@ function paint(Palette $given) {
 Reported:
 
 <ul>
-<li>line 12: Static method shade() called through $this; use self::shade().</li>
+<li>line 12: Static method shade() called through $this; use static::shade().</li>
 <li>line 22: Static method shade() called on an instance; call it with ::.</li>
 <li>line 23: Static method shade() called on an instance; call it with ::.</li>
 </ul>
