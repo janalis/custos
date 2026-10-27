@@ -21,7 +21,7 @@ class SafetyTest
 
     public function testComparisons($a, int $n, float $ratio, string $s, mixed $any)
     {
-        $this->assertEquals($n, 3);
+        $this->assertEquals(3, $n);
         $this->assertTrue($s == '1000');
         $this->assertTrue($a != $n);
         $this->assertTrue($n == $a);

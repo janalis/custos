@@ -45,7 +45,7 @@ namespace {
     {
         public function testIt($a)
         {
-            $this->assertSame($a, 0);
+            $this->assertSame(0, $a);
         }
     }
 }

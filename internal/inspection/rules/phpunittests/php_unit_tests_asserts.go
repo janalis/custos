@@ -262,6 +262,11 @@ func putBoolOfComparison(ctx *analysis.Context, c phpunit.PuCall, args []syntax.
 		name += "Equals"
 	}
 	slots := []string{ctx.Text(b.Left), ctx.Text(b.Right)}
+	if putFixedValue(b.Right) && !putFixedValue(b.Left) {
+		// custos: PHPUnit takes the expected value first; its failure
+		// message reads backwards otherwise (`count($rows) == 2`).
+		slots[0], slots[1] = slots[1], slots[0]
+	}
 	if len(args) == 2 {
 		slots = append(slots, ctx.Text(args[1]))
 	}
@@ -276,6 +281,18 @@ func putBoolOfComparison(ctx *analysis.Context, c phpunit.PuCall, args []syntax.
 		noFix = !ctx.TypeOf(b.Left).OnlyOf(loose...) || !ctx.TypeOf(b.Right).OnlyOf(loose...)
 	}
 	return putSuggestion{name: name, slots: slots, noFix: noFix}, true
+}
+
+// putFixedValue reports whether e is a literal or a constant, possibly
+// negated: the expected side of a comparison.
+func putFixedValue(e syntax.Expr) bool {
+	switch e := syntax.UnwrapParens(e).(type) {
+	case *syntax.Literal, *syntax.ConstFetch, *syntax.ClassConstFetch:
+		return true
+	case *syntax.Unary:
+		return e.Op.Kind == syntax.TMinus && putFixedValue(e.Expr)
+	}
+	return false
 }
 
 // D17

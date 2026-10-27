@@ -460,8 +460,10 @@ filled, in order, with the original arguments that follow the message
   `$this->assertTrue(!($a && $b), 'm')` → `$this->assertNotTrue($a && $b, 'm')`.
   Only when `X'` is a `bool` (D15).
 - **F2 (D16)** `<suggested>(L, R)` when `n ≠ 2`; `<suggested>(L, R, args[1])`
-  when `n = 2`. Operand order kept.
-  `$this->assertFalse($q !== 0)` → `$this->assertSame($q, 0)`.
+  when `n = 2`. Operand order kept, except that a literal or constant
+  operand (possibly negated) goes first when the other one is neither:
+  PHPUnit takes the expected value first.
+  `$this->assertFalse($q !== 0)` → `$this->assertSame(0, $q)`.
   Only under the type conditions of D16.
 - **F3 (D17)** Only the name changes; all `n` argument texts are re-emitted
   joined by `, `: `assertEquals(4, 2+2, 'x')` → `assertSame(4, 2+2, 'x')`.
@@ -668,7 +670,7 @@ class CartTest
     public function testThings(array $rows, $bag, $cart, $path, $body, $slug)
     {
         $this->assertNotTrue($cart->open && $rows);
-        self::assertSame($cart->size, 4, 'size');
+        self::assertSame(4, $cart->size, 'size');
         $this->assertTrue($slug <> 'home');
         $this->assertNotEmpty($rows);
         $this->assertNull($cart->coupon, 'coupon');

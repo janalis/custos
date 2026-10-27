@@ -4,7 +4,7 @@ class CartTest
     public function testThings(array $rows, $bag, $cart, $path, $body, $slug)
     {
         $this->assertNotTrue($cart->open && $rows);
-        self::assertSame($cart->size, 4, 'size');
+        self::assertSame(4, $cart->size, 'size');
         $this->assertTrue($slug <> 'home');
         $this->assertNotEmpty($rows);
         $this->assertNull($cart->coupon, 'coupon');
