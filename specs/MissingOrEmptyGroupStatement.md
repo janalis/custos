@@ -192,7 +192,8 @@ In `views/page.blade.php` nothing is reported (E2).
   line (replacing the whitespace before the body), the body is indented one
   level under the construct's line (a tab when that line is indented with
   tabs, else the file's own space indentation step, four spaces when it
-  has none) and the closing brace aligned with it
+  has none; a body already on a line of its own, indented deeper than the
+  construct, keeps its indentation) and the closing brace aligned with it
   (`if ($a)\n    stmt;` → `if ($a) {\n    stmt;\n}`).
 - **Line comment after the header (custos diverges, F1).** In `for (…) //
   note` followed by the body on the next line, a brace placed after the
