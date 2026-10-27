@@ -30,6 +30,9 @@ func TestReviewSafety(t *testing.T) {
 		{"comment later in run", "<?php unset($a); unset($b); unset(/* keep */ $c);", 2, ""},
 		{"comment between statements", "<?php unset($a); /* why */ unset($b);", 1, ""},
 		{"comment on its own line", "<?php unset($a);\n// why\nunset($b);", 1, "<?php unset($a, $b);\n// why\n"},
+		{"comment after a blank line", "<?php\n    unset($a);\n\n    // why\n    unset($b);\n", 1, ""},
+		{"comment before a blank line", "<?php\n    unset($a);\n    // why\n\n    unset($b);\n", 1, ""},
+		{"blank line alone", "<?php\n    unset($a);\n\n    unset($b);\n", 1, "<?php\n    unset($a, $b);\n"},
 		{"trailing comma", "<?php unset($a,); unset($b,);", 1, "<?php unset($a, $b);"},
 		{"run of three", "<?php unset($a); unset($b); unset($c);", 2, "<?php unset($a, $b, $c);"},
 		{

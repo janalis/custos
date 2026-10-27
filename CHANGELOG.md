@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- UnsetConstructsCanBeMerged no longer offers to merge `unset()` statements
+  separated by a blank line and a comment: the comment introduces the
+  statements below it, which the merge would move away.
 - TernaryOperatorSimplify no longer doubles the parentheses when the
   ternary it simplifies is already wrapped in some
   (`((A && B) ? TRUE : FALSE)` becomes `(A && B)`).

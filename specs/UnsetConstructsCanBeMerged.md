@@ -74,7 +74,10 @@ Visit every `unset(...)` statement.
   - other than the last of the run, is followed by a comment on the same line
     (`unset($a); // why`): deleting the statement would append that comment
     to the merged line, away from the argument it describes. A comment on a
-    line of its own between the statements stays where it is.
+    line of its own between the statements stays where it is, unless a
+    blank line also separates the two statements: the comment then opens a
+    paragraph of its own (`// Unset old attributes.` above the statements
+    it describes), which the merge would leave describing nothing.
 
   The decision is taken for the run as a whole so that a partial merge never
   reorders the arguments around a statement left in place.
