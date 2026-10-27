@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- PregQuoteUsage no longer reports a `preg_quote()` result compared with
+  `===`, `!==`, `==` or `!=`: it is matched against another value, not used
+  as a pattern.
 - IssetConstructsCanBeMerged keeps the line breaks of a condition written
   over several lines instead of joining it onto one line.
 - NotOptimalIfConditions no longer moves `class_exists()`,

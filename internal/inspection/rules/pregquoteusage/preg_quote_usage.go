@@ -29,7 +29,7 @@ func (pregQuoteUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, "preg_quote") { // D1
 		return
 	}
-	if pregQuoteDelimiterEscaped(ctx, call) || pregQuoteDelimiterFree(ctx, call) || pregQuoteStoredEscaped(ctx, call) { // E3
+	if pregQuoteDelimiterEscaped(ctx, call) || pregQuoteDelimiterFree(ctx, call) || pregQuoteStoredEscaped(ctx, call) || pregQuoteCompared(call) { // E3
 		return
 	}
 	ctx.Report(astquery.NamePartSpan(call.Name.(*syntax.Name)), "Pass the pattern delimiter to preg_quote() as its second argument.")
@@ -149,6 +149,22 @@ func pregQuoteStoredEscaped(ctx *analysis.Context, call *syntax.FuncCall) bool {
 		return ok
 	})
 	return ok && reads > 0
+}
+
+// pregQuoteCompared reports whether the quoted text is an operand of an
+// equality comparison: it is matched against another quoted value, never
+// used as a pattern, so a delimiter would only break the equality.
+func pregQuoteCompared(call *syntax.FuncCall) bool {
+	parent, _ := astquery.ParentSkipParens(call)
+	b, ok := parent.(*syntax.Binary)
+	if !ok {
+		return false
+	}
+	switch b.Op.Kind {
+	case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+		return true
+	}
+	return false
 }
 
 // pregQuoteEscapes lists the characters preg_quote() escapes by itself.

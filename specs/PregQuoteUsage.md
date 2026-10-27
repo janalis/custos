@@ -95,6 +95,11 @@ $re4 = $quoter->preg_quote($needle);
   `strtr(preg_quote($x), …)`: the classic glob-to-regex
   `'{^' . str_replace('\\*', '.*', preg_quote($p)) . '$}i'` uses a
   delimiter preg_quote() escapes itself (Composer).
+- **Compared quotes (custos diverges).** A call that is directly (through
+  parentheses only) an operand of `===`, `!==`, `==` or `!=` compares the
+  quoted text with another value and is never used as a pattern; adding a
+  delimiter would only break the equality (Symfony's `Route::isLocalized()`
+  compares it with the stored `_locale` requirement). Not reported.
 - **Delimiter-free literal text (custos diverges).** When the quoted text
   is a plain string literal made only of letters, digits, whitespace,
   backslashes and characters preg_quote() escapes anyway
