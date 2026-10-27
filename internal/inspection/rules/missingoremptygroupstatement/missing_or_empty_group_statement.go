@@ -55,7 +55,7 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 	kw, _ := astquery.TokenAfter(ctx.File, n.Span().Start)
 	kwSpan := syntax.Span{Start: kw.Start, End: kw.End}
 	if b, ok := body.(*syntax.Block); ok {
-		if fe, ok := n.(*syntax.Foreach); ok && iterates(ctx, fe.Expr) { // E5
+		if fe, ok := n.(*syntax.Foreach); ok && (iterates(ctx, fe.Expr) || leavesLast(ctx.File, fe)) { // E5, E6
 			return
 		}
 		if len(b.Stmts) == 0 && ctx.Bool("REPORT_EMPTY_BODY") { // D2
@@ -143,6 +143,34 @@ func iterates(ctx *analysis.Context, e syntax.Expr) bool {
 		}
 	}
 	return false
+}
+
+// leavesLast reports whether an empty foreach is run for the last key or
+// value it leaves: a target other than a plain variable (`$stub->class`,
+// `$row['k']`), or a variable mentioned after the loop (E6).
+func leavesLast(f *syntax.File, fe *syntax.Foreach) bool {
+	names := map[string]bool{}
+	for _, t := range []syntax.Expr{fe.Key, fe.Value} {
+		switch t := t.(type) {
+		case nil:
+		case *syntax.Variable:
+			names[t.Name] = true
+		default:
+			return true
+		}
+	}
+	var scope syntax.Node = f
+	if fn := syntax.EnclosingFuncLike(fe); fn != nil {
+		scope = fn
+	}
+	found := false
+	syntax.Inspect(scope, func(x syntax.Node) bool {
+		if v, ok := x.(*syntax.Variable); ok && v.Span().Start >= fe.Span().End && (v.NameExpr != nil || names[v.Name]) {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // closesAfter reports whether a close tag follows pos on the same line.

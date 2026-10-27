@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MissingOrEmptyGroupStatement no longer reports an empty `foreach` kept
+  for the last entry it leaves: its target is a property or array element,
+  or its variable is used after the loop.
 - PropertyInitializationFlaws no longer reports a constructor assignment
   of the default value after earlier code may have changed the property
   (`$this->init();` then `$this->sent = false;`): it resets the property.

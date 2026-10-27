@@ -52,6 +52,11 @@ to the `if`.
   the iterator for its effects (draining a stream that must throw, warming
   a lazy collection). A subject of unknown type or an array is still
   reported.
+- E6: a `foreach` run for the last entry it leaves is not reported by D2:
+  its key or value target is not a plain variable (`as $stub->class =>
+  $stub->position`, a destructuring list), or a key or value variable is
+  mentioned after the loop in the same function (or file), or a
+  variable-variable is.
 
 ## Report
 
@@ -160,6 +165,11 @@ In `views/page.blade.php` nothing is reported (E2).
   empty body. An empty `foreach` over an iterator is how a test drains a
   response stream that must fail (Symfony's HTTP client test case), so
   custos does not report it when the subject is known to be one.
+
+- **Last-entry loops (custos diverges, E6).** Upstream reports every
+  empty body. An empty `foreach` whose target is a property, or whose
+  variable is used afterwards, exists to leave the last key or value
+  behind (Symfony's VarDumper data cloner).
 
 - Alternative syntax (E4): upstream behavior depends on how the IDE models the
   colon-syntax body; it is not covered by upstream fixtures. custos never
