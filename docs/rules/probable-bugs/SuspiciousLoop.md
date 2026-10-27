@@ -17,7 +17,7 @@ variable of an outer loop.
 
 ## Example
 
-```php{2,5,6,12,17,19}
+```php{2,5,6,13,19,21}
 <?php
 for ($n = 0; $n < 5, $n != 3; $n++) {}
 
@@ -25,11 +25,13 @@ function scan(array $rows, $pos) {
     foreach ($rows as $rows) {}
     for ($pos = 1; $pos < 3; $pos++) {}
     foreach ($rows as $r) {}
+    return $pos;
 }
 
 class Grid {
     public function walk($cell) {
         foreach ([1, 2] as $cell) {}
+        return $cell;
     }
 }
 
@@ -52,9 +54,9 @@ Reported:
 <li>line 2: Only the last expression of the &#39;for&#39; condition is evaluated as the condition; combine them with &amp;&amp; or ||.</li>
 <li>line 5: Loop variable &#39;$rows&#39; overwrites a function parameter.</li>
 <li>line 6: Loop variable &#39;$pos&#39; overwrites a function parameter.</li>
-<li>line 12: Loop variable &#39;$cell&#39; overwrites a method parameter.</li>
-<li>line 17: Loop variable &#39;$row&#39; overwrites a variable of an outer loop.</li>
-<li>line 19: Loop variable &#39;$cols&#39; overwrites a variable of an outer loop.</li>
+<li>line 13: Loop variable &#39;$cell&#39; overwrites a method parameter.</li>
+<li>line 19: Loop variable &#39;$row&#39; overwrites a variable of an outer loop.</li>
+<li>line 21: Loop variable &#39;$cols&#39; overwrites a variable of an outer loop.</li>
 </ul>
 
 ## Options

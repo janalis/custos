@@ -1,6 +1,8 @@
 package suspiciousloop
 
 import (
+	"slices"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
@@ -59,6 +61,9 @@ func (suspiciousLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		for _, name := range names {
 			for _, p := range params {
 				if p.Var != nil && p.Var.Name == name {
+					if !p.ByRef && deadParam(ctx, fn, n, name) { // E7
+						break
+					}
 					ctx.Report(kw, "Loop variable '$"+name+"' overwrites a "+kind+" parameter.")
 					break
 				}
@@ -210,6 +215,93 @@ func overwrites(v *syntax.Variable) bool {
 		return p.Var == syntax.Expr(v) && p.Op.Kind == syntax.TEqual
 	case *syntax.Param:
 		return true
+	}
+	return false
+}
+
+// deadParam reports whether the parameter name is dead when loop n
+// overwrites it (E7): its value was read before (or as the subject of n),
+// n does not bind by reference, every statement after
+// it up to a return or throw (or the end of fn) leaves the name alone, no
+// loop, switch or try around n mentions it elsewhere, and fn reads no
+// variable by name.
+func deadParam(ctx *analysis.Context, fn, n syntax.Node, name string) bool {
+	if fe, ok := n.(*syntax.Foreach); ok && fe.ByRef || usesByName(ctx, fn) {
+		return false
+	}
+	mentions := func(x, skip syntax.Node) bool {
+		found := false
+		syntax.Inspect(x, func(y syntax.Node) bool {
+			if v, ok := y.(*syntax.Variable); ok && v.Name == name && !overwrites(v) {
+				found = true
+			}
+			return y != skip && !found
+		})
+		return found
+	}
+	// The value given must have been used: read before the loop or as the
+	// foreach subject; a parameter never read is lost, not dead.
+	used := false
+	syntax.Inspect(fn, func(y syntax.Node) bool {
+		if v, ok := y.(*syntax.Variable); ok && v.Name == name && !overwrites(v) {
+			fe, isForeach := n.(*syntax.Foreach)
+			used = v.Span().Start < n.Span().Start || isForeach && v.Span().Start < fe.Expr.Span().End
+		}
+		return !used
+	})
+	if !used {
+		return false
+	}
+	for cur := n; cur != fn; cur = cur.Parent() {
+		switch p := cur.Parent().(type) {
+		case *syntax.Block:
+			for _, st := range p.Stmts[slices.Index(p.Stmts, cur.(syntax.Stmt))+1:] {
+				if mentions(st, nil) {
+					return false
+				}
+				if terminates(st) {
+					return true
+				}
+			}
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile, *syntax.Try, *syntax.Case:
+			if mentions(p, cur) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// usesByName reports whether fn may read a variable by its name: a
+// variable-variable or a call such as compact() or func_get_args().
+func usesByName(ctx *analysis.Context, fn syntax.Node) bool {
+	found := false
+	syntax.Inspect(fn, func(y syntax.Node) bool {
+		switch y := y.(type) {
+		case *syntax.Variable:
+			found = y.NameExpr != nil
+		case *syntax.FuncCall:
+			switch ctx.GlobalFunctionName(y) {
+			case "func_get_args", "func_get_arg", "compact", "get_defined_vars":
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
+}
+
+// terminates reports a statement that leaves the function: a return, or a
+// throw or exit statement.
+func terminates(st syntax.Stmt) bool {
+	switch st := st.(type) {
+	case *syntax.Return:
+		return true
+	case *syntax.ExprStmt:
+		switch st.Expr.(type) {
+		case *syntax.Throw, *syntax.Exit:
+			return true
+		}
 	}
 	return false
 }

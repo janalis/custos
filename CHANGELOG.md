@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- SuspiciousLoop no longer reports a loop variable reusing a parameter
+  whose value was already used and is never read again: nothing after the
+  loop, up to a `return` or `throw`, uses it.
 - MagicMethodsValidity no longer reports a constructor that skips a parent
   constructor which only stores its parameters when the child sets those
   properties through a method of its own class (`$this->replace($files)`,

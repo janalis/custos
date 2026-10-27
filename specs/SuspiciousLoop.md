@@ -66,6 +66,16 @@ Applies to `for` and `foreach` statements.
   it inside a loop that encloses it (a variable-variable counts as a
   mention). The next outer iteration assigns the variable again, so
   nothing is lost.
+- **E7** D3 is not reported when the parameter is dead: its value was
+  read before the loop (or as the subject of a `foreach`), it is not taken
+  by reference, the loop does not bind by reference, the statements after
+  the loop, up to the first `return`, `throw` or `exit` statement (climbing
+  out of `if` branches and blocks, to the end of the function), never read
+  the name, no loop, `try` or `switch` case around the loop mentions it
+  elsewhere, and the function reads no variable by name (a
+  variable-variable, `compact()`, `func_get_args()`, `func_get_arg()`,
+  `get_defined_vars()`). Writes do not count as reads: a foreach key or
+  value, the target of a plain `=`, a parameter of a nested function.
 
 ## Report
 
@@ -104,11 +114,13 @@ function scan(array $rows, $pos) {
     <error descr="Loop variable '$rows' overwrites a function parameter.">foreach</error> ($rows as $rows) {}
     <error descr="Loop variable '$pos' overwrites a function parameter.">for</error> ($pos = 1; $pos < 3; $pos++) {}
     foreach ($rows as $r) {}
+    return $pos;
 }
 
 class Grid {
     public function walk($cell) {
         <error descr="Loop variable '$cell' overwrites a method parameter.">foreach</error> ([1, 2] as $cell) {}
+        return $cell;
     }
 }
 
@@ -143,6 +155,10 @@ foreach ($matrix as $row => $cols) {
   $chunk) as $chunk) { … } }` reads the outer value once, to start the
   inner loop, and never again: the reuse loses nothing (Symfony's glob
   resource and container dumper).
+- **Dead parameters (custos diverges, E7).** Upstream reports every
+  parameter clash. `foreach ($data as $key => $data)` followed by
+  `return $append;` reads the parameter once, to start the loop: nothing
+  is lost (Symfony's XML encoder and header bag).
 - Upstream gathers loop variable names in a hash set, so the order of
   multiple reports on one keyword is unspecified. custos reports in source
   order of the clashing variables.

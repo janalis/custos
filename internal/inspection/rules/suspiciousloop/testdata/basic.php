@@ -6,11 +6,13 @@ function scan(array $rows, $pos) {
     <error descr="Loop variable '$rows' overwrites a function parameter.">foreach</error> ($rows as $rows) {}
     <error descr="Loop variable '$pos' overwrites a function parameter.">for</error> ($pos = 1; $pos < 3; $pos++) {}
     foreach ($rows as $r) {}
+    return $pos;
 }
 
 class Grid {
     public function walk($cell) {
         <error descr="Loop variable '$cell' overwrites a method parameter.">foreach</error> ([1, 2] as $cell) {}
+        return $cell;
     }
 }
 
