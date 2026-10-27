@@ -58,6 +58,12 @@ Applies to `for` and `foreach` statements.
   method or static call: such a list runs statements on each iteration and
   only means the last expression as the condition
   (`for ($x = 0; $c = $x * 2, $x++ < 75;)`).
+- **E6** D4 is not reported for an outer `foreach` whose overwritten
+  variable is dead: the inner loop is the last statement of the outer
+  loop's body, neither loop takes the variable by reference, and the name
+  is not read after the outer loop, nor before it inside a loop that
+  encloses it (a variable-variable counts as a read). The next outer
+  iteration assigns the variable again, so nothing is lost.
 
 ## Report
 
@@ -129,6 +135,11 @@ foreach ($matrix as $row => $cols) {
   or `for ($i = $i + 1; …)` starts from the value the parameter (or the
   outer loop) holds: nothing it was given is lost, so custos does not take
   the variable as the loop's own (php-cs-fixer, amphp/hpack).
+- **Dead outer variables (custos diverges, E6).** Upstream reports every
+  shared name. `foreach ($chunks as $chunk) { foreach (explode("\n",
+  $chunk) as $chunk) { … } }` reads the outer value once, to start the
+  inner loop, and never again: the reuse loses nothing (Symfony's glob
+  resource and container dumper).
 - Upstream gathers loop variable names in a hash set, so the order of
   multiple reports on one keyword is unspecified. custos reports in source
   order of the clashing variables.

@@ -75,7 +75,7 @@ func (suspiciousLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		outer = loopVarNames(p, outer[:0])
 		for _, name := range names {
 			for _, o := range outer {
-				if o == name {
+				if o == name && !deadOuter(ctx, n, p, name) {
 					ctx.Report(kw, "Loop variable '$"+name+suspiciousLoopOuterMsg)
 					break
 				}
@@ -147,4 +147,51 @@ func readsVar(e syntax.Expr, v *syntax.Variable) bool {
 		return !found
 	})
 	return found
+}
+
+// deadOuter reports whether the outer foreach's variable name is dead when
+// the inner loop n overwrites it (E6): n ends the outer body, neither loop
+// binds by reference, and nothing reads the name after the outer loop (nor
+// elsewhere in a loop around it), so the next iteration or the end of the
+// loop loses nothing.
+func deadOuter(ctx *analysis.Context, n, p syntax.Node, name string) bool {
+	fe, ok := p.(*syntax.Foreach)
+	if !ok || fe.ByRef {
+		return false
+	}
+	if in, ok := n.(*syntax.Foreach); ok && in.ByRef {
+		return false
+	}
+	last := fe.Body
+	if b, ok := last.(*syntax.Block); ok && len(b.Stmts) > 0 {
+		last = b.Stmts[len(b.Stmts)-1]
+	}
+	if last != n {
+		return false
+	}
+	// Reads from the start of the outermost loop around p count: a later
+	// iteration of that loop may come back to them.
+	var scope syntax.Node = ctx.File
+	from := p.Span()
+	for a := p.Parent(); a != nil; a = a.Parent() {
+		if syntax.IsFuncLike(a) {
+			scope = a
+			break
+		}
+		switch a.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			from.Start = a.Span().Start
+		}
+	}
+	read := false
+	syntax.Inspect(scope, func(x syntax.Node) bool {
+		s := x.Span()
+		if s.Start >= from.Start && s.Start < p.Span().Start || s.Start >= from.End {
+			if v, ok := x.(*syntax.Variable); ok && (v.NameExpr != nil || v.Name == name) {
+				read = true
+			}
+		}
+		return !read
+	})
+	return !read
 }
