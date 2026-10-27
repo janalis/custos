@@ -144,7 +144,7 @@ locate:
 	case *syntax.ExprStmt: // D4
 		// custos: `if (!is_dir($d)) { mkdir($d); } return is_dir($d);`
 		// re-checks in a later statement.
-		if laterIsDirCall(ctx, c, keys) {
+		if laterIsDirCall(ctx, c, keys) || silenced && guardedByIsDir(ctx, c, keys) { // E7
 			return
 		}
 		thrown := dir
@@ -347,6 +347,18 @@ func mkdirDir(ctx *analysis.Context, dirArg syntax.Expr) (string, bool) {
 		return text, false
 	}
 	return text, true
+}
+
+// guardedByIsDir reports whether statement st is the body, or in the body,
+// of an `if` whose condition checks the same directory with is_dir(): with
+// `@`, `if (!is_dir($d)) { @mkdir($d); }` is a deliberate best effort (E7).
+func guardedByIsDir(ctx *analysis.Context, st syntax.Stmt, keys []string) bool {
+	p := st.Parent()
+	if _, ok := p.(*syntax.Block); ok {
+		p = p.Parent()
+	}
+	i, ok := p.(*syntax.If)
+	return ok && hasIsDirCall(ctx, i.Cond, keys)
 }
 
 // hasIsDirCall reports whether e contains an is_dir() call whose first

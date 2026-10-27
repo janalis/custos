@@ -94,6 +94,11 @@ treated as an error, and its result must not be ignored.
   named private directory (`mkdir(sys_get_temp_dir() . '/gpg' .
   bin2hex(random_bytes(8)), 0700)`) must fail when it already exists, and an
   `is_dir()` fallback would accept a directory planted by someone else.
+- **E7** (custos, see Divergences) A D4 statement silenced with `@` that is
+  the body of an `if`, or a statement in its braced body, whose condition
+  calls `is_dir()` on the same directory:
+  `if (!is_dir($d)) { @mkdir($d, 0777, true); }` is a deliberate best
+  effort whose failure the code tolerates.
 
 ## Report
 
@@ -224,6 +229,11 @@ in `is_dir` and in `THROW`).
 inverted.)
 
 ## Divergences
+
+- **Guarded, silenced statements (custos diverges, E7).** Upstream reports
+  `if (!is_dir($d)) { @mkdir($d); }` and its fix throws. The guard and the
+  `@` show the failure is tolerated on purpose (Symfony's cache adapters
+  return false on a failed save rather than throw).
 
 - **Name case (custos diverges).** Upstream matches the written name `mkdir`
   case-sensitively, so `MKDIR($d)` used as a condition escapes the check
