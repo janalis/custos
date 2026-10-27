@@ -85,6 +85,8 @@ mixed pairs whose lengths use different units.
   (`!str_ends_with(H, N)`). Arguments are copied verbatim, separated by `, `.
   - `substr($file, -strlen('.php')) === '.php'` → `str_ends_with($file, '.php')`
   - `$ext !== substr($name, - strlen($ext))` → `!str_ends_with($name, $ext)`
+- (custos) No fix when a comment lies in the replaced comparison outside
+  the copied arguments: the rebuilt call would drop it.
 
 ## Options
 

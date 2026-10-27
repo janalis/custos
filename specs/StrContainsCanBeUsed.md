@@ -66,6 +66,8 @@ because its mutable default encoding does not establish byte equivalence.
   verbatim.
   - `strpos($s, 'x') !== false` → `str_contains($s, 'x')`
   - `false === \strpos($s, $t)` → `!\str_contains($s, $t)`
+- (custos) No fix when a comment lies in the replaced comparison outside
+  the copied arguments: the rebuilt call would drop it.
 
 ## Options
 

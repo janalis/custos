@@ -72,7 +72,9 @@ func ReportStrCallReplacementFix(ctx *analysis.Context, m StrCallCompare, fn str
 		r = "!" + r
 	}
 	span := m.Cmp.Span()
-	if !fixable {
+	// custos: the call is rebuilt from its arguments; a comment between them
+	// would be lost.
+	if !fixable || astquery.DropsComment(ctx.File, span, r) {
 		ctx.Report(span, "Replace with '"+r+"'.")
 		return
 	}

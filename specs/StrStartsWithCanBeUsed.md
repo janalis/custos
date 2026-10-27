@@ -62,6 +62,8 @@ because its mutable default encoding does not establish byte equivalence.
   `, `.
   - `0 === strpos($path, '/')` → `str_starts_with($path, '/')`
   - `strpos($s, $p) !== 0` → `!str_starts_with($s, $p)`
+- (custos) No fix when a comment lies in the replaced comparison outside
+  the copied arguments: the rebuilt call would drop it.
 
 ## Options
 
