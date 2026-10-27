@@ -121,6 +121,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- SelfClassReferencing no longer reports a static call whose spelling a
+  subclass could observe (`Name::load()` in a non-final class with
+  subclasses): it used to keep the report without a fix, suggesting a
+  change of behavior.
 - CallableParameterUseCaseInTypeContext no longer reports a
   `str_replace()`-family assignment whose subject may be `mixed` as
   assigning an array to a string parameter.

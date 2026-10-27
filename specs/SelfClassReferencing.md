@@ -74,6 +74,10 @@ Reverse mode (`PREFER_CLASS_NAMES` = true):
 - E7: the class name in a `catch` clause (`catch (Name $e)`, also as one
   alternative of a multi-catch): PHP rejects `self` there at compile time, so
   the explicit name is the only valid spelling.
+- E8: the class part of a static call (`Name::m()`, or `self::m()` in
+  reverse mode) when a subclass could observe the difference (see
+  Divergences, "Static calls and late static binding"): the two spellings
+  do not call the method the same way, so neither is suggested.
 
 ## Report
 
@@ -90,9 +94,8 @@ Reverse mode (`PREFER_CLASS_NAMES` = true):
 - F2 (D2): replace the whole `Name::class` with `__CLASS__`.
 - F3 (D4): replace `self` with the class's short name.
 - F4 (D5): replace `__CLASS__` with `Name::class`.
-- F1 and F3 are withheld (the report stays) on the class part of a static
-  call when a subclass could observe the difference; see Divergences, "Static
-  calls and late static binding".
+- F1 and F3 never apply to the class part of a static call when a subclass
+  could observe the difference: such a reference is not reported (E8).
 
 ## Options
 
@@ -223,9 +226,11 @@ __CLASS__;                          // not inside a class method
   from `User::build()` a `User`). In a class that is neither final nor an
   enum and has indexed subclasses, or extends, implements or uses a type
   that is not indexed (whose subclasses and inherited methods are out of
-  sight: Drupal entities extending core), a static call `Name::m()` is reported
-  without a fix. The hazard is symmetric, so reverse mode likewise reports
-  `self::m()` without a fix in such a class.
+  sight: Drupal entities extending core), a static call `Name::m()` is not
+  reported: the message would suggest a change of behavior (Drupal's
+  `EntityBase::load()` looks the entity type up from `static::class`). The
+  hazard is symmetric, so reverse mode likewise leaves `self::m()` alone in
+  such a class.
 - **Catch clauses (custos diverges).** Upstream treats the class name of a
   `catch` clause as a reference to rewrite. `catch (self $e)` does not
   compile ("Bad class name in the catch statement"), so custos never reports

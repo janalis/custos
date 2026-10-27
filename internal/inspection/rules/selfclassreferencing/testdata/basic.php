@@ -13,7 +13,7 @@ class Basket
         $copy2 = new <weak_warning descr="Refer to the class as &apos;self&apos; instead of &apos;Basket&apos;.">namespace\Basket</weak_warning>;
         $max  = <weak_warning descr="Refer to the class as &apos;self&apos; instead of &apos;Basket&apos;.">Basket</weak_warning>::LIMIT;
         <weak_warning descr="Refer to the class as &apos;self&apos; instead of &apos;Basket&apos;.">Basket</weak_warning>::$count++;
-        <weak_warning descr="Refer to the class as &apos;self&apos; instead of &apos;Basket&apos;.">Basket</weak_warning>::create();
+        Basket::create();
         if ($other instanceof <weak_warning descr="Refer to the class as &apos;self&apos; instead of &apos;Basket&apos;.">Basket</weak_warning>) {}
         log_event(<weak_warning descr="Refer to the class as &apos;__CLASS__&apos; instead of &apos;Basket::class&apos;.">Basket::class</weak_warning>);
         try {} catch (Basket | \Exception $e) {}

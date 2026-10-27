@@ -6,7 +6,7 @@ class Model
 
     public static function build(): <weak_warning descr="Refer to the class as 'self' instead of 'Model'.">Model</weak_warning>
     {
-        return <weak_warning descr="Refer to the class as 'self' instead of 'Model'.">Model</weak_warning>::make();
+        return Model::make();
     }
 }
 

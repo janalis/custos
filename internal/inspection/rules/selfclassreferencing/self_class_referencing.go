@@ -90,8 +90,7 @@ func (c *selfRefCheck) ref(n *syntax.Name) {
 		}
 		span := n.Span()
 		msg := "Spell the class reference '" + n.Value + "' as '" + c.name + "'."
-		if c.rebinds(n) {
-			ctx.Report(span, msg)
+		if c.rebinds(n) { // E8
 			return
 		}
 		ctx.Report(span, msg, selfRefFix("Use the class name", span, c.name))
@@ -119,8 +118,7 @@ func (c *selfRefCheck) ref(n *syntax.Name) {
 	}
 	span := n.Span() // D3
 	msg := "Refer to the class as 'self' instead of '" + c.name + "'."
-	if c.rebinds(n) {
-		ctx.Report(span, msg)
+	if c.rebinds(n) { // E8
 		return
 	}
 	ctx.Report(span, msg, selfRefFix("Use self", span, "self"))

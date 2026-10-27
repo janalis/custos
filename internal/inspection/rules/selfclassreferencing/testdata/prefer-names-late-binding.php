@@ -8,10 +8,10 @@ class Model
     public static function build()
     {
         $limit = <weak_warning descr="Spell the class reference 'self' as 'Model'.">self</weak_warning>::LIMIT;
-        return <weak_warning descr="Spell the class reference 'self' as 'Model'.">self</weak_warning>::make();
+        return self::make();
     }
 
-    public function label() { return <weak_warning descr="Spell the class reference 'self' as 'Model'.">self</weak_warning>::name(); }
+    public function label() { return self::name(); }
 }
 
 class User extends Model {}

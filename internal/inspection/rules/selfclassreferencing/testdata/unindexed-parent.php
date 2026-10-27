@@ -5,7 +5,7 @@ class WebformOptions extends \Drupal\Core\Config\Entity\ConfigEntityBase
 {
     public static function byId($id)
     {
-        return <weak_warning descr="Refer to the class as &apos;self&apos; instead of &apos;WebformOptions&apos;.">WebformOptions</weak_warning>::load($id);
+        return WebformOptions::load($id);
     }
 
     // Not a call: the fix stays.
