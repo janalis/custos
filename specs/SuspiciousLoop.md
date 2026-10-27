@@ -66,16 +66,21 @@ Applies to `for` and `foreach` statements.
   it inside a loop that encloses it (a variable-variable counts as a
   mention). The next outer iteration assigns the variable again, so
   nothing is lost.
-- **E7** D3 is not reported when the parameter is dead: its value was
-  read before the loop (or as the subject of a `foreach`), it is not taken
-  by reference, the loop does not bind by reference, the statements after
-  the loop, up to the first `return`, `throw` or `exit` statement (climbing
-  out of `if` branches and blocks, to the end of the function), never read
-  the name, no loop, `try` or `switch` case around the loop mentions it
-  elsewhere, and the function reads no variable by name (a
+- **E7** D3 is not reported when the parameter is dead: its value was used
+  (stored by constructor promotion, read before the loop, or read in the
+  subject of a `foreach`, by name too as with `func_get_args()`), it is not
+  taken by reference, the loop does not bind by reference, the statements
+  after the loop, up to the first `return`, `throw` or `exit` statement
+  (climbing out of `if` branches and blocks, to the end of the function),
+  never read the name, no loop, `try` or `switch` case around the loop
+  mentions it elsewhere, and the function reads no variable by name (a
   variable-variable, `compact()`, `func_get_args()`, `func_get_arg()`,
-  `get_defined_vars()`). Writes do not count as reads: a foreach key or
-  value, the target of a plain `=`, a parameter of a nested function.
+  `get_defined_vars()`, the loop's own subject aside). Writes do not count
+  as reads: a foreach key or value, the target of a plain `=`, a parameter
+  of a nested function.
+- **E8** D3 is not reported when a `for` or `foreach` around the loop, in
+  the same function, already binds the name: the parameter was overwritten
+  there, and the clash is between the two loops (D4, E6).
 
 ## Report
 

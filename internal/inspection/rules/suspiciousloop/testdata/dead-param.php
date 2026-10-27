@@ -110,3 +110,36 @@ function ignored(array $suites, string $name = '')
     }
     return $out;
 }
+
+class Header
+{
+    public function __construct(private string $value, array $attributes = [])
+    {
+        foreach ($attributes as $name => $value) {
+            echo $name;
+        }
+    }
+}
+
+function nestedConfig(array $config, string $name)
+{
+    echo $name;
+    foreach ($config as $name => $config) {
+        foreach ($config as $name => $config) {
+            echo $name;
+        }
+    }
+}
+
+function indices($indices)
+{
+    foreach (\func_get_args() as $indices) {
+        echo count($indices);
+    }
+}
+
+function laterByName($rows)
+{
+    <error descr="Loop variable '$rows' overwrites a function parameter.">foreach</error> ([1] as $rows) {}
+    return func_get_args();
+}

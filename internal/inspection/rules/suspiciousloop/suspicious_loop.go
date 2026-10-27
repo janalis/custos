@@ -61,7 +61,7 @@ func (suspiciousLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		for _, name := range names {
 			for _, p := range params {
 				if p.Var != nil && p.Var.Name == name {
-					if !p.ByRef && deadParam(ctx, fn, n, name) { // E7
+					if !p.ByRef && deadParam(ctx, fn, n, p) || outerBinds(n, name) { // E7, E8
 						break
 					}
 					ctx.Report(kw, "Loop variable '$"+name+"' overwrites a "+kind+" parameter.")
@@ -225,8 +225,16 @@ func overwrites(v *syntax.Variable) bool {
 // it up to a return or throw (or the end of fn) leaves the name alone, no
 // loop, switch or try around n mentions it elsewhere, and fn reads no
 // variable by name.
-func deadParam(ctx *analysis.Context, fn, n syntax.Node, name string) bool {
-	if fe, ok := n.(*syntax.Foreach); ok && fe.ByRef || usesByName(ctx, fn) {
+func deadParam(ctx *analysis.Context, fn, n syntax.Node, param *syntax.Param) bool {
+	name := param.Var.Name
+	var subject syntax.Node
+	if fe, ok := n.(*syntax.Foreach); ok {
+		if fe.ByRef {
+			return false
+		}
+		subject = fe.Expr
+	}
+	if usesByName(ctx, fn, subject) {
 		return false
 	}
 	mentions := func(x, skip syntax.Node) bool {
@@ -239,9 +247,10 @@ func deadParam(ctx *analysis.Context, fn, n syntax.Node, name string) bool {
 		})
 		return found
 	}
-	// The value given must have been used: read before the loop or as the
-	// foreach subject; a parameter never read is lost, not dead.
-	used := false
+	// The value given must have been used: stored by constructor promotion,
+	// read before the loop or in the foreach subject (by name too, as
+	// `func_get_args()`); a parameter never read is lost, not dead.
+	used := len(param.Modifiers) > 0 || subject != nil && usesByName(ctx, subject, nil)
 	syntax.Inspect(fn, func(y syntax.Node) bool {
 		if v, ok := y.(*syntax.Variable); ok && v.Name == name && !overwrites(v) {
 			fe, isForeach := n.(*syntax.Foreach)
@@ -272,11 +281,29 @@ func deadParam(ctx *analysis.Context, fn, n syntax.Node, name string) bool {
 	return true
 }
 
-// usesByName reports whether fn may read a variable by its name: a
-// variable-variable or a call such as compact() or func_get_args().
-func usesByName(ctx *analysis.Context, fn syntax.Node) bool {
+// outerBinds reports whether a loop around n, in the same function, already
+// binds name: the parameter was overwritten there, and the clash is the
+// outer loop's (D4, E6), not the parameter's (E8).
+func outerBinds(n syntax.Node, name string) bool {
+	for p := n.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
+		switch p.(type) {
+		case *syntax.For, *syntax.Foreach:
+			if slices.Contains(loopVarNames(p, nil), name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// usesByName reports whether fn, skip aside, may read a variable by its
+// name: a variable-variable or a call such as compact() or func_get_args().
+func usesByName(ctx *analysis.Context, fn, skip syntax.Node) bool {
 	found := false
 	syntax.Inspect(fn, func(y syntax.Node) bool {
+		if y == skip {
+			return false
+		}
 		switch y := y.(type) {
 		case *syntax.Variable:
 			found = y.NameExpr != nil
