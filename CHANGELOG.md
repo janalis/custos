@@ -121,6 +121,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MagicMethodsValidity no longer reports a constructor that skips a parent
+  constructor which only stores its parameters when the child sets those
+  properties through a method of its own class (`$this->replace($files)`,
+  Symfony's `FileBag`).
 - ForeachInvariants writes `foreach (array_keys($c) as $i)` when no element
   access of the loop body can use a value variable, instead of declaring a
   `$iValue` that stays unused.

@@ -536,8 +536,9 @@ func (c *magicCheck) callableNamesParent(call *syntax.FuncCall) bool {
 }
 
 // setsAll reports whether the method sets every property of props itself
-// (`$this->p = …` anywhere in its body, or a promoted parameter p): a
-// parent constructor that only stores its parameters into those
+// (`$this->p = …` anywhere in its body or in the body of a method of the
+// class it calls on the object, one level deep, or a promoted parameter p):
+// a parent constructor that only stores its parameters into those
 // properties has nothing left to do (custos, see Divergences).
 func (c *magicCheck) setsAll(props []string) bool {
 	set := map[string]bool{}
@@ -546,19 +547,33 @@ func (c *magicCheck) setsAll(props []string) bool {
 			set[p.Var.Name] = true
 		}
 	}
-	if c.m.Body != nil {
-		syntax.Inspect(c.m.Body, func(n syntax.Node) bool {
-			if a, ok := n.(*syntax.Assign); ok {
-				if pf, ok := a.Var.(*syntax.PropertyFetch); ok {
+	var helpers []syntax.Node
+	collect := func(body syntax.Node, own bool) {
+		syntax.Inspect(body, func(n syntax.Node) bool {
+			switch n := n.(type) {
+			case *syntax.Assign:
+				if pf, ok := n.Var.(*syntax.PropertyFetch); ok {
 					if v, ok := pf.Var.(*syntax.Variable); ok && v.Name == "this" {
 						if id, ok := pf.Name.(*syntax.Identifier); ok {
 							set[id.Value] = true
 						}
 					}
 				}
+			case *syntax.MethodCall, *syntax.StaticCall:
+				if own && ownCall(n) {
+					if h := c.ownMethod(n); h != nil {
+						helpers = append(helpers, h.Body)
+					}
+				}
 			}
 			return true
 		})
+	}
+	if c.m.Body != nil {
+		collect(c.m.Body, true)
+	}
+	for _, b := range helpers {
+		collect(b, false)
 	}
 	for _, p := range props {
 		if !set[p] {
@@ -566,6 +581,28 @@ func (c *magicCheck) setsAll(props []string) bool {
 		}
 	}
 	return true
+}
+
+// ownMethod returns the method of the class, with a body, that the call
+// on the object itself names.
+func (c *magicCheck) ownMethod(call syntax.Node) *syntax.Method {
+	var name syntax.Expr
+	switch call := call.(type) {
+	case *syntax.MethodCall:
+		name = call.Name
+	case *syntax.StaticCall:
+		name = call.Name
+	}
+	id, ok := name.(*syntax.Identifier)
+	if !ok {
+		return nil
+	}
+	for _, mem := range c.cl.Members {
+		if m, ok := mem.(*syntax.Method); ok && m != c.m && m.Body != nil && m.Name != nil && strings.EqualFold(m.Name.Value, id.Value) {
+			return m
+		}
+	}
+	return nil
 }
 
 // normaliseMagicType maps self to the containing class and typed arrays

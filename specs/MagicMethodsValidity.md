@@ -397,8 +397,11 @@ interface Printable { public function __toString(); }
   diverges).** C-parent does not report a constructor whose parent
   constructor only stores its parameters (every statement is `$this->p =
   $param;`, plus promoted parameters) when the constructor itself sets every
-  one of those properties (`$this->p = …` anywhere in its body, or a
-  promoted parameter of that name): calling the parent would only store
+  one of those properties (`$this->p = …` anywhere in its body or in the
+  body of a method of the same class that it calls on the object with
+  `$this->m()`, `self::m()` or `static::m()`, one call deep, or a promoted
+  parameter of that name; Symfony's file bag fills its parameters through
+  its own `replace()`): calling the parent would only store
   values the child overwrites or sets itself (Dolibarr's `$this->db = $db`
   pattern, ~280 reports). A parent constructor doing anything else, or a
   child leaving one of its properties unset, is still reported.
