@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- CallableParameterUseCaseInTypeContext no longer reports a
+  `str_replace()`-family assignment whose subject may be `mixed` as
+  assigning an array to a string parameter.
 - SuspiciousLoop's dead outer variable exemption follows the paths that can
   run after the inner loop: a mention placed after a `continue 2`, a
   `return` or a `throw` that ends the outer iteration no longer counts.

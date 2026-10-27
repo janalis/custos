@@ -12,6 +12,7 @@ import (
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
+	"custos/internal/semantic/types"
 )
 
 // callableParameterUseCaseInTypeContext reports is_*() checks that
@@ -528,7 +529,7 @@ func (cp *cpState) translateSelf(value syntax.Expr, target *syntax.Variable) str
 }
 
 // unknownReplaceSubject reports whether value is a str_replace()-family
-// call whose subject has no known type: its result is a string for a string
+// call whose subject has no known type (or may be mixed): its result is a string for a string
 // subject and an array for an array one, so "array|string" says nothing
 // about the value (custos; SuiteCRM `$where = preg_replace(…, $where)` after
 // a `require`).
@@ -551,7 +552,10 @@ func (cp *cpState) unknownReplaceSubject(value syntax.Expr) bool {
 	if !ok || len(args) <= idx {
 		return false
 	}
-	return cp.ctx.TypeOf(args[idx]).IsUnknown() && cp.tr.TypeOf(args[idx]).IsUnknown()
+	// custos: a subject that may be anything (`mixed`, as from
+	// `getMetadata() ?? $to`) says no more.
+	open := func(t types.Type) bool { return t.IsUnknown() || t.HasAny("mixed") }
+	return open(cp.ctx.TypeOf(args[idx])) && open(cp.tr.TypeOf(args[idx]))
 }
 
 // argDecided types calls to built-ins whose result type is decided by their

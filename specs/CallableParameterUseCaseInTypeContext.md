@@ -382,9 +382,11 @@ function untyped($flag = null) {
 - **Replacements on an unknown subject (custos diverges).** The spec types
   `str_replace()`, `preg_replace()` and their relatives as `string|array`
   (`|null`); with a subject of unknown type that union only says "string
-  for a string, array for an array". Such an assignment is not checked
-  (SuiteCRM `SugarBean`: `$where = preg_replace(…, $where)` after a
-  `require`, which forgets local types; 8 findings).
+  for a string, array for an array". Such an assignment is not checked,
+  nor one whose subject may be `mixed` (SuiteCRM `SugarBean`:
+  `$where = preg_replace(…, $where)` after a `require`, which forgets local
+  types; 8 findings. Symfony's PlantUML dumper:
+  `$to = $metadata->get(…) ?? $to` then `str_replace(…, $to)`).
 - **Tested value only (custos diverges, D6a).** Upstream analyses the
   parameter at any argument position, so `is_a($value, $class,
   $allowString)` and `is_callable($value, $syntaxOnly)` with a `bool`
