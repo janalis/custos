@@ -437,24 +437,65 @@ func (c *magicCheck) callsParent() {
 }
 
 // wrapsParent reports whether the method takes an instance of the parent
-// class (`__construct(private parent $inner)`): a decorator that forwards to
-// the wrapped object instead of initialising its own parent part.
+// class (`__construct(private parent $inner)`), or the class holds one in a
+// property and forwards at least three of its methods: a decorator that
+// forwards to the wrapped object instead of initialising its own parent
+// part.
 func (c *magicCheck) wrapsParent(parent string) bool {
+	names := func(t syntax.Expr) bool {
+		found := false
+		syntax.Inspect(t, func(n syntax.Node) bool {
+			if x, ok := n.(*syntax.Name); ok && (strings.EqualFold(x.Value, "parent") ||
+				strings.EqualFold(strings.TrimPrefix(c.ctx.Names().Class(x.Value, x.Span().Start), `\`), strings.TrimPrefix(parent, `\`))) {
+				found = true
+			}
+			return !found
+		})
+		return found
+	}
 	for _, p := range c.m.Params {
 		t := p.Type
 		if nt, ok := t.(*syntax.NullableType); ok {
 			t = nt.Type
 		}
-		n, ok := t.(*syntax.Name)
-		if !ok {
-			continue
-		}
-		if strings.EqualFold(n.Value, "parent") ||
-			strings.EqualFold(strings.TrimPrefix(c.ctx.Names().Class(n.Value, n.Span().Start), `\`), strings.TrimPrefix(parent, `\`)) {
+		if n, ok := t.(*syntax.Name); ok && names(n) {
 			return true
 		}
 	}
+	// custos: a proxy keeps the wrapped instance in a property
+	// (`private \Closure|Command $command`, Symfony's LazyCommand) and
+	// forwards its methods to it.
+	for _, mem := range c.cl.Members {
+		if pr, ok := mem.(*syntax.Property); ok && pr.Type != nil && names(pr.Type) {
+			return c.forwards() >= 3
+		}
+	}
 	return false
+}
+
+// forwards counts the methods of the class that call a method of the same
+// name on another object (`run()` calling `$this->getCommand()->run()`).
+func (c *magicCheck) forwards() int {
+	count := 0
+	for _, mem := range c.cl.Members {
+		m, ok := mem.(*syntax.Method)
+		if !ok || m.Name == nil || m.Body == nil {
+			continue
+		}
+		found := false
+		syntax.Inspect(m.Body, func(n syntax.Node) bool {
+			if call, ok := n.(*syntax.MethodCall); ok {
+				id, named := call.Name.(*syntax.Identifier)
+				v, self := syntax.UnwrapParens(call.Var).(*syntax.Variable)
+				found = named && strings.EqualFold(id.Value, m.Name.Value) && !(self && v.Name == "this")
+			}
+			return !found
+		})
+		if found {
+			count++
+		}
+	}
+	return count
 }
 
 // redoes reports whether the constructor does itself everything the parent

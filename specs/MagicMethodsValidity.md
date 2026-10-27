@@ -385,7 +385,10 @@ interface Printable { public function __toString(); }
   a method that takes a parameter typed `parent` or the parent class
   (nullable included): `__construct(private parent $event)` wraps an
   instance of the parent and forwards to it, so its own parent part is
-  never used.
+  never used. The same holds for a class with a property whose declared
+  type names `parent` or the parent class (in a union too) and at least
+  three methods that call a method of their own name on another object
+  (Symfony's `LazyCommand`: `run()` calls `$this->getCommand()->run()`).
 - **Single-underscore hooks (custos diverges, D15).** `_construct()`,
   `_get()`, `_call()`… are not reported when the class hierarchy also
   declares the real magic method (`__construct()` calling

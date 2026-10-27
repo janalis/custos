@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MagicMethodsValidity no longer reports a proxy that skips its parent
+  constructor while holding an instance of the parent in a property and
+  forwarding its methods to it (Symfony's `LazyCommand`).
 - MkdirRaceCondition treats `mkdir(...) or error(...)` like `or die` when
   `error()` cannot return: declared `never`, or a function of the same file
   that ends with `exit` or `throw` and never returns.
