@@ -401,9 +401,11 @@ integer/float literal, optionally with a unary minus.
 - **E12** (custos) Part B when the receiver (`$this`, a typed object,
   `self`, `static`, `parent` or a class name) is one class whose whole
   hierarchy is known, that class has the called assertion, and it has no
-  method with the suggested name: a test base of the project's own (a
-  `TestSuite` declaring only `assertTrue()`), where the suggestion would
-  call a method that does not exist.
+  method with the suggested name, or has one that is not declared by a
+  class of the `PHPUnit` namespace: a test base of the project's own (a
+  `TestSuite` declaring only `assertTrue()`, or one whose `assertEquals()`
+  compares strictly), where the suggestion would call a method that does
+  not exist or that means something else.
 
 ## Report
 

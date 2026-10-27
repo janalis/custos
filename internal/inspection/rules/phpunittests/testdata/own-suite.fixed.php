@@ -1,31 +1,51 @@
 <?php
 
-// E12: a test base of its own declares the assertion but not the suggestion.
-class Suite
-{
-    protected function assertTrue($value) {}
-    protected static function assertFalse($value) {}
-}
-
-class Checks
-{
-    protected function assertTrue($value) {}
-    protected function assertSame($expected, $actual) {}
-}
-
-class OwnSuiteTest extends Suite
-{
-    public function testIt($a, $b)
+namespace PHPUnit\Framework {
+    // A PHPUnit base: its suggestions mean what the rule expects.
+    class Checks
     {
-        $this->assertTrue($a === 0);
-        self::assertFalse($a !== $b);
+        protected function assertTrue($value) {}
+        protected function assertSame($expected, $actual) {}
     }
 }
 
-class ChecksTest extends Checks
-{
-    public function testIt($a)
+namespace {
+    // E12: a test base of its own declares the assertion but not the
+    // suggestion, or declares the suggestion itself.
+    class Suite
     {
-        $this->assertSame($a, 0);
+        protected function assertTrue($value) {}
+        protected static function assertFalse($value) {}
+    }
+
+    class StrictSuite
+    {
+        protected function assertTrue($value) {}
+        protected function assertEquals($expected, $actual) {}
+    }
+
+    class OwnSuiteTest extends Suite
+    {
+        public function testIt($a, $b)
+        {
+            $this->assertTrue($a === 0);
+            self::assertFalse($a !== $b);
+        }
+    }
+
+    class StrictSuiteTest extends StrictSuite
+    {
+        public function testIt($a, $b)
+        {
+            $this->assertTrue($a == $b);
+        }
+    }
+
+    class ChecksTest extends PHPUnit\Framework\Checks
+    {
+        public function testIt($a)
+        {
+            $this->assertSame($a, 0);
+        }
     }
 }

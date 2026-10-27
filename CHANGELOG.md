@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- PhpUnitTests no longer suggests an assertion that the test's own base
+  class declares outside PHPUnit (the redis extension's strict
+  `assertEquals()`): it may not mean what PHPUnit's does.
 - PregQuoteUsage no longer reports a `preg_quote()` result compared with
   `===`, `!==`, `==` or `!=`: it is matched against another value, not used
   as a pattern.
