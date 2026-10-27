@@ -59,6 +59,8 @@ func (ternaryOperatorSimplify) Check(ctx *analysis.Context, n syntax.Node) {
 			repl = "(" + text + ")"
 			if inverted {
 				repl = "!" + repl
+			} else if _, wrapped := t.Parent().(*syntax.Paren); wrapped {
+				repl = text // F2: the ternary's own parentheses group it already
 			}
 		} else {
 			repl = otherBinaryRepl(text, inverted)

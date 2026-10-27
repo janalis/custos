@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- TernaryOperatorSimplify no longer doubles the parentheses when the
+  ternary it simplifies is already wrapped in some
+  (`((A && B) ? TRUE : FALSE)` becomes `(A && B)`).
 - PhpUnitTests no longer suggests an assertion that the test's own base
   class declares outside PHPUnit (the redis extension's strict
   `assertEquals()`): it may not mean what PHPUnit's does.

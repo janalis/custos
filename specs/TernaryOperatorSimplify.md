@@ -43,7 +43,10 @@ has no explicit true branch and is never reported).
       incomparable arrays/objects, `a < b` and `a >= b` can both be false,
       so swapping the operator would change the result; negation does not.
   - **Symbolic logical operators** `&&` and `||`:
-    - not inverted: `R` = `(` + text of `B` + `)`;
+    - not inverted: `R` = `(` + text of `B` + `)`, or the text of `B`
+      alone when the ternary is itself directly wrapped in parentheses
+      (custos: `((A && B) ? true : false)` gives `(A && B)`, not
+      `((A && B))`);
     - inverted: `R` = `!(` + text of `B` + `)`.
   - **Any other binary operator** (including keyword `and`/`or`/`xor`):
     - not inverted: `R` = `(bool)(` + text of `B` + `)`;
