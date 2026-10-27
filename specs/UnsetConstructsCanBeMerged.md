@@ -55,7 +55,9 @@ Visit every `unset(...)` statement.
   characters, the merged statement keeps one line per original statement
   instead: `unset(`, then each original statement's arguments joined by
   `, ` on its own line, indented one level deeper than the statement (a tab
-  when the statement is indented with tabs, four spaces otherwise) and
+  when the statement is indented with tabs, else the file's own space
+  indentation step, the smallest one of 2 to 8 spaces outside docblocks,
+  four spaces when there is none) and
   followed by `,` except the last, then `);` at the statement's
   indentation. No trailing comma is added (PHP before 7.3 rejects it).
 - **F2** Applying the fixes of a run one after another, in source order,

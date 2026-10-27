@@ -44,6 +44,10 @@ func TestReviewSafety(t *testing.T) {
 			"<?php\nfunction f() {\n\tunset(\n\t\t$_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL'],\n\t\t$_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']\n\t);\n}",
 		},
 		{
+			"long merge with two-space indent", "<?php\nfunction f() {\n  unset($_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL']);\n  unset($_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']);\n}", 1,
+			"<?php\nfunction f() {\n  unset(\n    $_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL'],\n    $_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']\n  );\n}",
+		},
+		{
 			"long merge on one line", "<?php unset($_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL']); unset($_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']);", 1,
 			"<?php unset($_ENV['SYMFONY_DOTENV_VARS'], $_ENV['PREFIX'], $_ENV['LABEL'], $_SERVER['SYMFONY_DOTENV_VARS'], $_SERVER['PREFIX']);",
 		},

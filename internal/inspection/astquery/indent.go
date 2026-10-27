@@ -37,6 +37,27 @@ func IndentBefore(src []byte, off uint32) string {
 	return string(src[i:off])
 }
 
+// IndentUnit returns one level of indentation for code indented with
+// indent: a tab when it starts with one, else the smallest space indentation
+// of 2 to 8 found in src (docblock continuation lines aside), else four
+// spaces.
+func IndentUnit(src []byte, indent string) string {
+	if strings.HasPrefix(indent, "\t") {
+		return "\t"
+	}
+	unit := 0
+	for line := range strings.SplitSeq(string(src), "\n") {
+		n := len(line) - len(strings.TrimLeft(line, " "))
+		if n >= 2 && n <= 8 && n < len(line) && line[n] != '*' && line[n] != '\t' && (unit == 0 || n < unit) {
+			unit = n
+		}
+	}
+	if unit == 0 {
+		unit = 4
+	}
+	return strings.Repeat(" ", unit)
+}
+
 // IsSpace reports whether c is a space, tab, newline or carriage return.
 func IsSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
 

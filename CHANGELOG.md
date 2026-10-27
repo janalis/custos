@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- UnsetConstructsCanBeMerged indents a merged `unset(` written over several
+  lines with the file's own indentation step (two spaces in Drupal code)
+  instead of always four spaces.
 - SuspiciousLoop no longer reports an inner loop reusing the variable of an
   outer `foreach` when the outer value is never read again: the inner loop
   ends the outer body and the name is not read after it.
