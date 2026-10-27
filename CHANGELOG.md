@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MissingOrEmptyGroupStatement indents the braced body it writes with the
+  file's own indentation step instead of always four spaces.
 - MissingOrEmptyGroupStatement no longer reports a commented empty `if` or
   `elseif` branch followed by another branch: it deliberately stops the
   rest of the chain.

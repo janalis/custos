@@ -118,7 +118,7 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 					{Span: bs, NewText: stmt + closing},
 				}
 			}
-			span, open, lead := bs, "{\n", indent+"    "
+			span, open, lead := bs, "{\n", indent+astquery.IndentUnit(ctx.Src, indent)
 			if inline {
 				open, lead = "{ ", ""
 			}
