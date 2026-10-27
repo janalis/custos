@@ -71,8 +71,10 @@ list as left by the previous ones.
   `extends Base implements Sized {}` becomes `extends Base {}`.
 - **F2** The list has several entries and this is the **first** one: delete
   the entry and the comma that follows it (skipping at most one whitespace
-  run between entry and comma); whitespace after the comma stays.
-  `implements A, B` → `implements  B`. When the entry and its comma fill a line of their own
+  run between entry and comma). When the entry follows a space or tab on
+  its line, the spaces and tabs after the comma go too (custos, see
+  Divergences): `implements A, B` → `implements B`; otherwise whitespace
+  after the comma stays. When the entry and its comma fill a line of their own
   (only indentation before the entry, only whitespace after the comma), the
   whole line goes: `implements\n  A,\n  B,\n  C` without `A` becomes
   `implements\n  B,\n  C`.
@@ -161,6 +163,10 @@ namespace Store {
 ```
 
 ## Divergences
+
+- **Spacing after a removed first entry (custos diverges, F2).** Upstream
+  keeps the whitespace after the deleted comma, leaving
+  `implements  B` with two spaces; custos removes it.
 
 - **F5 — custos diverges from upstream.** Upstream leaves the import of
   the removed interface in place, unused.

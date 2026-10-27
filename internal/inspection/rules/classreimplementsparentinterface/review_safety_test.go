@@ -29,7 +29,7 @@ func TestReviewSafety(t *testing.T) {
 		{"comment before comma", phpversion.PHP85, decl + "class C extends P implements A /* k */, \\Countable {}", 1, ""},
 		{"comment after comma", phpversion.PHP85, decl + "class C extends P implements \\Countable, /* k */ A {}", 1, ""},
 		{"comment between redundant entries", phpversion.PHP85, decl + "class C extends P implements A, /* k */ B {}", 2, ""},
-		{"comment after first of three", phpversion.PHP85, decl + "class C extends P implements A /* k */, B, \\Countable {}", 2, decl + "class C extends P implements A /* k */,  \\Countable {}"},
+		{"comment after first of three", phpversion.PHP85, decl + "class C extends P implements A /* k */, B, \\Countable {}", 2, decl + "class C extends P implements A /* k */, \\Countable {}"},
 		{"comment after the entry", phpversion.PHP85, decl + "class C extends P implements A/* k */{}", 1, decl + "class C extends P /* k */{}"},
 		{"unused import removed", phpversion.PHP85, "<?php\nnamespace Lib;\ninterface Contract {}\nclass Base implements Contract {}\nnamespace App;\nuse Lib\\Contract;\n\nclass C extends \\Lib\\Base implements Contract {}\n", 1, "<?php\nnamespace Lib;\ninterface Contract {}\nclass Base implements Contract {}\nnamespace App;\n\nclass C extends \\Lib\\Base {}\n"},
 		{"import between blank lines", phpversion.PHP85, "<?php\nnamespace Lib;\ninterface Contract {}\nclass Base implements Contract {}\nnamespace App;\n\nuse Lib\\Contract;\n\nclass C extends \\Lib\\Base implements Contract {}\n", 1, "<?php\nnamespace Lib;\ninterface Contract {}\nclass Base implements Contract {}\nnamespace App;\n\nclass C extends \\Lib\\Base {}\n"},
@@ -42,8 +42,8 @@ func TestReviewSafety(t *testing.T) {
 		{"global namespace import", phpversion.PHP85, "<?php\nuse Countable as Sized;\nclass C extends ArrayIterator implements Sized {}\n", 1, "<?php\nclass C extends ArrayIterator {}\n"},
 		{"line of its own", phpversion.PHP85, "<?php interface A {} interface B {} interface C {} abstract class P implements B {}\nclass C1 extends P implements\n  A,\n  B,\n  C\n{}\n", 1, "<?php interface A {} interface B {} interface C {} abstract class P implements B {}\nclass C1 extends P implements\n  A,\n  C\n{}\n"},
 		{"line of its own unindented", phpversion.PHP85, "<?php interface A {} interface B {} interface C {} abstract class P implements B {}\nclass C1 extends P implements\nB,\nA\n{}\n", 1, "<?php interface A {} interface B {} interface C {} abstract class P implements B {}\nclass C1 extends P implements\nA\n{}\n"},
-		{"shared line", phpversion.PHP85, "<?php interface A {} interface B {} interface C {} abstract class P implements B {}\nclass C1 extends P implements A,\n  B, C\n{}\n", 1, "<?php interface A {} interface B {} interface C {} abstract class P implements B {}\nclass C1 extends P implements A,\n   C\n{}\n"},
-		{"comment after the comma kept", phpversion.PHP85, decl + "class C extends P implements A, /* k */ \\Countable {}", 1, decl + "class C extends P implements  /* k */ \\Countable {}"},
+		{"shared line", phpversion.PHP85, "<?php interface A {} interface B {} interface C {} abstract class P implements B {}\nclass C1 extends P implements A,\n  B, C\n{}\n", 1, "<?php interface A {} interface B {} interface C {} abstract class P implements B {}\nclass C1 extends P implements A,\n  C\n{}\n"},
+		{"comment after the comma kept", phpversion.PHP85, decl + "class C extends P implements A, /* k */ \\Countable {}", 1, decl + "class C extends P implements /* k */ \\Countable {}"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{PHP: tc.php, EnableAll: true})

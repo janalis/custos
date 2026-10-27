@@ -23,6 +23,6 @@ class Mixed extends Base implements Marker /* first */ {}
 
 // Comments outside the deleted text survive.
 class Trailing extends Base /* after */{}
-class Kept extends Base implements  /* countable */ \Countable {
+class Kept extends Base implements /* countable */ \Countable {
     public function count(): int { return 0; }
 }

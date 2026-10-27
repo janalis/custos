@@ -115,6 +115,9 @@ func criRemoveEdit(f *syntax.File, ext *syntax.Name, list []*syntax.Name, redund
 		}
 		if start := entry.Start - uint32(len(indent)); f.Src[start-1] == '\n' && end < len(f.Src) && f.Src[end] == '\n' {
 			span = syntax.Span{Start: start, End: uint32(end) + 1}
+		} else if c := f.Src[entry.Start-1]; (c == ' ' || c == '\t') && end < len(f.Src) && f.Src[end] != '\n' {
+			// custos: `implements A, B` → `implements B`, not a double space.
+			span.End = uint32(end)
 		}
 		return diagnostic.TextEdit{Span: span}
 	}

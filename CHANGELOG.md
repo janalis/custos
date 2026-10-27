@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ClassReImplementsParentInterface no longer leaves a double space when it
+  removes the first interface of a list (`implements A, B` → `implements B`).
 - SuspiciousLoop no longer reports a loop variable reusing a parameter
   whose value was already used and is never read again: nothing after the
   loop, up to a `return` or `throw`, uses it.
