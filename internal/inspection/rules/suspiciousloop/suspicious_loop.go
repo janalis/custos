@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/php/syntax"
 )
 
@@ -167,13 +168,17 @@ func deadOuter(ctx *analysis.Context, n, p syntax.Node, name string) bool {
 	if in, ok := n.(*syntax.Foreach); ok && in.ByRef {
 		return false
 	}
-	// Regions where a mention would see the inner loop's value.
+	// Regions where a mention would see the inner loop's value: what runs
+	// after n until the outer iteration ends (followers), and loops or try
+	// statements between them, which come back round n.
 	ns, ps := n.Span(), p.Span()
-	regions := []syntax.Span{{Start: ns.End, End: ps.End}}
+	regions := followers(n, p)
 	for a := n.Parent(); a != p; a = a.Parent() {
 		switch a.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
 			regions = append(regions, syntax.Span{Start: a.Span().Start, End: ns.Start})
+		case *syntax.Try:
+			regions = append(regions, syntax.Span{Start: a.Span().Start, End: ns.Start}, syntax.Span{Start: ns.End, End: a.Span().End})
 		}
 	}
 	var scope syntax.Node = ctx.File
@@ -203,6 +208,61 @@ func deadOuter(ctx *analysis.Context, n, p syntax.Node, name string) bool {
 		return !read
 	})
 	return !read
+}
+
+// followers returns the spans of the statements that can run after n within
+// the current iteration of the enclosing loop p: the statements following n
+// and each of its ancestors in their statement lists, up to one that leaves
+// the iteration (return, throw, exit, or a break or continue reaching p).
+func followers(n, p syntax.Node) []syntax.Span {
+	var out []syntax.Span
+	for cur := n; cur != p; cur = cur.Parent() {
+		var list []syntax.Stmt
+		switch par := cur.Parent().(type) {
+		case *syntax.Block:
+			list = par.Stmts
+		case *syntax.Case:
+			list = par.Stmts
+		}
+		i := slices.IndexFunc(list, func(x syntax.Stmt) bool { return syntax.Node(x) == cur })
+		for _, next := range list[i+1:] {
+			out = append(out, next.Span())
+			if terminates(next) || leavesLoop(next, p) {
+				return out
+			}
+		}
+	}
+	return out
+}
+
+// leavesLoop reports a break or continue that reaches loop p (or beyond).
+func leavesLoop(st syntax.Stmt, p syntax.Node) bool {
+	var num syntax.Expr
+	switch st := st.(type) {
+	case *syntax.Break:
+		num = st.Num
+	case *syntax.Continue:
+		num = st.Num
+	default:
+		return false
+	}
+	level := int64(1)
+	if lit, ok := num.(*syntax.Literal); ok {
+		if v, ok := astquery.ParseIntLiteral(lit.Raw); ok {
+			level = v
+		}
+	}
+	// st lies inside p, so the walk reaches it.
+	depth := int64(0)
+	for a := st.Parent(); ; a = a.Parent() {
+		switch a.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile, *syntax.Switch:
+			depth++
+		}
+		if a == p {
+			return level >= depth
+		}
+	}
 }
 
 // overwrites reports whether v only receives a new value: a foreach key or

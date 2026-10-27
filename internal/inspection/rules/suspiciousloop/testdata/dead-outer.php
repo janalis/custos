@@ -124,3 +124,59 @@ function emptyOuter(array $rows)
 foreach ($top as $t) {
     foreach ($t as $t) {}
 }
+
+function leaveOuter(array $batches)
+{
+    foreach ($batches as $chunk) {
+        if ($chunk) {
+            foreach ($chunk as $chunk) {}
+            continue;
+        }
+        echo $chunk;
+    }
+}
+
+function leaveTwoLevels(array $batches)
+{
+    foreach ($batches as $chunk) {
+        while (true) {
+            foreach ($chunk as $chunk) {}
+            break 2;
+        }
+        echo $chunk;
+    }
+}
+
+function leaveFromCase(array $batches)
+{
+    foreach ($batches as $chunk) {
+        switch ($chunk) {
+            case 1:
+                foreach ([1] as $chunk) {}
+                return;
+        }
+        echo $chunk;
+    }
+}
+
+function stayInOuter(array $batches)
+{
+    foreach ($batches as $chunk) {
+        while (true) {
+            <error descr="Loop variable '$chunk' overwrites a variable of an outer loop.">foreach</error> ($batches as $chunk) {}
+            break;
+        }
+        echo $chunk;
+    }
+}
+
+function insideTry(array $batches)
+{
+    foreach ($batches as $chunk) {
+        try {
+            <error descr="Loop variable '$chunk' overwrites a variable of an outer loop.">foreach</error> ($batches as $chunk) {}
+        } finally {
+            echo $chunk;
+        }
+    }
+}

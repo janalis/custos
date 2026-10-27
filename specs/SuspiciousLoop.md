@@ -60,12 +60,15 @@ Applies to `for` and `foreach` statements.
   (`for ($x = 0; $c = $x * 2, $x++ < 75;)`).
 - **E6** D4 is not reported for an outer `foreach` whose overwritten
   variable is dead: neither loop takes the variable by reference, and the
-  name is not mentioned after the inner loop inside the outer one, nor
-  anywhere in a loop that sits between them (its condition or later
-  passes would see the inner value), nor after the outer loop or before
-  it inside a loop that encloses it (a variable-variable counts as a
-  mention). The next outer iteration assigns the variable again, so
-  nothing is lost.
+  name is not mentioned in the statements that can run after the inner loop
+  within the current outer iteration (those following it and each statement
+  around it in their statement lists, up to one that leaves the iteration:
+  `return`, `throw`, `exit`, or a `break` or `continue` reaching the outer
+  loop), nor anywhere else in a loop or `try` that sits between them (a loop
+  condition or a later pass would see the inner value), nor after the outer
+  loop or before it inside a loop that encloses it (a variable-variable
+  counts as a mention). The next outer iteration assigns the variable again,
+  so nothing is lost.
 - **E7** D3 is not reported when the parameter is dead: its value was used
   (stored by constructor promotion, read before the loop, or read in the
   subject of a `foreach`, by name too as with `func_get_args()`), it is not
