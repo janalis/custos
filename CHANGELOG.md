@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- UnnecessaryCasting no longer reports, or removes, an `(int)` cast of a
+  `+`, `-`, `*` or `**` operation or a negation: an overflowing integer
+  result becomes a float, which the cast wraps back.
 - MissingOrEmptyGroupStatement indents the braced body it writes with the
   file's own indentation step instead of always four spaces, and keeps the
   indentation of a body already on a line of its own.

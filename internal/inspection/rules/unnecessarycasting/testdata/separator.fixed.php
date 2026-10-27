@@ -1,7 +1,7 @@
 <?php
 function separators(int $b, string $s, array $items)
 {
-    $x = 10 - -$b;
+    $x = 10 -(int)-$b;
     $y = 1 + +$b;
     $z = $s. 2;
     $w = $s. .5;
@@ -12,7 +12,7 @@ function separators(int $b, string $s, array $items)
             break;
     }
     $v = [$b,$b, !true];
-    $u =-$b;
+    $u =(int)-$b;
     $t = $b ?$b :$b;
     return count($items);
 }

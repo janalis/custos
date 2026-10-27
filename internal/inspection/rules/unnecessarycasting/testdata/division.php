@@ -8,6 +8,6 @@ function shares(int $total, int $parts, float $weight) {
         (int) $each,
         (float) ($total / $parts),
         <weak_warning descr="Operand already has the target type; remove the cast.">(float)</weak_warning> ($weight / $parts),
-        <weak_warning descr="Operand already has the target type; remove the cast.">(int)</weak_warning> ($total * $parts),
+        (int) ($total * $parts),
     ];
 }

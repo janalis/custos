@@ -47,7 +47,7 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 	tr.DivisionIntOrFloat = true // `int / int` may be a float
 	tr.SoundArithmetic = true    // `"4" * 100` is an int, `$unknown * 2` unknown
 	ts := castStrictTypes(ctx, tr, a)
-	if len(ts) != 1 || ts[0] != target { // D3 / E1
+	if len(ts) != 1 || ts[0] != target || target == "int" && castMayOverflow(a) { // D3 / E1, E9
 		return
 	}
 	// custos: the type must hold without user PHPDoc (`@param array<int,
@@ -78,6 +78,22 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	r.report(ctx, u, unnecessaryCastingTypeMsg)
+}
+
+// castMayOverflow reports an integer operation whose result may overflow to
+// a float: `+`, `-`, `*`, `**` or a negation. `(int) ($a * 1000003)` wraps
+// it back, so the cast is not redundant (E9).
+func castMayOverflow(a syntax.Expr) bool {
+	switch x := a.(type) {
+	case *syntax.Binary:
+		switch x.Op.Kind {
+		case syntax.TPlus, syntax.TMinus, syntax.TMul, syntax.TPow:
+			return true
+		}
+	case *syntax.Unary:
+		return x.Op.Kind == syntax.TMinus
+	}
+	return false
 }
 
 // castInConcat reports whether the cast is an operand of `.` or `.=`.

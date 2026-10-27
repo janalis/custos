@@ -10,7 +10,7 @@ return [
     $list,
     $flag,
     $ratio,
-    ($count * 3),
+    (integer) ($count * 3),
     ($count - 0.5),
     (int) ($count / 2),
     -2.25,
@@ -53,7 +53,7 @@ function joins(string $a, int $b, ?string $c, $d, \Stringable $e, string|false $
 
 function stamps() {
     return [
-        (microtime() * 10),
+        (int) (microtime() * 10),
         (int) (microtime(true) * 10),
         (bool) end($GLOBALS),
         $_SERVER['HTTP_HOST'],

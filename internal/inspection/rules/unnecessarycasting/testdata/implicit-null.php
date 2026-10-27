@@ -26,7 +26,7 @@ final class Ledger
             (float) ($cell * 100),
             (int) ($cell * 100),
             (float) ($n * 2),
-            <weak_warning descr="Operand already has the target type; remove the cast.">(int)</weak_warning> ($n * 2),
+            (int) ($n * 2),
             (float) ($cell * $f),
             (int) ($n ** $n),
             (float) ($unknown * 2),

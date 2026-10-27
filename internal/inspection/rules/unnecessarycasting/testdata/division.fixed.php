@@ -8,6 +8,6 @@ function shares(int $total, int $parts, float $weight) {
         (int) $each,
         (float) ($total / $parts),
         ($weight / $parts),
-        ($total * $parts),
+        (int) ($total * $parts),
     ];
 }

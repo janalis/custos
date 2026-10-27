@@ -241,6 +241,10 @@ visited at most once, parentheses removed first:
   `function readInto(&$out)`, `$r = &$n`, `foreach ($row as &$cell)` before
   `(int) $row['qty']`, a top-level variable named by a `global` statement.
   Only M1 is affected.
+- **E9** (custos, see Divergences) An `(int)` cast whose operand is a `+`,
+  `-`, `*` or `**` operation or a negation: an integer result that
+  overflows becomes a float, which the cast wraps back
+  (`(int) ($a * 1000003)`, `(int) -$n`).
 
 ## Report
 
@@ -362,6 +366,12 @@ After fix (changed lines):
 ```
 
 ## Divergences
+
+- **Integer overflow (custos diverges, E9).** Upstream types `int + int`
+  as `int` and reports the cast. PHP turns an overflowing integer result
+  into a float, so `(int) ($hash * 33 + $c)` (php-src's hash table
+  generator) is not a no-op, and in an `int` function the bare result
+  throws a TypeError.
 
 - **`$_SERVER` ports are strings (custos diverges):** upstream types
   `$_SERVER['REMOTE_PORT']` and `['SERVER_PORT']` as int, so `(int)

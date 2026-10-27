@@ -10,7 +10,7 @@ return [
     <weak_warning descr="Operand already has the target type; remove the cast.">(array)</weak_warning> $list,
     <weak_warning descr="Operand already has the target type; remove the cast.">(bool)</weak_warning> $flag,
     <weak_warning descr="Operand already has the target type; remove the cast.">(double)</weak_warning> $ratio,
-    <weak_warning descr="Operand already has the target type; remove the cast.">(integer)</weak_warning> ($count * 3),
+    (integer) ($count * 3),
     <weak_warning descr="Operand already has the target type; remove the cast.">(float)</weak_warning> ($count - 0.5),
     (int) ($count / 2),
     <weak_warning descr="Operand already has the target type; remove the cast.">(float)</weak_warning>-2.25,
@@ -53,7 +53,7 @@ function joins(string $a, int $b, ?string $c, $d, \Stringable $e, string|false $
 
 function stamps() {
     return [
-        <weak_warning descr="Operand already has the target type; remove the cast.">(int)</weak_warning> (microtime() * 10),
+        (int) (microtime() * 10),
         (int) (microtime(true) * 10),
         (bool) end($GLOBALS),
         <weak_warning descr="Operand already has the target type; remove the cast.">(string)</weak_warning> $_SERVER['HTTP_HOST'],
