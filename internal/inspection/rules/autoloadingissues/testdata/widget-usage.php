@@ -3,10 +3,6 @@ class <warning descr="File name does not match the class name; autoloading may f
 {
 }
 
-function make(): Widget
-{
-    return new Widget();
-}
 
 $factory = function () {
     return new class extends Widget {

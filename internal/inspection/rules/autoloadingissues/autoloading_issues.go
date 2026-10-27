@@ -30,13 +30,16 @@ func (autoloadingIssues) CheckFile(ctx *analysis.Context) {
 	// D4: top-level class-like declarations (file level or namespace body).
 	var decl *syntax.ClassLike
 	global := true
-	count := 0
+	count, funcs := 0, false
 	collect := func(stmts []syntax.Stmt, inNamespace bool) {
 		for _, s := range stmts {
 			if c, ok := s.(*syntax.ClassLike); ok && c.Name != nil && c.Name.Span().Len() > 0 {
 				count++
 				decl = c
 				global = !inNamespace
+			}
+			if _, ok := s.(*syntax.Function); ok {
+				funcs = true
 			}
 		}
 	}
@@ -46,7 +49,7 @@ func (autoloadingIssues) CheckFile(ctx *analysis.Context) {
 			collect(ns.Stmts, ns.Name != nil)
 		}
 	}
-	if count != 1 {
+	if count != 1 || funcs { // E6: functions are never autoloaded
 		return
 	}
 
@@ -83,7 +86,7 @@ func usesOwnClass(stmts []syntax.Stmt, n string) bool {
 		case *syntax.Namespace:
 			found = found || usesOwnClass(st.Stmts, n)
 			continue
-		case *syntax.ClassLike, *syntax.Function:
+		case *syntax.ClassLike:
 			continue
 		}
 		syntax.Inspect(st, func(x syntax.Node) bool {

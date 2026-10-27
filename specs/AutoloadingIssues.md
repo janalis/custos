@@ -28,8 +28,8 @@ the declarations in it.
 - **D4** Collect the class-like declarations of the file that are top-level
   definitions: classes (incl. abstract/final), interfaces, traits (and enums)
   declared at file level or directly inside a `namespace` statement/block.
-  Functions, constants and `use` imports are ignored; anonymous classes are
-  not declarations. Continue only when **exactly one** such declaration
+  Constants and `use` imports are ignored (functions: see E6); anonymous
+  classes are not declarations. Continue only when **exactly one** such declaration
   exists.
 - **D5** Let `N` be that declaration's short name as written, and let
   `E` = the file base name up to (not including) its **first** `.`
@@ -61,6 +61,10 @@ the declarations in it.
   `class CheckKernel {}` in `check.php`. The file runs its own class, so no
   autoloader looks for it. Uses inside function and class bodies (named or
   anonymous) do not count, nor does `N::class`.
+- **E6** The file also declares a function at file level or directly in a
+  namespace: no autoloader loads functions, so the file is always included
+  explicitly and its name does not matter (php-src's `*.stub.php`
+  signature files).
 
 ## Report
 
@@ -147,6 +151,11 @@ class Shop_Cart_Item {}
 ```
 
 ## Divergences
+
+- **Files declaring functions (custos diverges, E6).** Upstream ignores
+  functions and reports the class. A file defining functions is loaded by
+  an explicit include or Composer's `files` list, never by class name, so
+  the mismatch cannot break autoloading (php-src's extension stubs).
 
 - **E5 — custos diverges from upstream.** Upstream also reports a script
   that declares a class and then uses it itself.

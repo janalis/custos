@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- AutoloadingIssues no longer reports a file that also declares functions:
+  no autoloader loads it by class name (php-src's extension stubs).
 - PhpUnitTests puts a literal or constant first when it turns
   `assertTrue(count($rows) == 2)` into `assertEquals(2, count($rows))`:
   PHPUnit takes the expected value first, so its failure message read
