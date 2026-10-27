@@ -150,10 +150,10 @@ func readsVar(e syntax.Expr, v *syntax.Variable) bool {
 }
 
 // deadOuter reports whether the outer foreach's variable name is dead when
-// the inner loop n overwrites it (E6): n ends the outer body, neither loop
-// binds by reference, and nothing reads the name after the outer loop (nor
-// elsewhere in a loop around it), so the next iteration or the end of the
-// loop loses nothing.
+// the inner loop n overwrites it (E6): neither loop binds by reference,
+// nothing reads the name after n within p, nor anywhere in a loop between
+// them (a loop condition reads it again), nor after p (or before it inside
+// a loop around it). The next outer iteration assigns the variable again.
 func deadOuter(ctx *analysis.Context, n, p syntax.Node, name string) bool {
 	fe, ok := p.(*syntax.Foreach)
 	if !ok || fe.ByRef {
@@ -162,17 +162,17 @@ func deadOuter(ctx *analysis.Context, n, p syntax.Node, name string) bool {
 	if in, ok := n.(*syntax.Foreach); ok && in.ByRef {
 		return false
 	}
-	last := fe.Body
-	if b, ok := last.(*syntax.Block); ok && len(b.Stmts) > 0 {
-		last = b.Stmts[len(b.Stmts)-1]
+	// Regions where a mention would see the inner loop's value.
+	ns, ps := n.Span(), p.Span()
+	regions := []syntax.Span{{Start: ns.End, End: ps.End}}
+	for a := n.Parent(); a != p; a = a.Parent() {
+		switch a.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			regions = append(regions, syntax.Span{Start: a.Span().Start, End: ns.Start})
+		}
 	}
-	if last != n {
-		return false
-	}
-	// Reads from the start of the outermost loop around p count: a later
-	// iteration of that loop may come back to them.
 	var scope syntax.Node = ctx.File
-	from := p.Span()
+	after := syntax.Span{Start: ps.Start, End: ^uint32(0)}
 	for a := p.Parent(); a != nil; a = a.Parent() {
 		if syntax.IsFuncLike(a) {
 			scope = a
@@ -180,18 +180,36 @@ func deadOuter(ctx *analysis.Context, n, p syntax.Node, name string) bool {
 		}
 		switch a.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
-			from.Start = a.Span().Start
+			after.Start = a.Span().Start
 		}
 	}
+	regions = append(regions, syntax.Span{Start: after.Start, End: ps.Start}, syntax.Span{Start: ps.End, End: after.End})
 	read := false
 	syntax.Inspect(scope, func(x syntax.Node) bool {
-		s := x.Span()
-		if s.Start >= from.Start && s.Start < p.Span().Start || s.Start >= from.End {
-			if v, ok := x.(*syntax.Variable); ok && (v.NameExpr != nil || v.Name == name) {
+		v, ok := x.(*syntax.Variable)
+		if !ok || v.NameExpr == nil && v.Name != name || overwrites(v) {
+			return true
+		}
+		for _, r := range regions {
+			if v.Span().Start >= r.Start && v.Span().Start < r.End {
 				read = true
 			}
 		}
 		return !read
 	})
 	return !read
+}
+
+// overwrites reports whether v only receives a new value: a foreach key or
+// value, the target of a plain assignment, or a parameter.
+func overwrites(v *syntax.Variable) bool {
+	switch p := v.Parent().(type) {
+	case *syntax.Foreach:
+		return p.Key == syntax.Expr(v) || p.Value == syntax.Expr(v)
+	case *syntax.Assign:
+		return p.Var == syntax.Expr(v) && p.Op.Kind == syntax.TEqual
+	case *syntax.Param:
+		return true
+	}
+	return false
 }

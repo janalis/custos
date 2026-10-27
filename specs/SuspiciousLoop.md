@@ -59,11 +59,13 @@ Applies to `for` and `foreach` statements.
   only means the last expression as the condition
   (`for ($x = 0; $c = $x * 2, $x++ < 75;)`).
 - **E6** D4 is not reported for an outer `foreach` whose overwritten
-  variable is dead: the inner loop is the last statement of the outer
-  loop's body, neither loop takes the variable by reference, and the name
-  is not read after the outer loop, nor before it inside a loop that
-  encloses it (a variable-variable counts as a read). The next outer
-  iteration assigns the variable again, so nothing is lost.
+  variable is dead: neither loop takes the variable by reference, and the
+  name is not mentioned after the inner loop inside the outer one, nor
+  anywhere in a loop that sits between them (its condition or later
+  passes would see the inner value), nor after the outer loop or before
+  it inside a loop that encloses it (a variable-variable counts as a
+  mention). The next outer iteration assigns the variable again, so
+  nothing is lost.
 
 ## Report
 
@@ -119,6 +121,7 @@ foreach ($matrix as $row => $cols) {
         foreach ([] as $row) {}
     }, []);
     foreach ($cols as $c) {}
+    echo $row;
 }
 ```
 

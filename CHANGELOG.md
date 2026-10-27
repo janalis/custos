@@ -137,8 +137,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   lines with the file's own indentation step (two spaces in Drupal code)
   instead of always four spaces.
 - SuspiciousLoop no longer reports an inner loop reusing the variable of an
-  outer `foreach` when the outer value is never read again: the inner loop
-  ends the outer body and the name is not read after it.
+  outer `foreach` when the outer value is never read again, also when the
+  inner loop sits in an `if` or an intermediate loop; plain writes such as
+  a later loop reusing the name do not count as reads.
 - UnsetConstructsCanBeMerged no longer offers to merge `unset()` statements
   separated by a blank line and a comment: the comment introduces the
   statements below it, which the merge would move away.

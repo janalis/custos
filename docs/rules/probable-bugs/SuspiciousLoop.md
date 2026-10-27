@@ -42,6 +42,7 @@ foreach ($matrix as $row => $cols) {
         foreach ([] as $row) {}
     }, []);
     foreach ($cols as $c) {}
+    echo $row;
 }
 ```
 

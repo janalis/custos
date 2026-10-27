@@ -33,6 +33,14 @@ function readAfter(array $rows)
     return $row;
 }
 
+function appendedAfter(array $rows)
+{
+    foreach ($rows as $row) {
+        <error descr="Loop variable '$row' overwrites a variable of an outer loop.">foreach</error> ($row as $row) {}
+    }
+    $row .= 'x';
+}
+
 function readInWrappingLoop(array $groups)
 {
     while ($groups) {
@@ -43,11 +51,51 @@ function readInWrappingLoop(array $groups)
     }
 }
 
-function notLast(array $rows)
+function readAfterInner(array $rows)
 {
     foreach ($rows as $row) {
         <error descr="Loop variable '$row' overwrites a variable of an outer loop.">foreach</error> ($row as $row) {}
+        echo $row;
+    }
+}
+
+function notLast(array $rows)
+{
+    foreach ($rows as $row) {
+        foreach ($row as $row) {}
         echo 1;
+    }
+}
+
+function nested(array $ids, array $services, bool $showTag): array
+{
+    $max = [];
+    foreach ($ids as $key => $id) {
+        if ($id === '') {
+            unset($ids[$key]);
+            continue;
+        }
+        if ($showTag) {
+            foreach ($services[$id] as $tag) {
+                foreach ($tag as $key => $value) {
+                    $max[$key] = $value;
+                }
+            }
+        }
+    }
+    foreach ($max as $key => $value) {
+        $key = 1;
+        $f = function ($key) {};
+    }
+    return $max;
+}
+
+function rereadByCondition(array $rows)
+{
+    foreach ($rows as $row) {
+        while (count($row) > 1) {
+            <error descr="Loop variable '$row' overwrites a variable of an outer loop.">foreach</error> ($rows as $row) {}
+        }
     }
 }
 
