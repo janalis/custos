@@ -121,6 +121,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MissingOrEmptyGroupStatement and UnsetConstructsCanBeMerged take the
+  indentation step of the code they write from the enclosing statement
+  (`if` at 12 spaces inside `for` at 8 gives 4), so files mixing tabs and
+  spaces no longer get 8-space steps.
 - CallableParameterUseCaseInTypeContext no longer reports a guard that
   throws when a parameter without native type has a type its docblock rules
   out (`if (\is_array($content)) { throw new \TypeError(…); }`).

@@ -118,7 +118,7 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 					{Span: bs, NewText: stmt + closing},
 				}
 			}
-			span, open, lead := bs, "{\n", indent+astquery.IndentUnit(ctx.Src, indent)
+			span, open, lead := bs, "{\n", indent+astquery.StepIndent(ctx.File, n, indent)
 			if own := astquery.IndentBefore(ctx.Src, bs.Start); len(own) > len(indent) && strings.HasPrefix(own, indent) {
 				lead = own // a body on its own line keeps its indentation
 			}

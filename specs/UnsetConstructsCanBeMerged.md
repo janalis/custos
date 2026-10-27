@@ -50,16 +50,17 @@ Visit every `unset(...)` statement.
   Comments that sat between the two statements stay where they were (now after
   the merged statement); whitespace around the deleted statement may remain
   (comparison is whitespace-normalized).
-- **F1a** When the merged statements were written on several lines and
-  the single merged line, with its indentation, would be longer than 120
+- **F1a** When the merged statements were written on several lines and the
+  single merged line, with its indentation, would be longer than 120
   characters, the merged statement keeps one line per original statement
-  instead: `unset(`, then each original statement's arguments joined by
-  `, ` on its own line, indented one level deeper than the statement (a tab
-  when the statement is indented with tabs, else the file's own space
-  indentation step, the smallest one of 2 to 8 spaces outside docblocks,
-  four spaces when there is none) and
-  followed by `,` except the last, then `);` at the statement's
-  indentation. No trailing comma is added (PHP before 7.3 rejects it).
+  instead: `unset(`, then each original statement's arguments joined by `, `
+  on its own line, indented one level deeper than the statement (a tab when
+  the statement is indented with tabs, else the step from the nearest
+  enclosing statement indented less, else the file's own space indentation
+  step, the smallest one of 2 to 8 spaces outside docblocks, four spaces
+  when there is none) and followed by `,` except the last, then `);` at the
+  statement's indentation. No trailing comma is added (PHP before 7.3
+  rejects it).
 - **F2** Applying the fixes of a run one after another, in source order,
   accumulates everything into the first statement:
   `unset($a); unset($b); unset($c);` → `unset($a, $b, $c);`.

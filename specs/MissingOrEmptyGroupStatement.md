@@ -187,13 +187,14 @@ In `views/page.blade.php` nothing is reported (E2).
   style); for D2, a colon-syntax body with zero statements counts as empty.
 - Whether `{ ; }` counts as empty is not covered by upstream fixtures; we count
   `;` as a statement (not empty).
-- **Formatting (custos).** Upstream relies on the IDE formatter; the fix
-  now produces formatted code itself: the opening brace joins the header
-  line (replacing the whitespace before the body), the body is indented one
-  level under the construct's line (a tab when that line is indented with
-  tabs, else the file's own space indentation step, four spaces when it
-  has none; a body already on a line of its own, indented deeper than the
-  construct, keeps its indentation) and the closing brace aligned with it
+- **Formatting (custos).** Upstream relies on the IDE formatter; the fix now
+  produces formatted code itself: the opening brace joins the header line
+  (replacing the whitespace before the body), the body is indented one level
+  under the construct's line (a tab when that line is indented with tabs,
+  else the step from the nearest enclosing statement indented less, else the
+  file's own space indentation step, four spaces when it has none; a body
+  already on a line of its own, indented deeper than the construct, keeps
+  its indentation) and the closing brace aligned with it
   (`if ($a)\n    stmt;` → `if ($a) {\n    stmt;\n}`).
 - **Line comment after the header (custos diverges, F1).** In `for (…) //
   note` followed by the body on the next line, a brace placed after the

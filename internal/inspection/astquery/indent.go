@@ -58,6 +58,35 @@ func IndentUnit(src []byte, indent string) string {
 	return strings.Repeat(" ", unit)
 }
 
+// StepIndent returns one level of indentation for code nested in n, whose
+// line is indented with indent: the difference with the nearest enclosing
+// node written on a line indented less (`if` at 12 spaces inside `for` at
+// 8 gives four), else IndentUnit's guess for the file.
+func StepIndent(f *syntax.File, n syntax.Node, indent string) string {
+	line := LineStart(f.Src, n.Span().Start)
+	for p := n.Parent(); p != nil; p = p.Parent() {
+		if _, root := p.(*syntax.File); root || LineStart(f.Src, p.Span().Start) == line {
+			continue
+		}
+		outer := LineIndent(f.Src, p.Span().Start)
+		if len(outer) < len(indent) && strings.HasPrefix(indent, outer) {
+			return indent[len(outer):]
+		}
+		if len(outer) < len(indent) || !strings.HasPrefix(outer, indent) {
+			break
+		}
+	}
+	return IndentUnit(f.Src, indent)
+}
+
+// LineStart returns the offset of the start of the line holding off.
+func LineStart(src []byte, off uint32) uint32 {
+	for off > 0 && src[off-1] != '\n' && src[off-1] != '\r' {
+		off--
+	}
+	return off
+}
+
 // IsSpace reports whether c is a space, tab, newline or carriage return.
 func IsSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
 

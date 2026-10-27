@@ -108,7 +108,7 @@ func (unsetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 			last := merged[len(merged)-1].Span().End
 			if len(indent)+len(text) > unsetMaxLine && bytes.IndexByte(f.Src[first.Span().End:last], '\n') >= 0 {
 				// F1a: one line per merged statement rather than one long line.
-				unit := astquery.IndentUnit(f.Src, indent)
+				unit := astquery.StepIndent(f, first, indent)
 				text = "unset(\n" + indent + unit + strings.Join(groups, ",\n"+indent+unit) + "\n" + indent + ");"
 			}
 			edits := []diagnostic.TextEdit{{Span: first.Span(), NewText: text}}
