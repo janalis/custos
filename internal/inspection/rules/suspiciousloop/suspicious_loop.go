@@ -197,7 +197,7 @@ func deadOuter(ctx *analysis.Context, n, p syntax.Node, name string) bool {
 	read := false
 	syntax.Inspect(scope, func(x syntax.Node) bool {
 		v, ok := x.(*syntax.Variable)
-		if !ok || v.NameExpr == nil && v.Name != name || overwrites(v) {
+		if !ok || v.NameExpr == nil && v.Name != name || overwrites(v) || rebound(v, name, n) {
 			return true
 		}
 		for _, r := range regions {
@@ -265,6 +265,30 @@ func leavesLoop(st syntax.Stmt, p syntax.Node) bool {
 	}
 }
 
+// rebound reports whether the mention v of name sits in a loop that binds
+// name afresh before it (a by-value foreach key or value, or a `for` whose
+// initialisation assigns it), the loop not being one around n: v then reads
+// the new binding, not the value n left.
+func rebound(v *syntax.Variable, name string, n syntax.Node) bool {
+	at := v.Span().Start
+	for a := v.Parent(); a != nil && !syntax.IsFuncLike(a); a = a.Parent() {
+		if s := a.Span(); s.Start <= n.Span().Start && n.Span().End <= s.End {
+			return false
+		}
+		switch l := a.(type) {
+		case *syntax.Foreach:
+			if !l.ByRef && at >= l.Expr.Span().End && slices.Contains(loopVarNames(l, nil), name) {
+				return true
+			}
+		case *syntax.For:
+			if slices.Contains(loopVarNames(l, nil), name) && len(l.Init) > 0 && at >= l.Init[len(l.Init)-1].Span().End {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // overwrites reports whether v only receives a new value: a foreach key or
 // value, the target of a plain assignment, or a parameter.
 func overwrites(v *syntax.Variable) bool {
@@ -300,7 +324,7 @@ func deadParam(ctx *analysis.Context, fn, n syntax.Node, param *syntax.Param) bo
 	mentions := func(x, skip syntax.Node) bool {
 		found := false
 		syntax.Inspect(x, func(y syntax.Node) bool {
-			if v, ok := y.(*syntax.Variable); ok && v.Name == name && !overwrites(v) {
+			if v, ok := y.(*syntax.Variable); ok && v.Name == name && !overwrites(v) && !rebound(v, name, n) {
 				found = true
 			}
 			return y != skip && !found

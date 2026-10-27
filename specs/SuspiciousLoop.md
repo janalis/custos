@@ -84,6 +84,11 @@ Applies to `for` and `foreach` statements.
 - **E8** D3 is not reported when a `for` or `foreach` around the loop, in
   the same function, already binds the name: the parameter was overwritten
   there, and the clash is between the two loops (D4, E6).
+- **E9** For E6 and E7, a mention inside a loop that binds the name afresh
+  before it (a by-value `foreach` key or value, past the loop's subject, or
+  a `for` whose initialisation assigns it, past that initialisation), the
+  loop not being one around the reported loop, reads the new binding and
+  does not count.
 
 ## Report
 

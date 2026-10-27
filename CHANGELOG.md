@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- SuspiciousLoop no longer counts a mention inside a later loop that binds
+  the name afresh (`foreach ($params as $i => $param)`) as a read of the
+  overwritten variable.
 - Declaration files that never run, php-src's `*.stub.php` extension stubs
   and Drupal's `*.api.php` hook documentation, are no longer analysed when
   found below a scanned path (their declarations stay known); fixes such as
