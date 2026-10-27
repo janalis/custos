@@ -66,3 +66,16 @@ func TestDiscoverSkipsHiddenDirectories(t *testing.T) {
 		t.Fatalf("a hidden scanned path: %v %v", named, err)
 	}
 }
+
+// A file named on its own and again through its directory is listed once.
+func TestDiscoverListsFilesOnce(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "src/a.php"), "<?php")
+	got, err := Discover([]string{filepath.Join(dir, "src") + "/./a.php", filepath.Join(dir, "src"), filepath.Join(dir, "src")}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("Discover: got %v, want one file", got)
+	}
+}

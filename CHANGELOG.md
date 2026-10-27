@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- A file passed on the command line both on its own and inside a passed
+  directory is analysed and fixed once: `fix -dry-run -diff` no longer shows
+  its diff twice and the file counts are right.
 - UnsetConstructsCanBeMerged indents a merged `unset(` written over several
   lines with the file's own indentation step (two spaces in Drupal code)
   instead of always four spaces.

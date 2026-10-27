@@ -58,8 +58,18 @@ func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
 			return nil, err
 		}
 	}
-	sort.Strings(out)
-	return out, nil
+	// A file named on its own and again inside a named directory is listed
+	// once: fixing it twice would report its edits twice.
+	seen := make(map[string]bool, len(out))
+	uniq := out[:0]
+	for _, p := range out {
+		if c := filepath.Clean(p); !seen[c] {
+			seen[c] = true
+			uniq = append(uniq, p)
+		}
+	}
+	sort.Strings(uniq)
+	return uniq, nil
 }
 
 // linkInside reports whether the symlink p resolves to a regular file under
