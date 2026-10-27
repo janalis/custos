@@ -278,11 +278,44 @@ func (cp *cpState) checkIs(v *syntax.Variable, set map[string]bool) {
 			return
 		}
 	}
+	if cp.docGuard(v.Name, call) { // E9
+		return
+	}
 	msg := cpMsgFalse
 	if u, ok := call.Parent().(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
 		msg = cpMsgTrue
 	}
 	cp.ctx.ReportNode(call, msg)
+}
+
+// docGuard reports whether the check enforces a type only the docblock
+// declares (custos): the parameter has no native type and the check, maybe
+// negated, is the whole condition of an `if` whose body only throws
+// (`if (\is_array($content)) { throw new \TypeError(…); }`).
+func (cp *cpState) docGuard(name string, call *syntax.FuncCall) bool {
+	for _, p := range syntax.FuncLikeParams(cp.fn) {
+		if p.Var != nil && p.Var.Name == name && p.Type != nil {
+			return false
+		}
+	}
+	cond, _ := astquery.ParentSkipParens(call)
+	if u, ok := cond.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
+		cond, _ = astquery.ParentSkipParens(u)
+	}
+	guard, ok := cond.(*syntax.If)
+	if !ok || guard.Else != nil || len(guard.ElseIfs) > 0 {
+		return false
+	}
+	body := guard.Body
+	if b, ok := body.(*syntax.Block); ok && len(b.Stmts) == 1 {
+		body = b.Stmts[0]
+	}
+	es, ok := body.(*syntax.ExprStmt)
+	if !ok {
+		return false
+	}
+	_, ok = es.Expr.(*syntax.Throw)
+	return ok
 }
 
 // mayBeInvokable reports whether an instance accepted by the class entry t

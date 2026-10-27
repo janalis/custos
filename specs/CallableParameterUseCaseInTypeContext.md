@@ -206,6 +206,11 @@ and is kept as its FQN with leading `\` and original case (e.g.
   `$result as $name => $message`, `$data = $this->parse($data); if
   (\is_array($data))`). The test is then about that value, not the
   declared one.
+- **E9** (custos, see Divergences) D6 where the parameter has no native
+  type and the test, maybe negated, is the whole condition of an `if`
+  without `else` whose body only throws
+  (`if (\is_array($content)) { throw new \TypeError(…); }`): it enforces
+  at run time a type only the docblock declares.
 
 ## Report
 
@@ -279,6 +284,11 @@ function untyped($flag = null) {
 ```
 
 ## Divergences
+
+- **Docblock contract checks (custos diverges, E9).** Upstream reports a
+  test that contradicts the `@param` type. When nothing native enforces
+  that type, a guard that throws on the wrong type is the contract being
+  checked (Symfony's filesystem `dumpFile()`), not a reused parameter.
 
 - **Calls returning the type given (custos diverges, D7f).** Upstream
   reports `$form = $tokens->replace($form)` (typed `string|array`) on an

@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- CallableParameterUseCaseInTypeContext no longer reports a guard that
+  throws when a parameter without native type has a type its docblock rules
+  out (`if (\is_array($content)) { throw new \TypeError(…); }`).
 - StrStartsWithCanBeUsed, StrEndsWithCanBeUsed and StrContainsCanBeUsed no
   longer offer a fix that would drop a comment written between the call's
   arguments.
