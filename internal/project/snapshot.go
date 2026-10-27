@@ -266,7 +266,9 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 				if strings.HasSuffix(name, ".php") {
 					php[name] = true
 				}
-				if !symbolsOnly {
+				// Declaration files below a scanned path are indexed, not
+				// analysed (see declarationOnly).
+				if !symbolsOnly && (name == scanned || !declarationOnly(path.Base(name))) {
 					selected[name] = true
 				}
 			}

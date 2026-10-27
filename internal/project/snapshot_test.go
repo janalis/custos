@@ -418,3 +418,40 @@ func TestSnapshotExcludeRelativeToScannedPath(t *testing.T) {
 		t.Fatal(s.Files)
 	}
 }
+
+// Declaration files below a scanned path are indexed, not analysed; a named
+// one is analysed.
+func TestSnapshotSkipsDeclarationFiles(t *testing.T) {
+	dir := t.TempDir()
+	for name, text := range map[string]string{
+		"src/a.php":        "<?php $ok=!!!$x;",
+		"src/ext.stub.php": "<?php class Stubbed {} $ok=!!!$x;",
+		"src/mod.api.php":  "<?php $ok=!!!$x;",
+		"custos.json":      `{"rules":{"NestedNotOperators":{"enabled":true}}}`,
+	} {
+		p := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	rules := []analysis.Rule{nestednotoperators.New()}
+	s, err := BuildSnapshot(context.Background(), root, rules, []string{"src"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Results) != 1 || s.Index.Class("Stubbed", s.Config.PHP) == nil {
+		t.Fatal(s.Files, s.Results)
+	}
+	s, err = BuildSnapshot(context.Background(), root, rules, []string{"src/ext.stub.php"}, nil)
+	if err != nil || len(s.Results) != 1 {
+		t.Fatal(s, err)
+	}
+}

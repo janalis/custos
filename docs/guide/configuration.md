@@ -77,6 +77,11 @@ or a path of several names, skipped at any depth below each scanned path (not
 the root): with `"paths": ["src"]`, write `"gen"` or `"sub/gen"` to skip
 `src/sub/gen` (and `src/app/sub/gen`), not `"src/sub/gen"`.
 
+Declaration files that never run are not analysed either: php-src's
+extension stubs (`*.stub.php`) and Drupal's hook documentation
+(`*.api.php`). Their classes and functions are still known to the other
+files, and a file named on the command line is analysed.
+
 ## Target PHP version
 
 The first of these that is set decides:

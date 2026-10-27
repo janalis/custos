@@ -121,6 +121,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- Declaration files that never run, php-src's `*.stub.php` extension stubs
+  and Drupal's `*.api.php` hook documentation, are no longer analysed when
+  found below a scanned path (their declarations stay known); fixes such as
+  SelfClassReferencing's broke php-src's stub generator.
 - MkdirRaceCondition no longer reports `@mkdir($d)` guarded by
   `if (!is_dir($d))`: the failure is tolerated on purpose, and the fix made
   it throw.

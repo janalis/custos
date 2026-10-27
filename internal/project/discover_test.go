@@ -79,3 +79,27 @@ func TestDiscoverListsFilesOnce(t *testing.T) {
 		t.Fatalf("Discover: got %v, want one file", got)
 	}
 }
+
+// Declaration files below a scanned path are left out; a named one is kept.
+func TestDiscoverSkipsDeclarationFiles(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []string{"a.php", "ext/hash.stub.php", "mod/mod.api.php", "mod/mod.module.php"} {
+		writeFile(t, filepath.Join(dir, f), "<?php")
+	}
+	got, err := Discover([]string{dir}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rel []string
+	for _, f := range got {
+		r, _ := filepath.Rel(dir, f)
+		rel = append(rel, filepath.ToSlash(r))
+	}
+	if want := []string{"a.php", "mod/mod.module.php"}; !reflect.DeepEqual(rel, want) {
+		t.Fatalf("Discover: got %v want %v", rel, want)
+	}
+	named, err := Discover([]string{filepath.Join(dir, "ext/hash.stub.php")}, nil)
+	if err != nil || len(named) != 1 {
+		t.Fatalf("a named declaration file: %v %v", named, err)
+	}
+}

@@ -16,8 +16,9 @@ import (
 )
 
 // Discover lists *.php files under paths, skipping excluded directory names
-// or relative paths, hidden directories (see hidden), and symlinks that do
-// not lead to a regular file inside the scanned path.
+// or relative paths, hidden directories (see hidden), declaration files (see
+// declarationOnly), and symlinks that do not lead to a regular file inside
+// the scanned path.
 func Discover(paths, exclude []string) ([]string, error) {
 	return DiscoverWith(paths, exclude, nil)
 }
@@ -49,7 +50,7 @@ func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
 				}
 				return nil
 			}
-			if (strings.HasSuffix(p, ".php") || matchesAny(d.Name(), patterns)) && (d.Type()&fs.ModeSymlink == 0 || linkInside(root, p)) {
+			if (strings.HasSuffix(p, ".php") && !declarationOnly(d.Name()) || matchesAny(d.Name(), patterns)) && (d.Type()&fs.ModeSymlink == 0 || linkInside(root, p)) {
 				out = append(out, p)
 			}
 			return nil
@@ -90,6 +91,14 @@ func linkInside(root, p string) bool {
 	}
 	info, err := os.Stat(target)
 	return err == nil && info.Mode().IsRegular()
+}
+
+// declarationOnly reports a file of declarations that never runs: php-src's
+// extension stubs (`*.stub.php`, read by its stub generator) and Drupal's
+// hook documentation (`*.api.php`). Discovery leaves them out below a
+// scanned path (a path may still name one).
+func declarationOnly(name string) bool {
+	return strings.HasSuffix(name, ".stub.php") || strings.HasSuffix(name, ".api.php")
 }
 
 // hidden reports a directory name starting with a dot (.git, .idea,
