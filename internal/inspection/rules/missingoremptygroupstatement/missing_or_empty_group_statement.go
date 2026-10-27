@@ -58,7 +58,7 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 		if fe, ok := n.(*syntax.Foreach); ok && (iterates(ctx, fe.Expr) || leavesLast(ctx.File, fe)) { // E5, E6
 			return
 		}
-		if len(b.Stmts) == 0 && ctx.Bool("REPORT_EMPTY_BODY") { // D2
+		if len(b.Stmts) == 0 && ctx.Bool("REPORT_EMPTY_BODY") && !skipBranch(ctx.File, n, b) { // D2, E7
 			ctx.Report(kwSpan, "This construct has an empty body block.")
 		}
 		return // E4: alternative syntax never gets D1
@@ -143,6 +143,22 @@ func iterates(ctx *analysis.Context, e syntax.Expr) bool {
 		}
 	}
 	return false
+}
+
+// skipBranch reports whether an empty if or elseif body is a commented
+// branch that keeps the rest of its chain from running (E7).
+func skipBranch(f *syntax.File, n syntax.Node, b *syntax.Block) bool {
+	var chain *syntax.If
+	switch n := n.(type) {
+	case *syntax.If:
+		chain = n
+	case *syntax.ElseIf:
+		chain, _ = n.Parent().(*syntax.If)
+	}
+	if chain == nil || !astquery.HasComment(f, b.Span()) {
+		return false
+	}
+	return chain.Else != nil || len(chain.ElseIfs) > 0 && syntax.Node(chain.ElseIfs[len(chain.ElseIfs)-1]) != n
 }
 
 // leavesLast reports whether an empty foreach is run for the last key or

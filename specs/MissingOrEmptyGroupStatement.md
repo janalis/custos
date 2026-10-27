@@ -58,6 +58,11 @@ to the `if`.
   mentioned after the loop in the same function (or file), or a
   variable-variable is.
 
+- E7: an empty `if` or `elseif` body that holds a comment and is followed
+  by another `elseif` or an `else` of the same chain is not reported by
+  D2: the commented branch is there to keep the rest of the chain from
+  running (`// Intentionally empty`).
+
 ## Report
 
 - Range: the construct's leading keyword token only — `if`, `elseif`, `else`,
@@ -170,6 +175,11 @@ In `views/page.blade.php` nothing is reported (E2).
   empty body. An empty `foreach` whose target is a property, or whose
   variable is used afterwards, exists to leave the last key or value
   behind (Symfony's VarDumper data cloner).
+
+- **Commented skip branches (custos diverges, E7).** Upstream reports
+  every empty body. A commented empty `if` before an `elseif`/`else` is a
+  deliberate case that stops the chain (Drupal's field group, Symfony's
+  translation bundle).
 
 - Alternative syntax (E4): upstream behavior depends on how the IDE models the
   colon-syntax body; it is not covered by upstream fixtures. custos never

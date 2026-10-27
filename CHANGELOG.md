@@ -121,6 +121,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MissingOrEmptyGroupStatement no longer reports a commented empty `if` or
+  `elseif` branch followed by another branch: it deliberately stops the
+  rest of the chain.
 - SuspiciousLoop's dead-parameter exemption also covers promoted
   constructor parameters, `foreach (func_get_args() as $x)`, and an inner
   loop reusing a name an outer loop already took from the parameter.
