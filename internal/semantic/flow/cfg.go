@@ -950,6 +950,9 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 		r.gap(reason, span)
 	}
 	r.complete = r.complete && g.complete && queued == 0
+	if !g.complete || queued != 0 || r.spent || len(g.labels) > 0 {
+		r.cut = 0
+	}
 	sort.Slice(r.calls, func(i, j int) bool { return r.calls[i].Node.Span().Start < r.calls[j].Node.Span().Start })
 	return r
 }

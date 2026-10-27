@@ -121,6 +121,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- An `include` or `eval` written after a check no longer throws away what
+  the flow analysis proved before it: StreamOpenFailureUnchecked and the
+  other rules asking whether a value can be false or null keep their facts
+  for code evaluated before it, outside any loop around it (php-src build
+  scripts).
 - ClassReImplementsParentInterface no longer leaves a double space when it
   removes the first interface of a list (`implements A, B` → `implements B`).
 - SuspiciousLoop no longer reports a loop variable reusing a parameter

@@ -724,6 +724,11 @@ type scopeResult struct {
 	returns   []Value
 	callIndex map[syntax.Node]int
 	complete  bool
+	// cut is where dynamic code (include, eval) first made the scope
+	// incomplete, when nothing else had before and the control flow is
+	// otherwise complete: what is known of an expression evaluated before
+	// it, outside any loop around it, still holds (see Excludes).
+	cut uint32
 	// stale lists the assignments tested in place in a short-circuit
 	// operand whose earlier result can reach the path that skips them.
 	stale map[*syntax.Assign]bool
@@ -838,7 +843,7 @@ func (e *Env) Excludes(x syntax.Expr, literal string) bool {
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
 	v := r.values[x]
-	if !r.complete {
+	if !r.complete && !beforeCut(r, x) {
 		return false
 	}
 	switch literal {
@@ -848,6 +853,23 @@ func (e *Env) Excludes(x syntax.Expr, literal string) bool {
 		return v.NonNull
 	}
 	return false
+}
+
+// beforeCut reports whether x is evaluated before the dynamic code that made
+// its scope incomplete, and outside any loop that also holds that code.
+func beforeCut(r *scopeResult, x syntax.Node) bool {
+	if r.cut == 0 || x.Span().End > r.cut {
+		return false
+	}
+	for p := x.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
+		switch p.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			if p.Span().End > r.cut {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // Labelled reports that a jump to a `goto` label can land between what a

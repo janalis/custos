@@ -734,6 +734,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		f.resetVars()
 		f.states = nil
 		v = Value{}
+		if r.complete {
+			r.cut = x.Span().Start
+		}
 		r.complete = false
 		r.gap("dynamic-code", x.Span())
 	default:

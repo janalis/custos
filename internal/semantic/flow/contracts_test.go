@@ -47,10 +47,26 @@ func TestRefinementRejectsUnprovedGuards(t *testing.T) {
 	if e.Excludes(argument(callsNamed(f, "probe")[0]), "null") {
 		t.Fatal("guard on a global across a suspension")
 	}
-	// A scope that is not followed to its end proves nothing.
-	e, f = environment(t, `function g($code){$x=unknown();if ($x===null){return;}probe($x);eval($code);}`, nil)
+	// Code evaluated before the check may have changed anything.
+	e, f = environment(t, `function g($code){$x=unknown();if ($x===null){return;}eval($code);probe($x);}`, nil)
 	if e.Excludes(argument(callsNamed(f, "probe")[0]), "null") || e.Excludes(nil, "null") {
 		t.Fatal("guard in a scope evaluating code")
+	}
+	// Code evaluated only after the check cannot reach back to it, unless a
+	// loop or a label brings it round again.
+	e, f = environment(t, `function g($code){$x=unknown();if ($x===null){return;}probe($x);eval($code);}`, nil)
+	if !e.Excludes(argument(callsNamed(f, "probe")[0]), "null") {
+		t.Fatal("guard before code evaluated later")
+	}
+	for _, src := range []string{
+		`function g($code){$x=unknown();if ($x===null){return;}while(more()){probe($x);eval($code);}}`,
+		`function g($code){a:$x=unknown();if ($x===null){return;}probe($x);eval($code);goto a;}`,
+		`function g($code){$x=unknown();if ($x===null){return;}eval($code);probe($x);include $code;}`,
+	} {
+		e, f = environment(t, src, nil)
+		if e.Excludes(argument(callsNamed(f, "probe")[0]), "null") {
+			t.Fatalf("guard reached again after evaluated code: %s", src)
+		}
 	}
 	e, f = environment(t, `$x=preg_replace('/x/','y','z');if ($x===null){return;}probe($x);`, nil)
 	x := argument(callsNamed(f, "probe")[0])
@@ -86,6 +102,10 @@ func TestRequestStateAndUnknownEffects(t *testing.T) {
 	e, f = environment(t, `switch($x){}probe(1);`, nil)
 	if _, ok := e.GlobalStateBefore(callsNamed(f, "probe")[0], "output"); ok {
 		t.Fatal("unsupported scope retained state")
+	}
+	e, f = environment(t, `function g($c){eval($c);probe(1);}`, nil)
+	if _, ok := e.GlobalStateBefore(callsNamed(f, "probe")[0], "output"); ok {
+		t.Fatal("state retained in a scope evaluating code")
 	}
 }
 
