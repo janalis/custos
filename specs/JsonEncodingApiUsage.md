@@ -119,6 +119,13 @@ own fix.
   - the argument of a type test: `is_array`, `is_string`, `is_object`,
     `is_null`, `is_bool`, `is_int`, `is_float`, `is_scalar`,
     `is_iterable` or `is_countable`;
+  - the value checked by a PHPUnit assertion PHPUnit itself declares
+    (found in its `Assert` or `TestCase` class) that fails on both
+    failure values: `assertIsArray`, `assertIsObject`, `assertIsString`,
+    `assertIsIterable`, `assertIsCountable` (first argument) or
+    `assertInstanceOf` (second argument), passed by position; also
+    `assertNotNull` for `json_decode` and `assertNotFalse` for
+    `json_encode`;
   - for `json_decode` (whose failure value is `null`), an argument of
     `isset()` or the left operand of `??`.
   - for `json_decode`, the base of an element or property read (through
@@ -326,7 +333,9 @@ class Exporter {
   `false === $json`), adding the flag turns that fallback into an
   exception the caller does not catch: the suggested fix changes
   behavior. custos does not report kind E there, nor when the next
-  statement checks `json_last_error()` (php-cs-fixer, nikic/php-parser).
+  statement checks `json_last_error()` (php-cs-fixer, nikic/php-parser),
+  nor when a PHPUnit assertion checks the result's type (EasyAdmin's
+  functional tests).
 
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `JSON_DECODE($s)` is not reported.

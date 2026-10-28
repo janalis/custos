@@ -650,6 +650,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   properties for reading only.
 - UnsetConstructsCanBeMerged no longer leaves a line of bare indentation
   when the merged `unset()` sat alone on its line below a line comment.
+- JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when a PHPUnit
+  assertion checks the result right away (`assertIsArray($data)`,
+  `assertNotNull()` after `json_decode()`, `assertNotFalse()` after
+  `json_encode()`), as it already did for `is_array()`.
 
 ## [0.1.7] - 2026-10-21
 

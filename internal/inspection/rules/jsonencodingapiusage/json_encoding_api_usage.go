@@ -6,6 +6,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
@@ -327,7 +328,7 @@ func jsonFailureHandled(ctx *analysis.Context, call *syntax.FuncCall, decode boo
 		return true
 	}
 	if assigned {
-		if jsonFailureTest(jsonOuter(a), decode) {
+		if jsonFailureTest(ctx, jsonOuter(a), decode) {
 			return true // `if ($data = json_decode(…))`
 		}
 		var read syntax.Expr
@@ -345,7 +346,7 @@ func jsonFailureHandled(ctx *analysis.Context, call *syntax.FuncCall, decode boo
 		}
 		x = jsonOuter(read)
 	}
-	return jsonFailureTest(x, decode)
+	return jsonFailureTest(ctx, x, decode)
 }
 
 // jsonOuter returns x with the parentheses and `@` operators around it.
@@ -464,9 +465,10 @@ func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
 // jsonFailureTest reports whether x is tested for a failed JSON call: the
 // condition of a ternary (`?:` included) or of an if, elseif or while,
 // negated with `!`, given to empty(), compared with false or null, given to
-// a type test (is_array() and the like), or, for json_decode (null on
-// failure), given to isset() or the left operand of `??`.
-func jsonFailureTest(x syntax.Expr, decode bool) bool {
+// a type test (is_array() and the like) or to a PHPUnit assertion that
+// rejects the failure value, or, for json_decode (null on failure), given
+// to isset() or the left operand of `??`.
+func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
 	if decode && jsonFetchedFallback(x) {
 		return true
 	}
@@ -502,14 +504,43 @@ func jsonFailureTest(x syntax.Expr, decode bool) bool {
 			return name == "false" || name == "null"
 		}
 	case *syntax.Arg:
-		f, ok := p.Parent().Parent().(*syntax.FuncCall)
-		if !ok {
-			return false
+		call := p.Parent().Parent()
+		if f, ok := call.(*syntax.FuncCall); ok {
+			if nm, ok := f.Name.(*syntax.Name); ok && jsonTypeChecks[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))] {
+				return true
+			}
 		}
-		nm, ok := f.Name.(*syntax.Name)
-		return ok && jsonTypeChecks[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))]
+		return jsonAsserted(ctx, call, p, decode)
 	}
 	return false
+}
+
+// jsonAssertions are PHPUnit's assertions that fail on the failure value
+// of both JSON functions (null, false), with the position of the checked
+// argument.
+var jsonAssertions = map[string]int{
+	"assertisarray": 0, "assertisobject": 0, "assertisstring": 0, "assertisiterable": 0,
+	"assertiscountable": 0, "assertinstanceof": 1,
+}
+
+// jsonAsserted reports whether arg is the value a PHPUnit assertion checks
+// and the assertion fails on the failure value: a type assertion,
+// assertNotNull for json_decode or assertNotFalse for json_encode.
+func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, decode bool) bool {
+	c, ok := phpunit.AsPuCall(call)
+	if !ok || arg.Name != nil || !phpunit.PuAssertion(ctx, call) {
+		return false
+	}
+	name := strings.ToLower(c.Ident.Value)
+	at, known := jsonAssertions[name]
+	switch {
+	case known:
+	case name == "assertnotnull" && decode, name == "assertnotfalse" && !decode:
+		at = 0
+	default:
+		return false
+	}
+	return at < len(c.Args.Args) && c.Args.Args[at] == syntax.Node(arg)
 }
 
 // jsonFetchedFallback reports an element or property read from a decoded
