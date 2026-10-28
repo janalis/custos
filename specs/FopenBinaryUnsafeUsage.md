@@ -69,8 +69,9 @@ All character tests are case-sensitive (`B`, `T` are ordinary characters).
 - **E8** K2/K3 when the filename is a string literal, or a concatenation
   whose leftmost operand is one, naming a stream other than a plain file:
   a `scheme://` prefix with a non-empty scheme other than `file`
-  (`php://memory`, `'php://fd/' . $fd`, a registered wrapper). The binary
-  flag only matters for files.
+  (`php://memory`, `'php://fd/' . $fd`, a registered wrapper), or a Unix
+  device path starting with `/dev/` (`/dev/null`). The binary flag only
+  matters for files.
 - **E9** K2/K3 when `L` is the default value of a parameter
   (`function open($f, $mode = 'r')`, or a property assigned from such a
   parameter): callers choose the mode, and rewriting the default would
@@ -169,8 +170,9 @@ function open_files($path)
 - **Streams and parameter defaults (custos diverges, E8, E9).** Upstream
   asks for `b` on `fopen('php://stdout', 'w')` and on modes that only come
   from a parameter's default. The flag changes nothing on PHP's own and
-  user-registered streams, and a default is not the mode callers pass:
-  custos reports neither (amphp, nyholm/psr7, monolog). A misplaced `b`
+  user-registered streams or on devices (`/dev/null` in Symfony Process),
+  and a default is not the mode callers pass: custos reports neither
+  (amphp, nyholm/psr7, monolog). A misplaced `b`
   (K1) is still reported in both cases.
 - When several `fopen()` calls share one resolved literal, upstream applies
   the rewrite once (later fixes find the literal already replaced). custos

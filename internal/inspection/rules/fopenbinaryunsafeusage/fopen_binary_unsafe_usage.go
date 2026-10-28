@@ -88,8 +88,8 @@ func fopenModeArgument(call *syntax.FuncCall) syntax.Expr {
 
 // streamWrapper reports whether fopen call names, by a literal or a
 // concatenation starting with one, a stream other than a plain file
-// (`php://memory`, `php://fd/3`, a registered wrapper): the binary flag only
-// matters for files.
+// (`php://memory`, `php://fd/3`, a registered wrapper) or a Unix device
+// (`/dev/null`): the binary flag only matters for files.
 func streamWrapper(call *syntax.FuncCall) bool {
 	e := syntax.UnwrapParens(semanticquery.CallArgument(call.Args, 0, "filename"))
 	for {
@@ -106,6 +106,9 @@ func streamWrapper(call *syntax.FuncCall) bool {
 	name, ok := syntax.LiteralStringValue(lit)
 	if !ok {
 		return false
+	}
+	if strings.HasPrefix(name, "/dev/") {
+		return true
 	}
 	scheme, _, found := strings.Cut(name, "://")
 	return found && scheme != "" && !strings.EqualFold(scheme, "file")

@@ -665,6 +665,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   parent or override holds a `return` with a value whose type is unknown or
   `null` (`return $this->markTestSkipped();`): a `void` method cannot hold
   that statement.
+- FopenBinaryUnsafeUsage no longer asks for the `b` flag when opening a
+  Unix device such as `/dev/null`.
 
 ## [0.1.7] - 2026-10-21
 

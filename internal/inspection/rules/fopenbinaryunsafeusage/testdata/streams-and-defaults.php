@@ -6,6 +6,9 @@ function streams(int $fd, $path)
     $mem = fopen(('php://memory'), 'r+');
     $dup = fopen('php://fd/' . $fd . '/x', 'r+');
     $zval = fopen("Wrapper-Name://", 'r+');
+    $null = fopen('/dev/null', 'c');
+    $tty = fopen('/dev/pts/' . $fd, 'w');
+    $devlike = fopen('/devices/' . $path, <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
     $file = fopen('file://' . $path, <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
     $rel = fopen('data/' . $path, <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
     $local = fopen('notes.txt', <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
