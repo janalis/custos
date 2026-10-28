@@ -43,10 +43,14 @@ class Queue
         for ($i = 0; $i < count($a); ++$i) { array_push($a, 1); }
         for ($i = 0; $i < count($a); ++$i) { if ($a[$i] === 0) { $a = []; } }
         for ($i = 0; $i < count(self::$all); ++$i) { self::$all[] = $i; }
+        for ($i = 0; $i < count($a); ++$i) { $this->push($a); }
+        for ($i = 0; $i < count($a); ++$i) { self::shift(rest: $a); }
     }
 
     private static array $all = [];
 
     private function remove(int $i): void { unset($this->items[$i]); }
+    private function push(array &$a): void { $a[] = 1; }
+    private static function shift(int $n = 0, array &...$rest): void { array_shift($rest[0]); }
     private function load(): array { return $this->items; }
 }

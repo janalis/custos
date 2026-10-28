@@ -441,6 +441,14 @@ func forSubjectChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCal
 			}
 		}
 		if list := callArgList(n); list != nil {
+			// A resolved method binds its arguments like a function: its
+			// by-reference parameters write them.
+			callee, resolved := semanticquery.Callee{}, fn != nil
+			if fn != nil {
+				callee = semanticquery.Callee{Params: fn.Params, Builtin: fn.Builtin}
+			} else if _, ok := n.(*syntax.FuncCall); !ok {
+				callee, resolved = semanticquery.ResolveCallee(ctx, n)
+			}
 			pos := 0
 			for _, a := range list.Args {
 				arg, ok := a.(*syntax.Arg)
@@ -449,14 +457,14 @@ func forSubjectChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCal
 				}
 				if part, exact := reach(arg.Value); part != nil {
 					switch {
-					case fn == nil, arg.Unpack:
+					case !resolved, arg.Unpack:
 						mark(forSubjectMayChange)
-					case forParamByRef(fn.Params, arg, pos):
+					case forParamByRef(callee.Params, arg, pos):
 						mark(forSubjectWritten)
-					case !fn.Builtin && exact && object(part):
+					case !callee.Builtin && exact && object(part):
 						mark(forSubjectMayChange)
 					}
-				} else if sibling(arg.Value) && (fn == nil || forParamByRef(fn.Params, arg, pos)) {
+				} else if sibling(arg.Value) && (!resolved || forParamByRef(callee.Params, arg, pos)) {
 					mark(forSubjectMayChange)
 				}
 				pos++

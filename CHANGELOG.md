@@ -633,6 +633,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   carries attributes other than `#[\Override]`: the override hides them
   from reflection on the child (a `#[Route]` on a base controller action),
   so removing it is not neutral.
+- SlowArrayOperationsInLoop no longer reports `for ($i = 0; $i < count($a);
+  …)` when the loop passes `$a` to a by-reference parameter of a resolved
+  method (`$this->swap($a, $i)`): the loop changes the length on purpose, as
+  it already did for functions.
 
 ## [0.1.7] - 2026-10-21
 

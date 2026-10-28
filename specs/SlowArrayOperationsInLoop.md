@@ -300,7 +300,8 @@ function collect(array $batches, $repo)
     (directly, as a `list()`/`[]` destructuring target at any depth, or as a
     `foreach` key/value), pushes to it, increments or unsets it, or passes
     it to a by-reference parameter (positional, named or variadic) of a
-    resolved function (`array_push()`, `array_pop()`, `sscanf()`). The loop
+    resolved function (`array_push()`, `array_pop()`, `sscanf()`) or
+    method (`$this->swap($items, $i)`). The loop
     measures a length it changes on purpose (`$i < count($this->n)` with
     `$this->n['x'.$i] = 1;`, `$i < count($n->children)` with
     `$n = $n->next;`).
