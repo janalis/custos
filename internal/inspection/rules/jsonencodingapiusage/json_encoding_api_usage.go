@@ -2,6 +2,7 @@ package jsonencodingapiusage
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
@@ -98,6 +99,9 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	subject, ok := jsonArg(call, subjectName, 0) // D3
 	if !ok {
+		return
+	}
+	if !decode && jsonEncodable(subject.Value, 0) { // E10
 		return
 	}
 	flags, hasFlags := jsonArg(call, "flags", flagsPos)
@@ -460,6 +464,36 @@ func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
 		return nil
 	}
 	return first
+}
+
+// jsonEncodable reports whether json_encode cannot fail on e: an integer,
+// a string literal of valid UTF-8, true, false, null, or an array literal
+// of those (keys included) nested less than 64 levels deep (E10).
+func jsonEncodable(e syntax.Expr, depth int) bool {
+	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.Literal:
+		if x.LitKind == syntax.LitInt {
+			return true
+		}
+		v, ok := syntax.LiteralStringValue(x)
+		return ok && utf8.ValidString(v)
+	case *syntax.Unary:
+		return x.Op.Kind == syntax.TMinus && jsonEncodable(x.Expr, depth)
+	case *syntax.ConstFetch:
+		name := strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`))
+		return name == "true" || name == "false" || name == "null"
+	case *syntax.Array:
+		if depth >= 64 {
+			return false
+		}
+		for _, it := range x.Items {
+			if it == nil || it.Unpack || it.ByRef || it.Key != nil && !jsonEncodable(it.Key, depth+1) || !jsonEncodable(it.Value, depth+1) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // jsonFailureTest reports whether x is tested for a failed JSON call: the

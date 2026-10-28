@@ -147,6 +147,13 @@ own fix.
   inside a closure). A plain assignment to a property (`$this->data =
   json_decode(…)`) counts like one to a variable: the first access to
   the same property after it in the function is the one tested.
+- **E10** (custos, see Divergences) Kind E for `json_encode` when the
+  value cannot fail to encode: an integer literal (optionally negated), a
+  string literal of valid UTF-8, `true`, `false`, `null`, or an array
+  literal of such keys and values, nested less than 64 levels deep, with
+  no unpacking, reference or empty slot (`json_encode(['id' => 1, 'tags'
+  => ['a']])`). Floats are not included: a literal such as `1e999` is
+  infinite, which json_encode cannot encode.
 
 ## Report
 
@@ -337,6 +344,11 @@ class Exporter {
   nor when a PHPUnit assertion checks the result's type (EasyAdmin's
   functional tests).
 
+- **Literal values (custos diverges, E10).** Upstream asks for
+  `JSON_THROW_ON_ERROR` on `json_encode(['a' => 'b'])` too. Encoding a
+  literal of integers, UTF-8 strings, booleans and null cannot fail, so the
+  flag only adds noise (Symfony and media-platform test payloads); custos
+  does not report it.
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `JSON_DECODE($s)` is not reported.
   custos matches any case; the fix keeps the name and qualifier as written.

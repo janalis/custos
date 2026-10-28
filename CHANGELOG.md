@@ -667,6 +667,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   that statement.
 - FopenBinaryUnsafeUsage no longer asks for the `b` flag when opening a
   device such as `/dev/null`, Windows `NUL` or a `\\.\` named pipe.
+- JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when
+  `json_encode()` encodes a literal of integers, UTF-8 strings, booleans
+  and null, which cannot fail.
 
 ## [0.1.7] - 2026-10-21
 
