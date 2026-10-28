@@ -166,3 +166,13 @@ class CallChild extends CallBase
 {
     public function <error descr="__construct does not call CallBase::__construct().">__construct</error>() {}
 }
+class ConstDefaultBase
+{
+    const SIZE = 1;
+    protected $size = self::SIZE;
+    public function __construct($size = self::SIZE) { $this->size = $size; }
+}
+class ConstDefaultChild extends ConstDefaultBase
+{
+    public function <error descr="__construct does not call ConstDefaultBase::__construct().">__construct</error>() {}
+}
