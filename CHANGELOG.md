@@ -654,6 +654,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   assertion checks the result right away (`assertIsArray($data)`,
   `assertNotNull()` after `json_decode()`, `assertNotFalse()` after
   `json_encode()`), as it already did for `is_array()`.
+- MagicMethodsValidity no longer asks a constructor to call a parent
+  constructor that, given no arguments, only stores parameter defaults that
+  the properties already hold (`$this->arguments = $arguments;` with `[]`
+  on both sides), as in Symfony's `ChildDefinition`.
 
 ## [0.1.7] - 2026-10-21
 

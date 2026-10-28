@@ -359,12 +359,71 @@ func idleByDefault(m *syntax.Method) bool {
 		defaults[p.Var.Name] = p.Default
 	}
 	for _, st := range m.Body.Stmts {
+		if es, ok := st.(*syntax.ExprStmt); ok && storesOwnDefault(m, es.Expr, defaults) {
+			continue
+		}
 		is, ok := st.(*syntax.If)
 		if !ok || len(is.ElseIfs) > 0 || is.Else != nil || !falseByDefault(is.Cond, defaults) {
 			return false
 		}
 	}
 	return true
+}
+
+// storesOwnDefault reports whether e stores a parameter into a property of
+// the method's class (`$this->args = $args;`) whose declared default the
+// parameter's default repeats: with defaults, the property keeps its value.
+func storesOwnDefault(m *syntax.Method, e syntax.Expr, defaults map[string]syntax.Expr) bool {
+	a, ok := e.(*syntax.Assign)
+	if !ok || a.Op.Kind != syntax.TEqual || a.ByRef {
+		return false
+	}
+	pf, ok := a.Var.(*syntax.PropertyFetch)
+	if !ok || pf.NullSafe {
+		return false
+	}
+	this, ok := pf.Var.(*syntax.Variable)
+	id, ok2 := pf.Name.(*syntax.Identifier)
+	v, ok3 := syntax.UnwrapParens(a.Value).(*syntax.Variable)
+	cl, ok4 := m.Parent().(*syntax.ClassLike)
+	if !ok || !ok2 || !ok3 || !ok4 || this.Name != "this" || v.NameExpr != nil || defaults[v.Name] == nil {
+		return false
+	}
+	for _, mem := range cl.Members {
+		prop, ok := mem.(*syntax.Property)
+		if !ok || prop.Modifiers.Has(syntax.TStatic) || len(prop.Hooks) > 0 {
+			continue
+		}
+		for _, it := range prop.Props {
+			if it.Var.Name != id.Value {
+				continue
+			}
+			if it.Default == nil {
+				return prop.Type == nil && nullDefault(defaults[v.Name])
+			}
+			return sameLiteral(it.Default, defaults[v.Name])
+		}
+	}
+	return false
+}
+
+// sameLiteral reports whether a and b are the same constant value written
+// as a literal: an empty array, a scalar literal of the same text, or
+// null, true or false.
+func sameLiteral(a, b syntax.Expr) bool {
+	switch x := syntax.UnwrapParens(a).(type) {
+	case *syntax.Array:
+		y, ok := syntax.UnwrapParens(b).(*syntax.Array)
+		return ok && len(x.Items) == 0 && len(y.Items) == 0
+	case *syntax.Literal:
+		y, ok := syntax.UnwrapParens(b).(*syntax.Literal)
+		return ok && x.Raw == y.Raw
+	case *syntax.ConstFetch:
+		y, ok := syntax.UnwrapParens(b).(*syntax.ConstFetch)
+		name := strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`))
+		return ok && (name == "null" || name == "true" || name == "false") && strings.EqualFold(strings.TrimPrefix(y.Name.Value, `\`), name)
+	}
+	return false
 }
 
 // falseByDefault reports whether cond is false when each parameter holds

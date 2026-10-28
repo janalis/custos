@@ -389,7 +389,13 @@ interface Printable { public function __toString(); }
   false for the defaults: `$p`, `!empty($p)` on a falsy default (`null`,
   `false`, `0`, `''`, `'0'`, `[]`), `isset($p)` or `$p !== null` on a
   `null` default (`if ($options) { $this->setOptions($options); }` with
-  `$options = []`, laminas-code's generators).
+  `$options = []`, laminas-code's generators). A statement storing a
+  parameter in a non-static property of the class (`$this->args =
+  $args;`) is allowed there too when the parameter's default is the
+  property's declared default, written as the same literal (`[]`, `null`,
+  `false`, a number or a string), or `null` for an untyped property
+  declared without one: the property keeps its value (Symfony's
+  `Definition`, which `ChildDefinition` does not call).
 - **Decorators of the parent (custos diverges).** C-parent does not report
   a method that takes a parameter typed `parent` or the parent class
   (nullable included): `__construct(private parent $event)` wraps an
