@@ -56,6 +56,10 @@ Building-block checks:
   its own properties (`unset($this->service)`, anywhere in its body): the
   magic method then initializes that property lazily on first access,
   which needs no `__set`.
+  Nor `__set` for `__get` or `__isset` when the class (with its
+  ancestors and traits) declares both `__get` and `__isset` but no
+  `__unset`: a read-only view whose virtual properties are not meant to be
+  written.
 - **C-parent** "should call parent": all of:
   - the method has no `#[\Override]` attribute (written `#[Override]` in the
     global namespace, `#[\Override]`, or imported alias resolving to
@@ -315,6 +319,11 @@ interface Printable { public function __toString(); }
   own property so that the first read reaches `__get`, which then assigns
   it (Symfony's `LazyClosure`), has no use for `__set`. custos does not ask
   for the companion there.
+- **Read-only views (custos diverges, C-pair).** Upstream asks for `__set`
+  whenever `__get` or `__isset` exists. A class answering reads with both
+  and declaring no `__unset` is a read-only view (Symfony's VarDumper
+  `Data`); adding `__set` would make it writable. custos does not ask for
+  it there.
 - Case-insensitive names (custos diverges from upstream). Upstream
   dispatches on the exact spelling, so a real magic method written
   `__ToString` or `__Get` is reported as a non-magic `__` method (and its

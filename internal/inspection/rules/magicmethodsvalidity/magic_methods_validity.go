@@ -340,7 +340,7 @@ func (c *magicCheck) noReturn() {
 }
 
 func (c *magicCheck) pair(companion string) {
-	if c.declares(strings.ToLower(companion)) || c.unsetsOwnProperty() {
+	if c.declares(strings.ToLower(companion)) || c.unsetsOwnProperty() || c.readOnly(companion) {
 		return
 	}
 	// custos: the class using a trait, or an unindexed ancestor, may
@@ -354,6 +354,13 @@ func (c *magicCheck) pair(companion string) {
 		}
 	}
 	c.report(c.name + " needs a companion " + companion + " method.")
+}
+
+// readOnly reports whether the class is a read-only view asked for __set:
+// it answers reads with __get and __isset and declares no __unset, so
+// virtual properties are meant to be read only.
+func (c *magicCheck) readOnly(companion string) bool {
+	return strings.EqualFold(companion, "__set") && c.declaredAbove("__get", true) && c.declaredAbove("__isset", true) && !c.declaredAbove("__unset", true)
 }
 
 // unsetsOwnProperty reports whether the class unsets one of its properties

@@ -645,6 +645,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   type with `true` or `false` (`$settings->get('enabled') == TRUE` when the
   API is not indexed): it tests the value for truth, and `===` would change
   the result for `1` or `'1'`.
+- MagicMethodsValidity no longer asks a read-only class for `__set`: a class
+  that declares `__get` and `__isset` but no `__unset` exposes virtual
+  properties for reading only.
 
 ## [0.1.7] - 2026-10-21
 
