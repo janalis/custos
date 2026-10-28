@@ -58,7 +58,7 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 		if fe, ok := n.(*syntax.Foreach); ok && (iterates(ctx, fe.Expr) || leavesLast(ctx.File, fe)) { // E5, E6
 			return
 		}
-		if len(b.Stmts) == 0 && ctx.Bool("REPORT_EMPTY_BODY") && !skipBranch(ctx.File, n, b) { // D2, E7
+		if len(b.Stmts) == 0 && ctx.Bool("REPORT_EMPTY_BODY") && !skipBranch(ctx.File, n, b) && !conditionActs(n) { // D2, E7, E8
 			ctx.Report(kwSpan, "This construct has an empty body block.")
 		}
 		return // E4: alternative syntax never gets D1
@@ -149,6 +149,32 @@ func iterates(ctx *analysis.Context, e syntax.Expr) bool {
 }
 
 // skipBranch reports whether an empty if or elseif body is a commented
+// conditionActs reports whether n is a while or do-while loop whose
+// condition calls, assigns or increments: the loop repeats it until it is
+// false (`while (@ob_end_clean()) {}`), so the body has nothing to do (E8).
+func conditionActs(n syntax.Node) bool {
+	var cond syntax.Expr
+	switch l := n.(type) {
+	case *syntax.While:
+		cond = l.Cond
+	case *syntax.DoWhile:
+		cond = l.Cond
+	default:
+		return false
+	}
+	acts := false
+	syntax.Inspect(cond, func(x syntax.Node) bool {
+		switch x.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction:
+			return false
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.Assign, *syntax.IncDec:
+			acts = true
+		}
+		return !acts
+	})
+	return acts
+}
+
 // branch that keeps the rest of its chain from running (E7).
 func skipBranch(f *syntax.File, n syntax.Node, b *syntax.Block) bool {
 	var chain *syntax.If

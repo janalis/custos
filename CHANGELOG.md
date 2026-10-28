@@ -673,6 +673,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - NotOptimalRegularExpressions no longer suggests `\w` for `[A-Za-z0-9_]`
   (or `\W` for its negation): without `/u`, `\w` follows the current locale
   and may also match accented letters.
+- MissingOrEmptyGroupStatement no longer reports the empty body of a
+  `while` or `do … while` loop whose condition calls, assigns or increments
+  (`while (@ob_end_clean()) {}`).
 
 ## [0.1.7] - 2026-10-21
 

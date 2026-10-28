@@ -63,6 +63,12 @@ to the `if`.
   D2: the commented branch is there to keep the rest of the chain from
   running (`// Intentionally empty`).
 
+- E8: a `while` or `do … while` loop whose condition calls a function or
+  method, creates an object, assigns or increments (closures in it aside)
+  is not reported by D2: the loop repeats the condition for its effect
+  until it is false (`while (@ob_end_clean()) {}` closes every output
+  buffer), so the body has nothing to do. `for` loops are still reported.
+
 ## Report
 
 - Range: the construct's leading keyword token only — `if`, `elseif`, `else`,
@@ -157,7 +163,7 @@ With `REPORT_EMPTY_BODY` = true (default):
 <weak_warning descr="This construct has an empty body block.">foreach</weak_warning> ($queue as $job) {
     // nothing yet
 }
-<weak_warning descr="This construct has an empty body block.">while</weak_warning> (poll()) {}
+<weak_warning descr="This construct has an empty body block.">while</weak_warning> ($polling) {}
 if ($ready) { start(); } <weak_warning descr="This construct has an empty body block.">else</weak_warning> { }
 if ($ready) { ; }            // not empty: contains an empty statement
 ```
@@ -170,6 +176,12 @@ In `views/page.blade.php` nothing is reported (E2).
   empty body. An empty `foreach` over an iterator is how a test drains a
   response stream that must fail (Symfony's HTTP client test case), so
   custos does not report it when the subject is known to be one.
+
+- **Loops run for their condition (custos diverges, E8).** Upstream
+  reports `while (@ob_end_clean()) {}`. The condition does the work and
+  the empty body is the idiom (php-src's test runner), so custos does not
+  report a `while` or `do … while` whose condition calls, assigns or
+  increments.
 
 - **Last-entry loops (custos diverges, E6).** Upstream reports every
   empty body. An empty `foreach` whose target is a property, or whose
