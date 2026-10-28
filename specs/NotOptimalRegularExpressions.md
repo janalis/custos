@@ -165,8 +165,7 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
 ### Body checks (run whenever D4 succeeded)
 
 - **D14** Short class spellings. `body` non-empty. Let `B'` = the decoded
-  pattern (D4) with all occurrences of `a-zA-Z` replaced by `A-Za-z`, then
-  all `0-9A-Za-z` by `A-Za-z0-9`. For **each** key below that `B'` contains
+  pattern (D4). For **each** key below that `B'` contains
   at a position not preceded by an odd number of backslashes (`\[0-9]` is
   the text `[0-9]`, not a class), one report on `L` (info), naming the key
   and its shorthand:
@@ -175,15 +174,16 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   |---|---|
   | `[0-9]`, `[:digit:]` | `\d` |
   | `[^0-9]`, `[^\d]` | `\D` |
-  | `[:word:]`, `[A-Za-z0-9_]` | `\w` |
-  | `[^\w]`, `[^A-Za-z0-9_]` | `\W` |
+  | `[:word:]` | `\w` |
+  | `[^\w]` | `\W` |
   | `[^\s]` | `\S` |
 
   The message carries a hint: "same result" for the negated shorthands
   `[^\d]`, `[^\w]` and `[^\s]`, which mean the same in every mode, and
   "same result without /u" for the others, which are not reported when
   `mods` contains `u` (E8). (`[0-9,]` matches no key; `[[:digit:]]`
-  matches `[:digit:]`.)
+  matches `[:digit:]`.) Letter classes such as `[A-Za-z0-9_]` are not keys
+  (see Divergences).
 - **D15** Repeated identical classes. The decoded pattern (D4) contains
   `[`. Find the first (leftmost) run, not starting at a `[` preceded by an
   odd number of backslashes (`x\[ab][ab]` has none), of the shape: `[X]`
@@ -486,8 +486,8 @@ function bodyDemo($s, $m) {
     preg_match(<weak_warning descr="Write '[0-9]' as '\d' (same result without /u).">'/v[0-9]/'</weak_warning>, $s, $m);
     preg_match(<weak_warning descr="Write '[:digit:]' as '\d' (same result without /u).">'/[[:digit:]]+/'</weak_warning>, $s, $m);
     preg_match(<weak_warning descr="Write '[^\d]' as '\D' (same result).">'/[^\d]+/u'</weak_warning>, $s, $m);
-    preg_match(<weak_warning descr="Write '[A-Za-z0-9_]' as '\w' (same result without /u).">'/[a-zA-Z0-9_]+/'</weak_warning>, $s, $m);
-    preg_match(<weak_warning descr="Write '[^A-Za-z0-9_]' as '\W' (same result without /u).">'/[^0-9A-Za-z_]/'</weak_warning>, $s, $m);
+    preg_match('/[a-zA-Z0-9_]+/', $s, $m);
+    preg_match('/[^0-9A-Za-z_]/', $s, $m);
     preg_match(<weak_warning descr="Write '[^\s]' as '\S' (same result).">'/[^\s]+/'</weak_warning>, $s, $m);
     preg_match(<weak_warning descr="Write '[^\w]' as '\W' (same result).">'/[^\w]/'</weak_warning>, $s, $m);
     preg_match(<weak_warning descr="Write '[:word:]' as '\w' (same result without /u).">'/[[:word:]]/'</weak_warning>, $s, $m);
@@ -663,6 +663,12 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   `[0-9]` (and the like) whatever the modifiers. With `/u`, PCRE matches
   Unicode digits and letters with the shorthands, so the suggestion
   changes what the pattern accepts; custos does not make it there.
+- **Letter classes (custos diverges, D14).** Upstream suggests `\w` for
+  `[A-Za-z0-9_]` and `\W` for its negation. Without `/u`, PHP builds the
+  meaning of `\w` from the current locale, where it may also match
+  accented letters (`é` under `fr_FR`), so the shorthand does not match
+  the same text; custos does not suggest it (Symfony's DependencyInjection
+  loader).
 
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (no candidate, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **D21 range.** The upstream fixture highlights only the function name of

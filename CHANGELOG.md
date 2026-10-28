@@ -670,6 +670,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when
   `json_encode()` encodes a literal of integers, UTF-8 strings, booleans
   and null, which cannot fail.
+- NotOptimalRegularExpressions no longer suggests `\w` for `[A-Za-z0-9_]`
+  (or `\W` for its negation): without `/u`, `\w` follows the current locale
+  and may also match accented letters.
 
 ## [0.1.7] - 2026-10-21
 

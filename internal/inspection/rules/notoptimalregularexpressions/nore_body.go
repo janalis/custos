@@ -14,9 +14,7 @@ var noreShortClasses = [][2]string{
 	{`[^0-9]`, `\D`},
 	{`[^\d]`, `\D`},
 	{`[:word:]`, `\w`},
-	{`[A-Za-z0-9_]`, `\w`},
 	{`[^\w]`, `\W`},
-	{`[^A-Za-z0-9_]`, `\W`},
 	{`[^\s]`, `\S`},
 }
 
@@ -27,21 +25,14 @@ var (
 	noreTagDot      = regexp.MustCompile(`>\.[*+]\??<`)
 )
 
-// noreNormalize returns B' (D14): class ranges spelled in canonical order.
-func noreNormalize(body string) string {
-	b := strings.ReplaceAll(body, "a-zA-Z", "A-Za-z")
-	return strings.ReplaceAll(b, "0-9A-Za-z", "A-Za-z0-9")
-}
-
 func (c *noreCase) checkBody() {
 	body, mods := c.body, c.mods
 	pat := c.decoded // D14 and D15 read the classes PCRE sees: `\[0-9]` is text
 	has := func(m byte) bool { return strings.IndexByte(mods, m) >= 0 }
 
 	if body != "" { // D14
-		norm := noreNormalize(pat)
 		for _, kv := range noreShortClasses {
-			if !noreHasUnescaped(norm, kv[0]) {
+			if !noreHasUnescaped(pat, kv[0]) {
 				continue
 			}
 			h := "same result without /u"

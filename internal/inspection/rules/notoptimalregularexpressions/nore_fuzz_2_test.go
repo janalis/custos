@@ -27,7 +27,6 @@ func FuzzNorePattern(f *testing.F) {
 		if len(body) <= noreNestedMaxLen {
 			noreNestedQuantifiers(body)
 		}
-		_ = noreNormalize(body)
 		_ = noreUnescapeText(body)
 	})
 }
