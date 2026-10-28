@@ -677,8 +677,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   `while` or `do … while` loop whose condition calls, assigns or increments
   (`while (@ob_end_clean()) {}`).
 - JsonEncodingApiUsage also counts `assertArrayHasKey()`, `assertCount()`,
-  `assertContains()`, `assertNotEmpty()` and their negations as handling a
-  failed decode or encode, like `assertIsArray()`.
+  `assertContains()`, their negations and `assertNotEmpty()` as handling
+  a failed decode or encode, like `assertIsArray()`.
+- CallableParameterUseCaseInTypeContext and UnnecessaryCasting narrow the
+  declared type of `$this->prop` by the guards on the path, so
+  `if (is_string($this->p)) { $param = $this->p; }` no longer reports
+  assigning the property's other types.
 
 ## [0.1.7] - 2026-10-21
 

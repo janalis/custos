@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -160,7 +161,15 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 			if id, ok := n.Name.(*syntax.Identifier); ok {
 				if cls := e.selfClass(syntax.EnclosingClass(n)); cls != "" {
 					if p := e.Index.FindProperty(cls, id.Value, e.PHP); p != nil && p.Type != "" {
-						return r.bindMember(types.FromDoc(p.Type, nil), p.Class, p.TypeClass, cls)
+						declared := r.bindMember(types.FromDoc(p.Type, nil), p.Class, p.TypeClass, cls)
+						// A guard on the path (`is_string($this->p)`) only
+						// removes members of the declared type.
+						if key := narrowKey(n); key != "" {
+							if t := e.narrowExprAfter(declared, n, key, syntax.EnclosingVariableScope(n), 0); narrows(t, declared) {
+								return t
+							}
+						}
+						return declared
 					}
 				}
 			}
@@ -220,6 +229,21 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 		return r.variable(n)
 	}
 	return e.TypeOf(x)
+}
+
+// narrows reports whether t is known and every atom of it is an atom of
+// declared, with fewer atoms.
+func narrows(t, declared types.Type) bool {
+	ta, da := t.Atoms(), declared.Atoms()
+	if t.IsUnknown() || len(ta) >= len(da) {
+		return false
+	}
+	for _, a := range ta {
+		if !slices.Contains(da, a) {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *TRules) bindMember(t types.Type, declaration, effective, receiver string) types.Type {

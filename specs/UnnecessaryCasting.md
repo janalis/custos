@@ -164,8 +164,9 @@ and method bodies included) a `global` statement names it, or an element of
   `{string, array}`; except `$_SERVER['<literal>']`: `argv` → array; `argc`,
   `REQUEST_TIME` → int; `REQUEST_TIME_FLOAT` → float; any other literal key
   (`REMOTE_PORT`, `SERVER_PORT` included, see Divergences) → string.
-- `$this->p` property fetch: declared type of the property, if any; otherwise
-  default rules.
+- `$this->p` property fetch: declared type of the property, if any,
+  narrowed by the guards on the path like a variable (custos diverges, see
+  Divergences); otherwise default rules.
 - Function/method call: union of the callee's declared return type and its
   `@return` docblock types (stubs for built-ins); unresolved → empty. For plain
   (non-method) functions, these overrides replace the result (R-functions):
@@ -383,8 +384,10 @@ After fix (changed lines):
   `false` in the left part of `?:`. So `if (null !== $next) { $doc = $next; }`
   types `$next` as nullable, and `preg_split(…) ?: []` as `bool|array`
   (false positives in CallableParameterUseCaseInTypeContext, which shares
-  the T-rules). custos narrows variable types by the guards on the path and
-  drops `false` (with `null`) from the left part of `?:`.
+  the T-rules). custos narrows variable types, and the declared type of
+  `$this->p`, by the guards on the path (`if (is_string($this->p)) { $s =
+  $this->p; }` assigns a string; Symfony's AsciiSlugger) and drops `false`
+  (with `null`) from the left part of `?:`.
 - **`preg_*` replacement results may be null (custos diverges):** upstream
   types `preg_replace`, `preg_replace_callback`, `preg_filter` and
   `preg_replace_callback_array` as `string`/`array` only, so the common

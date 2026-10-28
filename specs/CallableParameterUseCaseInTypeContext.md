@@ -308,9 +308,10 @@ function untyped($flag = null) {
   checks a parameter still holding the value it was given.
 
 - **Flow-aware variables and `?:` (custos diverges):** inherited from the
-  shared T-rules (see UnnecessaryCasting): variable types are narrowed by
-  the guards on the path (`if (null !== $next) { $p = $next; }` assigns a
-  non-null value), and the left part of `?:` never contributes `false`
+  shared T-rules (see UnnecessaryCasting): variable types, and the declared
+  type of `$this->p`, are narrowed by the guards on the path (`if (null !==
+  $next) { $p = $next; }` assigns a non-null value, `if
+  (is_string($this->emoji)) { $p = $this->emoji; }` a string), and the left part of `?:` never contributes `false`
   (`$p = preg_split(…) ?: [];` assigns an array).
 - **`preg_*` replacement results may be null (custos diverges):** inherited
   from the shared T-rules (see UnnecessaryCasting): `preg_replace`,
