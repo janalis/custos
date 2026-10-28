@@ -112,8 +112,20 @@ func (unsetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 				text = "unset(\n" + indent + unit + strings.Join(groups, ",\n"+indent+unit) + "\n" + indent + ");"
 			}
 			edits := []diagnostic.TextEdit{{Span: first.Span(), NewText: text}}
+			lined := false
 			for _, st := range merged {
-				edits = append(edits, diagnostic.TextEdit{Span: astquery.WithLeadingWhitespace(f, st.Span())})
+				sp := astquery.WithLeadingWhitespace(f, st.Span())
+				// After a line comment the line break before the statement
+				// stays: its indentation goes, and the break after the run.
+				if ls := astquery.LineStart(f.Src, sp.Start); sp.Start == st.Span().Start && ls < sp.Start && len(bytes.TrimSpace(f.Src[ls:sp.Start])) == 0 {
+					sp.Start, lined = ls, true
+				}
+				edits = append(edits, diagnostic.TextEdit{Span: sp})
+			}
+			if ws, ok := astquery.TokenAfter(f, last); lined && ok && ws.Kind == syntax.TWhitespace {
+				if nl := bytes.IndexByte(f.Src[ws.Start:ws.End], '\n'); nl >= 0 {
+					edits[len(edits)-1].Span.End = ws.Start + uint32(nl) + 1
+				}
 			}
 			return edits
 		},

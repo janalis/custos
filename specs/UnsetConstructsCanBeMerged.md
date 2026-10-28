@@ -49,7 +49,9 @@ Visit every `unset(...)` statement.
   joined by `, `. Then delete the current statement (the `;` included).
   Comments that sat between the two statements stay where they were (now after
   the merged statement); whitespace around the deleted statement may remain
-  (comparison is whitespace-normalized).
+  (comparison is whitespace-normalized). (custos) A deleted statement alone
+  on its line after a line comment takes its whole line with it, so no
+  line of bare indentation is left below the comment.
 - **F1a** When the merged statements were written on several lines and the
   single merged line, with its indentation, would be longer than 120
   characters, the merged statement keeps one line per original statement

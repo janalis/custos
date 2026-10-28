@@ -648,6 +648,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - MagicMethodsValidity no longer asks a read-only class for `__set`: a class
   that declares `__get` and `__isset` but no `__unset` exposes virtual
   properties for reading only.
+- UnsetConstructsCanBeMerged no longer leaves a line of bare indentation
+  when the merged `unset()` sat alone on its line below a line comment.
 
 ## [0.1.7] - 2026-10-21
 
