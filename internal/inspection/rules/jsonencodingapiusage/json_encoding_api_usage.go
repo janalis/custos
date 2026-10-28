@@ -551,10 +551,13 @@ func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
 
 // jsonAssertions are PHPUnit's assertions that fail on the failure value
 // of both JSON functions (null, false), with the position of the checked
-// argument.
+// argument: type checks, assertNotEmpty, and the assertions that need an
+// array, a countable or an iterable.
 var jsonAssertions = map[string]int{
 	"assertisarray": 0, "assertisobject": 0, "assertisstring": 0, "assertisiterable": 0,
-	"assertiscountable": 0, "assertinstanceof": 1,
+	"assertiscountable": 0, "assertinstanceof": 1, "assertnotempty": 0,
+	"assertarrayhaskey": 1, "assertarraynothaskey": 1, "assertcount": 1, "assertnotcount": 1,
+	"assertcontains": 1, "assertnotcontains": 1,
 }
 
 // jsonAsserted reports whether arg is the value a PHPUnit assertion checks

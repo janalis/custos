@@ -676,6 +676,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - MissingOrEmptyGroupStatement no longer reports the empty body of a
   `while` or `do … while` loop whose condition calls, assigns or increments
   (`while (@ob_end_clean()) {}`).
+- JsonEncodingApiUsage also counts `assertArrayHasKey()`, `assertCount()`,
+  `assertContains()`, `assertNotEmpty()` and their negations as handling a
+  failed decode or encode, like `assertIsArray()`.
 
 ## [0.1.7] - 2026-10-21
 

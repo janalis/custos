@@ -7,6 +7,10 @@ namespace PHPUnit\Framework {
         public static function assertNotNull(mixed $actual, string $message = ""): void {}
         public static function assertNotFalse(mixed $actual, string $message = ""): void {}
         public static function assertSame(mixed $expected, mixed $actual, string $message = ""): void {}
+        public static function assertArrayHasKey(mixed $key, array $array, string $message = ""): void {}
+        public static function assertCount(int $expectedCount, iterable $haystack, string $message = ""): void {}
+        public static function assertNotEmpty(mixed $actual, string $message = ""): void {}
+        public static function assertEmpty(mixed $actual, string $message = ""): void {}
     }
     abstract class TestCase extends Assert {}
 }
@@ -26,6 +30,12 @@ namespace App\Tests {
             self::assertNotNull($raw);
             $json = json_encode($q);
             $this->assertNotFalse($json);
+            $page = json_decode($body, true);
+            $this->assertArrayHasKey('results', $page);
+            $list = json_decode($body, true);
+            self::assertCount(2, $list);
+            $text = json_encode($q);
+            $this->assertNotEmpty($text);
         }
 
         public function testUnchecked(string $body, array $q): void
@@ -42,6 +52,10 @@ namespace App\Tests {
             $this->assertIsArray(actual: $named);
             $own = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>;
             assertIsArray($own);
+            $none = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>;
+            $this->assertEmpty($none);
+            $key = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>;
+            $this->assertArrayHasKey($key, []);
         }
     }
 }

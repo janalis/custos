@@ -122,8 +122,11 @@ own fix.
   - the value checked by a PHPUnit assertion PHPUnit itself declares
     (found in its `Assert` or `TestCase` class) that fails on both
     failure values: `assertIsArray`, `assertIsObject`, `assertIsString`,
-    `assertIsIterable`, `assertIsCountable` (first argument) or
-    `assertInstanceOf` (second argument), passed by position; also
+    `assertIsIterable`, `assertIsCountable`, `assertNotEmpty` (first
+    argument), `assertInstanceOf`, `assertArrayHasKey`,
+    `assertArrayNotHasKey`, `assertCount`, `assertNotCount`,
+    `assertContains` or `assertNotContains` (second argument: the array,
+    countable or iterable they need), passed by position; also
     `assertNotNull` for `json_decode` and `assertNotFalse` for
     `json_encode`;
   - for `json_decode` (whose failure value is `null`), an argument of
