@@ -637,6 +637,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   …)` when the loop passes `$a` to a by-reference parameter of a resolved
   method (`$this->swap($a, $i)`): the loop changes the length on purpose, as
   it already did for functions.
+- PhpUnitTests no longer suggests `assertStringEqualsFile()` or
+  `assertFileEquals()` for `file_get_contents()` of a `data:` URI, a
+  `php://` stream or a URL: those assertions first check that the file
+  exists, so the quick-fix made a passing test fail.
 
 ## [0.1.7] - 2026-10-21
 

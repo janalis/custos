@@ -74,4 +74,16 @@ class SafetyTest
         $this->assertTrue(empty($s[7]));
         $this->assertTrue(empty($this->late));
     }
+
+    private const GIF = 'data:image/gif;base64,R0lGODdhAQABAIAAAP8=';
+
+    public function testStreams(string $s)
+    {
+        $this->assertSame(file_get_contents(self::GIF), $s);
+        $this->assertSame(file_get_contents('PHP://memory'), $s);
+        $this->assertSame(file_get_contents('php://memory'), file_get_contents('/tmp/x'));
+        $this->assertStringEqualsFile('file:///tmp/x', $s);
+        $this->assertStringEqualsFile('vfs://root/a', $s);
+        $this->assertSame(file_get_contents('https://example.com/a'), $s);
+    }
 }

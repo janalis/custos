@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/phpunit"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
@@ -716,10 +717,27 @@ func putEnclosingFuncName(n syntax.Node) string {
 
 func putFileContentsArg(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 	inner, ok := putFunc(ctx, e, "file_get_contents")
-	if !ok || len(inner) != 1 {
+	if !ok || len(inner) != 1 || putStream(ctx, inner[0]) {
 		return nil
 	}
 	return inner[0]
+}
+
+// putStream reports whether path is known to name a stream that cannot be
+// stat'ed (`data:…`, `php://memory`, a URL): the file assertions first check
+// that the file exists. Wrappers such as `vfs://` answer that check.
+func putStream(ctx *analysis.Context, path syntax.Expr) bool {
+	s, ok := semanticquery.NativeString(ctx, path)
+	if !ok {
+		return false
+	}
+	s = strings.ToLower(s)
+	for _, p := range []string{"data:", "php://", "http://", "https://"} {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // D28a

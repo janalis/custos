@@ -335,7 +335,9 @@ integer/float literal, optionally with a unary minus.
   function/method/closure is **not** named `assertFileEquals` (any case). Let
   `E0`/`E1` be the single argument of `args[0]`/`args[1]` when that argument
   is a function call `file_get_contents` with exactly one argument (else
-  none).
+  none). (custos) An argument known to be a string naming a stream that
+  cannot be checked for existence (starting with `data:`, `php://`,
+  `http://` or `https://`, any case) does not count, here and in D28b.
   - `M` = `assertStringEqualsFile` and `E1` exists → suggest
     `assertFileEquals` with expected `args[0]` (text as is) and actual `E1`;
   - otherwise, `E0` and `E1` both exist → suggest `assertFileEquals` with
@@ -782,6 +784,12 @@ class ArchiveTest
 
 ## Divergences
 
+- **Streams are not files (custos diverges, D28a, D28b).** Upstream
+  suggests the file assertions for any `file_get_contents()` argument. They
+  first assert that the file exists, which fails for a `data:` URI or a
+  `php://` stream or a URL, so the fix broke a passing test (Symfony's
+  data URI normalizer tests). custos skips paths known to name such a
+  stream; wrappers that answer the check (`vfs://`) keep the suggestion.
 - **Fixes that changed what a test checks (custos diverges).** Upstream
   attaches a rewrite to every Part B report. Several of them are not
   equivalent, and custos keeps the report but withholds the fix:
