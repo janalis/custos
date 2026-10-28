@@ -658,6 +658,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   constructor that, given no arguments, only stores parameter defaults that
   the properties already hold (`$this->arguments = $arguments;` with `[]`
   on both sides), as in Symfony's `ChildDefinition`.
+- OnlyWritesOnParameter no longer reports an array that holds objects in a
+  function keying objects by `spl_object_id()` or `spl_object_hash()`: it
+  keeps their ids from being reused while the function runs.
 
 ## [0.1.7] - 2026-10-21
 

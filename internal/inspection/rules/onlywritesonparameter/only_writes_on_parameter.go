@@ -551,16 +551,31 @@ func (s *owpScope) elementWritesMayReachObject(targets []syntax.Node) bool {
 
 // keepsAlive reports whether every write target of a local stores, as an
 // element (`$buffers[] = $buf`), an object PHP frees with side effects: an
-// FFI\CData, whose memory pointers made from it still use, or an object of
-// a class with __destruct(). Holding them is the point (custos, D4e).
+// FFI\CData, whose memory pointers made from it still use, an object of a
+// class with __destruct(), or any object when the scope keys objects by
+// spl_object_id()/spl_object_hash(), which a freed object hands to the next
+// one. Holding them is the point (custos, D4e).
 func (s *owpScope) keepsAlive(targets []syntax.Node) bool {
+	identity := -1
 	for _, t := range targets {
 		a, ok := t.Parent().(*syntax.Assign)
 		if _, dim := t.(*syntax.ArrayDimFetch); !dim || !ok || syntax.Node(a.Var) != t {
 			return false
 		}
+		ty := s.ctx.TypeOf(a.Value)
+		if ty.Has("object") || len(ty.Classes()) > 0 {
+			if identity < 0 {
+				identity = 0
+				if s.keysObjects() {
+					identity = 1
+				}
+			}
+			if identity == 1 {
+				continue
+			}
+		}
 		live := false
-		for _, cls := range s.ctx.TypeOf(a.Value).Classes() {
+		for _, cls := range ty.Classes() {
 			cls = strings.TrimPrefix(cls, `\`)
 			if strings.EqualFold(cls, `FFI\CData`) || s.ctx.Index().FindMethod(cls, "__destruct", s.ctx.PHP) != nil {
 				live = true
@@ -571,6 +586,23 @@ func (s *owpScope) keepsAlive(targets []syntax.Node) bool {
 		}
 	}
 	return true
+}
+
+// keysObjects reports whether the scope body calls spl_object_id() or
+// spl_object_hash() outside nested functions and classes.
+func (s *owpScope) keysObjects() bool {
+	found := false
+	syntax.Inspect(s.body, func(x syntax.Node) bool {
+		switch c := x.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+			return false
+		case *syntax.FuncCall:
+			n := strings.ToLower(astquery.CallLastName(c))
+			found = n == "spl_object_id" || n == "spl_object_hash"
+		}
+		return !found
+	})
+	return found
 }
 
 // holdsObject reports whether a plain assignment of the scope gives the

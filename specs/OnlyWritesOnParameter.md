@@ -85,9 +85,10 @@ For each plain assignment `$v = …` or by-reference assignment `$v = &…`
 - **D4e** (custos refinement, see Divergences) Kept-alive values: for an
   Entry 3 local, drop all **W** findings when every lost write is an
   element write (`$buffers[] = $buf;`) storing a value whose inferred type
-  includes `FFI\CData` or a class declaring or inheriting `__destruct()`:
-  the array keeps those objects alive while the function runs, which is
-  its purpose.
+  includes `FFI\CData` or a class declaring or inheriting `__destruct()`,
+  or, when the function itself calls `spl_object_id()` or
+  `spl_object_hash()`, any object (`object` or a class): the array keeps
+  those objects alive while the function runs, which is its purpose.
 - **D5** The target is a simple variable with a non-empty literal name that
   is not one of `_GET`, `_POST`, `_SESSION`, `_REQUEST`, `_FILES`, `_COOKIE`,
   `_ENV`, `_SERVER`, `GLOBALS`, `HTTP_RAW_POST_DATA`.
@@ -344,7 +345,10 @@ function silenced(array $out)
   the stored values are FFI buffers whose raw pointers the function still
   hands to C code (amphp/hpack), or objects with a destructor, dropping the
   writes frees them early and changes behavior: custos does not report
-  them.
+  them. The same holds for any object in a function that keys objects by
+  `spl_object_id()` or `spl_object_hash()`: a freed object's id goes to
+  the next object created, so the array prevents collisions (Symfony's
+  VarDumper cloner).
 - **compact() / get_defined_vars() (E8) — custos refinement, not upstream.**
   Upstream's flow analysis does not see names passed to `compact()`, so
   `if (!($page = $repo->find()))) { throw …; } return compact('page');`
