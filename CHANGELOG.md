@@ -666,7 +666,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   `null` (`return $this->markTestSkipped();`): a `void` method cannot hold
   that statement.
 - FopenBinaryUnsafeUsage no longer asks for the `b` flag when opening a
-  Unix device such as `/dev/null`.
+  device such as `/dev/null`, Windows `NUL` or a `\\.\` named pipe.
 
 ## [0.1.7] - 2026-10-21
 
