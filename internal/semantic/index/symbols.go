@@ -150,6 +150,10 @@ type Method struct {
 	// `parent::` (nested closures and classes excluded); project methods
 	// only.
 	ParentCalls []string `json:"pcalls,omitempty"`
+	// ReturnsValue is set for a project method whose body (nested closures,
+	// functions and classes aside) holds a `return` with a value, `return
+	// null;` included. Never set for builtins.
+	ReturnsValue bool `json:"retval,omitempty"`
 	// EmptyBody is set for a project method that promotes no constructor
 	// parameter and whose body holds no statement (`public function
 	// __construct() {}`), or, all its parameters being optional, only

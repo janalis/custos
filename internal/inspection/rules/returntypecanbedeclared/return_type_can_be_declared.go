@@ -599,6 +599,9 @@ func rtdHierarchyReturnsValue(ctx *analysis.Context, class *syntax.ClassLike, m 
 	}).(semanticquery.MethodOverrides)
 	related = append(related, below.Declared(name)...)
 	for _, am := range related {
+		if am.ReturnsValue { // `return x;` is not allowed in a void method
+			return true
+		}
 		for _, r := range []string{am.Return, am.DocReturn, am.Inferred} {
 			// A body falling off its end is inferred as null.
 			if r != "" && !strings.EqualFold(r, "void") && !strings.EqualFold(r, "null") {

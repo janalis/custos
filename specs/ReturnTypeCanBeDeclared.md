@@ -196,7 +196,10 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
 - **D13c** (custos) A `void` suggestion is dropped when a parent class or
   interface (transitively), or a known descendant, declares the method with
   a return value: a native return type, a `@return` tag or an inferred type
-  other than `void` and `null` (a body falling off its end returns null). `void` can neither override nor be overridden by a
+  other than `void` and `null` (a body falling off its end returns null),
+  or a body holding a `return` with a value, whatever its type
+  (`return $this->skip();`, `return null;`; nested closures, functions
+  and classes aside). `void` can neither override nor be overridden by a
   method returning a value (Doctrine DBAL's platforms throwing in a method
   their parent documents as returning a string; a laminas-code interface
   documented `@return void` whose implementation returns `$this`).
@@ -395,7 +398,9 @@ abstract class Node {
   namespace and suggests `: ?T`, a class that does not exist (Doctrine
   Annotations, DBAL). It also suggests `void` for an override that only
   throws while its parent promises a value, which no hierarchy refactoring
-  can satisfy. custos reports neither.
+  can satisfy, or for a parent whose override returns the result of a call
+  that always throws (`return $this->markTestSkipped();`, phpredis tests):
+  a `void` method cannot hold that statement. custos reports neither.
 - **Anonymous results have no declaration suggestion.** Their internal
   identities support member lookup but cannot be written as PHP type names.
   Skip suggestions whose inferred result contains an anonymous class,

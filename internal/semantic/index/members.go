@@ -346,6 +346,22 @@ func parentCalls(body syntax.Node) []string {
 	return names
 }
 
+// returnsValue reports whether body, nested closures, functions and
+// classes aside, holds a `return` with a value.
+func returnsValue(body syntax.Node) bool {
+	found := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		switch r := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return false
+		case *syntax.Return:
+			found = found || r.Expr != nil
+		}
+		return !found
+	})
+	return found
+}
+
 // idleByDefault reports whether calling method m with no argument does
 // nothing: every statement of its body is an `if` without `else` whose
 // condition is false when its optional parameters keep their defaults
@@ -632,6 +648,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 		meth.CSPRNG = callsCSPRNG(m.Body)
 		if !x.stub {
 			meth.ParentCalls = parentCalls(m.Body)
+			meth.ReturnsValue = returnsValue(m.Body)
 		}
 	}
 	meth.Return, meth.RetVer = x.returnType(m.ReturnType, m.Attrs, at)

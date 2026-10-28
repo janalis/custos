@@ -661,6 +661,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - OnlyWritesOnParameter no longer reports an array that holds objects in a
   function keying objects by `spl_object_id()` or `spl_object_hash()`: it
   keeps their ids from being reused while the function runs.
+- ReturnTypeCanBeDeclared no longer suggests `void` for a method whose
+  parent or override holds a `return` with a value whose type is unknown or
+  `null` (`return $this->markTestSkipped();`): a `void` method cannot hold
+  that statement.
 
 ## [0.1.7] - 2026-10-21
 
