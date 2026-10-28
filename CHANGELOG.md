@@ -641,6 +641,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `assertFileEquals()` for `file_get_contents()` of a `data:` URI, a
   `php://` stream or a URL: those assertions first check that the file
   exists, so the quick-fix made a passing test fail.
+- TypeUnsafeComparison no longer reports a comparison of a value of unknown
+  type with `true` or `false` (`$settings->get('enabled') == TRUE` when the
+  API is not indexed): it tests the value for truth, and `===` would change
+  the result for `1` or `'1'`.
 
 ## [0.1.7] - 2026-10-21
 

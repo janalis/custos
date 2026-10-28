@@ -91,8 +91,11 @@ string literal here).
   test*: one operand is `false`, `true`, `null`, `0`, `''` or `'0'` and the
   other's inferred type holds `false`, `null` or `bool` together with
   another type, or holds `mixed` (`$doc->getDocComment() != ''` on
-  `string|false`, `$config->get('enabled') == TRUE` on `mixed`). `===`
-  would test only one of the values PHP takes as empty or true.
+  `string|false`, `$config->get('enabled') == TRUE` on `mixed`); or one
+  operand is `true` or `false` and the other's type is unknown
+  (`$options['prepare'] == TRUE`, a value read through an API that is not
+  indexed). `===` would test only one of the values PHP takes as empty or
+  true.
 - **D5b** (custos) The comparison is not a *conversion test*: one operand
   is an `(int)`, `(float)` or `(string)` cast of the other, or a string
   interpolating it alone (`(int) $v == $v`, `"$n" != $n`), which tests
@@ -301,7 +304,9 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
   `getDocComment() != ''`) and a comparison of a value with its own
   conversion (`(int) $v == $v`) rely on loose equality: `===` changes their
   result. custos does not suggest it there (laminas-code, twig, predis,
-  webmozart/assert).
+  webmozart/assert), nor for a comparison of a value of unknown type with
+  `true` or `false` (Drupal's link checker settings, the Redis extension's
+  tests).
 - **Boolean-or-string flags (custos diverges, D3a).** Upstream reports
   `'true' != $content['success']` on a decoded JSON payload as a string
   comparison. The loose comparison deliberately accepts `true` and

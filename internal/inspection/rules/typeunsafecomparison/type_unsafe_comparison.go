@@ -119,15 +119,18 @@ func tucMayBeBool(ctx *analysis.Context, e syntax.Expr) bool {
 // tucEmptinessTest reports whether falsy is a boolean-like constant
 // (false, true, null, 0, the empty string or "0") compared with other, a
 // value whose type holds false or null next to another type (mixed
-// included): an emptiness or truthiness test, which === would turn into a
+// included), or a boolean compared with a value of unknown type: an
+// emptiness or truthiness test, which === would turn into a
 // test of one of them (D5a).
 func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
+	boolean := false
 	switch x := syntax.UnwrapParens(falsy).(type) {
 	case *syntax.ConstFetch:
 		name := strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`))
 		if name != "null" && name != "false" && name != "true" {
 			return false
 		}
+		boolean = name != "null"
 	case *syntax.Literal:
 		if x.LitKind == syntax.LitString {
 			content, _ := tucStringContent(ctx, x)
@@ -140,8 +143,9 @@ func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
 	default:
 		return false
 	}
+	// Compared with a boolean, a value of unknown type is tested for truth.
 	t := ctx.TypeOf(other)
-	if t.Has("mixed") {
+	if t.Has("mixed") || boolean && t.IsUnknown() {
 		return true
 	}
 	if t.IsUnknown() || !t.Has("false") && !t.Has("null") && !t.Has("bool") {

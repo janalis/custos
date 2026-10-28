@@ -19,7 +19,7 @@ function compare(Name|Identifier|ComplexType $type, ComplexType $complex, $v, st
     $g = '0' != $opt;
     $h = <warning descr="Use '!==' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.">doc() != 'x'</warning>;
     $i = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$s == ''</weak_warning>;
-    $j = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$v == false</weak_warning>;
+    $j = $v == false;
     $k = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$n == 1</weak_warning>;
     $l = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$opt == \PHP_EOL</weak_warning>;
     // A value compared with its own conversion tests what it keeps.
@@ -40,6 +40,7 @@ function truthiness(int|bool $flag, mixed $m, int $n, $unknown)
     $c = $m != '';
     $d = TRUE == $m;
     $e = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$n == true</weak_warning>;
-    $f = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$unknown == true</weak_warning>;
-    return [$a, $b, $c, $d, $e, $f];
+    $f = $unknown == true;
+    $g = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$unknown == null</weak_warning>;
+    return [$a, $b, $c, $d, $e, $f, $g];
 }
