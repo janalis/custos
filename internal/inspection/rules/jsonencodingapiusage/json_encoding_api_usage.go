@@ -498,8 +498,8 @@ func jsonEncodable(e syntax.Expr, depth int) bool {
 
 // jsonFailureTest reports whether x is tested for a failed JSON call: the
 // condition of a ternary (`?:` included) or of an if, elseif or while,
-// negated with `!`, given to empty(), compared with false or null, given to
-// a type test (is_array() and the like) or to a PHPUnit assertion that
+// negated with `!`, given to empty(), compared with false or null, tested
+// with instanceof, given to a type test (is_array() and the like) or to a PHPUnit assertion that
 // rejects the failure value, or, for json_decode (null on failure), given
 // to isset() or the left operand of `??`.
 func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
@@ -519,6 +519,8 @@ func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
 		return p.Op.Kind == syntax.TExclaim
 	case *syntax.Empty:
 		return true
+	case *syntax.Instanceof:
+		return syntax.Node(p.Expr) == x
 	case *syntax.Isset:
 		return decode
 	case *syntax.Binary:

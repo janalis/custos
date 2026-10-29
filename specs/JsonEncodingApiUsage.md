@@ -116,6 +116,9 @@ own fix.
   - the condition of a ternary (`?:` included), `if`, `elseif` or `while`;
   - the operand of `!` or the argument of `empty()`;
   - compared with `==`, `!=`, `===` or `!==` to `false` or `null`;
+  - the left operand of `instanceof`, which the failure value never
+    satisfies (`if (!$data instanceof \stdClass) { return null; }`,
+    `$data instanceof Node && $data->ok ? $data : null`);
   - the argument of a type test: `is_array`, `is_string`, `is_object`,
     `is_null`, `is_bool`, `is_int`, `is_float`, `is_scalar`,
     `is_iterable` or `is_countable`;
@@ -340,7 +343,7 @@ class Exporter {
 - **Handled failures (custos diverges from upstream, E8).** Upstream asks
   for `JSON_THROW_ON_ERROR` on every call. When the code already tests the
   result for the failure value and falls back (`?: []`, `is_array()`,
-  `false === $json`), adding the flag turns that fallback into an
+  `false === $json`, `!$data instanceof \stdClass`), adding the flag turns that fallback into an
   exception the caller does not catch: the suggested fix changes
   behavior. custos does not report kind E there, nor when the next
   statement checks `json_last_error()` (php-cs-fixer, nikic/php-parser),

@@ -683,6 +683,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   declared type of `$this->prop` by the guards on the path, so
   `if (is_string($this->p)) { $param = $this->p; }` no longer reports
   assigning the property's other types.
+- JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when the decoded value is tested with `instanceof` (`if (!$data instanceof \stdClass) { return null; }`): the failure value is never an instance, so the code already falls back.
 
 ## [0.1.7] - 2026-10-21
 
