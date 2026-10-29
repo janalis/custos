@@ -54,3 +54,42 @@ func checks(name string) bool {
 	name = strings.ToLower(name)
 	return strings.HasPrefix(name, "assert") || strings.HasPrefix(name, "expect")
 }
+
+// UnindexedAssertion reports an `assert…` or `expect…` call on `$this`,
+// `self`, `static` or `parent` in a class whose ancestry leaves the index at
+// PHPUnit's TestCase, none of the indexed classes on the way declaring a
+// method of that name: PHPUnit is then installed outside the indexed tree
+// (symfony/phpunit-bridge), and the call reaches its own assertion.
+func UnindexedAssertion(ctx *analysis.Context, call syntax.Node) bool {
+	c, ok := AsPuCall(call)
+	if !ok || !checks(c.Ident.Value) {
+		return false
+	}
+	switch r := c.Recv.(type) {
+	case *syntax.Variable:
+		if r.Name != "this" {
+			return false
+		}
+	case *syntax.Name:
+		switch strings.ToLower(r.Value) {
+		case "self", "static", "parent":
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+	ix := ctx.Index()
+	fqn := ctx.Types().ClassFQN(syntax.EnclosingClass(call))
+	if fqn == "" || ix.FindMethod(fqn, c.Ident.Value, ctx.PHP) != nil {
+		return false
+	}
+	for depth := 0; fqn != "" && depth < 64; depth++ {
+		cls := ix.Class(fqn, ctx.PHP)
+		if cls == nil {
+			return strings.EqualFold(strings.TrimPrefix(fqn, `\`), `PHPUnit\Framework\TestCase`)
+		}
+		fqn = cls.Parent
+	}
+	return false
+}

@@ -689,6 +689,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - TypeUnsafeComparison no longer asks for `===` when a local holding a cast of the other operand is compared with it (`$repr = (string) $value; if ($repr == $value)`): the comparison tests what the conversion keeps, and `===` would never hold.
 - SuspiciousBinaryOperation no longer reports `||`/`&&` assigned through a chain of assignments that forms a whole statement (`$a[$k] = $b[$id] = $x || $y;`), like the single assignment `$a = $x || $y;` it already accepted.
 - ClassConstantCanBeUsed now imports every class its quick-fixes reference: `custos fix` no longer writes the third and later classes of a namespace fully qualified (`\Acme\Form\CForm::class`) when no name collides. A single pass, as in editors, leaves those literals for the next one.
+- JsonEncodingApiUsage now recognizes PHPUnit assertions that check a decoded value when PHPUnit is installed outside the analyzed tree (symfony/phpunit-bridge's `vendor/bin/.phpunit`): `$this->assertIsArray($data)` in a test case extending PHPUnit's `TestCase` counts as handling the failure.
 
 ## [0.1.7] - 2026-10-21
 

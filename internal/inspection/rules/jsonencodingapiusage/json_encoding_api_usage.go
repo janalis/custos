@@ -567,7 +567,7 @@ var jsonAssertions = map[string]int{
 // assertNotNull for json_decode or assertNotFalse for json_encode.
 func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, decode bool) bool {
 	c, ok := phpunit.AsPuCall(call)
-	if !ok || arg.Name != nil || !phpunit.PuAssertion(ctx, call) {
+	if !ok || arg.Name != nil || !phpunit.PuAssertion(ctx, call) && !phpunit.UnindexedAssertion(ctx, call) {
 		return false
 	}
 	name := strings.ToLower(c.Ident.Value)

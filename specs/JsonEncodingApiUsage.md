@@ -131,7 +131,11 @@ own fix.
     `assertContains` or `assertNotContains` (second argument: the array,
     countable or iterable they need), passed by position; also
     `assertNotNull` for `json_decode` and `assertNotFalse` for
-    `json_encode`;
+    `json_encode`. When PHPUnit itself is not indexed (installed outside
+    the analyzed tree, as symfony/phpunit-bridge does), the same
+    assertions called on `$this`, `self`, `static` or `parent` count in a
+    class whose ancestors lead, outside the index, to PHPUnit's `TestCase`
+    and that declares no method of that name itself;
   - for `json_decode` (whose failure value is `null`), an argument of
     `isset()` or the left operand of `??`.
   - for `json_decode`, the base of an element or property read (through
