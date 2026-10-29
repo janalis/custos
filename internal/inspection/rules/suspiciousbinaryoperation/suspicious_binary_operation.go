@@ -381,6 +381,10 @@ func sboPrecedence(ctx *analysis.Context, b *syntax.Binary) bool {
 			return true
 		}
 		if a, ok := b.Parent().(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && a.Value == syntax.Expr(b) { // D10b
+			// A chain `$a = $b = x || y;` reads like a single assignment.
+			for up, ok := a.Parent().(*syntax.Assign); ok && up.Op.Kind == syntax.TEqual && up.Value == syntax.Expr(a); up, ok = a.Parent().(*syntax.Assign) {
+				a = up
+			}
 			if _, stmt := a.Parent().(*syntax.ExprStmt); !stmt {
 				ctx.ReportNode(b, sboPrecedenceMsg, wrap(b))
 				return true

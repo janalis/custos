@@ -40,3 +40,5 @@ if (<error descr="Operator precedence is unclear here; add parentheses.">!  $x >
 if (($x && $y) || $z) {}
 $both = $x && $y;
 if ((!$x) < $y) {}
+$map['a'] = $map['b'] = $x || $y;
+if ($first = $second = <error descr="Operator precedence is unclear here; add parentheses.">$x || $y</error>) {}

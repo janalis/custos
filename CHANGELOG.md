@@ -687,6 +687,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - RandomApiMigration no longer suggests `mt_rand()`, `mt_srand()` or `mt_getrandmax()` at PHP 7.1 and above, where `rand()`, `srand()` and `getrandmax()` are aliases of them; `random_int()` suggestions are unchanged.
 - NotOptimalIfConditions no longer asks to move a check ahead of an earlier one that guards the same variable with `isset()`, `empty()` or `??` (`count(explode('.', $d ?? '')) > 2 && !is_numeric(str_replace('.', '', $d))` would pass a null `$d` to `str_replace()` once swapped).
 - TypeUnsafeComparison no longer asks for `===` when a local holding a cast of the other operand is compared with it (`$repr = (string) $value; if ($repr == $value)`): the comparison tests what the conversion keeps, and `===` would never hold.
+- SuspiciousBinaryOperation no longer reports `||`/`&&` assigned through a chain of assignments that forms a whole statement (`$a[$k] = $b[$id] = $x || $y;`), like the single assignment `$a = $x || $y;` it already accepted.
 
 ## [0.1.7] - 2026-10-21
 

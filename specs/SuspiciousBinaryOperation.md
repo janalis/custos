@@ -106,7 +106,11 @@ Common definitions:
     - **D10b** Operator `&&` or `||` and the direct parent is a plain `=`
       assignment (this expression is its right-hand side) that is **not** the
       whole expression of an expression statement (`if ($x = f() && $y)`,
-      `return $x = $a || $b;`, `g($x = $a && $b)`). Report this expression.
+      `return $x = $a || $b;`, `g($x = $a && $b)`). A chain of plain
+      assignments counts as one: when the assignment is itself the
+      right-hand side of another plain `=` (and so on), the outermost one
+      is checked (`$a = $b = $x || $y;` as a statement is not reported,
+      `if ($a = $b = $x || $y)` is). Report this expression.
       For chains like `f() && $b && $c = g()` only the outermost `&&` is
       reported (inner ones have a same-operator parent).
     - **D10c** A comparison operator, and the direct parent is a plain `=`
@@ -316,6 +320,11 @@ if ((!$x) < $y) {}
 
 ## Divergences
 
+- **Assignment chains (custos diverges, D10b).** Upstream only looks at the
+  assignment directly holding the `||`/`&&`, so
+  `$a[$k] = $b[$id] = $x || $y;` is reported although it is a whole
+  statement, read like `$a = $x || $y;`, which is not. custos checks the
+  outermost assignment of the chain.
 - `?int $limit` resolves to `int|null`, fully known, so D4 fires; a parameter
   without a type is unknown and is skipped. This mirrors upstream.
 - F4/F5 use plain text substitution upstream: *every* occurrence of the

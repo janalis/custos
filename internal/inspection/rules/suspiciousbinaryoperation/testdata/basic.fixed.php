@@ -40,3 +40,5 @@ if ((!$x) >= $limit) {}
 if (($x && $y) || $z) {}
 $both = $x && $y;
 if ((!$x) < $y) {}
+$map['a'] = $map['b'] = $x || $y;
+if ($first = $second = ($x || $y)) {}
