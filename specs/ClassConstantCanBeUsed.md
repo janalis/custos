@@ -170,7 +170,12 @@ Everything is gated on PHP language level ≥ 5.5.
 - Multiple fixes in one file are applied in document order; imports added by
   earlier fixes are seen by later ones in the same block (a later literal
   for the same class then reuses the import; a later class with the same
-  short name then stays fully qualified).
+  short name then stays fully qualified). Every class that may be imported
+  gets its own `use` line; a fix whose import cannot be written next to the
+  imports of the fixes applied with it in the same pass is left for the next
+  pass, where it is placed after them. Applied alone, each fix is complete;
+  a single pass over many classes therefore leaves some literals for the
+  next one instead of writing them fully qualified.
 - Results:
   - plain literal, imported via `use Ns\Thing as Other;` → `Other::class`;
   - imported with another letter case (`use ns\thing;`) → `\Ns\Thing::class`;

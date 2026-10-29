@@ -321,9 +321,11 @@ func (st *cccState) edits(b *cccBlock, span syntax.Span, q string) []diagnostic.
 				b.taken[firstSegment(rel)] = true
 			}
 		} else if !b.taken[strings.ToLower(short)] {
-			if e, ok := st.importEdit(b, q); ok {
+			if e, ok, kept := st.importEdit(b, q); ok {
 				out = append(out, e)
-				b.imports = append(b.imports, cccImport{fqn: q, local: short})
+				if kept {
+					b.imports = append(b.imports, cccImport{fqn: q, local: short})
+				}
 				t = short
 			}
 		}
@@ -333,11 +335,23 @@ func (st *cccState) edits(b *cccBlock, span syntax.Span, q string) []diagnostic.
 
 // importEdit inserts `use q;` into block b: after its last `use` statement,
 // else before its first statement. A file without namespace declaration
-// always gets it before its first statement.
-func (st *cccState) importEdit(b *cccBlock, q string) (diagnostic.TextEdit, bool) {
+// always gets it before its first statement. kept is false when the edit
+// competes with an import inserted by a previous fix: applied alone it is
+// correct, applied with the others it waits for the next fix pass, so later
+// literals must not count on it.
+func (st *cccState) importEdit(b *cccBlock, q string) (e diagnostic.TextEdit, ok, kept bool) {
 	if b.added {
 		// A previous fix already inserted an import: chain after it.
-		return st.chainImport(b, q)
+		if e, ok := st.chainImport(b, q); ok {
+			return e, true, true
+		}
+		text := "use " + strings.TrimPrefix(q, `\`) + ";"
+		if b.chainAfter {
+			text = "\n" + text
+		} else {
+			text += "\n\n"
+		}
+		return diagnostic.TextEdit{Span: syntax.Span{Start: b.anchor, End: b.anchor}, NewText: text}, true, false
 	}
 	marker, after := b.marker, true
 	if marker == nil || b.global {
@@ -347,16 +361,16 @@ func (st *cccState) importEdit(b *cccBlock, q string) (diagnostic.TextEdit, bool
 		}
 	}
 	if marker == nil {
-		return diagnostic.TextEdit{}, false
+		return diagnostic.TextEdit{}, false, false
 	}
 	b.added = true
 	text := "use " + strings.TrimPrefix(q, `\`) + ";"
 	if after {
 		b.anchor, b.chainAfter = marker.Span().End, true
-		return diagnostic.TextEdit{Span: syntax.Span{Start: b.anchor, End: b.anchor}, NewText: "\n" + text}, true
+		return diagnostic.TextEdit{Span: syntax.Span{Start: b.anchor, End: b.anchor}, NewText: "\n" + text}, true, true
 	}
 	b.anchor = marker.Span().Start
-	return diagnostic.TextEdit{Span: syntax.Span{Start: b.anchor, End: b.anchor}, NewText: text + "\n\n"}, true
+	return diagnostic.TextEdit{Span: syntax.Span{Start: b.anchor, End: b.anchor}, NewText: text + "\n\n"}, true, true
 }
 
 // chainImport adds a second import right after the one a previous fix
