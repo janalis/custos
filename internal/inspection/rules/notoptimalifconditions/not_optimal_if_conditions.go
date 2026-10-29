@@ -432,7 +432,7 @@ func operandsCoupledS123(ctx *analysis.Context, prev, cur syntax.Expr) bool {
 
 // typeGuarded implements S5 (custos): prev checks the type or the null /
 // false value of a plain variable that cur uses (`false === $f`,
-// `$f instanceof X`, `is_string($f)`), so cur may only be valid once prev
+// `$f instanceof X`, `is_string($f)`, `isset($f)`, `$f ?? ”`), so cur may only be valid once prev
 // has narrowed that variable. Such checks cost nothing by themselves: they
 // matter inside a costlier operand (`(null !== $o && $o->ready()) && $o->id`).
 func typeGuarded(ctx *analysis.Context, prev, cur syntax.Expr) bool {
@@ -454,7 +454,15 @@ func typeGuarded(ctx *analysis.Context, prev, cur syntax.Expr) bool {
 				} else if notOptimalNullOrBool(g.Right) {
 					guard(g.Left)
 				}
+			case syntax.TCoalesce:
+				guard(g.Left) // `$v ?? ''` expects a null $v
 			}
+		case *syntax.Isset:
+			for _, v := range g.Vars {
+				guard(v)
+			}
+		case *syntax.Empty:
+			guard(g.Expr)
 		case *syntax.Instanceof:
 			guard(g.Expr)
 		case *syntax.FuncCall:

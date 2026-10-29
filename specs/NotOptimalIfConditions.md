@@ -153,7 +153,10 @@ always stored.
 - **S5 (type guard — custos divergence, see Divergences)**: `prev`
   (itself or any sub-expression, not inside a closure or arrow function)
   compares a plain variable `$v` with `null`, `true` or `false` (`===`,
-  `!==`, `==`, `!=`, either side), tests `$v instanceof …`, passes `$v`
+  `!==`, `==`, `!=`, either side), tests `$v instanceof …`, gives `$v` to
+  `isset()` or `empty()` or as the left operand of `??` (which expects it
+  may be null: `count(explode('.', $v ?? '')) > 2 && !is_numeric(str_replace('.', '', $v))`
+  must not pass a null `$v` to `str_replace()`), passes `$v`
   as the first argument of a global `is_*` function, or passes it as the
   needle of a global `in_array` call whose `strict` argument (third, or
   named) is the constant `true`, which narrows `$v` to the haystack's
@@ -487,7 +490,7 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   literal `false`.
 - **Type guards stay first (custos diverges from upstream, S5).** When
   `prev` narrows a variable (null/false/true comparison, `instanceof`,
-  `is_*()`), moving a `cur` that uses that variable ahead of it can run
+  `is_*()`, `isset()`, `empty()`, `??`), moving a `cur` that uses that variable ahead of it can run
   `cur` on the value the check excludes:
   `!(null === $o || strlen($o->name) === 0) && $o->id > 0` was told to read
   `$o->id` first. custos treats such neighbors as coupled.

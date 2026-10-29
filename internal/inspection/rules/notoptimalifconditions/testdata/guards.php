@@ -28,6 +28,10 @@ function guards(?Row $o, $v, string $path, string $base)
     if (\in_array($v, ['a', 'b']) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">\array_key_exists($v, $_GET)</weak_warning>) {}
     if (\in_array($v, ['a', 'b'], false) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">\array_key_exists($v, $_GET)</weak_warning>) {}
     if (\in_array($path, ['a', 'b'], true) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">\array_key_exists($v, $_GET)</weak_warning>) {}
+    if (\count(\explode('.', $v ?? '')) > 2 && !\is_numeric(\str_replace('.', '', $v))) {}
+    if (\strlen($path ?? '') > 2 && \str_contains($v, '.') && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$path</weak_warning>) {}
+    if (!(isset($v) || \strlen($path) === 0) && $v > 1) {}
+    if (!(empty($v) || \strlen($path) === 0) && $v > 1) {}
     if (!(\is_string($o->name) && \strlen($o->name) === 0) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$o > 0</weak_warning>) {}
 }
 
