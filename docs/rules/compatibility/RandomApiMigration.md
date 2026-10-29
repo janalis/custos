@@ -16,7 +16,7 @@ Suggest renaming legacy random calls to their modern counterpart.
 
 ## Example
 
-Option `SUGGEST_USING_RANDOM_INT = false` (any level):
+Option `SUGGEST_USING_RANDOM_INT = false`, PHP 7.0:
 
 ::: code-group
 

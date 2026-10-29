@@ -253,7 +253,8 @@ func TestCallResultCopies(t *testing.T) {
 		"function b($h) { $s = flock($h, LOCK_EX); $t = $s; $u = $t; if ($u !== true) { return; } u(); }\n" +
 		"function c($h, $o) { $s = flock($h, LOCK_EX); $s = $o; $t = $s; if (!$t) { return; } u(); }\n" +
 		"function d($h, $o) { $s = flock($h, LOCK_EX); $t = $s; $t = $o; if (!$t) { return; } u(); }\n" +
-		"function e($h) { $a = flock($h, LOCK_EX); $b = $a; $c = $b; $d = $c; $e = $d; $f = $e; if (!$f) { return; } u(); }\n"
+		"function e($h) { $a = flock($h, LOCK_EX); $b = $a; $c = $b; $d = $c; $e = $d; $f = $e; if (!$f) { return; } u(); }\n" +
+		"function g($h) { $a = flock($h, LOCK_EX); $f = $a; $b = $a; $c = $b; $d = $c; $e = $d; $f = $e; if (!$f) { return; } u(); }\n"
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
@@ -270,7 +271,7 @@ func TestCallResultCopies(t *testing.T) {
 		}
 		return true
 	})
-	want := []string{"true", "true", "bool", "bool", "bool"}
+	want := []string{"true", "true", "bool", "bool", "bool", "bool"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v", got)
 	}

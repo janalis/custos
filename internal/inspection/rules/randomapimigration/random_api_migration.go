@@ -51,6 +51,11 @@ func (randomAPIMigration) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		suggested = "mt_rand"
 	}
+	// Since PHP 7.1 rand(), srand() and getrandmax() are aliases of their
+	// mt_* counterparts: the rename changes nothing (E5).
+	if suggested != "random_int" && ctx.PHP >= phpversion.PHP71 {
+		return
+	}
 	msg := "Prefer " + suggested + "() over " + name + "()."
 	// random_int() ignores srand()/mt_srand(), so renaming to it would break a
 	// seeded sequence; mt_rand() rejects the reversed bounds rand() accepts.

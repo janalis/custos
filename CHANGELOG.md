@@ -684,6 +684,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   `if (is_string($this->p)) { $param = $this->p; }` no longer reports
   assigning the property's other types.
 - JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when the decoded value is tested with `instanceof` (`if (!$data instanceof \stdClass) { return null; }`): the failure value is never an instance, so the code already falls back.
+- RandomApiMigration no longer suggests `mt_rand()`, `mt_srand()` or `mt_getrandmax()` at PHP 7.1 and above, where `rand()`, `srand()` and `getrandmax()` are aliases of them; `random_int()` suggestions are unchanged.
 
 ## [0.1.7] - 2026-10-21
 

@@ -65,6 +65,12 @@ Visit every plain function call (not method/static calls).
   meant to be reproducible and `random_int()` ignores the seed. As in D4,
   `rand` then gets the `mt_rand` suggestion and `mt_rand` is not reported.
   `mt_srand()` without an argument reseeds at random and changes nothing.
+- **E5** (custos, see Divergences) At PHP 7.1 and above, an `mt_*`
+  suggestion (`srand` → `mt_srand`, `getrandmax` → `mt_getrandmax`,
+  `rand` → `mt_rand`, whichever table or fallback produced it) is not
+  reported: from 7.1 on these names are aliases of their `mt_*`
+  counterparts, so the rename changes nothing. `random_int` suggestions
+  are still reported.
 
 ## Report
 
@@ -109,6 +115,7 @@ Visit every plain function call (not method/static calls).
 
 - The table choice depends on the level (D1): `>= 7.0` with the option on →
   modern table; otherwise classic.
+- From 7.1 on only `random_int` suggestions remain (E5).
 - Upstream test cases without an explicit level run at the IDE test default
   (somewhere between 5.6 and 7.0); the only such upstream case turns the
   option off, so the classic table applies regardless. The modern-table case
@@ -116,7 +123,7 @@ Visit every plain function call (not method/static calls).
 
 ## Examples
 
-Option `SUGGEST_USING_RANDOM_INT = false` (any level):
+Option `SUGGEST_USING_RANDOM_INT = false`, PHP 7.0:
 
 ```php
 <?php
@@ -187,9 +194,14 @@ function throwDice($sides)
   without a fix (F3).
 - **Seeded sequences below 7.1.** Before PHP 7.1 `rand()` and `mt_rand()`
   were distinct generators, so renaming seeded `srand($s)` / `rand()` code
-  changes the numbers drawn for a given seed there (from 7.1 on they are
-  aliases and the sequence is identical). The `mt_*` renames are still
-  offered, as upstream does.
+  changes the numbers drawn for a given seed there. The `mt_*` renames are
+  still offered at those levels, as upstream does.
+- **Aliases from 7.1 (custos diverges, E5).** Upstream suggests `mt_rand()`
+  over `rand()`, `mt_srand()` over `srand()` and `mt_getrandmax()` over
+  `getrandmax()` at every level. From PHP 7.1 on the legacy names are
+  aliases of the `mt_*` functions, so the rename is churn with no effect
+  (php-src's own test suites call `rand()`); custos reports it below 7.1
+  only.
 - **Builtin spelling (custos diverges).** Upstream inserts the bare suggested
   name (`mt_srand`, `mt_rand`, `random_int`), which a function of that name declared in (or imported into) the current
   namespace captures, so the fix would call user code. custos writes
