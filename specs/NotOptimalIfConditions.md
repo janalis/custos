@@ -68,7 +68,12 @@ it.
   method call — cost of the object expression + 5.
 - instance property access classified *unknown* (below): its cost is
   unknown, and so is the cost of every expression containing it.
-- array access `b[i]`: `cost(b) + cost(i)`.
+- array access `b[i]`: `cost(b) + cost(i)`, plus 5 when `b`'s inferred type
+  includes a class implementing `ArrayAccess` (`offsetGet()` or
+  `offsetExists()` runs user code). Its cost is unknown, and so is the cost
+  of every expression containing it, when that type includes `mixed`,
+  `object`, `iterable`, a template or an unresolved class. A receiver with
+  no inferred type at all reads as an array.
 - `empty(...)` / `isset(...)`: sum of argument costs.
 - function call: sum of argument costs, `+5` unless the call resolves to
   one of the global functions below (name compared case-insensitively like
@@ -211,7 +216,9 @@ always stored.
     `__call`/`__get`), and there is no safe subset that can be recognized
     from the call alone;
   - every instance property access classified *computed* (see *Property
-    fetches*): a `get` hook or `__get()` runs user code just like a method.
+    fetches*): a `get` hook or `__get()` runs user code just like a method;
+  - every array access whose receiver may be an `ArrayAccess` object (see
+    *Cost*): `offsetGet()` or `offsetExists()` runs user code.
 
   **Purity list** (function name matched case-insensitively, without
   namespace, and only when it resolves to the built-in — a same-named user
@@ -538,7 +545,8 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   and are not reordered (S4); reads whose receiver type is unknown are left
   out of the comparison rather than guessed at. Upstream's own edge case
   (`... || $object->field || Clazz::STATE`, untyped `$object`) stays silent
-  in both.
+  in both. Element reads get the same treatment: one on an `ArrayAccess`
+  object runs `offsetGet()`, and one on a `mixed` value may.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so subjects that differ only in the case of a function, method
   or class name (`Repo::$node` vs `repo::$node`), which PHP treats as the

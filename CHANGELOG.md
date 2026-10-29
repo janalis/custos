@@ -697,6 +697,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   analysis accept a successful `preg_match()` or `preg_match_all()` against a
   literal pattern that cannot match empty text as proof that the subject is
   neither `false` nor `null`.
+- NotOptimalIfConditions no longer moves an element read ahead of a cheaper
+  check when the receiver may be an `ArrayAccess` object or a `mixed` value:
+  reading it may run `offsetGet()`.
 
 ## [0.1.7] - 2026-10-21
 

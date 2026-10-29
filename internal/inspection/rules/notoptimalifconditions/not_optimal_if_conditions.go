@@ -173,6 +173,9 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 	case *syntax.StaticPropertyFetch:
 		return conditionCost(ctx, x.Class) + conditionCost(ctx, x.Name)
 	case *syntax.ArrayDimFetch:
+		if classifyDimRead(ctx, x) == propComputed {
+			return conditionCost(ctx, x.Var) + conditionCost(ctx, x.Dim) + 5
+		}
 		return conditionCost(ctx, x.Var) + conditionCost(ctx, x.Dim)
 	case *syntax.Empty:
 		return conditionCost(ctx, x.Expr)
@@ -262,6 +265,28 @@ func classifyPropertyRead(ctx *analysis.Context, f *syntax.PropertyFetch) int {
 	return out
 }
 
+// classifyDimRead tells whether an element read `b[i]` reads an array or
+// a string, calls offsetGet() of an ArrayAccess object or cannot be
+// classified. A receiver without any inferred type reads as an array: only
+// one inferred to hold an object, or anything (`mixed`), is in doubt.
+func classifyDimRead(ctx *analysis.Context, d *syntax.ArrayDimFetch) int {
+	out := propStored
+	atoms := ctx.TypeOf(d.Var).Without("null").Atoms()
+	for _, a := range atoms {
+		switch {
+		case a == "array" || a == "string" || strings.HasSuffix(a, "[]") || scalarAtoms[a]:
+		case !strings.HasPrefix(a, `\`) || ctx.Index().Class(a, ctx.PHP) == nil:
+			return propUnknown // mixed, object, iterable, template or unresolved class
+		case ctx.Index().IsSubtype(a, `\ArrayAccess`, ctx.PHP):
+			out = propComputed
+		}
+	}
+	return out
+}
+
+// scalarAtoms read as null under `[]`, without running code.
+var scalarAtoms = map[string]bool{"int": true, "float": true, "bool": true, "true": true, "false": true}
+
 // costUnknown reports whether e reads a property whose cost cannot be
 // established (closures and nested classes are not evaluated).
 func costUnknown(ctx *analysis.Context, e syntax.Expr) bool {
@@ -272,6 +297,10 @@ func costUnknown(ctx *analysis.Context, e syntax.Expr) bool {
 			return false
 		case *syntax.PropertyFetch:
 			if classifyPropertyRead(ctx, c) == propUnknown {
+				unknown = true
+			}
+		case *syntax.ArrayDimFetch:
+			if classifyDimRead(ctx, c) == propUnknown {
 				unknown = true
 			}
 		}
@@ -591,6 +620,11 @@ func notOptimalImpure(ctx *analysis.Context, e syntax.Expr) bool {
 		case *syntax.PropertyFetch:
 			if classifyPropertyRead(ctx, c) == propComputed {
 				impure = true // a get hook or __get() runs user code
+				return false
+			}
+		case *syntax.ArrayDimFetch:
+			if classifyDimRead(ctx, c) == propComputed {
+				impure = true // offsetGet() runs user code
 				return false
 			}
 		case *syntax.Include, *syntax.Eval, *syntax.Exit, *syntax.Print,
