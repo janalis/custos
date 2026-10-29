@@ -208,6 +208,13 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			// Only an array (or an object) has keys.
 			exclude(args[1].Value, f, true, true)
 		}
+		if truth && (name == "preg_match" || name == "preg_match_all") && len(args) >= 2 && args[1] != nil {
+			// A match of a pattern that needs at least one character: the
+			// subject was text that is not empty, so neither false nor null.
+			if pattern, known := literalText(args[0].Value); known && emptyless(pattern) {
+				exclude(args[1].Value, f, true, true)
+			}
+		}
 		// The predicate tests a variable or the assignment written in its
 		// place (`is_string($n = f())`).
 		arg := args[0]
