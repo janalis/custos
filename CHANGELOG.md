@@ -692,6 +692,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - JsonEncodingApiUsage now recognizes PHPUnit assertions that check a decoded value when PHPUnit is installed outside the analyzed tree (symfony/phpunit-bridge's `vendor/bin/.phpunit`): `$this->assertIsArray($data)` in a test case extending PHPUnit's `TestCase` counts as handling the failure.
 - TypeUnsafeArraySearch no longer reports a search in a local variable that only ever holds a literal list of non-numeric strings (`$known = ['blocking_pipes', 'create_process_group']; in_array($key, $known)`), as it already skipped the literal written in the call.
 - ClassConstantCanBeUsed's quick-fix writes a class of the file's own namespace by its short name (`'Acme\Tokens\Token'` → `Token::class` in `namespace Acme\Tokens;`) instead of fully qualified.
+- JsonEncodingApiUsage counts `assertSame()` and `assertEquals()` against a literal the failure value cannot match (`assertSame(['a' => 1], json_decode($s, true))`) as handling a failed decode or encode.
 
 ## [0.1.7] - 2026-10-21
 

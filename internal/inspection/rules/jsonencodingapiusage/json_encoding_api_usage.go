@@ -1,6 +1,7 @@
 package jsonencodingapiusage
 
 import (
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -571,6 +572,20 @@ func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, deco
 		return false
 	}
 	name := strings.ToLower(c.Ident.Value)
+	if name == "assertsame" || name == "assertequals" {
+		// Compared with a literal the failure value does not equal.
+		if len(c.Args.Args) < 2 {
+			return false
+		}
+		other := c.Args.Args[0]
+		if other == syntax.Node(arg) {
+			other = c.Args.Args[1]
+		} else if c.Args.Args[1] != syntax.Node(arg) {
+			return false
+		}
+		o, ok := other.(*syntax.Arg)
+		return ok && o.Name == nil && !o.Unpack && jsonRejectsFailure(o.Value, name == "assertsame", decode)
+	}
 	at, known := jsonAssertions[name]
 	switch {
 	case known:
@@ -580,6 +595,38 @@ func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, deco
 		return false
 	}
 	return at < len(c.Args.Args) && c.Args.Args[at] == syntax.Node(arg)
+}
+
+// jsonRejectsFailure reports whether e is a literal that the failure value
+// (null for json_decode, false for json_encode) is not identical to
+// (strict) or, compared loosely, not equal to: any array, string or number
+// literal or boolean constant other than the failure value itself, and
+// loosely only a non-empty array, a string other than "" and "0", a
+// non-zero number or true.
+func jsonRejectsFailure(e syntax.Expr, strict, decode bool) bool {
+	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.Array:
+		return strict || len(x.Items) > 0
+	case *syntax.Literal:
+		if strict {
+			return true
+		}
+		if v, ok := syntax.LiteralStringValue(x); ok {
+			return v != "" && v != "0"
+		}
+		f, err := strconv.ParseFloat(strings.ReplaceAll(x.Raw, "_", ""), 64)
+		return err == nil && f != 0
+	case *syntax.ConstFetch:
+		switch strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`)) {
+		case "true":
+			return true
+		case "false":
+			return strict && decode
+		case "null":
+			return strict && !decode
+		}
+	}
+	return false
 }
 
 // jsonFetchedFallback reports an element or property read from a decoded

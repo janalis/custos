@@ -131,7 +131,14 @@ own fix.
     `assertContains` or `assertNotContains` (second argument: the array,
     countable or iterable they need), passed by position; also
     `assertNotNull` for `json_decode` and `assertNotFalse` for
-    `json_encode`. When PHPUnit itself is not indexed (installed outside
+    `json_encode`; also `assertSame` and `assertEquals` when the other of
+    their first two arguments, passed by position, is a literal the
+    failure value does not match: for `assertSame` any array, string or
+    number literal or boolean constant other than the failure value
+    (`assertSame(['a' => 1], json_decode($s, true))`), for `assertEquals`
+    only a non-empty array, a string other than `''` and `'0'`, a
+    non-zero number or `true`, since `null` and `false` loosely equal the
+    other empty values. When PHPUnit itself is not indexed (installed outside
     the analyzed tree, as symfony/phpunit-bridge does), the same
     assertions called on `$this`, `self`, `static` or `parent` count in a
     class whose ancestors lead, outside the index, to PHPUnit's `TestCase`

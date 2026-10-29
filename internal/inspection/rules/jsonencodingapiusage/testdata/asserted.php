@@ -11,6 +11,7 @@ namespace PHPUnit\Framework {
         public static function assertCount(int $expectedCount, iterable $haystack, string $message = ""): void {}
         public static function assertNotEmpty(mixed $actual, string $message = ""): void {}
         public static function assertEmpty(mixed $actual, string $message = ""): void {}
+        public static function assertEquals(mixed $expected, mixed $actual, string $message = ""): void {}
     }
     abstract class TestCase extends Assert {}
 }
@@ -36,12 +37,22 @@ namespace App\Tests {
             self::assertCount(2, $list);
             $text = json_encode($q);
             $this->assertNotEmpty($text);
+            $this->assertSame(['a' => 1], json_decode($body, true));
+            $this->assertSame(json_decode($body), 'x');
+            self::assertSame(false, json_decode($body));
+            self::assertSame(null, json_encode($q));
+            $this->assertSame(true, json_decode($body));
+            $this->assertEquals(['x'], json_decode($body, true));
+            $this->assertEquals('{"a":1}', json_encode($q));
+            $this->assertEquals(2.5, json_decode($body));
         }
 
         public function testUnchecked(string $body, array $q): void
         {
             $data = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>;
-            $this->assertSame([], $data);
+            $this->assertSame(null, $data);
+            $list = json_decode($body, true);
+            $this->assertSame([], $list);
             $json = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>;
             $this->assertNotNull($json);
             $raw = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>;
@@ -56,6 +67,20 @@ namespace App\Tests {
             $this->assertEmpty($none);
             $key = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>;
             $this->assertArrayHasKey($key, []);
+            $this->assertSame(null, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
+            $this->assertSame(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>, false);
+            $this->assertSame($q, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
+            $this->assertEquals([], <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>);
+            $this->assertEquals('0', <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
+            $this->assertEquals('', <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>);
+            $this->assertEquals(0, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
+            $this->assertEquals(0x1, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
+            $this->assertEquals(false, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>);
+            $this->assertEquals(PHP_EOL, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>);
+            $this->assertSame(expected: [], actual: <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
+            $this->assertSame(...[[], <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>]);
+            $this->assertSame([], 'x', <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
+            $this->assertSame(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
         }
     }
 }
