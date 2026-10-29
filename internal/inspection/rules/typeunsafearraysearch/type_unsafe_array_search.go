@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/types"
@@ -64,8 +65,33 @@ func shapeOf(t types.Type, atom string) bool {
 	return true
 }
 
-// literalStringHaystack implements E1.
+// literalStringHaystack implements E1: an array literal of non-numeric
+// strings, or a local variable every value of which is one.
 func literalStringHaystack(ctx *analysis.Context, h syntax.Expr) bool {
+	if v, ok := astquery.PlainVariable(h); ok {
+		vals, complete := semanticquery.LocalValuesComplete(ctx.Types(), h)
+		if !complete || len(vals) == 0 {
+			return false
+		}
+		// `$known[] = '1'` adds an element the assigned literal lacks.
+		for _, a := range flowquery.VarAccesses(ctx.File, syntax.EnclosingVariableScope(v), v.Name) {
+			if a.ElemWrite {
+				return false
+			}
+		}
+		for _, v := range vals {
+			if !literalStringArray(ctx, v) {
+				return false
+			}
+		}
+		return true
+	}
+	return literalStringArray(ctx, h)
+}
+
+// literalStringArray reports an array literal of non-numeric strings and
+// class names (E1).
+func literalStringArray(ctx *analysis.Context, h syntax.Expr) bool {
 	arr, ok := h.(*syntax.Array)
 	if !ok || len(arr.Items) == 0 {
 		return false

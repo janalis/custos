@@ -690,6 +690,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - SuspiciousBinaryOperation no longer reports `||`/`&&` assigned through a chain of assignments that forms a whole statement (`$a[$k] = $b[$id] = $x || $y;`), like the single assignment `$a = $x || $y;` it already accepted.
 - ClassConstantCanBeUsed now imports every class its quick-fixes reference: `custos fix` no longer writes the third and later classes of a namespace fully qualified (`\Acme\Form\CForm::class`) when no name collides. A single pass, as in editors, leaves those literals for the next one.
 - JsonEncodingApiUsage now recognizes PHPUnit assertions that check a decoded value when PHPUnit is installed outside the analyzed tree (symfony/phpunit-bridge's `vendor/bin/.phpunit`): `$this->assertIsArray($data)` in a test case extending PHPUnit's `TestCase` counts as handling the failure.
+- TypeUnsafeArraySearch no longer reports a search in a local variable that only ever holds a literal list of non-numeric strings (`$known = ['blocking_pipes', 'create_process_group']; in_array($key, $known)`), as it already skipped the literal written in the call.
 
 ## [0.1.7] - 2026-10-21
 

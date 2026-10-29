@@ -48,6 +48,12 @@ Visit every function call.
     `['k' => 'v']` (keyed), `['a', 5]` (non-string), `['a', $x]` → not
     skipped → reported.
   - An empty array literal `[]` is not skipped by E1.
+  - (custos) `H` may also be a local variable whose every possible value
+    at the call is such an array literal (`$known = ['blocking',
+    'create']; … in_array($key, $known)`, a ternary between two such
+    literals), as long as nothing else writes it in the function: no
+    element write (`$known[] = '1'`), no reference to it, no call that
+    may modify it (`sort($known)`).
   - (custos) An item may also be a class constant fetched through a class
     name (`self::USER`, `Webform::PAGE`, not `static::`, which a subclass
     may redefine) whose initializer is such a string literal, wherever the
