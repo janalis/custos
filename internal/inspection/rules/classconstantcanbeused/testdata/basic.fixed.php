@@ -24,7 +24,7 @@ class Clerk {
             '\ArrayObject',
             Bag::class,
             Bill::class,
-            \Shop\Billing\Ledger::class,
+            Ledger::class,
             Ledger::class,
             Tax\Rate::class,
             \Vendor\Kit\Ledger::class,

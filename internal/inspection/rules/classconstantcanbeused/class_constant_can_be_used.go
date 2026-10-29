@@ -299,6 +299,7 @@ func (st *cccState) edits(b *cccBlock, span syntax.Span, q string) []diagnostic.
 	short := astquery.LastNamePart(q)
 	t := q
 	canImport := ctx.Bool("IMPORT_CLASSES_ON_QF") && strings.Count(q, `\`) >= 2
+	shadowed := false               // an import takes the short name
 	for _, imp := range b.imports { // step 1
 		switch {
 		case imp.fqn == q:
@@ -308,6 +309,11 @@ func (st *cccState) edits(b *cccBlock, span syntax.Span, q string) []diagnostic.
 			// aliases are case-insensitive: neither reuse nor add.
 			canImport = false
 		}
+		shadowed = shadowed || strings.EqualFold(imp.local, short)
+	}
+	if t == q && !shadowed && b.name != "" && q == `\`+b.name+`\`+short {
+		// A class of the block's own namespace needs no import.
+		return []diagnostic.TextEdit{{Span: span, NewText: short + "::class"}}
 	}
 	out := []diagnostic.TextEdit{}
 	inNS := short

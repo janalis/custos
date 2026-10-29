@@ -10,7 +10,7 @@ $names = [
     // \e is the ESC byte and \x41 is "A": not the written class names
     "app\events\UserEvent",
     "app\x41bc\Reader",
-    \app\events\UserEvent::class,
+    UserEvent::class,
     // \x without a hex digit stays as written
     Reader::class,
 ];

@@ -139,7 +139,13 @@ Everything is gated on PHP language level ≥ 5.5.
        *already imported* (the last match wins);
      - else its fully-qualified name equals `Q` ignoring case, or its local
        name equals `short` ignoring case: *no import*. `T` stays `Q`.
-  2. If not already imported, `T` = `Q` initially.
+  2. If not already imported, `T` = `Q` initially. (custos) When the
+     block has a named namespace `NS`, `Q` is exactly `\NS\short` (same
+     letter case) and no class import of the block has `short` as local
+     name (ignoring case), `T` = `short` and nothing else applies: the
+     class lives in the block's own namespace and needs no import
+     (`'Acme\Tokens\Token'` in `namespace Acme\Tokens;` →
+     `Token::class`).
   3. If option `IMPORT_CLASSES_ON_QF` is on, the scan allowed it, `Q`
      contains at least 2 backslashes, and no class-like named `short` exists
      in the block's namespace (project index; any kind; the global namespace
@@ -393,6 +399,12 @@ return [
   literal is, or imports into a block the literal is not in. custos scopes
   imports, collision checks and the insertion point to the block enclosing
   the literal (F3).
+- **Own namespace (custos diverges, F3 step 2).** Upstream writes a class
+  of the file's own namespace fully qualified (`\Acme\Tokens\Token::class`
+  inside `namespace Acme\Tokens;`), since its import step refuses a short
+  name that a class of the namespace already takes, the target itself
+  included. custos writes `Token::class`, which PHP resolves to the same
+  class.
 - **Import collisions (custos diverges).** Upstream only keeps the fully
   qualified name when a *class* of that short name exists in the first
   namespace. custos also keeps it for interfaces, traits and enums, in the
