@@ -163,8 +163,17 @@ func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
 
 // tucCastTest reports whether cast converts other itself, by a cast to
 // int, float or string or by interpolating it alone (`(int) $v == $v`,
-// `"$n" != $n`): a test of what the conversion keeps (D5b).
+// `"$n" != $n`), directly or through a local whose only reaching
+// definition is that conversion (`$r = (string) $v; … $r == $v`): a test
+// of what the conversion keeps (D5b).
 func tucCastTest(ctx *analysis.Context, cast, other syntax.Expr) bool {
+	if v, ok := astquery.PlainVariable(syntax.UnwrapParens(cast)); ok {
+		defs, entry := flowquery.ReachingAssignmentsIn(ctx.File, syntax.EnclosingVariableScope(v), v, v.Name)
+		if entry || len(defs) != 1 {
+			return false
+		}
+		cast = defs[0].Value
+	}
 	var inner syntax.Expr
 	switch x := syntax.UnwrapParens(cast).(type) {
 	case *syntax.Unary:

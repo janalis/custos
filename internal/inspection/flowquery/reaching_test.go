@@ -19,7 +19,11 @@ func TestReachingAssignments(t *testing.T) {
 	function f7() { $v = 'a'; $g = function () { $v = 'inner'; }; $h = function () use (&$v) { $v = 'ref'; }; at($v); }
 	function f8($xs) { while ($xs) { $v = 'w1'; at($v); $v = 'w2'; } }
 	function f9() { $v = 'a'; ($v = 'b'); at($v); }
-	function f10($c) { switch ($c) { case 1: $v = 'a'; at($v); break; default: $v = 'b'; } }`
+	function f10($c) { switch ($c) { case 1: $v = 'a'; at($v); break; default: $v = 'b'; } }
+	function f11($c, $d) { $v = 'a'; if ($c) { $v = 'b'; } elseif ($d) { $v = 'c'; } else { at($v); } }
+	function f12($c, $d) { $v = 'a'; if ($c) { $v = 'b'; } elseif ($v = 'cond') { at($v); } }
+	function f13($xs, $c) { $v = 'a'; foreach ($xs as $x) { if ($c) { $v = 'b'; } else { at($v); } } }
+	function f14($c) { $v = 'a'; if ($c) { if ($c > 1) { $v = 'b'; } } else { at($v); } }`
 	f := Parse(t, src)
 	want := map[string]string{
 		"f1":  "entry",
@@ -32,6 +36,10 @@ func TestReachingAssignments(t *testing.T) {
 		"f8":  "'w1'",
 		"f9":  "'b'",
 		"f10": "'a'",
+		"f11": "'a'",
+		"f12": "'a' 'cond'",
+		"f13": "'a' 'b'",
+		"f14": "'a'",
 	}
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {

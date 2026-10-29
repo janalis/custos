@@ -686,6 +686,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when the decoded value is tested with `instanceof` (`if (!$data instanceof \stdClass) { return null; }`): the failure value is never an instance, so the code already falls back.
 - RandomApiMigration no longer suggests `mt_rand()`, `mt_srand()` or `mt_getrandmax()` at PHP 7.1 and above, where `rand()`, `srand()` and `getrandmax()` are aliases of them; `random_int()` suggestions are unchanged.
 - NotOptimalIfConditions no longer asks to move a check ahead of an earlier one that guards the same variable with `isset()`, `empty()` or `??` (`count(explode('.', $d ?? '')) > 2 && !is_numeric(str_replace('.', '', $d))` would pass a null `$d` to `str_replace()` once swapped).
+- TypeUnsafeComparison no longer asks for `===` when a local holding a cast of the other operand is compared with it (`$repr = (string) $value; if ($repr == $value)`): the comparison tests what the conversion keeps, and `===` would never hold.
 
 ## [0.1.7] - 2026-10-21
 

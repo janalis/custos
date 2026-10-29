@@ -99,7 +99,10 @@ string literal here).
 - **D5b** (custos) The comparison is not a *conversion test*: one operand
   is an `(int)`, `(float)` or `(string)` cast of the other, or a string
   interpolating it alone (`(int) $v == $v`, `"$n" != $n`), which tests
-  whether the conversion keeps the value.
+  whether the conversion keeps the value. A local variable whose only
+  definition reaching the comparison is such a conversion counts as the
+  conversion itself (`$repr = (string) $value; … if ($repr == $value)`):
+  `===` would compare a string with a float and never hold.
 - **D5c** (custos) The comparison is not an *array equality*: one
   operand's type is known and made of arrays only, and the other's is
   unknown, `mixed` or arrays only. `==` on arrays holds when they have the

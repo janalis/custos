@@ -82,6 +82,9 @@ func ReachingAssignmentsIn(f *syntax.File, scope, at syntax.Node, name string) (
 			continue
 		}
 		if a.Span().End <= atStart { // written before at
+			if reachExclusive(a, at, scope) {
+				continue
+			}
 			if !hasKill(nil) || a.Span().Start >= kill {
 				defs = append(defs, a)
 			}
@@ -125,6 +128,29 @@ func reachDominates(a *syntax.Assign, at syntax.Node, atStart uint32) bool {
 		return NodeContains(list, at)
 	}
 	return false
+}
+
+// reachExclusive reports whether a is written in an arm of an if statement
+// (its body or the body of an elseif) while at lies in a later arm: at only runs when a's arm was skipped, unless a loop around that if
+// brings a's write back.
+func reachExclusive(a, at, scope syntax.Node) bool {
+	exclusive := false
+	for n := a; n != nil && n != scope; n = n.Parent() {
+		if exclusive && reachIsLoop(n) {
+			return false
+		}
+		p, ok := n.Parent().(*syntax.If)
+		if !ok || exclusive || !NodeContains(p, at) || NodeContains(n, at) {
+			continue
+		}
+		// The else arm is last: no later arm holds at.
+		if arm, ok := n.(*syntax.ElseIf); ok {
+			exclusive = NodeContains(arm.Body, a)
+		} else {
+			exclusive = n == syntax.Node(p.Body)
+		}
+	}
+	return exclusive
 }
 
 func reachKillPos(k syntax.Node) uint32 {

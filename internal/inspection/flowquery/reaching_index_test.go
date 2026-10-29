@@ -127,6 +127,9 @@ func reachingAssignmentsRef(scope, at syntax.Node, name string) (defs []*syntax.
 			continue
 		}
 		if a.Span().End <= atStart { // written before at
+			if reachExclusive(a, at, scope) {
+				continue
+			}
 			if !hasKill(nil) || a.Span().Start >= kill {
 				defs = append(defs, a)
 			}

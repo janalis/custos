@@ -32,6 +32,21 @@ function compare(Name|Identifier|ComplexType $type, ComplexType $complex, $v, st
     return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $o, $p, $q, $r, $t];
 }
 
+function storedConversion(float $value, int $n, bool $round)
+{
+    // The conversion stored in a local first still tests what it keeps.
+    $repr = (string) $value;
+    $a = $repr == $value;
+    $text = 'n';
+    if ($round) {
+        $text = (string) $n;
+    }
+    $b = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$text == $n</weak_warning>;
+    $c = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$fresh == $n</weak_warning>;
+    $d = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$repr == $n</weak_warning>;
+    return [$a, $b, $c, $d];
+}
+
 function truthiness(int|bool $flag, mixed $m, int $n, $unknown)
 {
     // A flag stored as 1 or TRUE, a mixed value tested for emptiness.
