@@ -82,7 +82,8 @@ mixed pairs whose lengths use different units.
 ## Fix
 
 - **F1** Replace `B` with `R`; the negated form has no space after `!`
-  (`!str_ends_with(H, N)`). Arguments are copied verbatim, separated by `, `.
+  (`!str_ends_with(H, N)`). Arguments are copied verbatim, separated by `, `. (custos) When the two arguments were separated by a comma and a line
+  break only, the fix keeps that separator; the message shows `, `.
   - `substr($file, -strlen('.php')) === '.php'` → `str_ends_with($file, '.php')`
   - `$ext !== substr($name, - strlen($ext))` → `!str_ends_with($name, $ext)`
 - (custos) No fix when a comment lies in the replaced comparison outside

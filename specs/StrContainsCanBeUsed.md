@@ -63,7 +63,8 @@ because its mutable default encoding does not establish byte equivalence.
 
 - **F1** Replace `B` with `R`. The negated form is emitted **without** a space
   after `!`: `!str_contains(H, N)`. Arguments are separated by `, ` and copied
-  verbatim.
+  verbatim. (custos) When the two arguments were separated by a comma and a line
+  break only, the fix keeps that separator; the message shows `, `.
   - `strpos($s, 'x') !== false` → `str_contains($s, 'x')`
   - `false === \strpos($s, $t)` → `!\str_contains($s, $t)`
 - (custos) No fix when a comment lies in the replaced comparison outside

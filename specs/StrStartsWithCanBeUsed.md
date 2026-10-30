@@ -59,7 +59,8 @@ because its mutable default encoding does not establish byte equivalence.
 
 - **F1** Replace `B` with `R`; the negated form has no space after `!`
   (`!str_starts_with(H, N)`). Arguments are copied verbatim, separated by
-  `, `.
+  `, `. (custos) When the two arguments were separated by a comma and a line
+  break only, the fix keeps that separator; the message shows `, `.
   - `0 === strpos($path, '/')` → `str_starts_with($path, '/')`
   - `strpos($s, $p) !== 0` → `!str_starts_with($s, $p)`
 - (custos) No fix when a comment lies in the replaced comparison outside

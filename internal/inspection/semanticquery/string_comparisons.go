@@ -67,9 +67,19 @@ func ReportStrCallReplacementFix(ctx *analysis.Context, m StrCallCompare, fn str
 	if m.Qual != "" || !BareReachesGlobal(ctx, fn, m.Call.Span().Start) {
 		qual = `\`
 	}
-	r := qual + fn + "(" + ctx.Text(m.Args[0]) + ", " + ctx.Text(needle) + ")"
-	if negate {
-		r = "!" + r
+	call := func(sep string) string {
+		r := qual + fn + "(" + ctx.Text(m.Args[0]) + sep + ctx.Text(needle) + ")"
+		if negate {
+			r = "!" + r
+		}
+		return r
+	}
+	r, fixed := call(", "), call(", ")
+	// custos: arguments the author split over lines stay split.
+	if from, to := m.Args[0].Span().End, needle.Span().Start; from < to {
+		if sep := string(ctx.Src[from:to]); strings.TrimSpace(sep) == "," && strings.Contains(sep, "\n") {
+			fixed = call(sep)
+		}
 	}
 	span := m.Cmp.Span()
 	// custos: the call is rebuilt from its arguments; a comment between them
@@ -81,7 +91,7 @@ func ReportStrCallReplacementFix(ctx *analysis.Context, m StrCallCompare, fn str
 	ctx.Report(span, "Replace with '"+r+"'.", diagnostic.Fix{
 		Title: "Use " + fn + "()",
 		Edits: func() []diagnostic.TextEdit {
-			return []diagnostic.TextEdit{{Span: span, NewText: r}}
+			return []diagnostic.TextEdit{{Span: span, NewText: fixed}}
 		},
 	})
 }

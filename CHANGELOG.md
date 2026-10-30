@@ -760,6 +760,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   a result given for a `string` parameter in a file that declares
   `strict_types=1`, where the failure value throws a TypeError instead of
   passing as empty text.
+- StrStartsWithCanBeUsed, StrContainsCanBeUsed and StrEndsWithCanBeUsed
+  quick-fixes keep arguments the author split over two lines on two lines.
 
 ## [0.1.7] - 2026-10-21
 
