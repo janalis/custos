@@ -30,3 +30,10 @@ function changed_after_test($source, $conditional) {
         <warning descr="Handle regex replacement failure before using its result.">substr($value, 1)</warning>;
     }
 }
+function stored_test($source) {
+    $line = preg_replace('~ +$~', '', $source);
+    if ($negated = <warning descr="Handle regex replacement failure before using its result.">str_starts_with($line, '!')</warning>) {
+        $line = substr($line, 1);
+    }
+    return $negated;
+}

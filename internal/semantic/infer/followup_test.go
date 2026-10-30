@@ -61,3 +61,17 @@ function a(string $k, array $open) {
 }
 `, map[string]string{"unsealed": "?unknown", "literal": "?unknown", "var": "?unknown", "present": "string", "computedWrite": "string"})
 }
+
+// A condition storing a test is that test for the variables it reads, not
+// for the variable it assigns (whose new value is the outcome).
+func TestStoredTestConditionNarrows(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Box { public ?int $p = null; }
+function a(?string $s, ?int $n, Box $o, ?string $s2) {
+    if ($neg = str_starts_with((string) $s, '!') && $s !== null) { t('stored', $s); }
+    if ($ok = is_int($n)) { t('typed', $n); } else { t('untyped', $n); }
+    if ($o = is_int($o->p)) { t('self', $o); }
+    if ($s2 = is_string($s2)) { t('rebound', $s2); }
+}
+`, map[string]string{"stored": "string", "typed": "int", "untyped": "null", "self": "true", "rebound": "true"})
+}

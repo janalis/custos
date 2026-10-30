@@ -66,7 +66,7 @@ func TestReviewStreamOpenFailureUnchecked(t *testing.T) {
 		{"compared assignment condition", "if(($h=fopen($p,'rb'))!==false){" + read + "}", 0},
 		{"assignment condition else", "if($h=fopen($p,'rb')){echo 1;}else{" + read + "}", 1},
 		{"assignment of another handle", open + "if($g=fopen($q,'rb')){" + read + "}", 1},
-		{"assignment to another variable", open + "if($g=$h){" + read + "}", 1},
+		{"assignment to another variable", open + "if($g=$h){" + read + "}", 0},
 		{"reference assignment condition", open + "if($g=&$h){echo 1;}", 0},
 		{"assignment or die", "$h=fopen($p,'rb') or die('x');" + read, 0},
 		{"assignment or print", "$h=fopen($p,'rb') or print('x');" + read, 1},

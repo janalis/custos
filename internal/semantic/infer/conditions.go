@@ -180,6 +180,10 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		if c.Op.Kind == syntax.TEqual && !c.ByRef && callMatches(c.Value, name) {
 			return e.applyCondB(t, c.Value, name, truthy, steps)
 		}
+		if v, ok := c.Var.(*syntax.Variable); ok && c.Op.Kind == syntax.TEqual && !c.ByRef && v.NameExpr == nil && !keyUnder(name, v.Name) {
+			// `if ($neg = str_starts_with($line, '!'))` tests what it stores.
+			return e.applyCondB(t, c.Value, name, truthy, steps)
+		}
 	case *syntax.StaticCall:
 		if r, ok := e.condAsserts(c, name, truthy, t); ok {
 			return r
@@ -571,4 +575,11 @@ func bindArgs(c *syntax.FuncCall, params ...string) ([]syntax.Expr, bool) {
 		out[i] = a.Value
 	}
 	return out, true
+}
+
+// keyUnder reports whether narrowing key name is variable v or a member or
+// element of it.
+func keyUnder(name, v string) bool {
+	rest, ok := strings.CutPrefix(name, v)
+	return ok && (rest == "" || !(rest[0] == '_' || '0' <= rest[0] && rest[0] <= '9' || 'a' <= rest[0]|0x20 && rest[0]|0x20 <= 'z' || rest[0] >= 0x80))
 }

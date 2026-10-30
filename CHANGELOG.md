@@ -726,6 +726,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `preg_match()` or `preg_match_all()` with a literal pattern that cannot
   match the empty text: a failed read matches nothing, like a text without
   a match.
+- A condition that stores a test in a variable (`if ($negated =
+  str_starts_with($line, '!'))`) now narrows the variables the test reads
+  like the bare test does, so PregReplaceFailureUnchecked and other
+  type-based rules no longer report a guarded use inside it.
 
 ## [0.1.7] - 2026-10-21
 
