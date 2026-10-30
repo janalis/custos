@@ -45,10 +45,12 @@ func NativeStringInputs(ctx *analysis.Context, call syntax.Node, list *syntax.Ar
 // extending the receiver's replaces it, each replacement must declare the
 // parameter the same (see flow.Env.Targets): at the same position, or
 // wherever it stands when the argument is passed by name. Below PHP 7 a
-// declaration of the project names a class with `string`.
+// declaration of the project names a class with `string`. A file that
+// declares `strict_types=1` consumes nothing this way: there a `false` or
+// `null` given for a `string` parameter throws a TypeError.
 func NativeStringConsumer(ctx *analysis.Context, call syntax.Node, list *syntax.ArgList, input syntax.Expr) bool {
 	callee, resolved := ResolveCallee(ctx, call)
-	if !resolved || list == nil {
+	if !resolved || list == nil || syntax.StrictTypes(ctx.File) {
 		return false
 	}
 	at := -1

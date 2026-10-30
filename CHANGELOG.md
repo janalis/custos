@@ -756,6 +756,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - JsonEncodingApiUsage no longer reports a decode compared by `assertSame()`
   or `assertEquals()` with a local variable that only ever holds a literal
   the failure value cannot match, as it already did for the literal itself.
+- FileReadFailureUnchecked and PregReplaceFailureUnchecked no longer report
+  a result given for a `string` parameter in a file that declares
+  `strict_types=1`, where the failure value throws a TypeError instead of
+  passing as empty text.
 
 ## [0.1.7] - 2026-10-21
 
