@@ -700,6 +700,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - NotOptimalIfConditions no longer moves an element read ahead of a cheaper
   check when the receiver may be an `ArrayAccess` object or a `mixed` value:
   reading it may run `offsetGet()`.
+- JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when the
+  encoded literal holds calls that only return ASCII text or integers, such
+  as `base64_encode()` or `count()`.
 
 ## [0.1.7] - 2026-10-21
 

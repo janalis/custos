@@ -169,7 +169,11 @@ own fix.
   string literal of valid UTF-8, `true`, `false`, `null`, or an array
   literal of such keys and values, nested less than 64 levels deep, with
   no unpacking, reference or empty slot (`json_encode(['id' => 1, 'tags'
-  => ['a']])`). Floats are not included: a literal such as `1e999` is
+  => ['a']])`). A call of one of PHP's own functions that return only ASCII
+  text or an integer counts as such a value: `base64_encode`, `bin2hex`,
+  `dechex`, `decbin`, `decoct`, `crc32`, `strlen`, `count`, and `md5` or
+  `sha1` given their text alone (a second argument may ask for the raw
+  binary digest). Floats are not included: a literal such as `1e999` is
   infinite, which json_encode cannot encode.
 
 ## Report

@@ -102,7 +102,7 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	if !decode && jsonEncodable(subject.Value, 0) { // E10
+	if !decode && jsonEncodable(ctx, subject.Value, 0) { // E10
 		return
 	}
 	flags, hasFlags := jsonArg(call, "flags", flagsPos)
@@ -469,9 +469,19 @@ func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
 
 // jsonEncodable reports whether json_encode cannot fail on e: an integer,
 // a string literal of valid UTF-8, true, false, null, or an array literal
-// of those (keys included) nested less than 64 levels deep (E10).
-func jsonEncodable(e syntax.Expr, depth int) bool {
+// of those (keys included) nested less than 64 levels deep, or a call of
+// one of PHP's functions that return only ASCII text or an integer (E10).
+func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.FuncCall:
+		args, ok := astquery.ArgValues(x.Args)
+		switch ctx.GlobalFunctionName(x) {
+		case "base64_encode", "bin2hex", "dechex", "decbin", "decoct", "crc32", "strlen", "count":
+			return true
+		case "md5", "sha1": // a second argument may ask for the raw binary digest
+			return ok && len(args) == 1
+		}
+		return false
 	case *syntax.Literal:
 		if x.LitKind == syntax.LitInt {
 			return true
@@ -479,7 +489,7 @@ func jsonEncodable(e syntax.Expr, depth int) bool {
 		v, ok := syntax.LiteralStringValue(x)
 		return ok && utf8.ValidString(v)
 	case *syntax.Unary:
-		return x.Op.Kind == syntax.TMinus && jsonEncodable(x.Expr, depth)
+		return x.Op.Kind == syntax.TMinus && jsonEncodable(ctx, x.Expr, depth)
 	case *syntax.ConstFetch:
 		name := strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`))
 		return name == "true" || name == "false" || name == "null"
@@ -488,7 +498,7 @@ func jsonEncodable(e syntax.Expr, depth int) bool {
 			return false
 		}
 		for _, it := range x.Items {
-			if it == nil || it.Unpack || it.ByRef || it.Key != nil && !jsonEncodable(it.Key, depth+1) || !jsonEncodable(it.Value, depth+1) {
+			if it == nil || it.Unpack || it.ByRef || it.Key != nil && !jsonEncodable(ctx, it.Key, depth+1) || !jsonEncodable(ctx, it.Value, depth+1) {
 				return false
 			}
 		}
