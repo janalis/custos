@@ -375,9 +375,10 @@ function untyped($flag = null) {
     (D7e.2): it may well be an instance of that class (Doctrine
     `ObjectRepository::findOneBy()` returns `object|null`).
   - D7c also drops the failure markers when the value is a `match` whose
-    every arm is a call, or a full ternary whose both branches are calls
+    every arm is a call, a full ternary whose both branches are calls, or
+    a `?:` whose both operands are calls
     (`$t = match ($p) { 'a' => preg_replace_callback(…), default =>
-    preg_replace_callback(…) };`).
+    preg_replace_callback(…) };`, `$path = realpath($a) ?: realpath($path);`).
 - **Round-5 refinements (custos diverges).** Found on Moodle, TYPO3 and
   PhpSpreadsheet:
   - D7c: for call values (a call, possibly `@`-silenced, or a

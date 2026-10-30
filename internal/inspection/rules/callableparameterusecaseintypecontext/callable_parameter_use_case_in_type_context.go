@@ -750,7 +750,10 @@ func cpAllCalls(e syntax.Expr) bool {
 		}
 		return len(x.Arms) > 0
 	case *syntax.Ternary:
-		return x.Then != nil && cpAllCalls(x.Then) && cpAllCalls(x.Else)
+		if x.Then == nil { // `a() ?: b()` yields one of both calls
+			return cpAllCalls(x.Cond) && cpAllCalls(x.Else)
+		}
+		return cpAllCalls(x.Then) && cpAllCalls(x.Else)
 	}
 	return false
 }

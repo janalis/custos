@@ -713,6 +713,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - NestedPositiveIfStatements no longer wraps an `instanceof` parent
   condition in parentheses when merging: `$a instanceof B && $c` already
   reads that way.
+- CallableParameterUseCaseInTypeContext no longer reports a `?:` chain of
+  calls such as `$path = realpath($a) ?: realpath($path);` on a string
+  parameter: the false of either call is a failure marker, as for a single
+  call.
 
 ## [0.1.7] - 2026-10-21
 
