@@ -106,10 +106,11 @@ func npiWrapParent(e syntax.Expr) bool {
 
 // npiWrapChild reports whether a child condition binds looser than the `&&`
 // it becomes the right operand of (`||`/`or` never reach the fix, `and`
-// keeps its meaning unwrapped).
+// keeps its meaning unwrapped), or is an assignment, which PHP reads right
+// but a reader may not (`$a && $x = $s->get()`).
 func npiWrapChild(e syntax.Expr) bool {
 	switch e := e.(type) {
-	case *syntax.Ternary:
+	case *syntax.Ternary, *syntax.Assign:
 		return true
 	case *syntax.Binary:
 		return e.Op.Kind == syntax.TCoalesce || e.Op.Kind == syntax.TXor

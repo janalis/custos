@@ -30,5 +30,5 @@ function children($u, $a, $b, $c)
 
     if ($u && $a and $b) { run(); }
 
-    if ($u && $a = $b) { run(); }
+    if ($u && ($a = $b)) { run(); }
 }

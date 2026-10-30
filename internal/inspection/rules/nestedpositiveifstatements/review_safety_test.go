@@ -39,7 +39,7 @@ func TestReviewSafety(t *testing.T) {
 		{"coalesce child", "<?php if ($u) { if ($a ?? $b) { a(); } }", 1, "<?php if ($u && ($a ?? $b)) { a(); }"},
 		{"xor child", "<?php if ($u) { if ($a xor $b) { a(); } }", 1, "<?php if ($u && ($a xor $b)) { a(); }"},
 		{"and child", "<?php if ($u) { if ($a and $b) { a(); } }", 1, "<?php if ($u && $a and $b) { a(); }"},
-		{"assignment child", "<?php if ($u) { if ($x = $v) { a(); } }", 1, "<?php if ($u && $x = $v) { a(); }"},
+		{"assignment child", "<?php if ($u) { if ($x = $v) { a(); } }", 1, "<?php if ($u && ($x = $v)) { a(); }"},
 		{"equality", "<?php if ($a == $b) { if ($w) { a(); } }", 1, "<?php if ($a == $b && $w) { a(); }"},
 		{"concatenation", "<?php if ($a . $b) { if ($w) { a(); } }", 1, "<?php if ($a . $b && $w) { a(); }"},
 		{"equality ending in assignment", "<?php if ($a == $r = get()) { if ($w) { a(); } }", 1, "<?php if (($a == $r = get()) && $w) { a(); }"},

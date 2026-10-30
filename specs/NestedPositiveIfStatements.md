@@ -100,9 +100,10 @@ body content. This only happens when `C`'s body is a braced block.
     expression, …)
     it is used as is: `if ($a == $b) { if ($c) {} }` → `if ($a == $b && $c) {}`.
   - `CC` is wrapped as `(CC)` when it binds looser than `&&`: a ternary
-    (either form) or a binary `??` or `xor`. An `and` child keeps its meaning
-    unwrapped and an assignment child is already the whole right operand, so
-    both are used as is.
+    (either form) or a binary `??` or `xor`. An assignment child is wrapped
+    too: it is already the whole right operand, but `$a && $x = $s->get()`
+    reads as an assignment to `$a && $x`. An `and` child keeps its meaning
+    unwrapped and is used as is.
   - The parent condition is replaced by `PC && CC` (single spaces around
     `&&`).
   - The parent's body block is replaced by `C`'s body (the statement after

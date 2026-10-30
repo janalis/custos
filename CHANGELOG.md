@@ -750,6 +750,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - CallableParameterUseCaseInTypeContext no longer reports a value documented
   as `object|resource` (a handle in its old and PHP 8 forms) assigned to a
   parameter whose class the object form fits.
+- The NestedPositiveIfStatements quick-fix parenthesizes an inner condition
+  that is an assignment (`if ($a && ($x = $s->get()))`), which it merged
+  unparenthesized before.
 
 ## [0.1.7] - 2026-10-21
 
