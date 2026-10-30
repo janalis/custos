@@ -2,11 +2,14 @@
 package filereadfailureunchecked
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/types"
 )
@@ -52,7 +55,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || unmatchedSubject(ctx, n, input) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) {
 			continue
 		}
 
@@ -119,4 +122,29 @@ func unmatchedSubject(ctx *analysis.Context, n syntax.Node, input syntax.Expr) b
 	name := semanticquery.NativeBuiltinName(ctx, call)
 	return (name == "preg_match" || name == "preg_match_all") && semanticquery.CallArgument(call.Args, 1, "subject") == input &&
 		flow.EmptylessPattern(semanticquery.CallArgument(call.Args, 0, "pattern"))
+}
+
+// emptyRejecting lists the methods of PHP's own classes that throw a
+// ValueError, from PHP 8.0 on, when given empty text to parse (E10).
+var emptyRejecting = map[string]bool{
+	"domdocument::loadxml": true, "domdocument::loadhtml": true,
+	"domdocument::schemavalidatesource": true, "domdocument::relaxngvalidatesource": true,
+	"xmlreader::xml": true,
+}
+
+// rejectsEmpty reports whether input is the text method call n parses with
+// one of the emptyRejecting methods, whichever class it runs on (E10): the
+// failure value becomes the empty text there, which throws.
+func rejectsEmpty(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+	call, ok := n.(*syntax.MethodCall)
+	if !ok || ctx.PHP < phpversion.PHP80 || semanticquery.CallArgument(call.Args, 0, "source") != input {
+		return false
+	}
+	targets := ctx.Flow().Targets(call)
+	for _, t := range targets {
+		if !t.Builtin || !emptyRejecting[strings.ToLower(strings.TrimPrefix(t.Class, `\`)+"::"+t.Name)] {
+			return false
+		}
+	}
+	return len(targets) > 0
 }

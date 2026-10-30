@@ -762,6 +762,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   passing as empty text.
 - StrStartsWithCanBeUsed, StrContainsCanBeUsed and StrEndsWithCanBeUsed
   quick-fixes keep arguments the author split over two lines on two lines.
+- FileReadFailureUnchecked no longer reports a read parsed by
+  `DOMDocument::loadXML()`, `loadHTML()`, `schemaValidateSource()`,
+  `relaxNGValidateSource()` or `XMLReader::XML()` on PHP 8, which throw a
+  `ValueError` for the empty text a failed read becomes.
 
 ## [0.1.7] - 2026-10-21
 
