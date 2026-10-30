@@ -730,6 +730,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   str_starts_with($line, '!'))`) now narrows the variables the test reads
   like the bare test does, so PregReplaceFailureUnchecked and other
   type-based rules no longer report a guarded use inside it.
+- JsonEncodingApiUsage no longer reports `json_encode()` of a local
+  variable that only ever holds a literal that encodes
+  (`$rows = ['a' => 1]; json_encode($rows);`), as it already did for the
+  literal written in the call.
 
 ## [0.1.7] - 2026-10-21
 

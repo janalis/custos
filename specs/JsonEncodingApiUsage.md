@@ -175,6 +175,10 @@ own fix.
   `sha1` given their text alone (a second argument may ask for the raw
   binary digest). Floats are not included: a literal such as `1e999` is
   infinite, which json_encode cannot encode.
+  A local variable counts when every value that may reach the read is
+  known and is such a value, and none of its elements is written in place
+  (`$rows = ['a' => 1]; json_encode($rows);`, not after `$rows[] = $text;`);
+  a parameter, a by-reference write or any other write leaves it unknown.
 
 ## Report
 

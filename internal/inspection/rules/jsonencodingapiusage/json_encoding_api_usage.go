@@ -8,6 +8,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -482,6 +483,24 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 			return ok && len(args) == 1
 		}
 		return false
+	case *syntax.Variable:
+		// Every value that may reach the read is itself encodable, and no
+		// element is written in place (`$v[] = $raw`).
+		values, complete := semanticquery.LocalValuesComplete(ctx.Types(), x)
+		if !complete || len(values) == 0 {
+			return false
+		}
+		for _, a := range flowquery.VarAccesses(ctx.File, syntax.EnclosingVariableScope(x), x.Name) {
+			if a.ElemWrite {
+				return false
+			}
+		}
+		for _, v := range values {
+			if !jsonEncodable(ctx, v, depth) {
+				return false
+			}
+		}
+		return true
 	case *syntax.Literal:
 		if x.LitKind == syntax.LitInt {
 			return true
