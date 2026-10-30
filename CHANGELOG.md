@@ -734,6 +734,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   variable that only ever holds a literal that encodes
   (`$rows = ['a' => 1]; json_encode($rows);`), as it already did for the
   literal written in the call.
+- The MissingOrEmptyGroupStatement quick-fix keeps the braces on the line
+  when more code follows the body there (`if ($e) { continue; } echo $e;`)
+  instead of splitting the line around the block.
 
 ## [0.1.7] - 2026-10-21
 

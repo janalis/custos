@@ -90,8 +90,10 @@ to the `if`.
   For `do stmt; while (c);` only `stmt;` is wrapped; the `while (c);` tail is
   preserved.
 - F1a (custos): when the construct and its body sit on one line that a
-  close tag ends (`<?php if ($a) print "x" ?>` inside an HTML attribute),
-  the block stays on that line: `if ($a) { print "x"; } ?>`.
+  close tag ends (`<?php if ($a) print "x" ?>` inside an HTML attribute), or
+  that more code follows (`if ($e) continue; echo $e;`), the block stays on
+  that line: `if ($a) { print "x"; } ?>`, `if ($e) { continue; } echo $e;`.
+  A comment after the body does not count as code.
 - D2 has no fix.
 
 ## Options

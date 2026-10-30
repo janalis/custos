@@ -102,8 +102,9 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 				}
 			}
 			// custos: a one-line template island (`<?php if ($a) print "x"
-			// ?>` inside an attribute) keeps its block on that line.
-			inline := !strings.Contains(string(ctx.Src[kwSpan.Start:end]), "\n") && (tail != "" || closesAfter(ctx.File, bs.End))
+			// ?>` inside an attribute), or a body followed by more code on
+			// its line, keeps its block on that line.
+			inline := !strings.Contains(string(ctx.Src[kwSpan.Start:end]), "\n") && (tail != "" || codeFollows(ctx.File, bs.End))
 			closing := "\n" + indent + "}" + tail
 			if inline {
 				closing = " }" + tail
@@ -218,13 +219,14 @@ func leavesLast(f *syntax.File, fe *syntax.Foreach) bool {
 	return found
 }
 
-// closesAfter reports whether a close tag follows pos on the same line.
-func closesAfter(f *syntax.File, pos uint32) bool {
+// codeFollows reports whether a close tag or code other than a comment
+// follows pos on the same line.
+func codeFollows(f *syntax.File, pos uint32) bool {
 	i := astquery.TokenIndex(f, pos)
 	for i < len(f.Tokens) && f.Tokens[i].Kind == syntax.TWhitespace && !strings.Contains(string(f.Src[f.Tokens[i].Start:f.Tokens[i].End]), "\n") {
 		i++
 	}
-	return i < len(f.Tokens) && f.Tokens[i].Kind == syntax.TCloseTag
+	return i < len(f.Tokens) && f.Tokens[i].Kind != syntax.TWhitespace && f.Tokens[i].Kind != syntax.TComment && f.Tokens[i].Kind != syntax.TDocComment
 }
 
 // closeTagSplit returns the end of the body's last significant token when a
