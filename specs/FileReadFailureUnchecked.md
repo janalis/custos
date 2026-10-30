@@ -32,7 +32,7 @@ unchecked result.
 
 ## Exceptions (no report)
 
-- E1. Strict false guard, deliberate documented false coercion, termination, and result reassignment invalidate the report.
+- E1. Strict false guard, deliberate documented false coercion, termination, and result reassignment invalidate the report. So does a call, after the read and before the use, to code that may replace the variable without the analysis following it: at file level, any call of the project when some function of the project reads the globals table as a whole (`return ['globals' => $GLOBALS];`). The variable may then hold another value than the read.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 - E3. A guard on the same read result that excludes false counts as handling, whether it selects the branch holding the use (`if`, `elseif`/`else`, ternary, the right operand of `&&`/`||`) or sits in an earlier sibling `if` without alternatives whose body leaves the path. Accepted conditions, possibly negated or combined with `&&`/`||` where the combination still proves the fact: truthiness, `empty()`, `is_string()`, strict comparison with `false`, and loose comparison with a constant that `false` equals (`false`, `null`, `0`, `''`, `'0'`). The guarded variable must hold only that earlier read, or be assigned it inside the condition.
 - E4. A guard body leaves the path when it terminates syntactically or contains, as a direct statement, a call whose resolved return type is `never`. Calls with unknown or returning targets do not qualify.

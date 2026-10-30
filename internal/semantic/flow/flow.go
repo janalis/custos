@@ -120,6 +120,9 @@ type Value struct {
 	matched bool
 	// unlessFalse, unlessNull, skippedFalse and skippedNull qualify unless.
 	unlessFalse, unlessNull, skippedFalse, skippedNull bool
+	// replaced marks a binding that code the analysis does not follow may
+	// have replaced since it was last written, on some path.
+	replaced bool
 	// entry marks the binding of a static variable that still holds what it
 	// held when its declaration was reached: nothing wrote it since.
 	entry bool
@@ -1081,6 +1084,13 @@ func (e *Env) Reaching(x syntax.Expr) ([]Origin, bool) {
 	return nil, false
 }
 
+// Replaced reports a read whose binding code the analysis does not follow
+// (a callee that may write the globals table) may have replaced since it
+// was last written, on some path.
+func (e *Env) Replaced(x syntax.Expr) bool {
+	return e.Value(x).replaced
+}
+
 // ExactLength returns a byte length established by a strict strlen guard.
 func (e *Env) ExactLength(x syntax.Expr) (int64, bool) {
 	v := e.Value(x)
@@ -1196,6 +1206,7 @@ func merge(a, b Value) Value {
 	// Text of the program joined with a matched label is text of the program.
 	v.matched = (a.matched || b.matched) && (a.matched || a.written()) && (b.matched || b.written())
 	v.entry = a.entry && b.entry
+	v.replaced = a.replaced || b.replaced
 	v.plain, v.deep = a.plain && b.plain, a.deep && b.deep
 	v.scalars = ca && cb
 	if ua == ub {
@@ -1291,7 +1302,7 @@ func before(a, b Source) bool {
 // equal reports two values that hold the same facts. Element sets are
 // compared by identity, which merge keeps when nothing changes.
 func equal(v, w Value) bool {
-	if !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.plain != w.plain || v.deep != w.deep {
+	if !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.replaced != w.replaced || v.plain != w.plain || v.deep != w.deep {
 		return false
 	}
 	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || !sameOrigins(v.origins, w.origins) || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
@@ -1383,6 +1394,9 @@ func (f *frame) bind(target, source string, site uint32) {
 // other such name: what they held is gone, and the request data written may
 // now be read under them. The walk is charged to the scope's budget.
 func (f *frame) write(r *scopeResult, name string, v Value) {
+	// What is written is the binding's own value again, whatever replaced
+	// the operands it was computed from.
+	v.replaced = false
 	f.unmatch(r, name)
 	if len(f.related) > 0 {
 		f.rewritten(r, name, v)

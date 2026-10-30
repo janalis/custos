@@ -2680,7 +2680,7 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 		r.operations += len(f.vars)
 		for name, old := range f.vars {
 			v := unsettled(old, e.held(name, r), r)
-			v.Invalidated = stamp
+			v.Invalidated, v.replaced = stamp, true
 			f.setVar(name, v)
 		}
 		return
@@ -2705,7 +2705,7 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 			written = e.held(name, r)
 		}
 		v := unsettled(f.vars[name], written, r)
-		v.Invalidated = stamp
+		v.Invalidated, v.replaced = stamp, true
 		f.setVar(name, v)
 	}
 }

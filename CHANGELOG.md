@@ -775,6 +775,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   `JSON_THROW_ON_ERROR` on a `json_decode()` of such an encoding. A
   `json_encode()` given a depth or `JSON_NUMERIC_CHECK` is reported even
   for such values, since either can make it fail.
+- FileReadFailureUnchecked and the other failure-result rules no longer
+  report a checked file-level read used after a call that may replace it
+  through the globals table: the variable may then hold another value.
 
 ## [0.1.7] - 2026-10-21
 

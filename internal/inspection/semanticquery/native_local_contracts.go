@@ -454,7 +454,9 @@ func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string, prod
 	case *syntax.Array, *syntax.Literal, *syntax.InterpolatedString:
 		content = true
 	}
-	if value == nil || facts.localWrites(ctx, scope).rewritten(variable.Name, from, e.Span().Start, content) {
+	// Code the flow does not follow (a callee that may write the globals
+	// table) may have replaced the value since.
+	if value == nil || facts.localWrites(ctx, scope).rewritten(variable.Name, from, e.Span().Start, content) || ctx.Flow().Replaced(e) {
 		return nil
 	}
 	if v, ok := value.(*syntax.Variable); ok {
