@@ -87,7 +87,7 @@ func npiIsOr(e syntax.Expr) bool {
 // `&&`, so it would absorb the appended operand.
 func npiWrapParent(e syntax.Expr) bool {
 	switch e := e.(type) {
-	case *syntax.Assign, *syntax.Ternary, *syntax.Instanceof, *syntax.Print, *syntax.Include,
+	case *syntax.Assign, *syntax.Ternary, *syntax.Print, *syntax.Include,
 		*syntax.Throw, *syntax.Yield, *syntax.YieldFrom, *syntax.ArrowFunction:
 		return true
 	case *syntax.Binary:

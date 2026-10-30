@@ -26,6 +26,10 @@ function parents($strict, $u, $v, $w)
     if (!$u) {
         <weak_warning descr="Merge this if statement into its parent construct.">if</weak_warning> ($w) { run(); }
     }
+
+    if ($u instanceof Message) {
+        <weak_warning descr="Merge this if statement into its parent construct.">if</weak_warning> ($w) { run(); }
+    }
 }
 
 function children($u, $a, $b, $c)

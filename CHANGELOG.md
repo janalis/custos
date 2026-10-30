@@ -710,6 +710,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   and 38 others) now load the project index even when they run alone, so a
   `-rule` run reports and fixes what a full run does: SlowArrayOperationsInLoop
   no longer withheld its fix when a constructor lived in another file.
+- NestedPositiveIfStatements no longer wraps an `instanceof` parent
+  condition in parentheses when merging: `$a instanceof B && $c` already
+  reads that way.
 
 ## [0.1.7] - 2026-10-21
 

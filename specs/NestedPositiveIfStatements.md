@@ -88,7 +88,7 @@ body content. This only happens when `C`'s body is a braced block.
   text (both the expression inside the `if ( … )` parentheses):
   - `PC` is wrapped as `(PC)` whenever its right edge would absorb the
     appended `&& CC`: the parent condition is an assignment, a ternary
-    (including the short `?:` form), an `instanceof`, a binary expression
+    (including the short `?:` form), a binary expression
     whose operator binds as loosely as `&&` or looser (`||`, `??`, `and`,
     `or`, `xor`, `|>`), a `print`, `include`/`require`, `throw`,
     `yield`/`yield from` or arrow function, or it ends in one of those: a
@@ -96,7 +96,8 @@ body content. This only happens when `C`'s body is a braced block.
     an operand (`!$row = load()`), or a binary expression of any other
     operator (`&&`, `==`, `.`, …) whose right operand is one
     (`$a && $row = load()`, `$a == $row = load()`). Otherwise (plain `&&`
-    chain, comparison, variable, call, `!$a`, parenthesised expression, …)
+    chain, comparison, `instanceof`, variable, call, `!$a`, parenthesised
+    expression, …)
     it is used as is: `if ($a == $b) { if ($c) {} }` → `if ($a == $b && $c) {}`.
   - `CC` is wrapped as `(CC)` when it binds looser than `&&`: a ternary
     (either form) or a binary `??` or `xor`. An `and` child keeps its meaning

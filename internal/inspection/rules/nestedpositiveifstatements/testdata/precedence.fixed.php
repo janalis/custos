@@ -14,6 +14,8 @@ function parents($strict, $u, $v, $w)
     if (($u && $row = load()) && $w) { run(); }
 
     if (!$u && $w) { run(); }
+
+    if ($u instanceof Message && $w) { run(); }
 }
 
 function children($u, $a, $b, $c)
