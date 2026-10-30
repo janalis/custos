@@ -103,7 +103,21 @@ func putRenameFix(ctx *analysis.Context, c phpunit.PuCall, name string, slots []
 		Title: "Use " + name + "()",
 		Edits: func() []diagnostic.TextEdit {
 			// every slot holds source text: putSlotsFrom never leaves a gap
-			return []diagnostic.TextEdit{{Span: syntax.Span{Start: start, End: end}, NewText: name + "(" + strings.Join(slots, ", ") + ")"}}
+			args := "(" + strings.Join(slots, ", ") + ")"
+			// One argument per line stays so, under the same indentation,
+			// trailing comma included.
+			if list := c.Args.Args; len(list) > 0 {
+				indent, closing := astquery.IndentBefore(ctx.Src, list[0].Span().Start), astquery.IndentBefore(ctx.Src, end-1)
+				if indent != "" && closing != "" {
+					sep := ",\n" + indent
+					args = "(\n" + indent + strings.Join(slots, sep)
+					if strings.HasPrefix(strings.TrimSpace(string(ctx.Src[list[len(list)-1].Span().End:end-1])), ",") {
+						args += ","
+					}
+					args += "\n" + closing + ")"
+				}
+			}
+			return []diagnostic.TextEdit{{Span: syntax.Span{Start: start, End: end}, NewText: name + args}}
 		},
 	}
 }

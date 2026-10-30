@@ -744,6 +744,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - FopenBinaryUnsafeUsage no longer reports, nor rewrites, the mode of a
   stream opened through a computed scheme (`$scheme . '://' . $url`): a
   stream wrapper receives the mode as written and may reject `rb`.
+- PhpUnitTests quick-fixes keep a call written one argument per line in
+  that layout, trailing comma included, instead of joining the rebuilt
+  arguments on one line.
 
 ## [0.1.7] - 2026-10-21
 

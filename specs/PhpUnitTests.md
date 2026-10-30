@@ -443,7 +443,11 @@ called method** to the suggested name and **replace the whole argument list**
 `( … )` with a freshly built one: the listed argument texts copied verbatim
 (original source text of each node), joined by `, ` (comma + one space), no
 other whitespace or comments kept from the old list. Text outside the call
-(e.g. a space before `;`) is untouched.
+(e.g. a space before `;`) is untouched. (custos) When the old list opens
+with its first argument on a line of its own and closes with `)` on a line
+of its own, the new list keeps that layout: one argument per line under the
+first argument's indentation, a trailing comma when the old list had one,
+and `)` under its old indentation.
 
 A fix is only attached when the rewritten call accepts and rejects the same
 values as the original; D15, D16, D21, D22, D24 and D28b state when the
