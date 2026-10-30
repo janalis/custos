@@ -753,6 +753,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The NestedPositiveIfStatements quick-fix parenthesizes an inner condition
   that is an assignment (`if ($a && ($x = $s->get()))`), which it merged
   unparenthesized before.
+- JsonEncodingApiUsage no longer reports a decode compared by `assertSame()`
+  or `assertEquals()` with a local variable that only ever holds a literal
+  the failure value cannot match, as it already did for the literal itself.
 
 ## [0.1.7] - 2026-10-21
 

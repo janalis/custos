@@ -138,7 +138,11 @@ own fix.
     (`assertSame(['a' => 1], json_decode($s, true))`), for `assertEquals`
     only a non-empty array, a string other than `''` and `'0'`, a
     non-zero number or `true`, since `null` and `false` loosely equal the
-    other empty values. When PHPUnit itself is not indexed (installed outside
+    other empty values. A local variable counts as such a literal when
+    every value that may reach the read is one (`$expected = ['a' => 1];
+    $this->assertEquals($expected, json_decode($s, true));`) and nothing
+    changes it in place: no element written or read, and no other read
+    passed as an argument. When PHPUnit itself is not indexed (installed outside
     the analyzed tree, as symfony/phpunit-bridge does), the same
     assertions called on `$this`, `self`, `static` or `parent` count in a
     class whose ancestors lead, outside the index, to PHPUnit's `TestCase`

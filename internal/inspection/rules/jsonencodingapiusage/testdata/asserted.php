@@ -45,6 +45,10 @@ namespace App\Tests {
             $this->assertEquals(['x'], json_decode($body, true));
             $this->assertEquals('{"a":1}', json_encode($q));
             $this->assertEquals(2.5, json_decode($body));
+            $expected = ['warnings' => ['a', 'b']];
+            $this->assertEquals($expected, json_decode($body, true));
+            $name = $q ? 'x' : 'y';
+            $this->assertSame($name, json_decode($body));
         }
 
         public function testUnchecked(string $body, array $q): void
@@ -77,6 +81,16 @@ namespace App\Tests {
             $this->assertEquals(0x1, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
             $this->assertEquals(false, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>);
             $this->assertEquals(PHP_EOL, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>);
+            $empty = [];
+            $this->assertEquals($empty, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>);
+            $grown = ['a'];
+            unset($grown[0]);
+            $this->assertEquals($grown, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>);
+            $copy = $empty;
+            $this->assertEquals($copy, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>);
+            $popped = ['a'];
+            array_pop($popped);
+            $this->assertEquals($popped, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>);
             $this->assertSame(expected: [], actual: <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
             $this->assertSame(...[[], <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>]);
             $this->assertSame([], 'x', <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);

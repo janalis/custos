@@ -484,23 +484,8 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		}
 		return false
 	case *syntax.Variable:
-		// Every value that may reach the read is itself encodable, and no
-		// element is written in place (`$v[] = $raw`).
-		values, complete := semanticquery.LocalValuesComplete(ctx.Types(), x)
-		if !complete || len(values) == 0 {
-			return false
-		}
-		for _, a := range flowquery.VarAccesses(ctx.File, syntax.EnclosingVariableScope(x), x.Name) {
-			if a.ElemWrite {
-				return false
-			}
-		}
-		for _, v := range values {
-			if !jsonEncodable(ctx, v, depth) {
-				return false
-			}
-		}
-		return true
+		// Every value that may reach the read is itself encodable.
+		return jsonLocalValues(ctx, x, false, func(v syntax.Expr) bool { return jsonEncodable(ctx, v, depth) })
 	case *syntax.Literal:
 		if x.LitKind == syntax.LitInt {
 			return true
@@ -613,7 +598,7 @@ func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, deco
 			return false
 		}
 		o, ok := other.(*syntax.Arg)
-		return ok && o.Name == nil && !o.Unpack && jsonRejectsFailure(o.Value, name == "assertsame", decode)
+		return ok && o.Name == nil && !o.Unpack && jsonRejectsFailure(ctx, o.Value, name == "assertsame", decode)
 	}
 	at, known := jsonAssertions[name]
 	switch {
@@ -632,8 +617,11 @@ func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, deco
 // literal or boolean constant other than the failure value itself, and
 // loosely only a non-empty array, a string other than "" and "0", a
 // non-zero number or true.
-func jsonRejectsFailure(e syntax.Expr, strict, decode bool) bool {
+// A local variable counts when each value it may hold does.
+func jsonRejectsFailure(ctx *analysis.Context, e syntax.Expr, strict, decode bool) bool {
 	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.Variable:
+		return jsonLocalValues(ctx, x, true, func(v syntax.Expr) bool { return jsonRejectsFailure(ctx, v, strict, decode) })
 	case *syntax.Array:
 		return strict || len(x.Items) > 0
 	case *syntax.Literal:
@@ -685,4 +673,36 @@ func jsonFetchedFallback(x syntax.Expr) bool {
 		}
 		return false
 	}
+}
+
+// jsonLocalValues reports whether every value that may reach the read of
+// local variable x is known, other than a variable, and satisfies ok, and
+// no element of x is written in place (`$v[] = $raw`). With whole, nothing
+// may take anything out of x either: no element read (`unset($v[0])`), no
+// other read passed as an argument (`array_pop($v)`).
+func jsonLocalValues(ctx *analysis.Context, x *syntax.Variable, whole bool, ok func(syntax.Expr) bool) bool {
+	values, complete := semanticquery.LocalValuesComplete(ctx.Types(), x)
+	if !complete || len(values) == 0 {
+		return false
+	}
+	for _, a := range flowquery.VarAccesses(ctx.File, syntax.EnclosingVariableScope(x), x.Name) {
+		if a.ElemWrite {
+			return false
+		}
+		if !whole || a.Write || a.Var == x {
+			continue
+		}
+		switch a.Var.Parent().(type) {
+		case *syntax.ArrayDimFetch, *syntax.Arg:
+			return false
+		}
+	}
+	for _, v := range values {
+		// A value copied from another variable is not followed further:
+		// two variables may copy each other in a loop.
+		if _, copied := syntax.UnwrapParens(v).(*syntax.Variable); copied || !ok(v) {
+			return false
+		}
+	}
+	return true
 }
