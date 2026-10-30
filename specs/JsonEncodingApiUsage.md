@@ -153,7 +153,11 @@ own fix.
     any chain of them) that is itself an argument of `isset()` or
     `empty()` or the left operand of `??`: `$docs[0]['tags'] ?? []`,
     `isset($doc->title)`. Reads of `null` count as missing there, so the
-    failure falls back like the value itself.
+    failure falls back like the value itself. The same holds when that
+    outermost read is the value checked by one of the PHPUnit assertions
+    above that fails on `null`
+    (`$this->assertSame([], json_decode($s, true)['data']['ids'])`): a
+    read of `null` is `null`, so a failed decode fails the assertion.
   `$json = json_encode($q); $key = false === $json ? '' : $json;`,
   `$rows = json_decode($raw, true); if (!is_array($rows)) { … }` and
   `json_decode($raw, true) ?: []` are not reported. The `@` operator is

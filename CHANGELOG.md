@@ -766,6 +766,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `DOMDocument::loadXML()`, `loadHTML()`, `schemaValidateSource()`,
   `relaxNGValidateSource()` or `XMLReader::XML()` on PHP 8, which throw a
   `ValueError` for the empty text a failed read becomes.
+- JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` on a
+  `json_decode()` whose element or property is checked by a PHPUnit
+  assertion that fails on `null`
+  (`$this->assertSame([], json_decode($s, true)['data'])`).
 
 ## [0.1.7] - 2026-10-21
 

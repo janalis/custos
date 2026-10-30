@@ -518,7 +518,7 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 // rejects the failure value, or, for json_decode (null on failure), given
 // to isset() or the left operand of `??`.
 func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
-	if decode && jsonFetchedFallback(x) {
+	if decode && jsonFetchedFallback(ctx, x) {
 		return true
 	}
 	switch p := x.Parent().(type) {
@@ -648,9 +648,10 @@ func jsonRejectsFailure(ctx *analysis.Context, e syntax.Expr, strict, decode boo
 
 // jsonFetchedFallback reports an element or property read from a decoded
 // value that falls back when the value is missing: `$doc[0] ?? []`,
-// `isset($doc->tags)`, `empty($doc['k'])`. A failed decode yields null,
-// whose elements read as missing.
-func jsonFetchedFallback(x syntax.Expr) bool {
+// `isset($doc->tags)`, `empty($doc['k'])`, or that a PHPUnit assertion
+// rejecting null checks. A failed decode yields null, whose elements read
+// as missing, that is null.
+func jsonFetchedFallback(ctx *analysis.Context, x syntax.Expr) bool {
 	var outer syntax.Node = x
 	for {
 		switch p := outer.Parent().(type) {
@@ -670,6 +671,8 @@ func jsonFetchedFallback(x syntax.Expr) bool {
 			return outer != syntax.Node(x) && p.Op.Kind == syntax.TCoalesce && syntax.Node(p.Left) == outer
 		case *syntax.Isset, *syntax.Empty:
 			return outer != syntax.Node(x)
+		case *syntax.Arg:
+			return outer != syntax.Node(x) && jsonAsserted(ctx, p.Parent().Parent(), p, true)
 		}
 		return false
 	}

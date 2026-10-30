@@ -49,6 +49,8 @@ namespace App\Tests {
             $this->assertEquals($expected, json_decode($body, true));
             $name = $q ? 'x' : 'y';
             $this->assertSame($name, json_decode($body));
+            $this->assertSame([], json_decode($body, true)['data']['clients']);
+            self::assertNotNull(json_decode($body)->id);
         }
 
         public function testUnchecked(string $body, array $q): void
@@ -95,6 +97,8 @@ namespace App\Tests {
             $this->assertSame(...[[], <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>]);
             $this->assertSame([], 'x', <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
             $this->assertSame(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
+            $this->assertSame(null, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>['data']);
+            $this->assertEmpty(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>->items);
         }
     }
 }
