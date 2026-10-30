@@ -159,3 +159,56 @@ class X {
 }
 `, map[string]string{"one": `\Cell`, "hex": `\Cell|null`})
 }
+
+// A definition after a read in a statement list that then leaves the loop
+// never comes back to that read; one in a loop nested in the list, or
+// followed by continue, does.
+func TestBackEdgeLeftFirst(t *testing.T) {
+	checkWith(t, nil, `<?php
+function f(bool $c, array $a) {
+    $x = 1;
+    while ($c) {
+        if ($c) {
+            t('return', $x);
+            $x = 'text';
+            return $x;
+        }
+        if (!$c) {
+            t('break', $x);
+            $x = 'text';
+            break;
+        }
+        if ($a) {
+            foreach ($a as $_) {
+                t('nested', $x);
+                $x = 'text';
+            }
+            return $x;
+        }
+    }
+}
+function h(bool $c, array $a) {
+    $x = 1;
+    while ($c) {
+        t('outer', $x);
+        foreach ($a as $_) {
+            if ($c) {
+                $x = 'text';
+                continue;
+            }
+        }
+        return $x;
+    }
+}
+function g(bool $c) {
+    $x = 1;
+    while ($c) {
+        if ($c) {
+            t('continue', $x);
+            $x = 'text';
+            continue;
+        }
+    }
+}
+`, map[string]string{"return": "int", "break": "int", "nested": "int|string", "outer": "int", "continue": "int|string"})
+}

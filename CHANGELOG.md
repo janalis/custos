@@ -717,6 +717,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   calls such as `$path = realpath($a) ?: realpath($path);` on a string
   parameter: the false of either call is a failure marker, as for a single
   call.
+- Type inference no longer lets a variable assigned in a block that then
+  returns or breaks flow back, through the loop around it, to an earlier
+  read in that block. Such a cycle left the variable's type unknown, so
+  TypeUnsafeArraySearch reported `array_search($id, $seen)` although
+  `$seen` only holds strings.
 
 ## [0.1.7] - 2026-10-21
 

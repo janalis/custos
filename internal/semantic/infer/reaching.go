@@ -578,6 +578,7 @@ func (e *Env) dropExited(defs []varDef, use, scope syntax.Node, back bool) (kept
 	kept = defs[:0]
 	for _, d := range defs {
 		switch kind := exitedKind(rs, d.pos, at); {
+		case kind == exitNone && back && returnsFirst(rs, d.pos, at, loopAround(d, use, scope)):
 		case kind == exitNone:
 			kept = append(kept, d)
 		case kind != exitContinue:
@@ -588,6 +589,18 @@ func (e *Env) dropExited(defs []varDef, use, scope syntax.Node, back bool) (kept
 		}
 	}
 	return kept, via, loops
+}
+
+// returnsFirst reports whether a definition at p, later than at in a
+// statement list that then returns, throws or breaks, cannot come back to
+// at: the innermost loop holding both (starting at loop) encloses that list,
+// so its back edge is never taken from p.
+func returnsFirst(rs []exitRegion, p, at, loop uint32) bool {
+	i := innermostRegion(rs, p)
+	for i >= 0 && !(rs[i].list.Start <= at && at < rs[i].list.End) {
+		i = rs[i].parent
+	}
+	return i >= 0 && rs[i].kind != exitContinue && loop < rs[i].list.Start
 }
 
 // exitedKind returns the kind of the exit region that keeps a definition
@@ -610,17 +623,7 @@ func continueLoop(rs []exitRegion, p, at uint32) uint32 {
 // deadRegion is the index of the region exitedKind finds, -1 when none.
 func deadRegion(rs []exitRegion, p, at uint32) int {
 	in := func(sp syntax.Span, p uint32) bool { return p >= sp.Start && p < sp.End }
-	i, _ := slices.BinarySearchFunc(rs, p, func(r exitRegion, p uint32) int {
-		if r.span.Start <= p {
-			return -1
-		}
-		return 1
-	})
-	i--
-	for i >= 0 && !in(rs[i].span, p) {
-		i = rs[i].parent
-	}
-	for ; i >= 0; i = rs[i].parent {
+	for i := innermostRegion(rs, p); i >= 0; i = rs[i].parent {
 		if in(rs[i].list, at) {
 			return -1
 		}
@@ -629,6 +632,22 @@ func deadRegion(rs []exitRegion, p, at uint32) int {
 		}
 	}
 	return -1
+}
+
+// innermostRegion is the index of the innermost region holding p, -1 when
+// none does.
+func innermostRegion(rs []exitRegion, p uint32) int {
+	i, _ := slices.BinarySearchFunc(rs, p, func(r exitRegion, p uint32) int {
+		if r.span.Start <= p {
+			return -1
+		}
+		return 1
+	})
+	i--
+	for i >= 0 && !(rs[i].span.Start <= p && p < rs[i].span.End) {
+		i = rs[i].parent
+	}
+	return i
 }
 
 // exited reports whether a definition at p cannot reach use because every
