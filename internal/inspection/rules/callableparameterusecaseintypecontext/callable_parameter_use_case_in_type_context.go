@@ -490,6 +490,16 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 	if r["mixed"] { // D7d: mixed covers every type; custos skips (E3)
 		return
 	}
+	if r["resource"] {
+		// custos: `object|resource` documents a handle that PHP 8 turned
+		// into an object (`CurlHandle`); the object form fits the class.
+		for t := range r {
+			if t != "resource" && (t == "object" || strings.HasPrefix(t, `\`)) && cp.compatible(t, set) {
+				delete(r, "resource")
+				break
+			}
+		}
+	}
 	// custos (D7f): a method given the parameter whose value types, failure
 	// markers aside, fit the parameter in part may return the type it is
 	// given (`$form = $tokens->replace($form)`, `@return string|array`):

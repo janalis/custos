@@ -374,6 +374,10 @@ function untyped($flag = null) {
   - A value of type `object` is compatible with a class-typed parameter
     (D7e.2): it may well be an instance of that class (Doctrine
     `ObjectRepository::findOneBy()` returns `object|null`).
+  - `resource` next to `object` or to a class that fits the parameter is
+    dropped from `R`: such a union documents a handle in both its older
+    resource form and the object form PHP 8 gave it (`object|resource|null`
+    for a cURL handle assigned to a `\CurlHandle|string` parameter).
   - D7c also drops the failure markers when the value is a `match` whose
     every arm is a call, a full ternary whose both branches are calls, or
     a `?:` whose both operands are calls

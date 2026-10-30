@@ -747,6 +747,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - PhpUnitTests quick-fixes keep a call written one argument per line in
   that layout, trailing comma included, instead of joining the rebuilt
   arguments on one line.
+- CallableParameterUseCaseInTypeContext no longer reports a value documented
+  as `object|resource` (a handle in its old and PHP 8 forms) assigned to a
+  parameter whose class the object form fits.
 
 ## [0.1.7] - 2026-10-21
 
