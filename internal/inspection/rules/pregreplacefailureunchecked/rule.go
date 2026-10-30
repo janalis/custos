@@ -56,8 +56,9 @@ func (rule) Check(ctx *analysis.Context, call syntax.Node) {
 			!semanticquery.NativeFailureFlowOnly(ctx, input) && ctx.TypeOf(input).OnlyOf("string") {
 			continue
 		}
-		// The parameter must be `string` in whichever declaration runs.
-		if assertion || semanticquery.NativeStringConsumer(ctx, call, args, input) {
+		// The parameter must be `string` in whichever declaration runs, in
+		// code that can run (E5).
+		if (assertion || semanticquery.NativeStringConsumer(ctx, call, args, input)) && semanticquery.NativeCallbackReachable(ctx, call) {
 			ctx.ReportNode(call, message)
 			return
 		}

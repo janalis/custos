@@ -113,20 +113,54 @@ type reachableKey struct{}
 func nativeCallbackReachable(n syntax.Node) bool {
 	// One climb finds the variable scope and the constant branches on the way.
 	var scope syntax.Node
-	for parent := n.Parent(); parent != nil; parent = parent.Parent() {
+	child := n
+	for parent := n.Parent(); parent != nil; child, parent = parent, parent.Parent() {
 		if syntax.IsVariableScope(parent) {
 			scope = parent
 			break
 		}
-		if branch, ok := parent.(*syntax.If); ok {
-			truth, known := astquery.BoolConst(syntax.UnwrapParens(branch.Cond))
-			if known && !truth && branch.Body.Span().Contains(n.Span()) {
+		switch x := parent.(type) {
+		case *syntax.If:
+			truth, known := literalTruth(x.Cond)
+			if known && !truth && x.Body.Span().Contains(n.Span()) {
 				return false
 			}
-			if known && truth && branch.Else != nil && branch.Else.Body.Span().Contains(n.Span()) {
+			if known && truth && x.Else != nil && x.Else.Body.Span().Contains(n.Span()) {
+				return false
+			}
+		case *syntax.Binary:
+			// `0 && probe()` never calls the right operand.
+			if truth, known := literalTruth(x.Left); known && child == x.Right && shortCircuits(x, truth) {
 				return false
 			}
 		}
 	}
 	return flowquery.Reachable(n, scope)
+}
+
+// literalTruth returns the truth of a condition written with literals only:
+// `true`, `false`, `0`, `1`, and `&&` or `||` decided by its left operand.
+func literalTruth(e syntax.Expr) (truth, known bool) {
+	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.Literal:
+		return x.Raw != "0", x.LitKind == syntax.LitInt && (x.Raw == "0" || x.Raw == "1")
+	case *syntax.Binary:
+		if truth, known := literalTruth(x.Left); known && shortCircuits(x, truth) {
+			return truth, true
+		}
+		return false, false
+	}
+	return astquery.BoolConst(syntax.UnwrapParens(e))
+}
+
+// shortCircuits reports whether a logical operator skips its right operand
+// after a left operand of the given truth.
+func shortCircuits(x *syntax.Binary, left bool) bool {
+	switch x.Op.Kind {
+	case syntax.TBooleanAnd, syntax.TAnd:
+		return !left
+	case syntax.TBooleanOr, syntax.TOr:
+		return left
+	}
+	return false
 }

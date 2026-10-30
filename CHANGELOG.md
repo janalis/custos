@@ -737,6 +737,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The MissingOrEmptyGroupStatement quick-fix keeps the braces on the line
   when more code follows the body there (`if ($e) { continue; } echo $e;`)
   instead of splitting the line around the block.
+- PregReplaceFailureUnchecked and the other rules that skip code that never
+  runs now also skip the body of `if (0)`, the `else` of `if (1)` and the
+  right operand of `0 && …` or `1 || …`, as they already did for
+  `if (false)`.
 
 ## [0.1.7] - 2026-10-21
 
