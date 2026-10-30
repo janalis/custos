@@ -16,6 +16,7 @@ import (
 type multiAssignmentUsage struct{}
 
 func (multiAssignmentUsage) ID() string               { return "MultiAssignmentUsage" }
+func (multiAssignmentUsage) Semantic()                {}
 func (multiAssignmentUsage) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign} }
 func (multiAssignmentUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	as := n.(*syntax.Assign)

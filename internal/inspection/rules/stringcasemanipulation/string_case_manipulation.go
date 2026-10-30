@@ -16,6 +16,7 @@ import (
 type stringCaseManipulation struct{}
 
 func (stringCaseManipulation) ID() string { return "StringCaseManipulation" }
+func (stringCaseManipulation) Semantic()  {}
 func (stringCaseManipulation) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

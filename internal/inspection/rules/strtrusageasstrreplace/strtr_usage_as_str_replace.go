@@ -16,6 +16,7 @@ import (
 type strTrUsageAsStrReplace struct{}
 
 func (strTrUsageAsStrReplace) ID() string { return "StrTrUsageAsStrReplace" }
+func (strTrUsageAsStrReplace) Semantic()  {}
 func (strTrUsageAsStrReplace) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

@@ -706,6 +706,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - NotOptimalIfConditions no longer asks to move `is_callable([$o, $m])`
   ahead of `method_exists($o, $m)`: checking a method callable looks the
   method up too.
+- Rules that read inferred types or the project index (SlowArrayOperationsInLoop
+  and 38 others) now load the project index even when they run alone, so a
+  `-rule` run reports and fixes what a full run does: SlowArrayOperationsInLoop
+  no longer withheld its fix when a constructor lived in another file.
 
 ## [0.1.7] - 2026-10-21
 

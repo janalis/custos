@@ -19,6 +19,7 @@ type encryptionInitializationVectorRandomness struct{}
 func (encryptionInitializationVectorRandomness) ID() string {
 	return "EncryptionInitializationVectorRandomness"
 }
+func (encryptionInitializationVectorRandomness) Semantic() {}
 
 func (encryptionInitializationVectorRandomness) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}

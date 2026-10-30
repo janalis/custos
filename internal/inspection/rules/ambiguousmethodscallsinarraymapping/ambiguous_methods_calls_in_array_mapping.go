@@ -14,6 +14,7 @@ import (
 type ambiguousMethodsCallsInArrayMapping struct{}
 
 func (ambiguousMethodsCallsInArrayMapping) ID() string { return "AmbiguousMethodsCallsInArrayMapping" }
+func (ambiguousMethodsCallsInArrayMapping) Semantic()  {}
 
 func (ambiguousMethodsCallsInArrayMapping) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFor, syntax.KForeach}

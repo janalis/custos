@@ -20,6 +20,7 @@ type caseInsensitiveStringFunctionsMissUse struct{}
 func (caseInsensitiveStringFunctionsMissUse) ID() string {
 	return "CaseInsensitiveStringFunctionsMissUse"
 }
+func (caseInsensitiveStringFunctionsMissUse) Semantic() {}
 
 func (caseInsensitiveStringFunctionsMissUse) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}

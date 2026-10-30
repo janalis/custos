@@ -16,6 +16,7 @@ import (
 type aliasFunctionsUsage struct{}
 
 func (aliasFunctionsUsage) ID() string               { return "AliasFunctionsUsage" }
+func (aliasFunctionsUsage) Semantic()                {}
 func (aliasFunctionsUsage) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
 // aliasCanonical is table A: replaceable aliases.

@@ -16,6 +16,7 @@ import (
 type referencingObjects struct{}
 
 func (referencingObjects) ID() string { return "ReferencingObjects" }
+func (referencingObjects) Semantic()  {}
 func (referencingObjects) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KParam, syntax.KNew}
 }

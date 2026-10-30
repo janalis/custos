@@ -12,6 +12,7 @@ import (
 type strlenInEmptyStringCheckContext struct{}
 
 func (strlenInEmptyStringCheckContext) ID() string { return "StrlenInEmptyStringCheckContext" }
+func (strlenInEmptyStringCheckContext) Semantic()  {}
 func (strlenInEmptyStringCheckContext) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

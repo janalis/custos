@@ -18,6 +18,7 @@ import (
 type notOptimalRegularExpressions struct{}
 
 func (notOptimalRegularExpressions) ID() string { return "NotOptimalRegularExpressions" }
+func (notOptimalRegularExpressions) Semantic()  {}
 func (notOptimalRegularExpressions) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

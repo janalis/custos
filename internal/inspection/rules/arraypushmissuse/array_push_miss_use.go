@@ -13,6 +13,7 @@ import (
 type arrayPushMissUse struct{}
 
 func (arrayPushMissUse) ID() string { return "ArrayPushMissUse" }
+func (arrayPushMissUse) Semantic()  {}
 func (arrayPushMissUse) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall, syntax.KAssign}
 }

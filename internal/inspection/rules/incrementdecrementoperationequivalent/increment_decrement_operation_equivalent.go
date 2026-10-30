@@ -17,6 +17,7 @@ type incrementDecrementOperationEquivalent struct{}
 func (incrementDecrementOperationEquivalent) ID() string {
 	return "IncrementDecrementOperationEquivalent"
 }
+func (incrementDecrementOperationEquivalent) Semantic() {}
 
 func (incrementDecrementOperationEquivalent) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KAssign}

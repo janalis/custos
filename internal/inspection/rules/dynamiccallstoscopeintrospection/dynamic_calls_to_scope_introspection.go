@@ -15,6 +15,7 @@ import (
 type dynamicCallsToScopeIntrospection struct{}
 
 func (dynamicCallsToScopeIntrospection) ID() string { return "DynamicCallsToScopeIntrospection" }
+func (dynamicCallsToScopeIntrospection) Semantic()  {}
 func (dynamicCallsToScopeIntrospection) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

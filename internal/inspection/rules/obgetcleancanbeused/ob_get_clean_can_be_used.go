@@ -13,6 +13,7 @@ import (
 type obGetCleanCanBeUsed struct{}
 
 func (obGetCleanCanBeUsed) ID() string               { return "ObGetCleanCanBeUsed" }
+func (obGetCleanCanBeUsed) Semantic()                {}
 func (obGetCleanCanBeUsed) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (obGetCleanCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	end, ok := astquery.IsFuncNamedFold(n, "ob_end_clean") // D1

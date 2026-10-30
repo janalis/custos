@@ -15,6 +15,7 @@ import (
 type fopenBinaryUnsafeUsage struct{}
 
 func (fopenBinaryUnsafeUsage) ID() string               { return "FopenBinaryUnsafeUsage" }
+func (fopenBinaryUnsafeUsage) Semantic()                {}
 func (fopenBinaryUnsafeUsage) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
 func (fopenBinaryUnsafeUsage) Check(ctx *analysis.Context, n syntax.Node) {

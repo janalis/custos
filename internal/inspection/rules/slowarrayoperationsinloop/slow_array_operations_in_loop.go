@@ -18,6 +18,7 @@ import (
 type slowArrayOperationsInLoop struct{}
 
 func (slowArrayOperationsInLoop) ID() string { return "SlowArrayOperationsInLoop" }
+func (slowArrayOperationsInLoop) Semantic()  {}
 func (slowArrayOperationsInLoop) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall, syntax.KFor}
 }

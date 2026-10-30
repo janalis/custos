@@ -16,6 +16,7 @@ import (
 type printfScanfArguments struct{}
 
 func (printfScanfArguments) ID() string { return "PrintfScanfArguments" }
+func (printfScanfArguments) Semantic()  {}
 func (printfScanfArguments) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

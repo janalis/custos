@@ -17,6 +17,7 @@ import (
 type subStrUsedAsStrPos struct{}
 
 func (subStrUsedAsStrPos) ID() string { return "SubStrUsedAsStrPos" }
+func (subStrUsedAsStrPos) Semantic()  {}
 func (subStrUsedAsStrPos) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

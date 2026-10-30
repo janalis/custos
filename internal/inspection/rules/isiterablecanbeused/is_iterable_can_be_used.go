@@ -16,6 +16,7 @@ import (
 type isIterableCanBeUsed struct{}
 
 func (isIterableCanBeUsed) ID() string { return "IsIterableCanBeUsed" }
+func (isIterableCanBeUsed) Semantic()  {}
 func (isIterableCanBeUsed) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

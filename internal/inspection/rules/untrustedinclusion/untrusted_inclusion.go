@@ -12,6 +12,7 @@ import (
 type untrustedInclusion struct{}
 
 func (untrustedInclusion) ID() string               { return "UntrustedInclusion" }
+func (untrustedInclusion) Semantic()                {}
 func (untrustedInclusion) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KInclude} }
 
 // inclusionLiteral returns the raw content of a string literal; ok is false

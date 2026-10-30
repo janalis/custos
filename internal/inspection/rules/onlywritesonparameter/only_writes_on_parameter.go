@@ -17,6 +17,7 @@ import (
 type onlyWritesOnParameter struct{}
 
 func (onlyWritesOnParameter) ID() string { return "OnlyWritesOnParameter" }
+func (onlyWritesOnParameter) Semantic()  {}
 func (onlyWritesOnParameter) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFunction, syntax.KMethod, syntax.KClosure}
 }

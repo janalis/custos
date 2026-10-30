@@ -23,6 +23,7 @@ const (
 )
 
 func (foreachInvariants) ID() string { return "ForeachInvariants" }
+func (foreachInvariants) Semantic()  {}
 func (foreachInvariants) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFor, syntax.KAssign}
 }

@@ -16,6 +16,7 @@ import (
 type argumentUnpackingCanBeUsed struct{}
 
 func (argumentUnpackingCanBeUsed) ID() string { return "ArgumentUnpackingCanBeUsed" }
+func (argumentUnpackingCanBeUsed) Semantic()  {}
 func (argumentUnpackingCanBeUsed) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

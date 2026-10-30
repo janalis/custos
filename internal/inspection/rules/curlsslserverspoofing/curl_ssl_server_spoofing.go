@@ -21,6 +21,7 @@ const (
 )
 
 func (curlSslServerSpoofing) ID() string { return "CurlSslServerSpoofing" }
+func (curlSslServerSpoofing) Semantic()  {}
 func (curlSslServerSpoofing) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KConstFetch}
 }

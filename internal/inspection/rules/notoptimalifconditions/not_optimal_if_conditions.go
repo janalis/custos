@@ -25,6 +25,7 @@ const (
 )
 
 func (notOptimalIfConditions) ID() string               { return "NotOptimalIfConditions" }
+func (notOptimalIfConditions) Semantic()                {}
 func (notOptimalIfConditions) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KIf} }
 func (r notOptimalIfConditions) Check(ctx *analysis.Context, n syntax.Node) {
 	ifs := n.(*syntax.If)

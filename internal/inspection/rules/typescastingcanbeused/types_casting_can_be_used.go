@@ -17,6 +17,7 @@ import (
 type typesCastingCanBeUsed struct{}
 
 func (typesCastingCanBeUsed) ID() string { return "TypesCastingCanBeUsed" }
+func (typesCastingCanBeUsed) Semantic()  {}
 func (typesCastingCanBeUsed) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall, syntax.KInterpolatedString, syntax.KMethodCall}
 }

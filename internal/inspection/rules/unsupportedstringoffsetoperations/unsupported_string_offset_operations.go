@@ -16,6 +16,7 @@ import (
 type unsupportedStringOffsetOperations struct{}
 
 func (unsupportedStringOffsetOperations) ID() string { return "UnsupportedStringOffsetOperations" }
+func (unsupportedStringOffsetOperations) Semantic()  {}
 func (unsupportedStringOffsetOperations) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KArrayDimFetch}
 }

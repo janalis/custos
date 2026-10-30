@@ -16,6 +16,7 @@ import (
 type arrayUniqueCanBeUsed struct{}
 
 func (arrayUniqueCanBeUsed) ID() string { return "ArrayUniqueCanBeUsed" }
+func (arrayUniqueCanBeUsed) Semantic()  {}
 func (arrayUniqueCanBeUsed) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }

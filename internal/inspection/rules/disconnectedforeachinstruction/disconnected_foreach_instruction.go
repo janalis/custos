@@ -20,6 +20,7 @@ const (
 )
 
 func (disconnectedForeachInstruction) ID() string { return "DisconnectedForeachInstruction" }
+func (disconnectedForeachInstruction) Semantic()  {}
 func (disconnectedForeachInstruction) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KForeach}
 }

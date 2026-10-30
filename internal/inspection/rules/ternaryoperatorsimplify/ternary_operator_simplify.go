@@ -12,6 +12,7 @@ import (
 type ternaryOperatorSimplify struct{}
 
 func (ternaryOperatorSimplify) ID() string { return "TernaryOperatorSimplify" }
+func (ternaryOperatorSimplify) Semantic()  {}
 func (ternaryOperatorSimplify) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KTernary}
 }

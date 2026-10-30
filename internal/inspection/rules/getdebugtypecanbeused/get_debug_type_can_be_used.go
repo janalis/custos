@@ -12,6 +12,7 @@ import (
 type getDebugTypeCanBeUsed struct{}
 
 func (getDebugTypeCanBeUsed) ID() string               { return "GetDebugTypeCanBeUsed" }
+func (getDebugTypeCanBeUsed) Semantic()                {}
 func (getDebugTypeCanBeUsed) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KTernary} }
 
 // gdtSingleArgCall returns the call and its only argument when e is directly

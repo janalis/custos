@@ -13,6 +13,7 @@ type invertedIfElseConstructs struct{}
 const invertedIfElseMsg = "Negated condition with an else branch; swap the branches and drop the negation."
 
 func (invertedIfElseConstructs) ID() string               { return "InvertedIfElseConstructs" }
+func (invertedIfElseConstructs) Semantic()                {}
 func (invertedIfElseConstructs) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KElse} }
 func (invertedIfElseConstructs) Check(ctx *analysis.Context, n syntax.Node) {
 	els := n.(*syntax.Else)

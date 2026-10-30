@@ -16,6 +16,7 @@ import (
 type nullCoalescingOperatorCanBeUsed struct{}
 
 func (nullCoalescingOperatorCanBeUsed) ID() string { return "NullCoalescingOperatorCanBeUsed" }
+func (nullCoalescingOperatorCanBeUsed) Semantic()  {}
 func (nullCoalescingOperatorCanBeUsed) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KTernary, syntax.KIf}
 }

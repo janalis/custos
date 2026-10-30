@@ -15,6 +15,7 @@ import (
 type inArrayMissUse struct{}
 
 func (inArrayMissUse) ID() string               { return "InArrayMissUse" }
+func (inArrayMissUse) Semantic()                {}
 func (inArrayMissUse) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (inArrayMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 	call, _ := semanticquery.GlobalCall(ctx, n, "in_array") // D1

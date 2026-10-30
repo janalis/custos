@@ -17,6 +17,7 @@ import (
 type selfClassReferencing struct{}
 
 func (selfClassReferencing) ID() string { return "SelfClassReferencing" }
+func (selfClassReferencing) Semantic()  {}
 func (selfClassReferencing) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KMethod}
 }

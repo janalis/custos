@@ -13,6 +13,7 @@ import (
 type getTypeMissUse struct{}
 
 func (getTypeMissUse) ID() string               { return "GetTypeMissUse" }
+func (getTypeMissUse) Semantic()                {}
 func (getTypeMissUse) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
 var gettypePredicates = map[string]string{

@@ -14,6 +14,7 @@ import (
 type opAssignShortSyntax struct{}
 
 func (opAssignShortSyntax) ID() string               { return "OpAssignShortSyntax" }
+func (opAssignShortSyntax) Semantic()                {}
 func (opAssignShortSyntax) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign} }
 
 // opAssignEligible lists the binary operators with a compound form.
