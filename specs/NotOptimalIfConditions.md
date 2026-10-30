@@ -86,7 +86,9 @@ it.
   interface_exists trait_exists is_a is_subclass_of defined is_array is_bool
   is_callable is_countable is_float is_double is_real is_int is_integer
   is_long is_iterable is_null is_numeric is_object is_resource is_scalar
-  is_string`. (Note `method_exists` is not in the list.) A call to one of
+  is_string`. (Note `method_exists` is not in the list, and `is_callable`
+  given a method callable, an array literal or a string literal holding
+  `::`, adds 5: it looks the method up like `method_exists`.) A call to one of
   the filesystem functions `file_exists is_file is_dir is_link is_readable
   is_writable is_writeable is_executable is_uploaded_file filesize filemtime
   fileatime filectime fileinode fileowner filegroup fileperms filetype stat
@@ -547,6 +549,12 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   (`... || $object->field || Clazz::STATE`, untyped `$object`) stays silent
   in both. Element reads get the same treatment: one on an `ArrayAccess`
   object runs `offsetGet()`, and one on a `mixed` value may.
+- **Method callables (custos diverges).** Upstream prices `is_callable()`
+  as free whatever it is given, so `method_exists($o, $m) &&
+  is_callable([$o, $m])` is reported, although the second check looks the
+  same method up and then checks its visibility. custos prices
+  `is_callable()` of an array literal or a `'A::m'` string like
+  `method_exists()`.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so subjects that differ only in the case of a function, method
   or class name (`Repo::$node` vs `repo::$node`), which PHP treats as the

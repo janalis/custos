@@ -703,6 +703,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when the
   encoded literal holds calls that only return ASCII text or integers, such
   as `base64_encode()` or `count()`.
+- NotOptimalIfConditions no longer asks to move `is_callable([$o, $m])`
+  ahead of `method_exists($o, $m)`: checking a method callable looks the
+  method up too.
 
 ## [0.1.7] - 2026-10-21
 

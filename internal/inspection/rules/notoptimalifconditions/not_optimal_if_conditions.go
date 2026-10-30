@@ -192,7 +192,7 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 		switch name := ctx.GlobalFunctionName(x); { // resolved, lower-case: user functions cost like any call
 		case filesystemFunctions[name]:
 			c += 50
-		case !cheapFunctions[name]:
+		case !cheapFunctions[name] || name == "is_callable" && lookupCallable(x):
 			c += 5
 		}
 		return c
@@ -226,6 +226,23 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 		return conditionCost(ctx, x.Cond) + t
 	}
 	return 10
+}
+
+// lookupCallable reports whether is_callable() is given a method callable
+// (`[$o, 'm']`, `'A::m'`): it then looks the method up like method_exists().
+func lookupCallable(call *syntax.FuncCall) bool {
+	args, ok := astquery.ArgValues(call.Args)
+	if !ok || len(args) == 0 {
+		return false
+	}
+	switch v := syntax.UnwrapParens(args[0]).(type) {
+	case *syntax.Array:
+		return true
+	case *syntax.Literal:
+		text, ok := syntax.LiteralStringValue(v)
+		return ok && strings.Contains(text, "::")
+	}
+	return false
 }
 
 // Property read classes (see the spec's *Property fetches*).
