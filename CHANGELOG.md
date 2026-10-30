@@ -741,6 +741,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   runs now also skip the body of `if (0)`, the `else` of `if (1)` and the
   right operand of `0 && …` or `1 || …`, as they already did for
   `if (false)`.
+- FopenBinaryUnsafeUsage no longer reports, nor rewrites, the mode of a
+  stream opened through a computed scheme (`$scheme . '://' . $url`): a
+  stream wrapper receives the mode as written and may reject `rb`.
 
 ## [0.1.7] - 2026-10-21
 

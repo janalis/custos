@@ -72,8 +72,10 @@ All character tests are case-sensitive (`B`, `T` are ordinary characters).
   (`php://memory`, `'php://fd/' . $fd`, a registered wrapper), or a
   device: a Unix path starting with `/dev/` (`/dev/null`), the Windows null
   device `NUL` (any case, as the whole name) or a Windows device path
-  starting with `\\.\` (a named pipe). The binary flag only
-  matters for files.
+  starting with `\\.\` (a named pipe). A concatenation whose leftmost
+  operand is not a literal and whose next operand is a literal starting
+  with `://` (`$scheme . '://' . $url`) names a stream through a computed
+  scheme and counts too. The binary flag only matters for files.
 - **E9** K2/K3 when `L` is the default value of a parameter
   (`function open($f, $mode = 'r')`, or a property assigned from such a
   parameter): callers choose the mode, and rewriting the default would

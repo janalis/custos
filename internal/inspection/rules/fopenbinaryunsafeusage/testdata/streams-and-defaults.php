@@ -17,6 +17,11 @@ function streams(int $fd, $path)
     $local = fopen('notes.txt', <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
     $num = fopen(0, <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
     $odd = fopen('://x', <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
+    $wrapped = fopen(strtr(__CLASS__, '\\', '-') . '://' . $path, 'r');
+    $scheme = fopen(($path) . ('://x'), 'r');
+    $dir = fopen($path . '/x', <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
+    $twice = fopen($path . $fd . '://', <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
+    $named = fopen($path, <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>);
     $nowdoc = fopen(<<<'P'
         php://temp
         P, 'w');
