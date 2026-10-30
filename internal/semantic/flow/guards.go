@@ -211,7 +211,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		if truth && (name == "preg_match" || name == "preg_match_all") && len(args) >= 2 && args[1] != nil {
 			// A match of a pattern that needs at least one character: the
 			// subject was text that is not empty, so neither false nor null.
-			if pattern, known := literalText(args[0].Value); known && emptyless(pattern) {
+			if EmptylessPattern(args[0].Value) {
 				exclude(args[1].Value, f, true, true)
 			}
 		}

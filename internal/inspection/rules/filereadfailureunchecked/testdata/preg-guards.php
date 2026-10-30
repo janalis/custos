@@ -3,7 +3,7 @@
 function matchedFirst($path)
 {
     $code = file_get_contents($path);
-    if (!<warning descr="Handle file reading failure before using its result.">preg_match('/class\s+(\w+)/', $code, $m)</warning>) {
+    if (!preg_match('/class\s+(\w+)/', $code, $m)) {
         return '';
     }
 
@@ -13,7 +13,7 @@ function matchedFirst($path)
 function matchedInBranch($path)
 {
     $code = file_get_contents($path);
-    if (<warning descr="Handle file reading failure before using its result.">preg_match_all('#\d+#u', $code)</warning>) {
+    if (preg_match_all('#\d+#u', $code)) {
         return trim($code);
     }
 
@@ -38,4 +38,16 @@ function unreadPattern($path)
     }
 
     return 0;
+}
+
+function unknownPattern($path, $re)
+{
+    $code = file_get_contents($path);
+    return <warning descr="Handle file reading failure before using its result.">preg_match($re, $code)</warning>;
+}
+
+function readPattern($path)
+{
+    $re = file_get_contents($path);
+    return <warning descr="Handle file reading failure before using its result.">preg_match($re, 'text')</warning>;
 }

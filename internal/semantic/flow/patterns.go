@@ -3,7 +3,16 @@ package flow
 import (
 	"regexp"
 	"strings"
+
+	"custos/internal/php/syntax"
 )
+
+// EmptylessPattern reports whether x is a literal PCRE pattern that can
+// never match the empty text (see emptyless).
+func EmptylessPattern(x syntax.Expr) bool {
+	pattern, known := literalText(x)
+	return known && emptyless(pattern)
+}
 
 // emptyless reports whether a literal PCRE pattern, delimiters and modifiers
 // included, can never match the empty text. Only patterns Go's regular

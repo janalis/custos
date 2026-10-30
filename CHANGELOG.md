@@ -722,6 +722,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   read in that block. Such a cycle left the variable's type unknown, so
   TypeUnsafeArraySearch reported `array_search($id, $seen)` although
   `$seen` only holds strings.
+- FileReadFailureUnchecked no longer reports a read given as the subject of
+  `preg_match()` or `preg_match_all()` with a literal pattern that cannot
+  match the empty text: a failed read matches nothing, like a text without
+  a match.
 
 ## [0.1.7] - 2026-10-21
 

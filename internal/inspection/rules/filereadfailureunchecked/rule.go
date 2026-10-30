@@ -7,6 +7,7 @@ import (
 	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/flow"
 	"custos/internal/semantic/types"
 )
 
@@ -51,7 +52,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || unmatchedSubject(ctx, n, input) {
 			continue
 		}
 
@@ -104,4 +105,18 @@ func throwingDecode(ctx *analysis.Context, n syntax.Node, input syntax.Expr) boo
 		return !throws
 	})
 	return throws
+}
+
+// unmatchedSubject reports whether input is the subject preg_match() or
+// preg_match_all() call n tests against a literal pattern that cannot match
+// the empty text (E9): the failure value, read as the empty text, matches
+// nothing, like a text without a match.
+func unmatchedSubject(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+	call, ok := n.(*syntax.FuncCall)
+	if !ok {
+		return false
+	}
+	name := semanticquery.NativeBuiltinName(ctx, call)
+	return (name == "preg_match" || name == "preg_match_all") && semanticquery.CallArgument(call.Args, 1, "subject") == input &&
+		flow.EmptylessPattern(semanticquery.CallArgument(call.Args, 0, "pattern"))
 }
