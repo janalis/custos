@@ -89,6 +89,11 @@ also when `uniqid` is used as a callback.
   - `\uniqid($p)` → `\uniqid($p, true)`
   - `uniqid(prefix: 'q')` → `uniqid(prefix: 'q', more_entropy: true)`
   - `uniqid('a' /* why */ ,)` → `uniqid('a', true /* why */ ,)`
+
+  The added entropy changes the shape of the result: 23 characters after
+  the prefix instead of 13, with a `.` among them. Code that expects the
+  shorter form (a session id given to `session_id()`, which rejects the
+  `.`, or a column of fixed width) needs adjusting along with the fix.
 - **F2** Callback: replace `A` with the closure
   `function ($value = '') { return uniqid((string) $value, true); }`.
   The default keeps a call without arguments working, and the cast keeps
