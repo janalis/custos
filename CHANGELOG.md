@@ -778,6 +778,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - FileReadFailureUnchecked and the other failure-result rules no longer
   report a checked file-level read used after a call that may replace it
   through the globals table: the variable may then hold another value.
+- TypeUnsafeArraySearch accepts a haystack of `static::` string constants
+  in a class that is final or that no class of the project extends, like
+  the same constants named through `self::`.
 
 ## [0.1.7] - 2026-10-21
 

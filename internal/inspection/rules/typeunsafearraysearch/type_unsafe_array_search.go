@@ -133,10 +133,11 @@ func stringLiteralContent(ctx *analysis.Context, e syntax.Expr) (string, bool) {
 	if raw, _, ok := astquery.QuotedStringRaw(e); ok {
 		return raw, true
 	}
-	// custos: a class constant named through its class (not static::,
-	// which a subclass may redefine) stands for its string initializer.
+	// custos: a class constant named through its class (static:: only in a
+	// class no other class extends, which could redefine it) stands for its
+	// string initializer.
 	if cf, ok := e.(*syntax.ClassConstFetch); ok {
-		if n, named := cf.Class.(*syntax.Name); named && !strings.EqualFold(n.Value, "static") {
+		if n, named := cf.Class.(*syntax.Name); named && (!strings.EqualFold(n.Value, "static") || unextended(ctx, cf.Class)) {
 			if lit := semanticquery.LocalStringLiteral(ctx.Types(), cf); lit != nil {
 				if raw, _, ok := astquery.QuotedStringRaw(lit); ok {
 					return raw, true
@@ -152,6 +153,14 @@ func stringLiteralContent(ctx *analysis.Context, e syntax.Expr) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// unextended reports whether `static` names a class that is final or that
+// no class of the project extends, under its name or an alias.
+func unextended(ctx *analysis.Context, static syntax.Expr) bool {
+	fqn := ctx.Types().ClassRef(static)
+	c := ctx.Index().Class(fqn, ctx.PHP)
+	return c != nil && c.Kind == syntax.KindClass && (c.Final || len(ctx.Index().Subclasses(fqn)) == 0 && len(ctx.Index().AliasesOf(fqn)) == 0)
 }
 
 // indexedStringConst reads a class constant declared in another file: its

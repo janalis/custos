@@ -55,9 +55,11 @@ Visit every function call.
     element write (`$known[] = '1'`), no reference to it, no call that
     may modify it (`sort($known)`).
   - (custos) An item may also be a class constant fetched through a class
-    name (`self::USER`, `Webform::PAGE`, not `static::`, which a subclass
-    may redefine) whose initializer is such a string literal, wherever the
-    class is declared. A constant declared in another file counts only when
+    name (`self::USER`, `Webform::PAGE`) whose initializer is such a string
+    literal, wherever the class is declared. `static::` counts too inside
+    a class (not a trait) that is final or that no class of the project
+    extends, under its name or an alias: otherwise a subclass may redefine
+    the constant. A constant declared in another file counts only when
     its initializer is one quoted string with no quote, `$` or backslash
     inside.
 - **E2** *Matching types*: the inferred type of `N` (unknown parts removed)
