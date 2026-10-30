@@ -770,6 +770,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   `json_decode()` whose element or property is checked by a PHPUnit
   assertion that fails on `null`
   (`$this->assertSame([], json_decode($s, true)['data'])`).
+- JsonEncodingApiUsage counts a class name (`Foo::class`) as a value
+  `json_encode()` cannot fail on, and no longer asks for
+  `JSON_THROW_ON_ERROR` on a `json_decode()` of such an encoding. A
+  `json_encode()` given a depth or `JSON_NUMERIC_CHECK` is reported even
+  for such values, since either can make it fail.
 
 ## [0.1.7] - 2026-10-21
 

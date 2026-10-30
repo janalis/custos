@@ -103,7 +103,10 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	if !decode && jsonEncodable(ctx, subject.Value, 0) { // E10
+	if !decode && jsonSafeEncode(ctx, call) { // E10
+		return
+	}
+	if decode && jsonDecodesSafeEncode(ctx, call, subject.Value) { // E11
 		return
 	}
 	flags, hasFlags := jsonArg(call, "flags", flagsPos)
@@ -472,6 +475,45 @@ func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
 // a string literal of valid UTF-8, true, false, null, or an array literal
 // of those (keys included) nested less than 64 levels deep, or a call of
 // one of PHP's functions that return only ASCII text or an integer (E10).
+// jsonSafeEncode reports a json_encode() call that cannot fail (E10): its
+// value is encodable, it keeps the default depth and its flags cannot
+// hold JSON_NUMERIC_CHECK, which turns a string such as '1e999' into an
+// infinite number.
+func jsonSafeEncode(ctx *analysis.Context, call *syntax.FuncCall) bool {
+	value, ok := jsonArg(call, "value", 0)
+	if _, depth := jsonArg(call, "depth", 2); !ok || depth || !jsonEncodable(ctx, value.Value, 0) {
+		return false
+	}
+	flags, has := jsonArg(call, "flags", 1)
+	return !has || jsonFlagsWithout(ctx, flags.Value, "JSON_NUMERIC_CHECK")
+}
+
+// jsonDecodesSafeEncode reports a json_decode() call with the default
+// depth whose text is a json_encode() call that cannot fail (E11): the
+// text is valid JSON nested less deeply than the depth.
+func jsonDecodesSafeEncode(ctx *analysis.Context, call *syntax.FuncCall, text syntax.Expr) bool {
+	if _, depth := jsonArg(call, "depth", 2); depth {
+		return false
+	}
+	inner, ok := syntax.UnwrapParens(text).(*syntax.FuncCall)
+	return ok && ctx.GlobalFunctionName(inner) == "json_encode" && jsonSafeEncode(ctx, inner)
+}
+
+// jsonFlagsWithout reports whether a flags expression is a `|` chain of
+// built-in constants other than name and the literal 0.
+func jsonFlagsWithout(ctx *analysis.Context, e syntax.Expr, name string) bool {
+	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.Binary:
+		return x.Op.Kind == syntax.TBar && jsonFlagsWithout(ctx, x.Left, name) && jsonFlagsWithout(ctx, x.Right, name)
+	case *syntax.ConstFetch:
+		c := semanticquery.GlobalConstName(ctx, x)
+		return strings.HasPrefix(c, "JSON_") && c != name
+	case *syntax.Literal:
+		return x.LitKind == syntax.LitInt && x.Raw == "0"
+	}
+	return false
+}
+
 func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.FuncCall:
@@ -494,6 +536,16 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		return ok && utf8.ValidString(v)
 	case *syntax.Unary:
 		return x.Op.Kind == syntax.TMinus && jsonEncodable(ctx, x.Expr, depth)
+	case *syntax.ClassConstFetch:
+		// `Name::class` is a class name of valid UTF-8 (not `static::class`,
+		// known only at run time).
+		n, named := x.Class.(*syntax.Name)
+		id, ok := x.Name.(*syntax.Identifier)
+		if !named || !ok || !strings.EqualFold(id.Value, "class") || strings.EqualFold(n.Value, "static") {
+			return false
+		}
+		cls := ctx.Types().ClassRef(x.Class)
+		return cls != "" && utf8.ValidString(cls)
 	case *syntax.ConstFetch:
 		name := strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`))
 		return name == "true" || name == "false" || name == "null"

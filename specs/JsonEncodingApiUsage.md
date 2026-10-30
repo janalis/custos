@@ -181,12 +181,24 @@ own fix.
   text or an integer counts as such a value: `base64_encode`, `bin2hex`,
   `dechex`, `decbin`, `decoct`, `crc32`, `strlen`, `count`, and `md5` or
   `sha1` given their text alone (a second argument may ask for the raw
-  binary digest). Floats are not included: a literal such as `1e999` is
-  infinite, which json_encode cannot encode.
+  binary digest). A class name written `Name::class`, `self::class` or
+  `parent::class` counts as such a string; `static::class` and
+  `$object::class`, known only at run time, do not. Floats are not
+  included: a literal such as `1e999` is infinite, which json_encode
+  cannot encode. The call must keep the default depth, and its flags, when
+  given, must be a `|` chain of `JSON_*` constants and `0` without
+  `JSON_NUMERIC_CHECK`, which turns a string such as `'1e999'` into such a
+  number (`json_encode([[1]], 0, 1)` and
+  `json_encode(['1e999'], JSON_NUMERIC_CHECK)` are reported).
   A local variable counts when every value that may reach the read is
   known and is such a value, and none of its elements is written in place
   (`$rows = ['a' => 1]; json_encode($rows);`, not after `$rows[] = $text;`);
   a parameter, a by-reference write or any other write leaves it unknown.
+- **E11** (custos, see Divergences) Kind E for `json_decode` with the
+  default depth when its text is directly (parentheses aside) a
+  `json_encode` call exempt by E10: that text is valid JSON nested less
+  deeply than the depth (`json_decode(json_encode(['data' => 'a']),
+  false)`).
 
 ## Report
 
@@ -381,7 +393,7 @@ class Exporter {
   `JSON_THROW_ON_ERROR` on `json_encode(['a' => 'b'])` too. Encoding a
   literal of integers, UTF-8 strings, booleans and null cannot fail, so the
   flag only adds noise (Symfony and media-platform test payloads); custos
-  does not report it.
+  does not report it. Decoding such an encoding cannot fail either (E11).
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `JSON_DECODE($s)` is not reported.
   custos matches any case; the fix keeps the name and qualifier as written.
