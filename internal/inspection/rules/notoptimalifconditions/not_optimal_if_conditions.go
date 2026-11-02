@@ -105,6 +105,8 @@ var cheapFunctions = map[string]bool{
 	"is_double": true, "is_real": true, "is_int": true, "is_integer": true, "is_long": true,
 	"is_iterable": true, "is_null": true, "is_numeric": true, "is_object": true, "is_resource": true,
 	"is_scalar": true, "is_string": true,
+	// custos: a float test reads one number like a type check does.
+	"is_nan": true, "is_finite": true, "is_infinite": true,
 }
 
 // filesystemFunctions ask the operating system about a path (custos): a

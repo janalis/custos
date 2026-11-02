@@ -799,6 +799,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   report the read given to it.
 - JsonEncodingApiUsage no longer reports `json_encode()` of a constant
   holding a literal it cannot fail on (`['key_id' => self::KEY_ID]`).
+- NotOptimalIfConditions counts `is_nan()`, `is_finite()` and
+  `is_infinite()` as free like the `is_*` type checks, so it no longer
+  asks to test a comparison before them.
 - PhpUnitTests no longer suggests `assertContains()` for `in_array()`
   when the PHPUnit version is unknown: from PHPUnit 9.0 it compares
   strictly, so the rewrite changed the assertion.

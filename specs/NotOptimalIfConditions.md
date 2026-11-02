@@ -86,7 +86,8 @@ it.
   interface_exists trait_exists is_a is_subclass_of defined is_array is_bool
   is_callable is_countable is_float is_double is_real is_int is_integer
   is_long is_iterable is_null is_numeric is_object is_resource is_scalar
-  is_string`. (Note `method_exists` is not in the list, and `is_callable`
+  is_string is_nan is_finite is_infinite` (the last three: custos, see
+  Divergences). (Note `method_exists` is not in the list, and `is_callable`
   given a method callable, an array literal or a string literal holding
   `::`, adds 5: it looks the method up like `method_exists`.) A call to one of
   the filesystem functions `file_exists is_file is_dir is_link is_readable
@@ -450,6 +451,11 @@ if ($s instanceof Circle || $t instanceof Shape) {}
 
 ## Divergences
 
+- **Float tests (custos diverges).** Upstream charges `is_nan`,
+  `is_finite` and `is_infinite` like any call, so
+  `!is_finite($t) || $t <= 0` is reported for testing the call first.
+  They read one number's bits, as cheaply as the `is_*` type checks, and
+  the reordering gains nothing: custos counts them as free.
 - **Stringable classes (custos diverges, D3).** Upstream reports any
   comparison with a literal next to `instanceof`. When the class converts
   to a string, `$r instanceof Status && $r == 'QUEUED'` is a deliberate
