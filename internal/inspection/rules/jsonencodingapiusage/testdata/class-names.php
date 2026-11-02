@@ -14,7 +14,6 @@ final class Message
             <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode(static::class)</weak_warning>,
             <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($this::class)</weak_warning>,
             <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode(parent::class)</weak_warning>,
-            <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode(Message::NAME)</weak_warning>,
             <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode(['1e999'], JSON_NUMERIC_CHECK)</weak_warning>,
             <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode(['a'], JSON_PRETTY_PRINT | PHP_INT_SIZE)</weak_warning>,
             <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode(['a'], $rows ? 0 : JSON_PRETTY_PRINT)</weak_warning>,

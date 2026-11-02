@@ -538,17 +538,21 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		return x.Op.Kind == syntax.TMinus && jsonEncodable(ctx, x.Expr, depth)
 	case *syntax.ClassConstFetch:
 		// `Name::class` is a class name of valid UTF-8 (not `static::class`,
-		// known only at run time).
+		// known only at run time, nor `static::NAME`, which a subclass may
+		// redefine).
 		n, named := x.Class.(*syntax.Name)
 		id, ok := x.Name.(*syntax.Identifier)
-		if !named || !ok || !strings.EqualFold(id.Value, "class") || strings.EqualFold(n.Value, "static") {
+		if !named || !ok || strings.EqualFold(n.Value, "static") {
 			return false
+		}
+		if !strings.EqualFold(id.Value, "class") {
+			return jsonEncodableConst(ctx, x, depth)
 		}
 		cls := ctx.Types().ClassRef(x.Class)
 		return cls != "" && utf8.ValidString(cls)
 	case *syntax.ConstFetch:
 		name := strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`))
-		return name == "true" || name == "false" || name == "null"
+		return name == "true" || name == "false" || name == "null" || jsonEncodableConst(ctx, x, depth)
 	case *syntax.Array:
 		if depth >= 64 {
 			return false
@@ -561,6 +565,22 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		return true
 	}
 	return false
+}
+
+// jsonEncodableConst reports a constant whose every known initializer is
+// encodable (E10). Each constant read counts as one level of depth, which
+// also ends a cycle of constants.
+func jsonEncodableConst(ctx *analysis.Context, c syntax.Expr, depth int) bool {
+	values, known := semanticquery.LocalValuesKnown(ctx.Types(), c)
+	if !known || len(values) == 0 || depth >= 64 {
+		return false
+	}
+	for _, v := range values {
+		if !jsonEncodable(ctx, v, depth+1) {
+			return false
+		}
+	}
+	return true
 }
 
 // jsonFailureTest reports whether x is tested for a failed JSON call: the

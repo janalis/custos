@@ -796,6 +796,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - FileReadFailureUnchecked and the other failure-result rules count a
   successful `json_validate()` as a test of the value, and no longer
   report the read given to it.
+- JsonEncodingApiUsage no longer reports `json_encode()` of a constant
+  holding a literal it cannot fail on (`['key_id' => self::KEY_ID]`).
 
 ## [0.1.7] - 2026-10-21
 
