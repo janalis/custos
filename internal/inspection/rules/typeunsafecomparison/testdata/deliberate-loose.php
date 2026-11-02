@@ -54,8 +54,22 @@ function truthiness(int|bool $flag, mixed $m, int $n, $unknown)
     $b = $m == null;
     $c = $m != '';
     $d = TRUE == $m;
-    $e = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$n == true</weak_warning>;
+    $e = $n == true;
     $f = $unknown == true;
     $g = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$unknown == null</weak_warning>;
     return [$a, $b, $c, $d, $e, $f, $g];
+}
+
+function disjoint(array $rows, string $s, ?array $maybe, \DateTime $at, int ...$ids)
+{
+    $g = $at != null;
+    $h = $ids == false;
+    // === would always be false: the loose form tests emptiness.
+    $a = null != $_POST;
+    $b = $rows == false;
+    $c = $s == 0;
+    $d = $maybe != null;
+    $e = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$_SESSION == null</weak_warning>;
+    $f = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$s == ''</weak_warning>;
+    return [$a, $b, $c, $d, $e, $f, $g, $h];
 }

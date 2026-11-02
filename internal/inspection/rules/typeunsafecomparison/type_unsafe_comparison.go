@@ -1,6 +1,7 @@
 package typeunsafecomparison
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -124,6 +125,7 @@ func tucMayBeBool(ctx *analysis.Context, e syntax.Expr) bool {
 // test of one of them (D5a).
 func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
 	boolean := false
+	var kinds []string // the types the constant's own value has
 	switch x := syntax.UnwrapParens(falsy).(type) {
 	case *syntax.ConstFetch:
 		name := strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`))
@@ -131,14 +133,21 @@ func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
 			return false
 		}
 		boolean = name != "null"
+		kinds = []string{"null"}
+		if boolean {
+			kinds = []string{"bool", "true", "false"}
+		}
 	case *syntax.Literal:
 		if x.LitKind == syntax.LitString {
 			content, _ := tucStringContent(ctx, x)
 			if val, known := tucLiteralValue(x, content); !known || val != "" && val != "0" {
 				return false
 			}
+			kinds = []string{"string"}
 		} else if x.Raw != "0" {
 			return false
+		} else {
+			kinds = []string{"int"}
 		}
 	default:
 		return false
@@ -146,6 +155,15 @@ func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
 	// Compared with a boolean, a value of unknown type is tested for truth.
 	t := ctx.TypeOf(other)
 	if t.Has("mixed") || boolean && t.IsUnknown() {
+		return true
+	}
+	// custos: a known scalar or array type the constant's own type is not
+	// part of (`null != $_POST` on an array) — === would always give the
+	// same answer. (An object compares with them loosely as strictly.)
+	if !t.IsUnknown() && !slices.ContainsFunc(kinds, t.Has) && !slices.ContainsFunc(t.Atoms(), tucObjectAtom) {
+		return true
+	}
+	if v, ok := syntax.UnwrapParens(other).(*syntax.Variable); ok && tucRequestArrays[v.Name] {
 		return true
 	}
 	if t.IsUnknown() || !t.Has("false") && !t.Has("null") && !t.Has("bool") {
@@ -159,6 +177,22 @@ func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
 		}
 	}
 	return false
+}
+
+// tucObjectAtom reports a type atom that may stand for an object: a class
+// name, object or a pseudo-type that may hold one.
+func tucObjectAtom(atom string) bool {
+	switch strings.TrimPrefix(atom, `\`) {
+	case "array", "string", "int", "float", "bool", "true", "false", "null":
+		return false
+	}
+	return !strings.HasSuffix(atom, "[]")
+}
+
+// tucRequestArrays are the superglobals PHP always fills with an array
+// ($_SESSION is unset before a session starts).
+var tucRequestArrays = map[string]bool{
+	"_GET": true, "_POST": true, "_COOKIE": true, "_FILES": true, "_SERVER": true, "_REQUEST": true, "_ENV": true,
 }
 
 // tucCastTest reports whether cast converts other itself, by a cast to

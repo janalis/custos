@@ -801,6 +801,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - JsonEncodingApiUsage no longer reports `json_encode()` of a constant
   holding a literal it cannot fail on (`['key_id' => self::KEY_ID]`), nor
   of integer arithmetic over calls such as `time()` (`time() + 3600`).
+- TypeUnsafeComparison no longer asks for a strict comparison of `null`,
+  a boolean, `0`, `''` or `'0'` with a value of another known type
+  (`null != $_POST`), where it would always give the same answer.
 - CallableParameterUseCaseInTypeContext no longer reports `null`
   assigned to a parameter passed by reference, which empties the
   caller's variable on purpose.

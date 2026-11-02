@@ -95,7 +95,12 @@ string literal here).
   operand is `true` or `false` and the other's type is unknown
   (`$options['prepare'] == TRUE`, a value read through an API that is not
   indexed). `===` would test only one of the values PHP takes as empty or
-  true.
+  true. So is a comparison of such a constant with a value whose known
+  type, made only of scalar and array types, does not include the
+  constant's own type (`null != $_POST`, `$rows == false` on an `array`,
+  `0 == $rate` on a `float`): `===` would always give the same answer.
+  `$_GET`, `$_POST`, `$_COOKIE`, `$_FILES`, `$_SERVER`, `$_REQUEST` and
+  `$_ENV` count as arrays there.
 - **D5b** (custos) The comparison is not a *conversion test*: one operand
   is an `(int)`, `(float)` or `(string)` cast of the other, or a string
   interpolating it alone (`(int) $v == $v`, `"$n" != $n`), which tests
