@@ -61,6 +61,31 @@ namespace App\Tests {
             $this->assertStringContainsString('ok', json_decode($body));
         }
 
+        public function testTypedExpected(array $locales, string $text, bool $flag, ?array $maybe, mixed $any, $loose, array $moved, array $nulled = null, string ...$rest): void
+        {
+            $this->assertSame($locales, json_decode($text, true));
+            $this->assertSame($text, json_encode($locales));
+            $check = function (string $raw) use ($locales): void {
+                $this->assertSame($locales, json_decode($raw, true)['langs']);
+            };
+            $arrow = fn (string $raw) => $this->assertSame($locales, json_decode($raw, true));
+            $this->assertSame($flag, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($locales)</weak_warning>);
+            $this->assertSame($maybe, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($text, true)</weak_warning>);
+            $this->assertSame($any, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($text, true)</weak_warning>);
+            $this->assertSame($loose, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($text, true)</weak_warning>);
+            $this->assertEquals($locales, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($text, true)</weak_warning>);
+            $moved = $any;
+            $this->assertSame($moved, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($text, true)</weak_warning>);
+            $this->assertSame($nulled, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($text, true)</weak_warning>);
+            $byRef = function (string $raw) use (&$locales): void {
+                $this->assertSame($locales, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
+            };
+            $unused = function (string $raw): void {
+                $this->assertSame($nope, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
+            };
+            $this->assertSame($flag, json_decode($text));
+        }
+
         public function testUnchecked(string $body, array $q): void
         {
             $data = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>;
@@ -83,7 +108,7 @@ namespace App\Tests {
             $this->assertArrayHasKey($key, []);
             $this->assertSame(null, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
             $this->assertSame(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>, false);
-            $this->assertSame($q, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
+            $this->assertSame($q, json_decode($body));
             $this->assertEquals([], <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>);
             $this->assertEquals('0', <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
             $this->assertEquals('', <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>);

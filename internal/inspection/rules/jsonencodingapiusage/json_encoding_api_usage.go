@@ -732,6 +732,9 @@ func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, deco
 func jsonRejectsFailure(ctx *analysis.Context, e syntax.Expr, strict, decode bool) bool {
 	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.Variable:
+		if strict && x.NameExpr == nil && jsonTypedParam(ctx, syntax.EnclosingVariableScope(x), x.Name, decode) {
+			return true
+		}
 		return jsonLocalValues(ctx, x, true, func(v syntax.Expr) bool { return jsonRejectsFailure(ctx, v, strict, decode) })
 	case *syntax.Array:
 		return strict || len(x.Items) > 0
@@ -753,6 +756,47 @@ func jsonRejectsFailure(ctx *analysis.Context, e syntax.Expr, strict, decode boo
 		case "null":
 			return strict && !decode
 		}
+	}
+	return false
+}
+
+// jsonTypedParam reports whether name is a parameter of scope, or a
+// variable a closure or arrow function takes from such a parameter, that
+// nothing writes and whose declared type excludes the failure value: a
+// single type other than mixed and null, and for json_encode other than
+// bool and false, without a null default.
+func jsonTypedParam(ctx *analysis.Context, scope syntax.Node, name string, decode bool) bool {
+	for _, a := range flowquery.VarAccesses(ctx.File, scope, name) {
+		if a.Write {
+			return false
+		}
+	}
+	params, _ := astquery.ScopeParts(scope)
+	for _, p := range params {
+		if p.Var == nil || p.Var.Name != name {
+			continue
+		}
+		t, ok := p.Type.(*syntax.Name)
+		if d, null := p.Default.(*syntax.ConstFetch); null && strings.EqualFold(strings.TrimPrefix(d.Name.Value, `\`), "null") || !ok || p.ByRef {
+			return false
+		}
+		switch strings.ToLower(t.Value) {
+		case "mixed", "null":
+			return false
+		case "bool", "false":
+			return decode
+		}
+		return true
+	}
+	switch fn := scope.(type) {
+	case *syntax.Closure:
+		for _, u := range fn.Uses {
+			if u.Var != nil && u.Var.Name == name && !u.ByRef {
+				return jsonTypedParam(ctx, syntax.EnclosingVariableScope(fn), name, decode)
+			}
+		}
+	case *syntax.ArrowFunction:
+		return jsonTypedParam(ctx, syntax.EnclosingVariableScope(fn), name, decode)
 	}
 	return false
 }

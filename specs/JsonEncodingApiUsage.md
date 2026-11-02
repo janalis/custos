@@ -142,7 +142,12 @@ own fix.
     every value that may reach the read is one (`$expected = ['a' => 1];
     $this->assertEquals($expected, json_decode($s, true));`) and nothing
     changes it in place: no element written or read, and no other read
-    passed as an argument. When PHPUnit itself is not indexed (installed outside
+    passed as an argument. For `assertSame`, a parameter (or a variable a
+    closure takes by value from one, or an arrow function reads from one)
+    that nothing writes counts too when its declared type is a single type
+    other than `mixed` and `null`, and for `json_encode` other than `bool`
+    and `false`, without a `null` default: `assertSame($locales,
+    json_decode($s, true))` with `array $locales`. When PHPUnit itself is not indexed (installed outside
     the analyzed tree, as symfony/phpunit-bridge does), the same
     assertions called on `$this`, `self`, `static` or `parent` count in a
     class whose ancestors lead, outside the index, to PHPUnit's `TestCase`

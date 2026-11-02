@@ -800,6 +800,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - JsonEncodingApiUsage no longer reports `json_encode()` of a constant
   holding a literal it cannot fail on (`['key_id' => self::KEY_ID]`), nor
   of integer arithmetic over calls such as `time()` (`time() + 3600`).
+- JsonEncodingApiUsage accepts a decoded value checked by `assertSame()`
+  against a parameter whose declared type excludes the failure value
+  (`array $locales`).
 - NotOptimalIfConditions counts `is_nan()`, `is_finite()` and
   `is_infinite()` as free like the `is_*` type checks, so it no longer
   asks to test a comparison before them.
