@@ -66,7 +66,12 @@ Visit every function call.
     as such a string literal (without interpolation) or `Name::class`, or
     such a class constant, is skipped whatever the haystack:
     `in_array('admin', $roles)` → skipped; `in_array('42', $roles)`,
-    `in_array("$id", $roles)` → reported. A non-numeric string compares
+    `in_array("$id", $roles)` → reported. The needle may also be a local
+    variable every value of which is such a string, or the value variable
+    of an enclosing `foreach` (not by reference) over such an array
+    literal that nothing else in the function writes or passes to a
+    function (`foreach (['draft', 'final'] as $s) { in_array($s, $h); }`
+    → skipped). A non-numeric string compares
     loosely with a string element exactly as strictly; the remaining
     differences (an element `true`, or `0` before PHP 8) are those a
     literal haystack leaves too.

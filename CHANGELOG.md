@@ -784,7 +784,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - TypeUnsafeArraySearch no longer reports a search for a non-numeric
   string literal or class name (`in_array('admin', $roles)`): such a
   needle compares loosely as it does strictly, like the literal haystacks
-  already accepted.
+  already accepted, nor one held in a local variable or taken by a
+  `foreach` from a literal list of such strings.
 - JsonEncodingApiUsage accepts a decoded element copied into a local
   variable that a PHPUnit assertion then checks, and counts the string
   assertions (`assertStringContainsString` and the like), where `null`

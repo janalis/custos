@@ -107,8 +107,80 @@ func literalStringArray(ctx *analysis.Context, h syntax.Expr) bool {
 // literalStringNeedle reports a needle written as a non-numeric string
 // without interpolation, whose value is known (E1).
 func literalStringNeedle(ctx *analysis.Context, n syntax.Expr) bool {
+	if v, ok := astquery.PlainVariable(n); ok {
+		if foreachOverLiteral(ctx, v) {
+			return true
+		}
+		// A local variable every value of which is such a string.
+		vals, complete := semanticquery.LocalValuesComplete(ctx.Types(), n)
+		if !complete || len(vals) == 0 {
+			return false
+		}
+		for _, v := range vals {
+			if !literalStringNeedle(ctx, v) {
+				return false
+			}
+		}
+		return true
+	}
 	_, interpolated := n.(*syntax.InterpolatedString)
 	return !interpolated && nonNumericString(ctx, n)
+}
+
+// foreachOverLiteral reports a needle that is the value variable of an
+// enclosing `foreach` over an array literal of non-numeric strings, which
+// nothing in the loop body writes or passes to a function, and nothing
+// binds by reference outside it (E1).
+func foreachOverLiteral(ctx *analysis.Context, needle *syntax.Variable) bool {
+	accesses := flowquery.VarAccesses(ctx.File, syntax.EnclosingVariableScope(needle), needle.Name)
+	var loop *syntax.Foreach
+	for _, a := range accesses {
+		if f, ok := a.By.(*syntax.Foreach); ok && a.Write && syntax.Node(f.Value) == a.Var && flowquery.NodeContains(f.Body, needle) {
+			loop = f // the innermost one comes last
+		}
+	}
+	if loop == nil || loop.ByRef || !literalStringArray(ctx, loop.Expr) {
+		return false
+	}
+	for _, a := range accesses {
+		inside := flowquery.NodeContains(loop.Body, a.Var)
+		switch {
+		case !inside:
+			// Each iteration assigns the variable afresh: only a reference
+			// bound outside the loop (`$alias = &$k`) could change it inside.
+			if referenceBound(a) {
+				return false
+			}
+		case a.Write, a.ElemWrite:
+			return false
+		case a.Var != needle:
+			if _, arg := a.Var.Parent().(*syntax.Arg); arg {
+				return false // `sort($k)` may write it
+			}
+		}
+	}
+	return true
+}
+
+// referenceBound reports an access that may tie the variable to another
+// one: a reference taken to it (`&$k` assigned or in an array) or bound to
+// it, or any binding other than a plain assignment or a foreach value.
+func referenceBound(a flowquery.VarAccess) bool {
+	switch by := a.By.(type) {
+	case nil:
+		switch p := a.Var.Parent().(type) {
+		case *syntax.Assign:
+			return p.ByRef
+		case *syntax.ArrayItem:
+			return p.ByRef
+		}
+		return false
+	case *syntax.Assign:
+		return by.ByRef
+	case *syntax.Foreach:
+		return false
+	}
+	return true
 }
 
 // nonNumericString reports a string literal (or class name) whose trimmed
