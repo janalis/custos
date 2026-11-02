@@ -165,8 +165,9 @@ func npiSameTokens(f *syntax.File, a, b syntax.Span) bool {
 
 // npiWithComments returns the text of n where comments lying in block before
 // c are inserted right after the opening brace of c's body (when braced).
-// npiDirectives mark comments that act on the line after them.
-var npiDirectives = []string{"@phpstan-ignore", "@psalm-suppress", "phpcs:ignore", "@noinspection", "@custos-ignore"}
+// npiDirectives mark comments that act on the line after them (an inline
+// @var types the variables the next statement reads).
+var npiDirectives = []string{"@phpstan-ignore", "@psalm-suppress", "phpcs:ignore", "@noinspection", "@custos-ignore", "@var", "@psalm-var", "@phpstan-var"}
 
 // npiMovesDirective reports whether a comment the fix moves from before the
 // inner if c into its body is a directive for the line after it: moved, it

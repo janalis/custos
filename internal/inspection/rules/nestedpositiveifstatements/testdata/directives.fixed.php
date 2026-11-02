@@ -20,4 +20,10 @@ function directives($a, $b, $c)
             // A plain note moves with the body.
             go();
         }
+    if ($a) {
+        /** @var \Countable $c */
+        if ($c->count()) {
+            go();
+        }
+    }
 }

@@ -78,8 +78,10 @@ body content. This only happens when `C`'s body is a braced block.
 
 - F3 (custos) No fix is offered (the report stays) when it would move a
   directive for the line after it (a comment holding `@phpstan-ignore`,
-  `@psalm-suppress`, `phpcs:ignore`, `@noinspection` or `@custos-ignore`)
-  from before `C` into its body, where it would act on another statement,
+  `@psalm-suppress`, `phpcs:ignore`, `@noinspection` or `@custos-ignore`,
+  or an inline `@var`, `@psalm-var` or `@phpstan-var` typing a variable
+  `C`'s condition reads) from before `C` into its body, where it would act
+  on another statement,
   or when it would drop a comment: one before `C` whose body is not braced, one after `C` inside the
   parent block, or, in Case A, one inside `C` outside its condition and body
   (in its discarded `else`, or between its parts).

@@ -798,6 +798,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   report the read given to it.
 - JsonEncodingApiUsage no longer reports `json_encode()` of a constant
   holding a literal it cannot fail on (`['key_id' => self::KEY_ID]`).
+- NestedPositiveIfStatements no longer offers its fix when an inline
+  `@var` comment before the inner `if` would move into its body, away
+  from the condition it types.
 
 ## [0.1.7] - 2026-10-21
 
