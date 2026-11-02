@@ -66,9 +66,23 @@ func (callableParameterUseCaseInTypeContext) Check(ctx *analysis.Context, n synt
 		}
 		for _, v := range cp.accesses[p.Var.Name] {
 			cp.checkIs(v, set)
-			cp.checkAssign(v, set)
+			if !p.ByRef || !cpReleased(v) {
+				cp.checkAssign(v, set)
+			}
 		}
 	}
+}
+
+// cpReleased reports `$p = null` (E10, custos): written to a reference
+// parameter, null hands the caller's variable back emptied, a signal
+// rather than another use of the parameter.
+func cpReleased(v *syntax.Variable) bool {
+	as, ok := v.Parent().(*syntax.Assign)
+	if !ok || as.Var != syntax.Expr(v) {
+		return false
+	}
+	c, ok := syntax.UnwrapParens(as.Value).(*syntax.ConstFetch)
+	return ok && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
 }
 
 type cpState struct {

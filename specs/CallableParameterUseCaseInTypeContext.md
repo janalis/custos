@@ -211,6 +211,10 @@ and is kept as its FQN with leading `\` and original case (e.g.
   without `else` whose body only throws
   (`if (\is_array($content)) { throw new \TypeError(…); }`): it enforces
   at run time a type only the docblock declares.
+- **E10** (custos) D7 for `$p = null` when `p` is passed by reference
+  (`array &$options`): it empties the caller's variable, a signal handed
+  back rather than another use of the parameter. Other values written to
+  a reference parameter are checked as usual.
 
 ## Report
 

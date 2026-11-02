@@ -800,6 +800,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - JsonEncodingApiUsage no longer reports `json_encode()` of a constant
   holding a literal it cannot fail on (`['key_id' => self::KEY_ID]`), nor
   of integer arithmetic over calls such as `time()` (`time() + 3600`).
+- CallableParameterUseCaseInTypeContext no longer reports `null`
+  assigned to a parameter passed by reference, which empties the
+  caller's variable on purpose.
 - JsonEncodingApiUsage accepts a decoded value checked by `assertSame()`
   against a parameter whose declared type excludes the failure value
   (`array $locales`).
