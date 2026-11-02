@@ -781,6 +781,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - TypeUnsafeArraySearch accepts a haystack of `static::` string constants
   in a class that is final or that no class of the project extends, like
   the same constants named through `self::`.
+- TypeUnsafeArraySearch no longer reports a search for a non-numeric
+  string literal or class name (`in_array('admin', $roles)`): such a
+  needle compares loosely as it does strictly, like the literal haystacks
+  already accepted.
 
 ## [0.1.7] - 2026-10-21
 

@@ -39,6 +39,6 @@ function a8() {
     $a = 1; $b = [1, 2];
     return array_search($a, $b);
 }
-function a9() {
-    return <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array('x', ['1', 2])</weak_warning>;
+function a9($a) {
+    return <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($a, ['1', 2])</weak_warning>;
 }

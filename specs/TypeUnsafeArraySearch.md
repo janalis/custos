@@ -62,6 +62,14 @@ Visit every function call.
     the constant. A constant declared in another file counts only when
     its initializer is one quoted string with no quote, `$` or backslash
     inside.
+  - (custos) The same holds with the roles swapped: a needle `N` written
+    as such a string literal (without interpolation) or `Name::class`, or
+    such a class constant, is skipped whatever the haystack:
+    `in_array('admin', $roles)` → skipped; `in_array('42', $roles)`,
+    `in_array("$id", $roles)` → reported. A non-numeric string compares
+    loosely with a string element exactly as strictly; the remaining
+    differences (an element `true`, or `0` before PHP 8) are those a
+    literal haystack leaves too.
 - **E2** *Matching types*: the inferred type of `N` (unknown parts removed)
   consists of exactly one type `T`, the inferred type of `H` (unknown parts
   removed) consists of exactly one type `A`, and `A` equals `T` with a leading

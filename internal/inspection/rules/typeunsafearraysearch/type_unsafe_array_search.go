@@ -35,7 +35,7 @@ func (typeUnsafeArraySearch) Check(ctx *analysis.Context, n syntax.Node) {
 	if needle.Unpack || haystack.Unpack { // D2: a spread passes an unknown number of arguments, strict flag included
 		return
 	}
-	if literalStringHaystack(ctx, haystack.Value) { // E1
+	if literalStringHaystack(ctx, haystack.Value) || literalStringNeedle(ctx, needle.Value) { // E1
 		return
 	}
 	nt, ht := ctx.TypeOf(needle.Value), ctx.TypeOf(haystack.Value) // E2
@@ -97,22 +97,30 @@ func literalStringArray(ctx *analysis.Context, h syntax.Expr) bool {
 		return false
 	}
 	for _, it := range arr.Items {
-		if it == nil || it.Key != nil || it.Unpack || it.Value == nil {
-			return false
-		}
-		if classNameLiteral(it.Value) {
-			continue // `Foo::class` is a class name: never numeric
-		}
-		content, ok := stringLiteralContent(ctx, it.Value)
-		if !ok {
-			return false
-		}
-		content = strings.TrimSpace(content)
-		if content == "" || astquery.IsComparisonNumericString(content) { // numeric strings compare numerically
+		if it == nil || it.Key != nil || it.Unpack || it.Value == nil || !nonNumericString(ctx, it.Value) {
 			return false
 		}
 	}
 	return true
+}
+
+// literalStringNeedle reports a needle written as a non-numeric string
+// without interpolation, whose value is known (E1).
+func literalStringNeedle(ctx *analysis.Context, n syntax.Expr) bool {
+	_, interpolated := n.(*syntax.InterpolatedString)
+	return !interpolated && nonNumericString(ctx, n)
+}
+
+// nonNumericString reports a string literal (or class name) whose trimmed
+// contents are non-empty and not numeric: a loose comparison with it acts
+// as a strict one for every string (E1).
+func nonNumericString(ctx *analysis.Context, e syntax.Expr) bool {
+	if classNameLiteral(e) {
+		return true // `Foo::class` is a class name: never numeric
+	}
+	content, ok := stringLiteralContent(ctx, e)
+	content = strings.TrimSpace(content)
+	return ok && content != "" && !astquery.IsComparisonNumericString(content) // numeric strings compare numerically
 }
 
 // classNameLiteral reports `Name::class` with a written class name (not
