@@ -69,7 +69,8 @@ Visit every function call.
     `in_array("$id", $roles)` → reported. The needle may also be a local
     variable every value of which is such a string, or the value variable
     of an enclosing `foreach` (not by reference) over such an array
-    literal that nothing else in the function writes or passes to a
+    literal, or over a local variable that E1 accepts as a haystack, that
+    nothing else in the function writes or passes to a
     function (`foreach (['draft', 'final'] as $s) { in_array($s, $h); }`
     → skipped). A non-numeric string compares
     loosely with a string element exactly as strictly; the remaining

@@ -139,7 +139,7 @@ func foreachOverLiteral(ctx *analysis.Context, needle *syntax.Variable) bool {
 			loop = f // the innermost one comes last
 		}
 	}
-	if loop == nil || loop.ByRef || !literalStringArray(ctx, loop.Expr) {
+	if loop == nil || loop.ByRef || !literalStringHaystack(ctx, loop.Expr) {
 		return false
 	}
 	for _, a := range accesses {

@@ -73,3 +73,19 @@ function reused(array $list, array $more) {
     }
     return $r;
 }
+
+function through(array $info, bool $old) {
+    $r = [];
+    $keys = ['redis_version', 'arch_bits'];
+    foreach ($keys as $k) {
+        $r[] = in_array($k, array_keys($info));
+    }
+    $more = ['a', 'b'];
+    if ($old) {
+        array_push($more, '1');
+    }
+    foreach ($more as $m) {
+        $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($m, $info)</weak_warning>;
+    }
+    return $r;
+}
