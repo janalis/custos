@@ -109,7 +109,8 @@ own fix.
   for failure where it is produced: the call itself (or the ternary it is
   a branch of, `$x = $ok ? json_decode($s, true) : [];`), the plain assignment
   storing it in a variable, or that variable's first occurrence after the
-  assignment in the same function (not inside a nested function, closure
+  assignment in the same function, or in the file's top-level code for a
+  call written there (not inside a nested function, closure
   or class, and not written again there; an `if ($var instanceof C) { … }`
   without `elseif` or `else` is skipped, since the failure value is no
   instance and never enters it), parentheses aside, is

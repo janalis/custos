@@ -346,7 +346,7 @@ func jsonFailureHandled(ctx *analysis.Context, call *syntax.FuncCall, decode boo
 			if t.Name == "" || t.NameExpr != nil {
 				return false
 			}
-			read = jsonFirstRead(t.Name, a)
+			read = jsonFirstRead(ctx.File, t.Name, a)
 		case *syntax.PropertyFetch:
 			read = jsonFirstPropertyRead(ctx, t, a)
 		}
@@ -437,12 +437,12 @@ func jsonFirstPropertyRead(ctx *analysis.Context, p *syntax.PropertyFetch, a *sy
 }
 
 // jsonFirstRead returns the first occurrence of variable name after
-// assignment a in its scope (nil when there is none or it is written
-// there).
-func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
+// assignment a in its scope, the file's top-level code included (nil when
+// there is none or it is written there).
+func jsonFirstRead(f *syntax.File, name string, a *syntax.Assign) syntax.Expr {
 	scope := syntax.EnclosingVariableScope(a)
 	var first *syntax.Variable
-	syntax.Inspect(scope, func(n syntax.Node) bool {
+	visit := func(n syntax.Node) bool {
 		switch v := n.(type) {
 		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
 			return n == scope
@@ -461,7 +461,12 @@ func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
 			}
 		}
 		return true
-	})
+	}
+	if scope == nil {
+		syntax.InspectFile(f, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
 	if first == nil {
 		return nil
 	}
@@ -835,7 +840,7 @@ func jsonFetchedFallback(ctx *analysis.Context, x syntax.Expr) bool {
 			if outer == syntax.Node(x) || !ok || v.Name == "" || v.NameExpr != nil || p.Op.Kind != syntax.TEqual || p.ByRef || syntax.Node(p.Value) != outer {
 				return false
 			}
-			read := jsonFirstRead(v.Name, p)
+			read := jsonFirstRead(ctx.File, v.Name, p)
 			return read != nil && jsonFailureTest(ctx, jsonOuter(read), true)
 		}
 		return false

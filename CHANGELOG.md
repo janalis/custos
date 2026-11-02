@@ -803,6 +803,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - CallableParameterUseCaseInTypeContext no longer reports `null`
   assigned to a parameter passed by reference, which empties the
   caller's variable on purpose.
+- JsonEncodingApiUsage recognizes a decoded value tested right after it
+  in a script's top-level code (`if (!$data) { exit(1); }`), as it does
+  in a function.
 - JsonEncodingApiUsage accepts a decoded value checked by `assertSame()`
   against a parameter whose declared type excludes the failure value
   (`array $locales`).
