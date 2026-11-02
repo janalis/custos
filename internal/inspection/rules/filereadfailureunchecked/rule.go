@@ -55,7 +55,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) {
 			continue
 		}
 
@@ -73,6 +73,43 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			ctx.ReportNode(n, message)
 			return
 		}
+	}
+}
+
+// decodedFallback reports whether input is the text json_decode() call n
+// decodes for an expression that falls back on null (E11): the call, a
+// ternary branch or an element or property read on it, as the left operand
+// of `??` or the argument of isset() or empty(). The failure value decodes
+// to null like invalid JSON, so the read failing takes that fallback.
+func decodedFallback(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+	call, ok := n.(*syntax.FuncCall)
+	if !ok || semanticquery.NativeBuiltinName(ctx, call) != "json_decode" || semanticquery.CallArgument(call.Args, 0, "json") != input {
+		return false
+	}
+	var x syntax.Node = call
+	for {
+		switch p := x.Parent().(type) {
+		case *syntax.Paren:
+		case *syntax.Ternary:
+			if syntax.Node(p.Cond) == x {
+				return false
+			}
+		case *syntax.ArrayDimFetch:
+			if syntax.Node(p.Var) != x {
+				return false
+			}
+		case *syntax.PropertyFetch:
+			if syntax.Node(p.Var) != x {
+				return false
+			}
+		case *syntax.Binary:
+			return p.Op.Kind == syntax.TCoalesce && syntax.Node(p.Left) == x
+		case *syntax.Isset, *syntax.Empty:
+			return true
+		default:
+			return false
+		}
+		x = x.Parent()
 	}
 }
 
