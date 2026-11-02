@@ -629,6 +629,17 @@ var jsonAssertions = map[string]int{
 	"assertcontains": 1, "assertnotcontains": 1,
 }
 
+// jsonStringAssertions are PHPUnit's assertions whose second parameter is
+// declared string: null there is a TypeError, whatever strict_types says,
+// so a failed json_decode errors the test.
+var jsonStringAssertions = map[string]bool{
+	"assertstringcontainsstring": true, "assertstringcontainsstringignoringcase": true,
+	"assertstringnotcontainsstring": true, "assertstringnotcontainsstringignoringcase": true,
+	"assertstringstartswith": true, "assertstringstartsnotwith": true,
+	"assertstringendswith": true, "assertstringendsnotwith": true,
+	"assertmatchesregularexpression": true, "assertdoesnotmatchregularexpression": true,
+}
+
 // jsonAsserted reports whether arg is the value a PHPUnit assertion checks
 // and the assertion fails on the failure value: a type assertion,
 // assertNotNull for json_decode or assertNotFalse for json_encode.
@@ -655,6 +666,8 @@ func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, deco
 	at, known := jsonAssertions[name]
 	switch {
 	case known:
+	case decode && jsonStringAssertions[name]:
+		at = 1
 	case name == "assertnotnull" && decode, name == "assertnotfalse" && !decode:
 		at = 0
 	default:
@@ -725,6 +738,15 @@ func jsonFetchedFallback(ctx *analysis.Context, x syntax.Expr) bool {
 			return outer != syntax.Node(x)
 		case *syntax.Arg:
 			return outer != syntax.Node(x) && jsonAsserted(ctx, p.Parent().Parent(), p, true)
+		case *syntax.Assign:
+			// `$html = $data['html'];` copies the read: the copy's first read
+			// tested like the read itself counts.
+			v, ok := syntax.UnwrapParens(p.Var).(*syntax.Variable)
+			if outer == syntax.Node(x) || !ok || v.Name == "" || v.NameExpr != nil || p.Op.Kind != syntax.TEqual || p.ByRef || syntax.Node(p.Value) != outer {
+				return false
+			}
+			read := jsonFirstRead(v.Name, p)
+			return read != nil && jsonFailureTest(ctx, jsonOuter(read), true)
 		}
 		return false
 	}

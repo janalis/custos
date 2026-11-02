@@ -785,6 +785,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   string literal or class name (`in_array('admin', $roles)`): such a
   needle compares loosely as it does strictly, like the literal haystacks
   already accepted.
+- JsonEncodingApiUsage accepts a decoded element copied into a local
+  variable that a PHPUnit assertion then checks, and counts the string
+  assertions (`assertStringContainsString` and the like), where `null`
+  errors the test, as checks of a decoded value.
 
 ## [0.1.7] - 2026-10-21
 

@@ -12,6 +12,7 @@ namespace PHPUnit\Framework {
         public static function assertNotEmpty(mixed $actual, string $message = ""): void {}
         public static function assertEmpty(mixed $actual, string $message = ""): void {}
         public static function assertEquals(mixed $expected, mixed $actual, string $message = ""): void {}
+        public static function assertStringContainsString(string $needle, string $haystack, string $message = ""): void {}
     }
     abstract class TestCase extends Assert {}
 }
@@ -51,6 +52,13 @@ namespace App\Tests {
             $this->assertSame($name, json_decode($body));
             $this->assertSame([], json_decode($body, true)['data']['clients']);
             self::assertNotNull(json_decode($body)->id);
+            $result = json_decode($body, true);
+            $html = $result['results'][0]['html'];
+            $this->assertStringContainsString('<div>', $html);
+            $page = json_decode($body);
+            $status = $page->status;
+            $this->assertSame('ok', $status);
+            $this->assertStringContainsString('ok', json_decode($body));
         }
 
         public function testUnchecked(string $body, array $q): void
@@ -99,6 +107,20 @@ namespace App\Tests {
             $this->assertSame(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>);
             $this->assertSame(null, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>['data']);
             $this->assertEmpty(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>->items);
+            $this->assertStringContainsString('ok', <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($q)</weak_warning>);
+            $whole = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>;
+            $copy = $whole;
+            $this->assertNotNull($copy);
+            $tree = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body, true)</weak_warning>;
+            $items = $tree['items'];
+            $this->assertSame(null, $items);
+            $node = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>;
+            $parts = [$node->a];
+            $this->assertNotNull($parts);
+            $leaf = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>;
+            $leaf->x .= 'y';
+            $label = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>;
+            $text = $label->name;
         }
     }
 }

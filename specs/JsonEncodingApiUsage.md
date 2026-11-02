@@ -146,7 +146,14 @@ own fix.
     the analyzed tree, as symfony/phpunit-bridge does), the same
     assertions called on `$this`, `self`, `static` or `parent` count in a
     class whose ancestors lead, outside the index, to PHPUnit's `TestCase`
-    and that declares no method of that name itself;
+    and that declares no method of that name itself; for `json_decode`
+    also the second argument of the PHPUnit assertions that declare it a
+    string, where `null` errors the test: `assertStringContainsString`,
+    `assertStringNotContainsString` (and their `IgnoringCase` forms),
+    `assertStringStartsWith`, `assertStringStartsNotWith`,
+    `assertStringEndsWith`, `assertStringEndsNotWith`,
+    `assertMatchesRegularExpression` and
+    `assertDoesNotMatchRegularExpression`;
   - for `json_decode` (whose failure value is `null`), an argument of
     `isset()` or the left operand of `??`.
   - for `json_decode`, the base of an element or property read (through
@@ -158,6 +165,10 @@ own fix.
     above that fails on `null`
     (`$this->assertSame([], json_decode($s, true)['data']['ids'])`): a
     read of `null` is `null`, so a failed decode fails the assertion.
+    It holds as well when that outermost read is stored by a plain
+    assignment in a local variable whose first occurrence after it, as
+    above, is tested in one of these ways (`$html = $data['html'];
+    $this->assertStringContainsString('<div>', $html);`).
   `$json = json_encode($q); $key = false === $json ? '' : $json;`,
   `$rows = json_decode($raw, true); if (!is_array($rows)) { … }` and
   `json_decode($raw, true) ?: []` are not reported. The `@` operator is
