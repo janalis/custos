@@ -515,11 +515,14 @@ func jsonFlagsWithout(ctx *analysis.Context, e syntax.Expr, name string) bool {
 }
 
 func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
+	if jsonInt(ctx, e) {
+		return true
+	}
 	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.FuncCall:
 		args, ok := astquery.ArgValues(x.Args)
 		switch ctx.GlobalFunctionName(x) {
-		case "base64_encode", "bin2hex", "dechex", "decbin", "decoct", "crc32", "strlen", "count":
+		case "base64_encode", "bin2hex", "dechex", "decbin", "decoct":
 			return true
 		case "md5", "sha1": // a second argument may ask for the raw binary digest
 			return ok && len(args) == 1
@@ -529,9 +532,6 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		// Every value that may reach the read is itself encodable.
 		return jsonLocalValues(ctx, x, false, func(v syntax.Expr) bool { return jsonEncodable(ctx, v, depth) })
 	case *syntax.Literal:
-		if x.LitKind == syntax.LitInt {
-			return true
-		}
 		v, ok := syntax.LiteralStringValue(x)
 		return ok && utf8.ValidString(v)
 	case *syntax.Unary:
@@ -563,6 +563,32 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 			}
 		}
 		return true
+	}
+	return false
+}
+
+// jsonIntFunctions are PHP's functions that return only an integer.
+var jsonIntFunctions = map[string]bool{
+	"crc32": true, "strlen": true, "count": true, "time": true, "intval": true,
+	"intdiv": true, "rand": true, "mt_rand": true, "random_int": true,
+}
+
+// jsonInt reports an integer expression (E10): an integer literal, a call
+// of a jsonIntFunctions function, or `+`, `-`, `*` or a negation of those,
+// whose overflow yields a finite float, which still encodes.
+func jsonInt(ctx *analysis.Context, e syntax.Expr) bool {
+	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.Literal:
+		return x.LitKind == syntax.LitInt
+	case *syntax.FuncCall:
+		return jsonIntFunctions[ctx.GlobalFunctionName(x)]
+	case *syntax.Unary:
+		return x.Op.Kind == syntax.TMinus && jsonInt(ctx, x.Expr)
+	case *syntax.Binary:
+		switch x.Op.Kind {
+		case syntax.TPlus, syntax.TMinus, syntax.TMul:
+			return jsonInt(ctx, x.Left) && jsonInt(ctx, x.Right)
+		}
 	}
 	return false
 }

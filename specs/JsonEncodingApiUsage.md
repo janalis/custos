@@ -190,9 +190,13 @@ own fix.
   no unpacking, reference or empty slot (`json_encode(['id' => 1, 'tags'
   => ['a']])`). A call of one of PHP's own functions that return only ASCII
   text or an integer counts as such a value: `base64_encode`, `bin2hex`,
-  `dechex`, `decbin`, `decoct`, `crc32`, `strlen`, `count`, and `md5` or
+  `dechex`, `decbin`, `decoct`, `crc32`, `strlen`, `count`, `time`,
+  `intval`, `intdiv`, `rand`, `mt_rand`, `random_int`, and `md5` or
   `sha1` given their text alone (a second argument may ask for the raw
-  binary digest). A class name written `Name::class`, `self::class` or
+  binary digest). So does `+`, `-` or `*` between two integers (literals,
+  such calls or such operations) and the negation of one: an overflow
+  gives a finite float, which encodes (`['exp' => time() + 3600]`);
+  division and `**` may give an infinite one. A class name written `Name::class`, `self::class` or
   `parent::class` counts as such a string; `static::class` and
   `$object::class`, known only at run time, do not. A constant counts
   when its value is such a value: a global constant, or a class constant

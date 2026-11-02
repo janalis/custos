@@ -798,7 +798,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   successful `json_validate()` as a test of the value, and no longer
   report the read given to it.
 - JsonEncodingApiUsage no longer reports `json_encode()` of a constant
-  holding a literal it cannot fail on (`['key_id' => self::KEY_ID]`).
+  holding a literal it cannot fail on (`['key_id' => self::KEY_ID]`), nor
+  of integer arithmetic over calls such as `time()` (`time() + 3600`).
 - NotOptimalIfConditions counts `is_nan()`, `is_finite()` and
   `is_infinite()` as free like the `is_*` type checks, so it no longer
   asks to test a comparison before them.
