@@ -215,6 +215,10 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 				exclude(args[1].Value, f, true, true)
 			}
 		}
+		if truth && name == "json_validate" {
+			// Valid JSON is never the empty text false and null read as.
+			exclude(args[0].Value, f, true, true)
+		}
 		// The predicate tests a variable or the assignment written in its
 		// place (`is_string($n = f())`).
 		arg := args[0]

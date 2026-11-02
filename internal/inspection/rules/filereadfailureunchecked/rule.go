@@ -112,14 +112,18 @@ func throwingDecode(ctx *analysis.Context, n syntax.Node, input syntax.Expr) boo
 
 // unmatchedSubject reports whether input is the subject preg_match() or
 // preg_match_all() call n tests against a literal pattern that cannot match
-// the empty text (E9): the failure value, read as the empty text, matches
-// nothing, like a text without a match.
+// the empty text, or the text json_validate() call n checks (E9): the
+// failure value, read as the empty text, matches nothing, like a text
+// without a match, and is no valid JSON.
 func unmatchedSubject(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
 	call, ok := n.(*syntax.FuncCall)
 	if !ok {
 		return false
 	}
 	name := semanticquery.NativeBuiltinName(ctx, call)
+	if name == "json_validate" {
+		return semanticquery.CallArgument(call.Args, 0, "json") == input
+	}
 	return (name == "preg_match" || name == "preg_match_all") && semanticquery.CallArgument(call.Args, 1, "subject") == input &&
 		flow.EmptylessPattern(semanticquery.CallArgument(call.Args, 0, "pattern"))
 }

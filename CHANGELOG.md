@@ -793,6 +793,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   `\R`, `\h`, `\v`, `\N` and `\X` as matching at least one character, so
   a `preg_match()` against a pattern such as `/--FILE--\R(.*)/s` counts as
   a test of the read.
+- FileReadFailureUnchecked and the other failure-result rules count a
+  successful `json_validate()` as a test of the value, and no longer
+  report the read given to it.
 
 ## [0.1.7] - 2026-10-21
 
