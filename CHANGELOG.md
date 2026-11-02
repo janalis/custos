@@ -789,6 +789,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   variable that a PHPUnit assertion then checks, and counts the string
   assertions (`assertStringContainsString` and the like), where `null`
   errors the test, as checks of a decoded value.
+- FileReadFailureUnchecked and the other failure-result rules recognize
+  `\R`, `\h`, `\v`, `\N` and `\X` as matching at least one character, so
+  a `preg_match()` against a pattern such as `/--FILE--\R(.*)/s` counts as
+  a test of the read.
 
 ## [0.1.7] - 2026-10-21
 

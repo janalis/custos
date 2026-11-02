@@ -51,3 +51,20 @@ function readPattern($path)
     $re = file_get_contents($path);
     return <warning descr="Handle file reading failure before using its result.">preg_match($re, 'text')</warning>;
 }
+
+function lineBreaks($path)
+{
+    $code = file_get_contents($path);
+    if (preg_match('/--FILE--\R(.*?)\R--/s', $code, $m)) {
+        return $m[1] . strlen($code);
+    }
+
+    return '';
+}
+
+function optionalBreak($path)
+{
+    $code = file_get_contents($path);
+
+    return <warning descr="Handle file reading failure before using its result.">preg_match('/\R?/', $code)</warning>;
+}

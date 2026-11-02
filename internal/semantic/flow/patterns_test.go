@@ -22,6 +22,15 @@ func TestEmptyless(t *testing.T) {
 		{`\a\`, false},
 		{` a `, false},
 		{`/a`, false},
+		{`/--FILE--\R(.*?)\R--/s`, true},
+		{`/\h\H\v\V\N\X/`, true},
+		{`/\R?/`, false},
+		{`/[\h\v]+/`, true},
+		{`/[^\h]/`, true},
+		{`/[]a]/`, true},
+		{`/[^]a]/`, true},
+		{`/[\R]/`, false},
+		{`/\\R?/`, true},
 	} {
 		if got := emptyless(tc.pattern); got != tc.want {
 			t.Errorf("emptyless(%q) = %v, want %v", tc.pattern, got, tc.want)
