@@ -382,7 +382,11 @@ integer/float literal, optionally with a unary minus.
 - **E8** D28a inside a function named `assertFileEquals`; D28b inside a
   function named `assertFileEquals` or `assertStringEqualsFile` (a custom
   helper implementing the assertion itself).
-- **E9** D25 when the configured PHPUnit version is ≥ 9.0.
+- **E9** D25 when the configured PHPUnit version is ≥ 9.0, and (custos)
+  when no version is known: `PHP_UNIT_VERSION` is not configured, PHPUnit
+  is not indexed and neither composer.json nor phpunit.xml names a
+  version. From 9.0 `assertContains()` compares strictly, unlike
+  `in_array()`, so the suggestion would change the assertion.
 - **E9a** D18 (and the D15a shortcut) when the `empty()` operand's type is
   unknown or may be an object: `assertTrue(empty($store))` with a
   `\SplObjectStorage $store`, or with an untyped `$store`.

@@ -89,7 +89,7 @@ func TestEA(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			req := Request{Path: c.Fixture, Rules: c.Rules, PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, Options: c.Options, Calls: c.Calls}
+			req := Request{Path: c.Fixture, Rules: c.Rules, PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, Options: eaOptions(c.Rules, c.Options), Calls: c.Calls}
 			for _, comp := range c.Companions {
 				raw, err := ReadEA(idx, comp)
 				if err != nil {
@@ -300,4 +300,23 @@ func reportResultHidden(t *testing.T, res Result) {
 	if res.FixDiff != "" {
 		t.Errorf("fix output differs:\n%s", res.FixDiff)
 	}
+}
+
+// eaOptions returns the options of an upstream test with the PHPUnit
+// version upstream always runs with: custos infers it when it is not
+// configured, and holds back what depends on it when it cannot.
+func eaOptions(rules []string, options map[string]string) map[string]string {
+	out := map[string]string{}
+	for _, id := range rules {
+		m, _ := meta.Lookup(id)
+		for _, o := range m.Options {
+			if o.Name == "PHP_UNIT_VERSION" {
+				out[id+".PHP_UNIT_VERSION"] = fmt.Sprint(o.Default)
+			}
+		}
+	}
+	for k, v := range options {
+		out[k] = v
+	}
+	return out
 }

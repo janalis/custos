@@ -635,7 +635,9 @@ func putCount(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (putS
 
 // D25
 func putContains(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (putSuggestion, bool) {
-	if putVersion(ctx) >= 90 {
+	// From 9.0 assertContains() compares strictly, unlike in_array(): a
+	// version merely assumed proves nothing.
+	if _, detected := phpunit.DetectedPHPUnitVersion(ctx); !detected && !ctx.OptionSet("PHP_UNIT_VERSION") || putVersion(ctx) >= 90 {
 		return putSuggestion{}, false
 	}
 	pos, ok := putPositive(c.Name)
