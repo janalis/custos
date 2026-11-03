@@ -45,7 +45,7 @@ func (unnecessaryAssertion) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || len(args) != 1 {
 		return
 	}
-	if _, ok := phpunit.PuMethodCallNamed(args[0], "any"); !ok { // D8
+	if _, ok := phpunit.PuMethodCallNamed(args[0], "any"); !ok || uaChecksArguments(c.Node) { // D8, E6a
 		return
 	}
 	// F1 needs a plain `->` call: a class reference is not an expression, a
@@ -65,6 +65,22 @@ func (unnecessaryAssertion) Check(ctx *analysis.Context, n syntax.Node) {
 			return []diagnostic.TextEdit{{Span: call.Span(), NewText: string(f.Src[rs.Start:rs.End])}}
 		},
 	})
+}
+
+// uaChecksArguments reports whether the chain continuing from call calls
+// with…() (`with`, `withAnyParameters`, `withParameterSetsInOrder`…): those
+// check the arguments of every call, and need expects() since PHPUnit 13.
+func uaChecksArguments(call syntax.Node) bool {
+	for x := call; ; {
+		next, ok := x.Parent().(*syntax.MethodCall)
+		if !ok || syntax.Node(next.Var) != x {
+			return false
+		}
+		if id, named := next.Name.(*syntax.Identifier); named && strings.HasPrefix(strings.ToLower(id.Value), "with") {
+			return true
+		}
+		x = next
+	}
 }
 
 // uaDeclaresMethod reports whether a class the receiver may double (its

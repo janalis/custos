@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- UnnecessaryAssertion no longer reports `expects($this->any())` when the
+  chain goes on with `->with(…)` or another `with…()` call: those check
+  arguments, and dropping `expects()` left a chain PHPUnit 13 deprecates.
 - Rules that follow a variable through calls (JsonEncodingApiUsage and
   others) resolve a method called on a nullable receiver (`?Conn $c;
   $c->add($x)`) to its class: an argument passed by value no longer makes

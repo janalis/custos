@@ -29,6 +29,11 @@ abstract class CartTest
         $double->expects(any())->method('total');
         $double->expects($matcher);
         $double->expects($this->never());
+        // with…() checks the arguments, and needs expects() since PHPUnit 13.
+        $double->expects($this->any())->method('total')->with(3)->willReturn(1);
+        $double->expects($this->any())
+            ->method('total')
+            ->WithAnyParameters();
     }
 
     abstract protected function shelf(): ?Shelf;

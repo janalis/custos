@@ -160,6 +160,12 @@ parentheses stripped first):
   different class (even a subclass) or a non-class type.
 - **E6** `expects($this->once())`, `expects($this->never())`,
   `expects($matcher)`, `expects(any())`.
+- **E6a** (custos) `expects($this->any())` when the call chain continuing
+  from it calls a method whose name starts with `with` (`->with(…)`,
+  `->withAnyParameters()`, `->withParameterSetsInOrder(…)`, compared
+  case-insensitively): those check the arguments of every call, and PHPUnit
+  13 deprecates them without `expects()`
+  (`$repo->expects($this->any())->method('find')->with(3)->willReturn($row);`).
 - **E7** (custos) Part A when the assertion is the only assertion or
   expectation of its function or method, counting closures inside it: no
   other method or static call there is named `assert…` or `expect…`
@@ -323,6 +329,10 @@ abstract class CartTest
   function declared `: resource` returns an object and
   `assertInternalType('resource', f())` is not redundant; custos never
   reports the `resource` type name.
+- **Argument checks (custos diverges, E6a).** Upstream reports
+  `expects($this->any())` followed by `->with(…)`, and dropping it leaves
+  `with()` without `expects()`, which PHPUnit 13 deprecates and PHPUnit 14
+  rejects. custos keeps such chains.
 - **Nullsafe chains (custos diverges, E4b).** Upstream reads the declared
   return type of the last call only, so
   `$s = $this->regions->find('x')?->sidebar(); $this->assertInstanceOf(Sidebar::class, $s);`
