@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked no longer reports reads concatenated into a
+  PHPUnit assertion's failure message, such as
+  `$this->assertSame(0, $status, $output.$error)`.
 - StaticInvocationViaThis no longer reports a test suite's own static
   `assert…` helpers called through `$this` in a PHPUnit test case, such as
   `$this->assertDateTimeEquals($a, $b)`, under `EXCEPT_PHPUNIT_ASSERTIONS`.

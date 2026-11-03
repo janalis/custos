@@ -39,7 +39,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.MethodCall:
 		args = x.Args
 	case *syntax.Binary:
-		if x.Op.Kind != syntax.TDot {
+		if x.Op.Kind != syntax.TDot || failureMessage(ctx, x) {
 			return
 		}
 		inputs = []syntax.Expr{x.Left, x.Right}
@@ -312,4 +312,26 @@ func lengthTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool 
 		return least == 0
 	}
 	return false
+}
+
+// failureMessage reports whether concatenation x builds, alone or as part of
+// a longer concatenation, the `$message` of a PHPUnit assertion (E13): the
+// text only describes the failure, a failed read shows there as empty.
+func failureMessage(ctx *analysis.Context, x *syntax.Binary) bool {
+	var outer syntax.Node = x
+	for {
+		switch p := outer.Parent().(type) {
+		case *syntax.Paren:
+		case *syntax.Binary:
+			if p.Op.Kind != syntax.TDot {
+				return false
+			}
+		case *syntax.Arg:
+			call := p.Parent().Parent()
+			return (phpunit.PuAssertion(ctx, call) || phpunit.UnindexedAssertion(ctx, call)) && phpunit.MessageArgument(ctx, call, p)
+		default:
+			return false
+		}
+		outer = outer.Parent()
+	}
 }
