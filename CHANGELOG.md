@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked no longer reports a read searched at once by
+  `str_contains()`, `str_starts_with()` or `str_ends_with()` for literal
+  text (`if (!str_contains($code, '@marker')) { continue; }`), where a
+  failed read takes the branch of a file without that text.
 - TypeUnsafeComparison no longer asks for `===` on a `\DateTimeInterface`
   value, which is always a `DateTime` or `DateTimeImmutable` compared by
   its date.

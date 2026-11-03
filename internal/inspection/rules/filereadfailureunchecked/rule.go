@@ -58,7 +58,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) || trimmedEmptyTested(ctx, n, input) || assertedText(ctx, n, input) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) || trimmedEmptyTested(ctx, n, input) || assertedText(ctx, n, input) || searchTested(ctx, n, input) {
 			continue
 		}
 
@@ -365,6 +365,28 @@ func trimmedEmptyTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr)
 		}
 	}
 	return false
+}
+
+// searchTested reports whether input is the haystack of a str_contains(),
+// str_starts_with() or str_ends_with() call n whose needle is non-empty
+// literal text, for a result tested at once (E16): the failure value holds
+// no such text, which takes the branch of an empty file.
+func searchTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+	call, ok := n.(*syntax.FuncCall)
+	if !ok || semanticquery.CallArgument(call.Args, 0, "haystack") != input {
+		return false
+	}
+	switch semanticquery.NativeBuiltinName(ctx, call) {
+	case "str_contains", "str_starts_with", "str_ends_with":
+	default:
+		return false
+	}
+	needle, ok := syntax.UnwrapParens(semanticquery.CallArgument(call.Args, 1, "needle")).(*syntax.Literal)
+	if !ok {
+		return false
+	}
+	text, ok := syntax.LiteralStringValue(needle)
+	return ok && text != "" && emptinessTest(unparen(call))
 }
 
 // emptyPreserving names the text parameter of builtins that turn the empty
