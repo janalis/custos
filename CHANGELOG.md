@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage no longer reports a decode passed straight to an
+  array-only parameter of one of PHP's functions on PHP 8, such as
+  `array_keys(json_decode($s, true))`, where a failure is a `TypeError`.
 - TypeUnsafeComparison no longer suggests `===` for an int compared with a
   float, such as `1 == $number` on a float, where `===` would never hold.
 - FileReadFailureUnchecked no longer reports `file_get_contents()` of one of

@@ -701,8 +701,36 @@ func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
 			if nm, ok := f.Name.(*syntax.Name); ok && jsonTypeChecks[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))] {
 				return true
 			}
+			if decode && jsonArrayOnly(ctx, f, x) {
+				return true
+			}
 		}
 		return jsonAsserted(ctx, call, p, decode)
+	}
+	return false
+}
+
+// jsonArrayOnly reports whether x is given, on PHP 8.0 and later and
+// outside a `try` with a `catch`, to a parameter of one of PHP's own
+// functions that only accepts an array (`array_keys(json_decode($s, true))`):
+// the failure value null is a TypeError there.
+func jsonArrayOnly(ctx *analysis.Context, call *syntax.FuncCall, x syntax.Expr) bool {
+	if ctx.PHP.Below(phpversion.PHP80) {
+		return false
+	}
+	callee, ok := semanticquery.ResolveCallee(ctx, call)
+	if !ok || !callee.Builtin {
+		return false
+	}
+	for p := call.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
+		if t, ok := p.(*syntax.Try); ok && len(t.Catches) > 0 {
+			return false
+		}
+	}
+	for i, param := range callee.Params {
+		if param.Type == "array" && !param.Variadic && semanticquery.CallArgument(call.Args, i, param.Name) == x {
+			return true
+		}
 	}
 	return false
 }
