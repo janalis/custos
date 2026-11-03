@@ -1,5 +1,5 @@
 <?php
-function settings(?string $raw): array
+function settings(string $raw): array
 {
     $values = json_decode($raw, true);
     if ($values instanceof \stdClass) {

@@ -295,6 +295,12 @@ F4 and F5 edit the call in place instead of replacing it.
   appended after the last argument and every argument is kept:
   `\json_decode($x, associative: true)` →
   `\json_decode($x, associative: true, flags: \JSON_THROW_ON_ERROR)`.
+- **F7** (custos) No fix for `json_decode` when the decoded text may be
+  `null`: its inferred type holds `null`, or it reads a property declared
+  without a type and without a default, which holds `null` until set
+  (`json_decode($this->settings, true)` on a nullable column). The call
+  decodes `null` to `null` today; with the flag, it would throw. The
+  finding stays.
 - **F6** `C` is `\JSON_THROW_ON_ERROR` when the file already writes a global
   constant with a leading backslash (`\PHP_EOL`; `\true`, `\false` and
   `\null` do not count), or when a bare name at the call would not reach

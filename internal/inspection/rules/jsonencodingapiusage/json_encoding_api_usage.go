@@ -118,6 +118,12 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if jsonFailureHandled(ctx, call, decode) { // E8
 		return
 	}
+	if decode && jsonMayBeNull(ctx, subject.Value) { // F7
+		// With the flag, the null text a caller may rely on decoding to
+		// null throws instead.
+		ctx.Report(span, jsonThrowMsg)
+		return
+	}
 	throwConst := jsonThrowConst(ctx, span.Start)
 	if hasFlags && flags.Name != nil { // F4: add the constant to the named flags
 		val := flags.Value
@@ -708,6 +714,25 @@ func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
 		return jsonAsserted(ctx, call, p, decode)
 	}
 	return false
+}
+
+// jsonMayBeNull reports text that may be null: its type holds null, or it
+// reads a property declared without a type or a default, null until set.
+func jsonMayBeNull(ctx *analysis.Context, e syntax.Expr) bool {
+	if ctx.TypeOf(e).Has("null") {
+		return true
+	}
+	p, ok := syntax.UnwrapParens(e).(*syntax.PropertyFetch)
+	if !ok {
+		return false
+	}
+	id, named := p.Name.(*syntax.Identifier)
+	classes := ctx.TypeOf(p.Var).Classes()
+	if !named || len(classes) != 1 {
+		return false
+	}
+	prop := ctx.Index().FindProperty(strings.TrimPrefix(classes[0], `\`), id.Value, ctx.PHP)
+	return prop != nil && prop.Type == "" && !prop.HasDefault
 }
 
 // jsonArrayOnly reports whether x is given, on PHP 8.0 and later and

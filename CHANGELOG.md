@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage no longer offers to add `JSON_THROW_ON_ERROR` to a
+  `json_decode()` whose text may be `null`, such as an untyped property
+  read before it is set: the decode would throw where it returned `null`.
 - JsonEncodingApiUsage no longer reports a decode passed straight to an
   array-only parameter of one of PHP's functions on PHP 8, such as
   `array_keys(json_decode($s, true))`, where a failure is a `TypeError`.
