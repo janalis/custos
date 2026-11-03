@@ -111,6 +111,9 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if decode && jsonDecodesSafeEncode(ctx, call, subject.Value) { // E11
 		return
 	}
+	if !decode && jsonThrownMessage(call) { // E12
+		return
+	}
 	flags, hasFlags := jsonArg(call, "flags", flagsPos)
 	if hasFlags && jsonStrictFlags(ctx, flags.Value) { // D4, D5
 		return
@@ -497,6 +500,31 @@ func jsonFirstRead(f *syntax.File, name string, a *syntax.Assign) syntax.Expr {
 		return nil
 	}
 	return first
+}
+
+// jsonThrownMessage reports whether the text call encodes is, alone or
+// concatenated, an argument of an object created by a `throw` (E12): it
+// only describes the error being thrown, and a failure to encode would
+// replace that error.
+func jsonThrownMessage(call *syntax.FuncCall) bool {
+	x := jsonOuter(call)
+	for {
+		b, ok := x.Parent().(*syntax.Binary)
+		if !ok || b.Op.Kind != syntax.TDot {
+			break
+		}
+		x = jsonOuter(b)
+	}
+	arg, ok := x.Parent().(*syntax.Arg)
+	if !ok {
+		return false
+	}
+	created, ok := arg.Parent().Parent().(*syntax.New)
+	if !ok {
+		return false
+	}
+	_, thrown := jsonOuter(created).Parent().(*syntax.Throw)
+	return thrown
 }
 
 // jsonEncodable reports whether json_encode cannot fail on e: an integer,

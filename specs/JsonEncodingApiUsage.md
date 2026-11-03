@@ -259,6 +259,12 @@ own fix.
   `json_encode` call exempt by E10: that text is valid JSON nested less
   deeply than the depth (`json_decode(json_encode(['data' => 'a']),
   false)`).
+- **E12** (custos, see Divergences) Kind E for `json_encode` whose result,
+  alone or concatenated with `.` (parentheses and `@` aside), is an
+  argument of an object a `throw` creates (`throw new
+  RuntimeException($message.': '.json_encode($actual));`): the text only
+  describes the error being thrown, and the flag would replace that error
+  with a `JsonException`.
 
 ## Report
 
@@ -445,6 +451,10 @@ class Exporter {
 
 ## Divergences
 
+- **Thrown messages (custos diverges, E12).** Upstream asks for
+  `JSON_THROW_ON_ERROR` on a `json_encode` that builds the message of an
+  exception being thrown; the flag would throw a `JsonException` instead of
+  the intended error. custos accepts it.
 - **Handled failures (custos diverges from upstream, E8).** Upstream asks
   for `JSON_THROW_ON_ERROR` on every call. When the code already tests the
   result for the failure value and falls back (`?: []`, `is_array()`,

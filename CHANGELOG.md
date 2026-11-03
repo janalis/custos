@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` on a
+  `json_encode()` that builds the message of an exception being thrown,
+  where the flag would replace that exception with a `JsonException`.
 - UnnecessaryAssertion keeps an assertion whose only companion checks sit
   in branches, loops or operands it is not part of (an `expectException()`
   in an `if` the assertion's path skips): removing it could leave a run
