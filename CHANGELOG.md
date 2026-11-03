@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked no longer reports a read passed through a text
+  function that keeps the empty text, such as `trim()` or
+  `escapeshellcmd()`, straight into a PHPUnit assertion, which fails on the
+  empty text.
 - TypeUnsafeComparison no longer asks for `===` between two nullable
   objects (`?Type $a == ?Type $b`): `==` compares their properties and
   `null` compares the same way loosely as strictly.

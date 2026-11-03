@@ -2,6 +2,7 @@
 package filereadfailureunchecked
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -57,7 +58,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) || trimmedEmptyTested(ctx, n, input) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) || trimmedEmptyTested(ctx, n, input) || assertedText(ctx, n, input) {
 			continue
 		}
 
@@ -366,6 +367,69 @@ func trimmedEmptyTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr)
 	return false
 }
 
+// emptyPreserving names the text parameter of builtins that turn the empty
+// text into the empty text, as they do with the failure value.
+var emptyPreserving = map[string]string{
+	"addslashes": "string", "escapeshellcmd": "command", "html_entity_decode": "string",
+	"htmlspecialchars": "string", "lcfirst": "string", "ltrim": "string",
+	"mb_strtolower": "string", "mb_strtoupper": "string", "nl2br": "string",
+	"rtrim": "string", "strip_tags": "string", "stripslashes": "string",
+	"strtolower": "string", "strtoupper": "string", "trim": "string",
+	"ucfirst": "string", "ucwords": "string",
+}
+
+// assertedText reports whether input is the text an emptyPreserving builtin
+// call n transforms for a result given, directly or through more such
+// calls, to a PHPUnit assertion that fails on the empty text (E15): no
+// argument is the empty text and the assertion does not let the failure
+// pass as text.
+func assertedText(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+	x := n
+	for {
+		call, ok := x.(*syntax.FuncCall)
+		if !ok {
+			return false
+		}
+		name, known := emptyPreserving[semanticquery.NativeBuiltinName(ctx, call)]
+		if !known || semanticquery.CallArgument(call.Args, 0, name) != input {
+			return false
+		}
+		arg, ok := unparen(call).Parent().(*syntax.Arg)
+		if !ok {
+			return false
+		}
+		x, input = arg.Parent().Parent(), arg.Value
+		if !phpunit.PuAssertion(ctx, x) && !phpunit.UnindexedAssertion(ctx, x) {
+			continue
+		}
+		var args *syntax.ArgList
+		switch c := x.(type) {
+		case *syntax.FuncCall:
+			args = c.Args
+		case *syntax.StaticCall:
+			args = c.Args
+		case *syntax.MethodCall:
+			args = c.Args
+		}
+		for _, a := range args.Args {
+			if a, ok := a.(*syntax.Arg); ok && emptyText(a.Value) {
+				return false
+			}
+		}
+		return !slices.Contains(phpunit.FailurePassing(ctx, x, args, true), input)
+	}
+}
+
+// emptyText reports the empty text literal.
+func emptyText(e syntax.Expr) bool {
+	lit, ok := syntax.UnwrapParens(e).(*syntax.Literal)
+	if !ok {
+		return false
+	}
+	v, ok := syntax.LiteralStringValue(lit)
+	return ok && v == ""
+}
+
 // unparen returns the outermost parentheses around x, or x.
 func unparen(x syntax.Node) syntax.Node {
 	for {
@@ -387,12 +451,7 @@ func emptinessTest(x syntax.Node) bool {
 			if syntax.Node(other) == x {
 				other = p.Left
 			}
-			lit, ok := syntax.UnwrapParens(other).(*syntax.Literal)
-			if !ok {
-				return false
-			}
-			v, ok := syntax.LiteralStringValue(lit)
-			return ok && v == ""
+			return emptyText(other)
 		}
 	case *syntax.Empty:
 		return true
