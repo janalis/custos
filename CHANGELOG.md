@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked accepts a trimmed read tested for emptiness, as
+  in `if ('' === $content = trim(file_get_contents($f))) { return []; }`:
+  a failed read trims to the empty text like an empty file.
 - TypeUnsafeArraySearch accepts a keyed array literal of non-numeric
   strings as haystack, such as `in_array($route, ['a.test' => 'a.view'])`:
   a search ignores the keys.

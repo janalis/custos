@@ -7,6 +7,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -56,7 +57,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) || trimmedEmptyTested(ctx, n, input) {
 			continue
 		}
 
@@ -279,13 +280,7 @@ func lengthTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool 
 	if name := semanticquery.NativeBuiltinName(ctx, call); name != "strlen" && name != "mb_strlen" {
 		return false
 	}
-	var x syntax.Node = call
-	for {
-		if _, paren := x.Parent().(*syntax.Paren); !paren {
-			break
-		}
-		x = x.Parent()
-	}
+	x := unparen(call)
 	cmp, ok := x.Parent().(*syntax.Binary)
 	if !ok {
 		return false
@@ -334,4 +329,80 @@ func failureMessage(ctx *analysis.Context, x *syntax.Binary) bool {
 		}
 		outer = outer.Parent()
 	}
+}
+
+// trimmedEmptyTested reports whether input is the text trim(), rtrim() or
+// ltrim() call n trims for a result tested for emptiness at once, or stored
+// in a variable whose next read is such a test (E14): the failure value
+// trims to the empty text, which takes the branch of an empty file.
+func trimmedEmptyTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+	call, ok := n.(*syntax.FuncCall)
+	if !ok || semanticquery.CallArgument(call.Args, 0, "string") != input {
+		return false
+	}
+	switch semanticquery.NativeBuiltinName(ctx, call) {
+	case "trim", "rtrim", "ltrim":
+	default:
+		return false
+	}
+	x := unparen(call)
+	as, ok := x.Parent().(*syntax.Assign)
+	if !ok || syntax.Node(as.Value) != x {
+		return emptinessTest(x)
+	}
+	v, plain := syntax.UnwrapParens(as.Var).(*syntax.Variable)
+	if !plain || v.NameExpr != nil || as.Op.Kind != syntax.TEqual || as.ByRef {
+		return false
+	}
+	if _, statement := unparen(as).Parent().(*syntax.ExprStmt); !statement {
+		return emptinessTest(unparen(as))
+	}
+	for _, a := range flowquery.VarAccesses(ctx.File, syntax.EnclosingVariableScope(as), v.Name) {
+		if a.Var.Span().Start > as.Span().End {
+			return !a.Write && emptinessTest(unparen(a.Var))
+		}
+	}
+	return false
+}
+
+// unparen returns the outermost parentheses around x, or x.
+func unparen(x syntax.Node) syntax.Node {
+	for {
+		if _, paren := x.Parent().(*syntax.Paren); !paren {
+			return x
+		}
+		x = x.Parent()
+	}
+}
+
+// emptinessTest reports whether x is compared with the empty text, given
+// to empty(), negated or tested for truth as a condition.
+func emptinessTest(x syntax.Node) bool {
+	switch p := x.Parent().(type) {
+	case *syntax.Binary:
+		switch p.Op.Kind {
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+			other := p.Right
+			if syntax.Node(other) == x {
+				other = p.Left
+			}
+			lit, ok := syntax.UnwrapParens(other).(*syntax.Literal)
+			if !ok {
+				return false
+			}
+			v, ok := syntax.LiteralStringValue(lit)
+			return ok && v == ""
+		}
+	case *syntax.Empty:
+		return true
+	case *syntax.Unary:
+		return p.Op.Kind == syntax.TExclaim
+	case *syntax.If:
+		return syntax.Node(p.Cond) == x
+	case *syntax.ElseIf:
+		return syntax.Node(p.Cond) == x
+	case *syntax.Ternary:
+		return syntax.Node(p.Cond) == x
+	}
+	return false
 }
