@@ -249,7 +249,16 @@ own fix.
   A local variable counts when every value that may reach the read is
   known and is such a value, and none of its elements is written in place
   (`$rows = ['a' => 1]; json_encode($rows);`, not after `$rows[] = $text;`);
-  a parameter, a by-reference write or any other write leaves it unknown.
+  a parameter, a by-reference write or any other write leaves it unknown,
+  except a parameter declared with a type made only of `int`, `bool`,
+  `true`, `false` and `null` (`?int`, `int|false`) that the function never
+  writes, whose value PHP converts or rejects. A call of a function or
+  method of the project declared to return such a type counts too, when
+  each class the receiver may hold resolves the method
+  (`json_encode(['code', $event->getExitCode()])` with `getExitCode()`
+  declared `int|false`): an overriding method may only narrow that type.
+  PHP's own functions and methods count only as listed above, since an
+  override of a method of PHP may drop its return type.
   A method call on a receiver that may be `null` binds its arguments as
   the method of its class declares them: called on `null`, it throws before
   binding any.

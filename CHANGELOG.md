@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage no longer asks to handle `json_encode()` failures for
+  values declared as integers, booleans or null: parameters the function
+  never writes, and calls of the project's functions and methods declaring
+  such a return type (`int|false`, `?int`).
 - FileReadFailureUnchecked no longer reports a read decoded by
   `unserialize()` or `json_decode()` for a PHPUnit assertion that fails on
   the corrupt-text result, such as `assertSame()` against a non-empty array

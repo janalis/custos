@@ -585,10 +585,10 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		case "str_repeat": // repeated valid UTF-8 stays valid
 			return ok && len(args) == 2 && jsonEncodableText(ctx, args[0], depth)
 		}
-		return false
+		return jsonScalarCall(ctx, x)
 	case *syntax.Variable:
 		// Every value that may reach the read is itself encodable.
-		return jsonLocalValues(ctx, x, false, func(v syntax.Expr) bool { return jsonEncodable(ctx, v, depth) })
+		return jsonScalarParam(ctx, x) || jsonLocalValues(ctx, x, false, func(v syntax.Expr) bool { return jsonEncodable(ctx, v, depth) })
 	case *syntax.Literal:
 		v, ok := syntax.LiteralStringValue(x)
 		return ok && utf8.ValidString(v)
@@ -624,8 +624,108 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 			}
 		}
 		return true
+	default:
+		return jsonScalarCall(ctx, x)
+	}
+}
+
+// jsonScalar reports a declared type whose values always encode: a union
+// of int, bool, true, false and null, possibly written nullable.
+func jsonScalar(declared string) bool {
+	for atom := range strings.SplitSeq(strings.TrimPrefix(strings.ToLower(declared), "?"), "|") {
+		switch atom {
+		case "int", "bool", "true", "false", "null":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// jsonScalarTypeExpr reports a written type that jsonScalar accepts.
+func jsonScalarTypeExpr(t syntax.Expr) bool {
+	switch x := t.(type) {
+	case *syntax.Name:
+		return jsonScalar(x.Value)
+	case *syntax.NullableType:
+		return jsonScalarTypeExpr(x.Type)
+	case *syntax.UnionType:
+		for _, part := range x.Types {
+			if !jsonScalarTypeExpr(part) {
+				return false
+			}
+		}
+		return true
 	}
 	return false
+}
+
+// jsonScalarParam reports a parameter of the enclosing function, declared
+// with a type jsonScalar accepts, that the function never writes: PHP
+// converts or rejects any other value it is given.
+func jsonScalarParam(ctx *analysis.Context, v *syntax.Variable) bool {
+	scope := syntax.EnclosingVariableScope(v)
+	for _, a := range flowquery.VarAccesses(ctx.File, scope, v.Name) {
+		if a.Write {
+			return false
+		}
+	}
+	params, _ := astquery.ScopeParts(scope)
+	for _, p := range params {
+		if p.Var != nil && p.Var.Name == v.Name {
+			return !p.ByRef && jsonScalarTypeExpr(p.Type)
+		}
+	}
+	return false
+}
+
+// jsonScalarCall reports a call of a function or method of the project
+// declared to return a type jsonScalar accepts: PHP checks the value
+// returned, and an overriding method may only narrow its type. Each class
+// the receiver may hold must resolve the method; PHP's own methods are left
+// out, since an override may drop their return type.
+func jsonScalarCall(ctx *analysis.Context, call syntax.Expr) bool {
+	env := ctx.Types()
+	switch c := call.(type) {
+	case *syntax.FuncCall:
+		f := env.ResolveFunction(c)
+		if f == nil || f.Builtin {
+			return false
+		}
+		for _, d := range ctx.Index().FunctionDecls(f.FQN, ctx.PHP) {
+			if !jsonScalar(d.Return) {
+				return false
+			}
+		}
+		return jsonScalar(f.Return)
+	case *syntax.MethodCall:
+		typ := env.Native().TypeOf(c.Var).Without("null")
+		classes := typ.Classes()
+		if len(classes) == 0 || len(classes) != len(typ.Atoms()) {
+			return false
+		}
+		for _, cls := range classes {
+			if !jsonScalarMethod(ctx, strings.TrimPrefix(cls, `\`), c.Name) {
+				return false
+			}
+		}
+		return true
+	case *syntax.StaticCall:
+		cls := env.ClassRef(c.Class)
+		return cls != "" && jsonScalarMethod(ctx, cls, c.Name)
+	}
+	return false
+}
+
+// jsonScalarMethod reports a method of the project, named literally, that
+// class resolves and that declares a return type jsonScalar accepts.
+func jsonScalarMethod(ctx *analysis.Context, class string, name syntax.Expr) bool {
+	id, ok := name.(*syntax.Identifier)
+	if !ok {
+		return false
+	}
+	m := ctx.Index().FindMethod(class, id.Value, ctx.PHP)
+	return m != nil && !m.Builtin && jsonScalar(m.Return)
 }
 
 // jsonEncodableText reports an operand of `.` that converts to valid
