@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- TypeUnsafeArraySearch no longer reports a needle that is an object's
+  class name, such as `in_array(get_class($constraint), $skipTypes)` or
+  `$o::class`, which is never numeric.
 - FileReadFailureUnchecked no longer reports reading back a `php://memory`
   or other PHP stream kept in a private property, such as a test's
   `$this->stream = fopen('php://memory', 'r+')`.

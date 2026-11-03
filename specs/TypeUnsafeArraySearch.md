@@ -72,7 +72,9 @@ Visit every function call.
     or that starts with one whose first character is not whitespace, a
     sign, a digit or `.`: such a string is never numeric
     (`in_array($op . '_any', $rules)`, `in_array('field_' . $id, $keys)`
-    → skipped; `in_array($op . '1', $rules)` → reported). It may also be a local
+    → skipped; `in_array($op . '1', $rules)` → reported), or the class name
+    of an object, `get_class($o)` with one argument or `$o::class`. It may
+    also be a local
     variable every value of which is such a string, or the value variable
     of an enclosing `foreach` (not by reference) over such an array
     literal, or over a local variable that E1 accepts as a haystack, that

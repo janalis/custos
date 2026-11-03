@@ -126,6 +126,9 @@ func literalStringNeedle(ctx *analysis.Context, n syntax.Expr) bool {
 	if b, ok := n.(*syntax.Binary); ok && b.Op.Kind == syntax.TDot {
 		return nonNumericConcat(b)
 	}
+	if objectClassName(ctx, n) {
+		return true
+	}
 	_, interpolated := n.(*syntax.InterpolatedString)
 	return !interpolated && nonNumericString(ctx, n)
 }
@@ -222,6 +225,20 @@ func nonNumericString(ctx *analysis.Context, e syntax.Expr) bool {
 	content, ok := stringLiteralContent(ctx, e)
 	content = strings.TrimSpace(content)
 	return ok && content != "" && !astquery.IsComparisonNumericString(content) // numeric strings compare numerically
+}
+
+// objectClassName reports `get_class($o)` and `$o::class`: the class name
+// of an object, which is never a numeric string.
+func objectClassName(ctx *analysis.Context, e syntax.Expr) bool {
+	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.FuncCall:
+		args, ok := astquery.CallArgValues(x)
+		return ok && len(args) == 1 && ctx.GlobalFunctionName(x) == "get_class"
+	case *syntax.ClassConstFetch:
+		id, ok := x.Name.(*syntax.Identifier)
+		return ok && strings.EqualFold(id.Value, "class")
+	}
+	return false
 }
 
 // classNameLiteral reports `Name::class` with a written class name (not
