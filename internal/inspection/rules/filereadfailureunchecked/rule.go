@@ -116,11 +116,12 @@ func decodedFallback(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bo
 }
 
 // infallibleRead reports whether read is stream_get_contents() of a handle
-// opened on one of PHP's own memory or standard streams (E7), which
-// cannot fail.
+// opened on one of PHP's own memory or standard streams, or
+// file_get_contents() of such a stream (E7), which cannot fail.
 func infallibleRead(ctx *analysis.Context, read *syntax.FuncCall) bool {
-	if semanticquery.NativeBuiltinName(ctx, read) != "stream_get_contents" {
-		return false
+	if semanticquery.NativeBuiltinName(ctx, read) == "file_get_contents" {
+		// Read directly, such a stream cannot fail either.
+		return semanticquery.InfallibleOpen(read)
 	}
 	stream := semanticquery.CallArgument(read.Args, 0, "stream")
 	if p, ok := syntax.UnwrapParens(stream).(*syntax.PropertyFetch); ok {

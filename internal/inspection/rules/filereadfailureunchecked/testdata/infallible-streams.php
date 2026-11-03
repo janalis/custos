@@ -96,3 +96,12 @@ final class Undeclared
         <warning descr="Handle file reading failure before using its result.">$page->append(stream_get_contents($this->stream))</warning>;
     }
 }
+
+// Read directly, PHP's own streams cannot fail either.
+function direct(Page $page, string $path): void
+{
+    $page->append(file_get_contents('php://stdin'));
+    $page->append(file_get_contents('php://input'));
+    <warning descr="Handle file reading failure before using its result.">$page->append(file_get_contents($path))</warning>;
+    <warning descr="Handle file reading failure before using its result.">$page->append(file_get_contents('php://filter/resource=x'))</warning>;
+}
