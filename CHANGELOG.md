@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- StaticInvocationViaThis no longer reports a test suite's own static
+  `assert…` helpers called through `$this` in a PHPUnit test case, such as
+  `$this->assertDateTimeEquals($a, $b)`, under `EXCEPT_PHPUNIT_ASSERTIONS`.
 - JsonEncodingApiUsage counts `assertTrue()` on a JSON result, and
   `assertFalse()` on a decoded one, such as
   `$this->assertFalse($body['saveToSentItems'])`, as testing the failure.

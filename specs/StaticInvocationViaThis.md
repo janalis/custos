@@ -58,6 +58,10 @@ Visit every method call expression.
   It also skips an abstract method (typically a trait's requirement) when
   `\PHPUnit\Framework\Assert`, as indexed, declares a static method of the
   same name (custos diverges, see Divergences).
+  It also skips a static method whose name starts with `assert`
+  (case-insensitive) when the call sits in a class whose chain of indexed
+  parents reaches `\PHPUnit\Framework\TestCase`: a test suite's own
+  assertion helpers (custos diverges, see Divergences).
 - **E4** Option `EXCEPT_ELOQUENT_MODELS` (default true): the resolved method is
   declared directly in class `\Illuminate\Database\Eloquent\Model` (calls on
   subclasses that resolve to the inherited method are skipped too; static
@@ -99,7 +103,7 @@ Visit every method call expression.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits (E3). |
+| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits, and static `assert…` helpers called in a PHPUnit test case (E3). |
 | EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model (E4). |
 
 ## PHP versions
@@ -173,6 +177,12 @@ namespace PHPUnit\Framework {
   name; an abstract static method of any other name is still reported, and
   nothing changes when PHPUnit is not indexed.
 
+- **A test suite's own assertions (custos diverges, E3).** Test suites
+  add static assertion helpers of their own, in a base test case or a
+  trait (`assertDateTimeEquals()`, `assertRedirect()`), and call them
+  through `$this` like PHPUnit's. Upstream reports each call; custos skips
+  a static `assert…` method called in a PHPUnit test case under
+  `EXCEPT_PHPUNIT_ASSERTIONS`.
 - **Symfony test assertions (custos diverges):** upstream exempts only
   `\PHPUnit\Framework\…` assertions, so Symfony's `$this->assertResponseIsSuccessful()`,
   `$this->assertSelectorTextContains()` or `$this->getMailerMessages()` —

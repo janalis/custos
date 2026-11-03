@@ -58,7 +58,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits. |
+| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits, and static `assert…` helpers called in a PHPUnit test case. |
 | EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model. |
 
 ## Configure

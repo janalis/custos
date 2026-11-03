@@ -41,7 +41,7 @@ func (staticInvocationViaThis) Check(ctx *analysis.Context, n syntax.Node) {
 	if m == nil || !m.Static || m.Magic {
 		return
 	}
-	if sivtExcluded(ctx, m) { // D5
+	if sivtExcluded(ctx, m) || sivtTestAssertion(ctx, call, m) { // D5
 		return
 	}
 	scope := syntax.EnclosingFuncLike(call)
@@ -187,6 +187,27 @@ func sivtExcluded(ctx *analysis.Context, m *index.Method) bool {
 	// instance, open that instance (`$this->reader->open($f)`).
 	if strings.EqualFold(fqn, `\XMLReader`) && (strings.EqualFold(m.Name, "open") || strings.EqualFold(m.Name, "xml")) {
 		return true
+	}
+	return false
+}
+
+// sivtTestAssertion applies EXCEPT_PHPUNIT_ASSERTIONS to a project's own
+// static `assert…` helper called in a PHPUnit test case, which follows the
+// convention of PHPUnit's assertions (custos).
+func sivtTestAssertion(ctx *analysis.Context, call syntax.Node, m *index.Method) bool {
+	if !ctx.Bool("EXCEPT_PHPUNIT_ASSERTIONS") || !strings.HasPrefix(strings.ToLower(m.Name), "assert") {
+		return false
+	}
+	fqn := ctx.Types().ClassFQN(syntax.EnclosingClass(call))
+	for depth := 0; fqn != "" && depth < 64; depth++ {
+		if strings.EqualFold(strings.TrimPrefix(fqn, `\`), `PHPUnit\Framework\TestCase`) {
+			return true
+		}
+		cls := ctx.Index().Class(fqn, ctx.PHP)
+		if cls == nil {
+			return false
+		}
+		fqn = cls.Parent
 	}
 	return false
 }

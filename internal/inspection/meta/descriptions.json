@@ -1760,7 +1760,7 @@
   },
   "StaticInvocationViaThis": {
     "summary": "Calling a static method through an object (`$this-\u003emake()` or `$obj-\u003emake()`)\nhides the fact that no instance is involved. Use `self::`/`ClassName::` so the\ncall reads as what it is.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits. |\n| EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits, and static `assert…` helpers called in a PHPUnit test case. |\n| EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model. |",
     "fix": true
   },
   "StaticLambdaBinding": {
