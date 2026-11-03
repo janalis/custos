@@ -203,6 +203,13 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   method returning a value (Doctrine DBAL's platforms throwing in a method
   their parent documents as returning a string; a laminas-code interface
   documented `@return void` whose implementation returns `$this`).
+- **D13d** (custos) A suggestion other than `void` that does not admit
+  `null` is dropped when a known descendant declares the method with a
+  return that may be `null`: a native type, a `@return` tag or an inferred
+  type holding `null`, a body falling off its end included. The descendant
+  could not keep its behavior under the declared type (an interface
+  documented `@return string` whose implementation returns `null`; a setter
+  returning `$this` overridden by one returning nothing).
 
 ## Exceptions (no report)
 

@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- ReturnTypeCanBeDeclared no longer suggests a type without `null` for a
+  method that a known descendant declares or infers as returning `null`,
+  such as a setter returning `$this` overridden by one returning nothing.
 - FileReadFailureUnchecked no longer reports a read passed through a text
   function that keeps the empty text, such as `trim()` or
   `escapeshellcmd()`, straight into a PHPUnit assertion, which fails on the

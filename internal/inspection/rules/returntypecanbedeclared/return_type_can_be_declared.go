@@ -444,6 +444,9 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	if suggestion == "void" && rtdHierarchyReturnsValue(ctx, class, m) { // D13c
 		return
 	}
+	if suggestion != "void" && !strings.HasPrefix(suggestion, "?") && rtdDescendantReturnsNull(ctx, class, m) { // D13d
+		return
+	}
 	span := m.Name.Span()
 	if rtdOverridden(ctx, class, m) { // D13
 		ctx.Report(span, "Declare ': "+suggestion+"' as the return type (update the whole hierarchy with a signature refactoring).")
@@ -605,6 +608,25 @@ func rtdHierarchyReturnsValue(ctx *analysis.Context, class *syntax.ClassLike, m 
 		for _, r := range []string{am.Return, am.DocReturn, am.Inferred} {
 			// A body falling off its end is inferred as null.
 			if r != "" && !strings.EqualFold(r, "void") && !strings.EqualFold(r, "null") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// rtdDescendantReturnsNull implements D13d: a known descendant declares the
+// method with a native type, a `@return` tag or an inferred type that holds
+// null, which a type without null on m would reject.
+func rtdDescendantReturnsNull(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Method) bool {
+	fqn := ctx.Types().ClassFQN(class)
+	self := strings.ToLower(strings.TrimPrefix(fqn, `\`))
+	below := ctx.Memo("descendant-methods\x00"+self, func() any {
+		return semanticquery.DescendantMethods(ctx.Index(), fqn, ctx.PHP)
+	}).(semanticquery.MethodOverrides)
+	for _, am := range below.Declared(strings.ToLower(m.Name.Value)) {
+		for _, r := range []string{am.Return, am.DocReturn, am.Inferred} {
+			if r != "" && types.FromDoc(r, nil).Has("null") {
 				return true
 			}
 		}
