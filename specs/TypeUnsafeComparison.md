@@ -386,6 +386,9 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
 - **Two objects (custos diverges).** When both operands are known to hold
   only objects, `==` compares their properties and `===` their identity:
   a different question, not type juggling. Kind H is not reported
-  (`function same(Money $a, Money $b) { return $a == $b; }`).
+  (`function same(Money $a, Money $b) { return $a == $b; }`). Either
+  operand may also be `null` (`?Money`, `Money|null`): `null` compares with
+  an object or with `null` loosely as strictly, so only the object case
+  differs (`function same(?Money $a, ?Money $b) { return $a == $b; }`).
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

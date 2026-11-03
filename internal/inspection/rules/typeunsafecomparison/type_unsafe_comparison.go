@@ -92,7 +92,8 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	// Two objects: == compares their properties, === their identity — a
-	// different question, not type juggling (custos diverges).
+	// different question, not type juggling (custos diverges). Either may
+	// also be null.
 	if tucObjectsOnly(ctx, b.Left) && tucObjectsOnly(ctx, b.Right) {
 		return
 	}
@@ -365,15 +366,20 @@ func tucObjectWithoutToString(ctx *analysis.Context, e syntax.Expr) (cls string,
 	return missing, true
 }
 
-// tucObjectsOnly reports whether e is known to hold only objects.
+// tucObjectsOnly reports whether e is known to hold only objects, or null:
+// null compares with an object or with null loosely as strictly.
 func tucObjectsOnly(ctx *analysis.Context, e syntax.Expr) bool {
-	parts := tucNormalizedParts(ctx, e)
-	for _, p := range parts {
+	objects := false
+	for _, p := range tucNormalizedParts(ctx, e) {
+		if p == "null" {
+			continue
+		}
 		if p != "object" && !strings.HasPrefix(p, `\`) {
 			return false
 		}
+		objects = true
 	}
-	return len(parts) > 0
+	return objects
 }
 
 // tucArrayEquality reports whether arr is known to be an array and other may

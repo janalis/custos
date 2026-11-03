@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- TypeUnsafeComparison no longer asks for `===` between two nullable
+  objects (`?Type $a == ?Type $b`): `==` compares their properties and
+  `null` compares the same way loosely as strictly.
 - JsonEncodingApiUsage no longer reports a decode passed to a project
   function or static method whose parameter is declared `array`, such as
   `self::fromArray(json_decode($json, true))`, where a failure is a
