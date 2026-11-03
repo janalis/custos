@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked no longer reports reading back a `php://memory`
+  or other PHP stream kept in a private property, such as a test's
+  `$this->stream = fopen('php://memory', 'r+')`.
 - JsonEncodingApiUsage accepts class and global constants declared in
   another file, and PHP's own integer constants such as `E_ALL`, as values
   `json_encode()` cannot fail on.

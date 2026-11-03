@@ -120,8 +120,84 @@ func infallibleRead(ctx *analysis.Context, read *syntax.FuncCall) bool {
 	if semanticquery.NativeBuiltinName(ctx, read) != "stream_get_contents" {
 		return false
 	}
-	open, ok := semanticquery.NativeLocalValue(ctx, semanticquery.CallArgument(read.Args, 0, "stream")).(*syntax.FuncCall)
-	return ok && semanticquery.NativeBuiltinName(ctx, open) == "fopen" && semanticquery.InfallibleOpen(open)
+	stream := semanticquery.CallArgument(read.Args, 0, "stream")
+	if p, ok := syntax.UnwrapParens(stream).(*syntax.PropertyFetch); ok {
+		return infallibleProperty(ctx, p)
+	}
+	open, ok := semanticquery.NativeLocalValue(ctx, stream).(*syntax.FuncCall)
+	return ok && infallibleOpen(ctx, open)
+}
+
+// infallibleOpen reports an fopen() of one of PHP's own memory or standard
+// streams.
+func infallibleOpen(ctx *analysis.Context, open *syntax.FuncCall) bool {
+	return semanticquery.NativeBuiltinName(ctx, open) == "fopen" && semanticquery.InfallibleOpen(open)
+}
+
+// infallibleProperty reports `$this->p` for a private instance property
+// of the enclosing class, without hooks and with no default other than
+// null, that its class only ever sets to an infallibleOpen() and otherwise
+// only reads, passes by value or unsets: a read after unset() fails loudly
+// (E7).
+func infallibleProperty(ctx *analysis.Context, p *syntax.PropertyFetch) bool {
+	id, named := p.Name.(*syntax.Identifier)
+	this, ok := p.Var.(*syntax.Variable)
+	class := syntax.EnclosingClass(p)
+	if !named || !ok || this.Name != "this" || p.NullSafe || class == nil || !privateHandle(class, id.Value) {
+		return false
+	}
+	set, safe := false, true
+	syntax.Inspect(class, func(n syntax.Node) bool {
+		f, ok := n.(*syntax.PropertyFetch)
+		if !ok || !safe {
+			return safe
+		}
+		v, isVar := f.Var.(*syntax.Variable)
+		name, isID := f.Name.(*syntax.Identifier)
+		if !isVar || v.Name != "this" || !isID || name.Value != id.Value {
+			return true
+		}
+		switch at := f.Parent().(type) {
+		case *syntax.Assign:
+			if at.Var == syntax.Expr(f) {
+				open, isCall := syntax.UnwrapParens(at.Value).(*syntax.FuncCall)
+				safe = at.Op.Kind == syntax.TEqual && !at.ByRef && isCall && infallibleOpen(ctx, open)
+				set = true
+			} else {
+				safe = !at.ByRef
+			}
+		case *syntax.Arg:
+			callee, resolved := semanticquery.ResolveCallee(ctx, at.Parent().Parent())
+			if !resolved {
+				safe = false
+				break
+			}
+			byRef, known := semanticquery.ArgumentBindsByRef(at.Parent().(*syntax.ArgList), at, callee.Params, true)
+			safe = known && !byRef
+		case *syntax.IncDec, *syntax.ArrayItem, *syntax.Foreach, *syntax.ArrayDimFetch:
+			safe = false
+		}
+		return safe
+	})
+	return safe && set
+}
+
+// privateHandle reports whether class declares name as a private instance
+// property without hooks whose default, if any, is null.
+func privateHandle(class *syntax.ClassLike, name string) bool {
+	for _, m := range class.Members {
+		prop, ok := m.(*syntax.Property)
+		if !ok {
+			continue
+		}
+		for _, it := range prop.Props {
+			if it.Var != nil && it.Var.Name == name {
+				return prop.Modifiers.Has(syntax.TPrivate) && !prop.Modifiers.Has(syntax.TStatic) && len(prop.Hooks) == 0 &&
+					(it.Default == nil || syntax.IsNullConst(it.Default))
+			}
+		}
+	}
+	return false
 }
 
 // throwingDecode reports whether input is the text json_decode() call n
