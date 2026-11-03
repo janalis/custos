@@ -647,18 +647,27 @@ var jsonIntFunctions = map[string]bool{
 // of a jsonIntFunctions function, or `+`, `-`, `*` or a negation of those,
 // whose overflow yields a finite float, which still encodes.
 func jsonInt(ctx *analysis.Context, e syntax.Expr) bool {
+	return jsonIntAt(ctx, e, 0)
+}
+
+// jsonIntAt is jsonInt within an operation; a local variable counts when
+// every value that may reach it is such an integer, followed through at
+// most a few variables (`$t = $t + 1` in a loop reaches itself).
+func jsonIntAt(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.Literal:
 		return x.LitKind == syntax.LitInt
 	case *syntax.FuncCall:
 		return jsonIntFunctions[ctx.GlobalFunctionName(x)]
 	case *syntax.Unary:
-		return x.Op.Kind == syntax.TMinus && jsonInt(ctx, x.Expr)
+		return x.Op.Kind == syntax.TMinus && jsonIntAt(ctx, x.Expr, depth)
 	case *syntax.Binary:
 		switch x.Op.Kind {
 		case syntax.TPlus, syntax.TMinus, syntax.TMul:
-			return jsonInt(ctx, x.Left) && jsonInt(ctx, x.Right)
+			return jsonIntAt(ctx, x.Left, depth) && jsonIntAt(ctx, x.Right, depth)
 		}
+	case *syntax.Variable:
+		return depth < 4 && jsonLocalValues(ctx, x, false, func(v syntax.Expr) bool { return jsonIntAt(ctx, v, depth+1) })
 	}
 	return false
 }

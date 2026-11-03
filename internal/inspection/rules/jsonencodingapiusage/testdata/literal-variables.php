@@ -64,3 +64,22 @@ function nullableReceiver(?Conn $c): array
     $c->fill($filled);
     return [json_encode(['headers' => $headers]), <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($filled)</weak_warning>];
 }
+
+function integerVariables(string $raw, int $n): array
+{
+    // integer operations on locals holding integers; a value reaching
+    // itself through a loop is not followed
+    $time = time();
+    $claims = ['iat' => $time + 3, 'exp' => -$time * 2];
+    $step = 0;
+    while ($n--) {
+        $step = $step + 1;
+    }
+    $text = $raw;
+    return [
+        json_encode($claims),
+        <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode(['n' => $step - 1])</weak_warning>,
+        <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode(['n' => $text + 1])</weak_warning>,
+        <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode(['n' => $n * 2])</weak_warning>,
+    ];
+}

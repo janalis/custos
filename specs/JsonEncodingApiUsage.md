@@ -223,7 +223,9 @@ own fix.
   binary digest), and `str_repeat` given two arguments whose text is
   itself such a value other than an array (`str_repeat('A', 1024)`). So does `+`, `-` or `*` between two integers (literals,
   such calls or such operations) and the negation of one: an overflow
-  gives a finite float, which encodes (`['exp' => time() + 3600]`);
+  gives a finite float, which encodes (`['exp' => time() + 3600]`; an
+  operand may be a local variable whose every reaching value is such an
+  integer, `$t = time(); ['exp' => $t + 3600]`);
   division and `**` may give an infinite one. So does `.` between two
   such values other than arrays: text joined from valid UTF-8 is valid
   UTF-8 (`['token' => 'T' . count($rows)]`). A class name written `Name::class`, `self::class` or

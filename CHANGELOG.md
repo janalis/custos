@@ -99,6 +99,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage follows local variables holding integers into
+  `+`, `-` and `*` (`$t = time(); json_encode(['exp' => $t + 3600])`).
 - JsonEncodingApiUsage knows that `str_repeat()` of valid UTF-8 text
   encodes (`json_encode(['k' => str_repeat('A', 1024)])`).
 - JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` on a
