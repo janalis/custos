@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked no longer reports a read decoded by
+  `unserialize()` or `json_decode()` for a PHPUnit assertion that fails on
+  the corrupt-text result, such as `assertSame()` against a non-empty array
+  or `assertIsArray()`: a failed read already fails the test.
 - UnnecessaryAssertion no longer reports a test's assertions when all of
   them are redundant: each counted as the other's companion, and removing
   both left a test that checks nothing.

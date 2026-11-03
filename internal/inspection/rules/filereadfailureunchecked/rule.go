@@ -443,10 +443,51 @@ func decodedTested(ctx *analysis.Context, n syntax.Node, _ syntax.Expr) bool {
 					return decodesNull
 				}
 			}
-			return false
+			return decodedAsserted(ctx, p, decodesNull)
 		}
 		return emptinessTest(x)
 	})
+}
+
+// decodedAssertions are PHPUnit's assertions that fail on both false and
+// null, with the position of the value they check.
+var decodedAssertions = map[string]int{
+	"assertisarray": 0, "assertisobject": 0, "assertisstring": 0, "assertisint": 0,
+	"assertinstanceof": 1, "assertnotempty": 0, "asserttrue": 0, "assertcount": 1,
+	"assertarrayhaskey": 1,
+}
+
+// decodedAsserted reports whether arg is the value a PHPUnit assertion
+// checks and the assertion fails on the value a corrupt text decodes to:
+// a type assertion, assertNotNull for json_decode(), assertNotFalse for
+// unserialize(), or assertSame or assertEquals against a non-empty array
+// literal.
+func decodedAsserted(ctx *analysis.Context, arg *syntax.Arg, decodesNull bool) bool {
+	call := arg.Parent().Parent()
+	c, ok := phpunit.AsPuCall(call)
+	if !ok || arg.Name != nil || !phpunit.PuAssertion(ctx, call) && !phpunit.UnindexedAssertion(ctx, call) {
+		return false
+	}
+	args := c.Args.Args
+	switch name := strings.ToLower(c.Ident.Value); name {
+	case "assertsame", "assertequals", "assertequalscanonicalizing":
+		if len(args) < 2 || args[0] != syntax.Node(arg) && args[1] != syntax.Node(arg) {
+			return false
+		}
+		other := args[0]
+		if other == syntax.Node(arg) {
+			other = args[1]
+		}
+		o, ok := other.(*syntax.Arg)
+		return ok && nonEmptyArray(o.Value)
+	case "assertnotnull":
+		return decodesNull && args[0] == syntax.Node(arg)
+	case "assertnotfalse":
+		return !decodesNull && args[0] == syntax.Node(arg)
+	default:
+		at, known := decodedAssertions[name]
+		return known && at < len(args) && args[at] == syntax.Node(arg)
+	}
 }
 
 // searchTested reports whether input is the haystack of a str_contains(),
@@ -542,6 +583,12 @@ func assertedText(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool 
 		}
 		return !slices.Contains(phpunit.FailurePassing(ctx, x, args, true), input)
 	}
+}
+
+// nonEmptyArray reports an array literal with an item.
+func nonEmptyArray(e syntax.Expr) bool {
+	a, ok := syntax.UnwrapParens(e).(*syntax.Array)
+	return ok && len(a.Items) > 0
 }
 
 // emptyText reports the empty text literal.
