@@ -247,6 +247,10 @@ own fix.
   known and is such a value, and none of its elements is written in place
   (`$rows = ['a' => 1]; json_encode($rows);`, not after `$rows[] = $text;`);
   a parameter, a by-reference write or any other write leaves it unknown.
+  A variable a closure imports by value (`use ($key)`) holds the values of
+  the enclosing variable where the closure is created, and counts the same
+  way when neither scope writes it otherwise; one imported by reference
+  stays unknown.
 - **E11** (custos, see Divergences) Kind E for `json_decode` with the
   default depth when its text is directly (parentheses aside) a
   `json_encode` call exempt by E10: that text is valid JSON nested less

@@ -20,7 +20,9 @@ import (
 //
 //   - local variable: only the plain `=` assignments that may reach the use
 //     (ReachingAssignments) count; incomplete in top-level code, when the
-//     entry value may reach the use (parameter, closure import, undefined),
+//     entry value may reach the use (parameter, closure import by
+//     reference, undefined; a by-value import adds the values of the
+//     enclosing variable where the closure is created),
 //     or when the variable has any other kind of write in its scope
 //     (compound or by-reference assignment, destructuring, foreach, global,
 //     static, catch, unset, ++/--) or is imported by reference into a
@@ -110,13 +112,37 @@ func (pc *completeValues) variable(v *syntax.Variable) {
 		return
 	}
 	defs, entry := ReachingAssignmentsIn(pc.F, scope, v, v.Name)
-	if entry || len(defs) == 0 {
+	var imported *syntax.Variable
+	if entry {
+		imported = byValueImport(scope, v.Name)
+	}
+	if entry && imported == nil || !entry && len(defs) == 0 {
 		pc.Stop = true
 		return
 	}
 	for _, d := range defs {
 		pc.Collect(astquery.AssignedValue(d))
 	}
+	if imported != nil {
+		// The import holds what the enclosing scope's variable holds where
+		// the closure is created.
+		pc.variable(imported)
+	}
+}
+
+// byValueImport returns the variable of the `use` clause by which closure
+// scope imports name by value, or nil.
+func byValueImport(scope syntax.Node, name string) *syntax.Variable {
+	c, ok := scope.(*syntax.Closure)
+	if !ok {
+		return nil
+	}
+	for _, u := range c.Uses {
+		if u != nil && u.Var != nil && u.Var.Name == name && !u.ByRef {
+			return u.Var
+		}
+	}
+	return nil
 }
 
 // staticClass resolves the class named by a static access (`self`,

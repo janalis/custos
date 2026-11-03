@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage follows a variable a closure imports by value
+  (`use ($key)`) to the enclosing variable, so a literal it holds is
+  known to encode.
 - FileReadFailureUnchecked no longer reports a read given to
   `json_decode()` whose result is tested at once, directly or through the
   variable storing it (`null === $data`, `is_array()`, `isset()`, a
