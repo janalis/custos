@@ -71,7 +71,15 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 		ctx.Report(kwSpan, nestedPositiveIfMsg, diagnostic.Fix{
 			Title: "Turn into else if",
 			Edits: func() []diagnostic.TextEdit {
-				return []diagnostic.TextEdit{{Span: block.Span(), NewText: npiWithComments(f, block, c, c)}}
+				text := npiWithComments(f, block, c, c)
+				// custos: a chain already written with `elseif` keeps that
+				// spelling when only whitespace separates `else` and `{`.
+				owner, _ := p.Parent().(*syntax.If)
+				between := f.Src[p.Span().Start+4 : block.Span().Start]
+				if (owner != nil && len(owner.ElseIfs) > 0 || len(c.ElseIfs) > 0) && strings.TrimSpace(string(between)) == "" {
+					return []diagnostic.TextEdit{{Span: syntax.Span{Start: p.Span().Start, End: block.Span().End}, NewText: "else" + text}}
+				}
+				return []diagnostic.TextEdit{{Span: block.Span(), NewText: text}}
 			},
 		})
 	}

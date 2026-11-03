@@ -99,6 +99,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- NestedPositiveIfStatements' quick-fix writes `elseif` instead of
+  `else if` when the chain it extends already uses `elseif`.
 - JsonEncodingApiUsage follows local variables holding integers into
   `+`, `-` and `*` (`$t = time(); json_encode(['exp' => $t + 3600])`).
 - JsonEncodingApiUsage knows that `str_repeat()` of valid UTF-8 text
