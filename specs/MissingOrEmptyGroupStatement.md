@@ -97,6 +97,10 @@ to the `if`.
   that more code follows (`if ($e) continue; echo $e;`), the block stays on
   that line: `if ($a) { print "x"; } ?>`, `if ($e) { continue; } echo $e;`.
   A comment after the body does not count as code.
+- F1b (custos): comments that follow the body on its line, with nothing
+  else after them on that line and none spanning several lines, stay
+  with the statement inside the block: `if ($a) echo 1; // note` becomes
+  `if ($a) {\n    echo 1; // note\n}`.
 - D2 has no fix.
 
 ## Options

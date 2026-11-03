@@ -12,3 +12,15 @@ function f($servers, $n) {
         echo 2;
     }
 }
+function g($n) {
+    if ($n) {
+        echo 3; /* first */ // second
+    }
+    else {
+        echo 4;
+    } /* spans
+        lines */
+    if (!$n) {
+        echo 5;
+    } /* note */ echo 6;
+}

@@ -106,8 +106,12 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 			// its line, keeps its block on that line.
 			inline := !strings.Contains(string(ctx.Src[kwSpan.Start:end]), "\n") && (tail != "" || codeFollows(ctx.File, bs.End))
 			closing := "\n" + indent + "}" + tail
+			body := bs
 			if inline {
 				closing = " }" + tail
+			} else if at, ok := trailingComment(ctx.File, bs.End); ok && tail == "" {
+				// custos: a comment ending the body's line stays with it.
+				stmt, body.End = stmt+string(ctx.Src[bs.End:at]), at
 			}
 			// custos: a comment between the header and the body (`for (…)
 			// // note`) would swallow a brace placed after it; open the
@@ -116,10 +120,10 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 			if at, ok := braceBeforeComment(ctx.File, bs.Start); ok {
 				return []diagnostic.TextEdit{
 					{Span: syntax.Span{Start: at, End: at}, NewText: " {"},
-					{Span: bs, NewText: stmt + closing},
+					{Span: body, NewText: stmt + closing},
 				}
 			}
-			span, open, lead := bs, "{\n", indent+astquery.StepIndent(ctx.File, n, indent)
+			span, open, lead := body, "{\n", indent+astquery.StepIndent(ctx.File, n, indent)
 			if own := astquery.IndentBefore(ctx.Src, bs.Start); len(own) > len(indent) && strings.HasPrefix(own, indent) {
 				lead = own // a body on its own line keeps its indentation
 			}
@@ -231,6 +235,30 @@ func codeFollows(f *syntax.File, pos uint32) bool {
 		i++
 	}
 	return i < len(f.Tokens) && f.Tokens[i].Kind != syntax.TWhitespace && f.Tokens[i].Kind != syntax.TComment && f.Tokens[i].Kind != syntax.TDocComment
+}
+
+// trailingComment returns the end of the comments that follow pos on its
+// line when nothing else does before the line ends.
+func trailingComment(f *syntax.File, pos uint32) (uint32, bool) {
+	end := pos
+	for i := astquery.TokenIndex(f, pos); i < len(f.Tokens); i++ {
+		t := f.Tokens[i]
+		text := string(f.Src[t.Start:t.End])
+		switch t.Kind {
+		case syntax.TComment, syntax.TDocComment:
+			if strings.Contains(text, "\n") {
+				return 0, false // a comment running over several lines
+			}
+			end = t.End
+		case syntax.TWhitespace:
+			if strings.Contains(text, "\n") {
+				return end, end > pos
+			}
+		default:
+			return 0, false
+		}
+	}
+	return end, end > pos
 }
 
 // closeTagSplit returns the end of the body's last significant token when a
