@@ -132,18 +132,22 @@ own fix.
     `assertContains` or `assertNotContains` (second argument: the array,
     countable or iterable they need), passed by position; also
     `assertNotNull` for `json_decode` and `assertNotFalse` for
-    `json_encode`; also `assertSame` and `assertEquals` when the other of
-    their first two arguments, passed by position, is a literal the
-    failure value does not match: for `assertSame` any array, string or
-    number literal or boolean constant other than the failure value
-    (`assertSame(['a' => 1], json_decode($s, true))`), for `assertEquals`
-    only a non-empty array, a string other than `''` and `'0'`, a
+    `json_encode`; also `assertSame`, and `assertEquals` with its
+    `assertEqualsCanonicalizing` and `assertEqualsIgnoringCase` variants,
+    when the other of their first two arguments, passed by position, is a
+    literal the failure value does not match: for `assertSame` any array,
+    string or number literal or boolean constant other than the failure
+    value (`assertSame(['a' => 1], json_decode($s, true))`), for the loose
+    assertions only a non-empty array, a string other than `''` and `'0'`, a
     non-zero number or `true`, since `null` and `false` loosely equal the
     other empty values. A local variable counts as such a literal when
     every value that may reach the read is one (`$expected = ['a' => 1];
     $this->assertEquals($expected, json_decode($s, true));`) and nothing
     changes it in place: no element written or read, and no other read
-    passed as an argument. For `assertSame`, a parameter (or a variable a
+    passed as an argument. A variable a closure takes by value from such a
+    local variable counts the same way when the closure, too, neither
+    writes it, nor writes or reads its elements, nor passes another read
+    of it as an argument. For `assertSame`, a parameter (or a variable a
     closure takes by value from one, or an arrow function reads from one)
     that nothing writes counts too when its declared type is a single type
     other than `mixed` and `null`, and for `json_encode` other than `bool`

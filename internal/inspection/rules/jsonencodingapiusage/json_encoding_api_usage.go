@@ -1,6 +1,7 @@
 package jsonencodingapiusage
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -691,6 +692,13 @@ var jsonStringAssertions = map[string]bool{
 	"assertmatchesregularexpression": true, "assertdoesnotmatchregularexpression": true,
 }
 
+// jsonLooseAssertions compare their two values loosely: assertEquals, and
+// the variants that first sort arrays or lowercase strings, which still
+// tell null from a non-empty array or string.
+var jsonLooseAssertions = map[string]bool{
+	"assertequals": true, "assertequalscanonicalizing": true, "assertequalsignoringcase": true,
+}
+
 // jsonAsserted reports whether arg is the value a PHPUnit assertion checks
 // and the assertion fails on the failure value: a type assertion,
 // assertNotNull for json_decode or assertNotFalse for json_encode.
@@ -700,7 +708,7 @@ func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, deco
 		return false
 	}
 	name := strings.ToLower(c.Ident.Value)
-	if name == "assertsame" || name == "assertequals" {
+	if name == "assertsame" || jsonLooseAssertions[name] {
 		// Compared with a literal the failure value does not equal.
 		if len(c.Args.Args) < 2 {
 			return false
@@ -740,6 +748,9 @@ func jsonRejectsFailure(ctx *analysis.Context, e syntax.Expr, strict, decode boo
 		if strict && x.NameExpr == nil && jsonTypedParam(ctx, syntax.EnclosingVariableScope(x), x.Name, decode) {
 			return true
 		}
+		if outer := jsonCaptured(ctx.File, x); outer != nil {
+			return jsonRejectsFailure(ctx, outer, strict, decode)
+		}
 		return jsonLocalValues(ctx, x, true, func(v syntax.Expr) bool { return jsonRejectsFailure(ctx, v, strict, decode) })
 	case *syntax.Array:
 		return strict || len(x.Items) > 0
@@ -763,6 +774,32 @@ func jsonRejectsFailure(ctx *analysis.Context, e syntax.Expr, strict, decode boo
 		}
 	}
 	return false
+}
+
+// jsonCaptured returns the `use` clause variable through which x reads a
+// variable of the enclosing scope by value, when the closure neither
+// writes it nor passes it on or reads its elements; nil otherwise.
+func jsonCaptured(f *syntax.File, x *syntax.Variable) *syntax.Variable {
+	fn, ok := syntax.EnclosingVariableScope(x).(*syntax.Closure)
+	if !ok {
+		return nil
+	}
+	i := slices.IndexFunc(fn.Uses, func(u *syntax.ClosureUse) bool { return u.Var != nil && u.Var.Name == x.Name && !u.ByRef })
+	if i < 0 {
+		return nil
+	}
+	for _, a := range flowquery.VarAccesses(f, fn, x.Name) {
+		if a.Write || a.ElemWrite {
+			return nil
+		}
+		switch a.Var.Parent().(type) {
+		case *syntax.ArrayDimFetch, *syntax.Arg:
+			if a.Var != x {
+				return nil
+			}
+		}
+	}
+	return fn.Uses[i].Var
 }
 
 // jsonTypedParam reports whether name is a parameter of scope, or a
@@ -857,7 +894,11 @@ func jsonLocalValues(ctx *analysis.Context, x *syntax.Variable, whole bool, ok f
 	if !complete || len(values) == 0 {
 		return false
 	}
-	for _, a := range flowquery.VarAccesses(ctx.File, syntax.EnclosingVariableScope(x), x.Name) {
+	scope := syntax.EnclosingVariableScope(x)
+	if u, ok := x.Parent().(*syntax.ClosureUse); ok {
+		scope = syntax.EnclosingVariableScope(u.Parent())
+	}
+	for _, a := range flowquery.VarAccesses(ctx.File, scope, x.Name) {
 		if a.ElemWrite {
 			return false
 		}

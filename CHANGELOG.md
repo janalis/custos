@@ -99,6 +99,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage treats `assertEqualsCanonicalizing` and
+  `assertEqualsIgnoringCase` like `assertEquals`, and accepts a literal the
+  test captures in a closure by value, as in
+  `function () use ($expected) { $this->assertEquals($expected,
+  json_decode($body, true)); }`.
 - A crash on one file no longer ends `custos analyse`, `custos fix`, the
   language server or the MCP server: the file gets an `internal` finding and
   the `internal-failure` status, and the other files are analyzed as usual.

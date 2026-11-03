@@ -12,6 +12,9 @@ namespace PHPUnit\Framework {
         public static function assertNotEmpty(mixed $actual, string $message = ""): void {}
         public static function assertEmpty(mixed $actual, string $message = ""): void {}
         public static function assertEquals(mixed $expected, mixed $actual, string $message = ""): void {}
+        public static function assertEqualsCanonicalizing(mixed $expected, mixed $actual, string $message = ""): void {}
+        public static function assertEqualsIgnoringCase(mixed $expected, mixed $actual, string $message = ""): void {}
+        public static function assertEqualsWithDelta(mixed $expected, mixed $actual, float $delta, string $message = ""): void {}
         public static function assertStringContainsString(string $needle, string $haystack, string $message = ""): void {}
     }
     abstract class TestCase extends Assert {}
@@ -84,6 +87,36 @@ namespace App\Tests {
                 $this->assertSame($nope, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
             };
             $this->assertSame($flag, json_decode($text));
+        }
+
+        public function testCapturedExpected(string $body, $any): void
+        {
+            $this->assertEqualsCanonicalizing(['b', 'a'], json_decode($body, true));
+            $this->assertEqualsIgnoringCase('OK', json_decode($body));
+            $this->assertEqualsWithDelta(2.5, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>, 3.0);
+            $expected = ['a' => 1];
+            $check = function (string $raw) use ($expected): void {
+                $this->assertEqualsCanonicalizing($expected, json_decode($raw, true));
+            };
+            $written = function (string $raw) use ($expected): void {
+                $expected = [];
+                $this->assertEquals($expected, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
+            };
+            $grown = function (string $raw) use ($expected): void {
+                $expected[] = 2;
+                $this->assertEquals($expected, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
+            };
+            $popped = function (string $raw) use ($expected): void {
+                array_pop($expected);
+                $this->assertEquals($expected, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
+            };
+            $moved = $any;
+            $unknown = function (string $raw) use ($moved): void {
+                $this->assertEquals($moved, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
+            };
+            $other = function (string $raw) use ($any): void {
+                $this->assertEquals($expected, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
+            };
         }
 
         public function testUnchecked(string $body, array $q): void

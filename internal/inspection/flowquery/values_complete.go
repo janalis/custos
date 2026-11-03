@@ -91,6 +91,10 @@ func (pc *completeValues) variable(v *syntax.Variable) {
 		return
 	}
 	scope := syntax.EnclosingFuncLike(v)
+	if u, ok := v.Parent().(*syntax.ClosureUse); ok {
+		// A `use` clause reads the enclosing scope's variable.
+		scope = syntax.EnclosingFuncLike(u.Parent())
+	}
 	if scope == nil {
 		pc.Stop = true
 		return
