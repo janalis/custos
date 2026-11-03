@@ -1,6 +1,7 @@
 package callableparameterusecaseintypecontext
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -464,7 +465,7 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 	}
 	// custos: method, static and nullsafe calls carry the same failure
 	// markers (`Yii::getAlias()` is string|false) as plain function calls.
-	plainCall := cpAllCalls(value)
+	plainCall := cpAllCalls(value, v)
 	others := 0
 	for t := range r {
 		if t != "bool" && t != "null" {
@@ -607,7 +608,7 @@ func (cp *cpState) local(value syntax.Expr) (documented, calls bool) {
 		}
 		n++
 		documented = documented && cp.documented(as, x.Name)
-		calls = calls && cpAllCalls(as.Value)
+		calls = calls && cpAllCalls(as.Value, nil)
 	}
 	return n > 0 && documented, n > 0 && calls
 }
@@ -693,13 +694,34 @@ func (cp *cpState) unknownReplaceSubject(value syntax.Expr) bool {
 // this call (custos). ok is false for any other value; a nil type with ok
 // means the arguments do not decide (unknown, no report).
 func (cp *cpState) argDecided(value syntax.Expr) (atoms []string, ok bool) {
+	if t, isTernary := syntax.UnwrapParens(value).(*syntax.Ternary); isTernary {
+		// A ternary (`?:` included) yields either branch: one decided
+		// branch decides the whole next to the other's ordinary type.
+		then := t.Then
+		if then == nil {
+			then = t.Cond
+		}
+		a, okThen := cp.argDecided(then)
+		b, okElse := cp.argDecided(t.Else)
+		switch {
+		case !okThen && !okElse:
+			return nil, false
+		case okThen && a == nil, okElse && b == nil:
+			return nil, true
+		case !okThen:
+			a = cp.typeOf(then)
+		case !okElse:
+			b = cp.typeOf(t.Else)
+		}
+		return append(slices.Clip(a), b...), true
+	}
 	call, isCall := syntax.UnwrapParens(value).(*syntax.FuncCall)
 	if !isCall {
 		return nil, false
 	}
 	fn := cp.ctx.GlobalFunctionName(call)
 	switch fn {
-	case "pow", "hrtime", "getenv", "version_compare", "microtime":
+	case "pow", "hrtime", "getenv", "get_cfg_var", "version_compare", "microtime":
 	default:
 		return nil, false
 	}
@@ -741,6 +763,16 @@ func (cp *cpState) argDecided(value syntax.Expr) (atoms []string, ok bool) {
 		case cp.tr.TypeOf(args[0]).OnlyOf("string"):
 			return []string{"string", "bool"}, true
 		}
+	case "get_cfg_var":
+		// Only an entry the configuration writes as `name[] = …` is an
+		// array; a literal name is a scalar directive's.
+		if len(args) != 1 {
+			return nil, false
+		}
+		if lit, ok := syntax.UnwrapParens(args[0]).(*syntax.Literal); ok && lit.LitKind == syntax.LitString {
+			return []string{"string", "bool"}, true
+		}
+		return nil, false
 	case "version_compare":
 		switch {
 		case len(args) == 2:
@@ -759,25 +791,29 @@ func cpIsConst(e syntax.Expr, name string) bool {
 }
 
 // cpAllCalls reports whether e is a call, or a match/ternary whose every
-// result is one (custos: the failure markers of D7c then come from calls).
-func cpAllCalls(e syntax.Expr) bool {
+// result is one or param itself (custos: the failure markers of D7c then
+// come from calls).
+func cpAllCalls(e syntax.Expr, param *syntax.Variable) bool {
 	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 		return true
+	case *syntax.Variable:
+		// The parameter given back by a branch keeps its checked value.
+		return param != nil && cpSameVar(x, param)
 	case *syntax.Unary: // `@iconv(…)`
-		return x.Op.Kind == syntax.TAt && cpAllCalls(x.Expr)
+		return x.Op.Kind == syntax.TAt && cpAllCalls(x.Expr, param)
 	case *syntax.Match:
 		for _, arm := range x.Arms {
-			if arm.Body == nil || !cpAllCalls(arm.Body) {
+			if arm.Body == nil || !cpAllCalls(arm.Body, param) {
 				return false
 			}
 		}
 		return len(x.Arms) > 0
 	case *syntax.Ternary:
 		if x.Then == nil { // `a() ?: b()` yields one of both calls
-			return cpAllCalls(x.Cond) && cpAllCalls(x.Else)
+			return cpAllCalls(x.Cond, param) && cpAllCalls(x.Else, param)
 		}
-		return cpAllCalls(x.Then) && cpAllCalls(x.Else)
+		return cpAllCalls(x.Then, param) && cpAllCalls(x.Else, param)
 	}
 	return false
 }

@@ -39,6 +39,26 @@ function environment(string $dir, array $all, string $name, $any): array
     return [$dir, $all];
 }
 
+function link_format(?string $format, ?string $other)
+{
+    $format = $format ?: ini_get('xdebug.file_link_format') ?: get_cfg_var('xdebug.file_link_format');
+    $format = <warning descr="Assigning a value of type bool does not match the parameter's declared type.">$other ?: get_cfg_var('a')</warning>;
+    return $format;
+}
+
+function configuration(string $format, array $all, $name)
+{
+    $format = get_cfg_var('xdebug.file_link_format');
+    $format = $name ? get_cfg_var('a') : getenv($name);
+    $format = $name ? get_cfg_var('a') : strtolower($name);
+    $format = <warning descr="Assigning a value of type array does not match the parameter's declared type.">$name ? getenv() : get_cfg_var('a')</warning>;
+    $all = <warning descr="Assigning a value of type string does not match the parameter's declared type.">get_cfg_var('xdebug.file_link_format')</warning>;
+    $format = <warning descr="Assigning a value of type array does not match the parameter's declared type.">get_cfg_var($name)</warning>;
+    $format = <warning descr="Assigning a value of type array does not match the parameter's declared type.">get_cfg_var("x.$name")</warning>;
+    $format = <warning descr="Assigning a value of type array does not match the parameter's declared type.">get_cfg_var()</warning>;
+    return [$format, $all];
+}
+
 function versions(bool $old, int $order, string $op, $any): array
 {
     $old = version_compare(PHP_VERSION, '8.0', '<');

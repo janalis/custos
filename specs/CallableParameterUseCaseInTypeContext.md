@@ -125,7 +125,9 @@ and is kept as its FQN with leading `\` and original case (e.g.
   normalized to `self`/`static`); an unresolvable callee yields no type.
   When `value` is a plain call to one of the following global functions
   written with positional arguments only, its arguments decide `R` (any
-  other argument shape, including named arguments, leaves `R` unknown):
+  other argument shape, including named arguments, leaves `R` unknown);
+  in a ternary (`?:` included), such a call decides its branch, and the
+  other branch keeps its ordinary type:
 
   | call | `R` |
   |---|---|
@@ -136,6 +138,7 @@ and is kept as its FQN with leading `\` and original case (e.g.
   | `microtime()`, `microtime(false)` | `string` |
   | `getenv()`, `getenv(null)` | `array` |
   | `getenv(name)`, `name` typed string | `string`, `bool` |
+  | `get_cfg_var(name)`, `name` a string literal without interpolation | `string`, `bool` |
   | `version_compare(a, b)` | `int` |
   | `version_compare(a, b, op)`, `op` typed string | `bool` |
 
@@ -384,9 +387,12 @@ function untyped($flag = null) {
     for a cURL handle assigned to a `\CurlHandle|string` parameter).
   - D7c also drops the failure markers when the value is a `match` whose
     every arm is a call, a full ternary whose both branches are calls, or
-    a `?:` whose both operands are calls
+    a `?:` whose both operands are calls; the parameter itself counts as
+    such an operand or branch, since its value was checked where it was
+    assigned
     (`$t = match ($p) { 'a' => preg_replace_callback(…), default =>
-    preg_replace_callback(…) };`, `$path = realpath($a) ?: realpath($path);`).
+    preg_replace_callback(…) };`, `$path = realpath($a) ?: realpath($path);`,
+    `$f = $f ?: ini_get('a') ?: get_cfg_var('a');`).
 - **Round-5 refinements (custos diverges).** Found on Moodle, TYPO3 and
   PhpSpreadsheet:
   - D7c: for call values (a call, possibly `@`-silenced, or a
@@ -425,7 +431,9 @@ function untyped($flag = null) {
 - **Argument-decided built-ins (custos diverges, D7b).** The stub of an
   overloaded built-in lists every result of every call form (`pow()`:
   `int|float|object`; `hrtime()`: `array|int|float|false`; `getenv()`:
-  `string|array|false`; `version_compare()`: `int|bool`), which made
+  `string|array|false`; `get_cfg_var()`: `string|array|false`, an array
+  only for an entry the configuration lists as `name[]`;
+  `version_compare()`: `int|bool`), which made
   `$side = pow($side, 2)` an "object" and `$since = hrtime(true)` an
   "array". custos types these calls from their arguments (table in D7b)
   and stays silent when the arguments do not decide. For this rule

@@ -99,6 +99,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- CallableParameterUseCaseInTypeContext types `get_cfg_var()` with a literal
+  directive name as a string or `false`, so
+  `$format = $format ?: ini_get('a') ?: get_cfg_var('a')` no longer counts
+  as assigning an array to a `string` parameter, and the `false` of these
+  calls counts as a failure marker there.
 - TypeUnsafeArraySearch no longer reports a needle built by concatenation
   that starts or ends with a literal that rules out a numeric string, such
   as `in_array($operation . '_any', $rules)`.
