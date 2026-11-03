@@ -19,6 +19,10 @@ func TestResolvedValueDiscoveryArgumentEffects(t *testing.T) {
 		{`function consume($value){} function example(){ $x=17; consume(value:$x); probe($x); }`, "17"},
 		{`function probe($value){} function consume($value){} function example($again){$x=17; while($again){probe($x);consume($x);}}`, "17"},
 		{`function mutate(&$value){} function example($again){$x=17; while($again){probe($x);mutate($x);}}`, "?"},
+		{`final class Magic{function __call($n, array $a){}} function example(Magic $m){ $x=17; $m->anything($x); probe($x); }`, "17"},
+		{`class Magic{function __call($n, array $a){}} class Real extends Magic{function anything(&$v){}} function example(Magic $m){ $x=17; $m->anything($x); probe($x); }`, "?"},
+		{`class Plain{} function example(Plain $p){ $x=17; $p->anything($x); probe($x); }`, "?"},
+		{`class Magic extends Missing{function __call($n, array $a){}} function example(Magic $m){ $x=17; $m->anything($x); probe($x); }`, "?"},
 	} {
 		t.Run(tc.code, func(t *testing.T) {
 			if got := discoverOf(t, "<?php "+tc.code); got != tc.want {

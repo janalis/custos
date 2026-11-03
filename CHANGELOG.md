@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Rules that follow the values of local variables no longer lose track of
+  one passed to a method that reaches `__call()`, such as a test double's
+  `$mock->toArray($data)`: PHP never passes such arguments by reference.
 - OnlyWritesOnParameter no longer reports an element write in a function
   that makes array elements references, as in
   `$slots = [&$x]; $slots[0] = 999;`, which writes `$x`.

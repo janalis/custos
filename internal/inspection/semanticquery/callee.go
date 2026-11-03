@@ -61,7 +61,9 @@ func calleeParameters(env *infer.Env, call syntax.Node) (Callee, bool) {
 		for i, cls := range classes {
 			m := env.Index.FindMethod(strings.TrimPrefix(cls, `\`), id.Value, env.PHP)
 			if m == nil {
-				return Callee{}, false
+				if m = magicCall(env, strings.TrimPrefix(cls, `\`), id.Value); m == nil {
+					return Callee{}, false
+				}
 			}
 			if i > 0 && (contract.ByRef != m.ByRef || !slices.Equal(contract.Params, m.Params)) {
 				return Callee{}, false
@@ -158,4 +160,21 @@ func StaticCallClass(ctx *analysis.Context, e syntax.Expr) string {
 		return ""
 	}
 	return ctx.Names().Class(nm.Value, nm.Span().Start)
+}
+
+// magicCall returns the contract of a call that reaches __call(): a class
+// whose whole hierarchy is known, that declares __call() and in which,
+// subclasses included, no method of that name is declared. PHP hands
+// __call() its arguments as an array, never by reference.
+func magicCall(env *infer.Env, cls, name string) *index.Method {
+	ix := env.Index
+	if !HierarchyResolved(ix, cls, env.PHP) || ix.FindMethod(cls, "__call", env.PHP) == nil {
+		return nil
+	}
+	for _, sub := range ix.Subclasses(cls) {
+		if ix.FindMethod(sub, name, env.PHP) != nil {
+			return nil
+		}
+	}
+	return &index.Method{Name: name, Params: []index.Param{{Name: "arguments", Variadic: true}}}
 }
