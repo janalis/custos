@@ -374,7 +374,9 @@ func (s *owpScope) analyse(name string, dropWrites func(targets []syntax.Node) b
 					ref = true
 				}
 				if len(accs) == 2 && accs[0].v == accs[1].v && accs[0].v == x {
-					s.report(p.Var.Span(), owpUnusedMsg)
+					if !s.hasIncludes() { // D4g: an included file may read it
+						s.report(p.Var.Span(), owpUnusedMsg)
+					}
 					return len(accs)
 				}
 			} else {

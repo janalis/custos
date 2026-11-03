@@ -43,3 +43,18 @@ function objectsByInference($maybe, $untyped, Closure $cb)
         function () use (<weak_warning descr="Variable is never used.">$bag</weak_warning>) { return 1; },
     ];
 }
+
+// An included template may read a variable assigned inline (D4g).
+function render(string $dir): string
+{
+    $version = $docVersion = '7.4';
+    ob_start();
+    include $dir.'/welcome.html.php';
+    return (string) ob_get_clean();
+}
+
+function renderLater(string $dir): string
+{
+    $version = <weak_warning descr="Variable is never used.">$docVersion</weak_warning> = '7.4';
+    return $dir.$version;
+}

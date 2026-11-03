@@ -95,6 +95,12 @@ For each plain assignment `$v = …` or by-reference assignment `$v = &…`
   anywhere (`[&$x]`, `$a['k'] = &$y`, `foreach ($rows as &$row)`): the
   element written may be such a reference, and writing it writes the
   variable it refers to.
+- **D4g** (custos refinement, see Divergences) Includes: no **U** finding
+  is reported for an Entry 3 assignment whose scope's body contains an
+  `include` / `include_once` / `require` / `require_once` expression
+  (anywhere, nested closures included), whatever `IGNORE_INCLUDES` says:
+  the included file may read the variable (`$version = $docVersion = '7.4';
+  include $dir.'/welcome.html.php';`).
 - **D5** The target is a simple variable with a non-empty literal name that
   is not one of `_GET`, `_POST`, `_SESSION`, `_REQUEST`, `_FILES`, `_COOKIE`,
   `_ENV`, `_SERVER`, `GLOBALS`, `HTTP_RAW_POST_DATA`.
@@ -391,6 +397,11 @@ function silenced(array $out)
   real code). custos suppresses unused-import findings in such closures. No
   upstream fixture has an include inside a closure, so conformance is
   unaffected.
+- **Includes and inline assignments (D4g) — custos refinement, not
+  upstream.** Upstream reports the inner target of `$version = $docVersion
+  = '7.4';` as never used even when the function then includes a template
+  reading `$docVersion` (symfony's welcome page). custos suppresses that
+  finding in scopes with an include.
 - A variable assigned in several statements triggers the analysis once per
   assignment upstream. custos emits each reported range once.
 - The exact set of contexts in which the flow graph records the extra read

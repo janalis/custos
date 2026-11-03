@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- OnlyWritesOnParameter no longer reports an inline assignment such as
+  `$version = $docVersion = '7.4';` as never used when the function
+  includes a file, which may read the variable.
 - JsonEncodingApiUsage follows a variable a closure imports by value
   (`use ($key)`) to the enclosing variable, so a literal it holds is
   known to encode.
