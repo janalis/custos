@@ -215,7 +215,9 @@ func npiLosesComments(f *syntax.File, block *syntax.Block, c *syntax.If, kept ..
 // the start of c's braced body.
 func npiWithComments(f *syntax.File, block *syntax.Block, c *syntax.If, n syntax.Node) string {
 	ns := n.Span()
-	outer := astquery.LineIndent(f.Src, block.Span().Start)
+	// The line where the parent statement starts: its brace may sit on a
+	// continuation line of a condition split over several lines.
+	outer := astquery.LineIndent(f.Src, block.Parent().Span().Start)
 	text := astquery.Reindent(f, ns, outer)
 	body, ok := c.Body.(*syntax.Block)
 	if !ok || body.Alt || body.Span().Len() == 0 || f.Src[body.Span().Start] != '{' {

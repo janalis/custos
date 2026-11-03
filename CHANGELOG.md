@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- NestedPositiveIfStatements' quick-fix indents the merged body from the
+  line of the parent `if` when its condition is split over several lines,
+  instead of from the continuation line holding its brace.
 - MissingOrEmptyGroupStatement's quick-fix keeps a comment that ends the
   body's line next to its statement inside the new block, instead of after
   the closing brace.

@@ -123,7 +123,9 @@ body content. This only happens when `C`'s body is a braced block.
 - Indentation (both cases): the moved text (`C`'s body in Case A, `C` in
   Case B) loses one level: each of its lines after the first that starts
   with the indentation of `C`'s line is moved to the indentation of the
-  parent block's opening line instead. The text is kept as is when a line
+  line where the parent statement starts (its `if`, `elseif` or `else`
+  keyword) instead, also when a condition split over several lines puts
+  the parent's `{` on a continuation line. The text is kept as is when a line
   break lies inside a string, heredoc or inline HTML within it.
 
 ## Options
