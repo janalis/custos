@@ -99,3 +99,36 @@ final class Feed
         return $late;
     }
 }
+
+function after_branch(string $out, int $mode)
+{
+    // The check after the `if` follows the decode ending its branch.
+    if ($mode === 0) {
+        $json = [];
+    } elseif ($mode === 1) {
+        $json = json_decode($out, true);
+    } else {
+        if ($mode === 2)
+            $json = json_decode($out, false);
+    }
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        return ['error' => $out];
+    }
+    if ($mode) {
+        $more = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($out, true)</weak_warning>;
+        echo $out;
+    }
+    if (json_last_error()) {
+        return null;
+    }
+    while ($mode--) {
+        $loop = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($out, true)</weak_warning>;
+    }
+    if (json_last_error()) {
+        return null;
+    }
+    if ($mode) {
+        $last = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($out, true)</weak_warning>;
+    }
+    return [$json, $more, $loop, $last];
+}

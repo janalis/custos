@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage accepts a decode ending a branch of an `if` when the
+  statement after that `if` checks `json_last_error()`; it no longer
+  offers a `JSON_THROW_ON_ERROR` fix that would bypass that fallback.
 - FileReadFailureUnchecked follows a read into a PHPUnit assertion through
   `strtr()`, `str_replace()`, `str_ireplace()` and `preg_replace()` with an
   empty replacement, and through variables whose next read is the next

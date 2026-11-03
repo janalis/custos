@@ -385,11 +385,26 @@ func jsonOuter(x syntax.Expr) syntax.Expr {
 
 // jsonLastErrorTested reports whether the statement after es asks
 // json_last_error() or json_last_error_msg(): in the condition of an `if`,
-// or of a ternary it returns or evaluates.
+// or of a ternary it returns or evaluates. The statement after the last one
+// of an `if` branch is the one after that `if`.
 func jsonLastErrorTested(ctx *analysis.Context, es *syntax.ExprStmt) bool {
-	next, ok := astquery.NextStmt(ctx.File, es)
-	if !ok {
-		return false
+	var st syntax.Stmt = es
+	next, ok := astquery.NextStmt(ctx.File, st)
+	for !ok {
+		branch := st.Parent()
+		if _, block := branch.(*syntax.Block); block {
+			branch = branch.Parent()
+		}
+		switch branch.(type) {
+		case *syntax.ElseIf, *syntax.Else:
+			branch = branch.Parent()
+		}
+		parent, isIf := branch.(*syntax.If)
+		if !isIf {
+			return false
+		}
+		st = parent
+		next, ok = astquery.NextStmt(ctx.File, st)
 	}
 	var conds []syntax.Expr
 	switch st := next.(type) {
