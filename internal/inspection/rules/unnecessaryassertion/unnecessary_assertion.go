@@ -268,13 +268,35 @@ func uaSoleCheck(call syntax.Node) bool {
 	syntax.Inspect(scope, func(n syntax.Node) bool {
 		if c, ok := phpunit.AsPuCall(n); ok && n != call {
 			name := strings.ToLower(c.Name)
-			if strings.HasPrefix(name, "assert") || strings.HasPrefix(name, "expect") {
+			if (strings.HasPrefix(name, "assert") || strings.HasPrefix(name, "expect")) && !uaConditionalApart(n, call, scope) {
 				sole = false
 			}
 		}
 		return sole
 	})
 	return sole
+}
+
+// uaConditionalApart reports whether check sits in a branch, loop body,
+// catch block or short-circuited operand (below scope) that does not also
+// hold call: it may not run when call does.
+func uaConditionalApart(check, call, scope syntax.Node) bool {
+	cs := call.Span()
+	for x := check; x != nil && x != scope; x = x.Parent() {
+		conditional := false
+		switch p := x.(type) {
+		case *syntax.If, *syntax.ElseIf, *syntax.Else, *syntax.Case, *syntax.While, *syntax.For, *syntax.Foreach,
+			*syntax.Ternary, *syntax.Catch, *syntax.MatchArm:
+			conditional = true
+		case *syntax.Binary:
+			k := p.Op.Kind
+			conditional = k == syntax.TBooleanAnd || k == syntax.TBooleanOr || k == syntax.TAnd || k == syntax.TOr || k == syntax.TCoalesce
+		}
+		if s := x.Span(); conditional && (cs.Start < s.Start || cs.End > s.End) {
+			return true
+		}
+	}
+	return false
 }
 
 // uaNullSafeChain reports whether a nullsafe access (`?->`) anywhere in

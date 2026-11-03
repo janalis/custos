@@ -171,6 +171,12 @@ parentheses stripped first):
   other method or static call there is named `assert…` or `expect…`
   (case-insensitive). The assertion is then what keeps the test from
   checking nothing, and removing it leaves a test PHPUnit reports as risky.
+  A call does not count when it sits in a branch (`if`, `elseif`, `else`,
+  `case`, `match` arm, ternary branch), a loop body (`while`, `for`,
+  `foreach`), a `catch` block or the right operand of `&&`, `||`, `and`,
+  `or` or `??` that does not also hold the assertion: it may not run when
+  the assertion does (`if ($error) { $this->expectException(…); }` before
+  `if ($error) { return; } $this->assertInstanceOf(…);`).
 
 ## Report
 

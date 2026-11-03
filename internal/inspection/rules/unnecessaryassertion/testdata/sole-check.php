@@ -33,6 +33,33 @@ abstract class CartTest
         $double->expects($this->once())->method('total');
         <weak_warning descr="The declared return type already guarantees this; the assertion can go.">$this->assertInstanceOf(Cart::class, made())</weak_warning>;
     }
+
+    // A check in a branch, loop or operand without the assertion may not run.
+    public function testConditionalExpectation($error, array $rows)
+    {
+        if ($error) {
+            $this->expectException(\Exception::class);
+        } else {
+            $error = null;
+        }
+        foreach ($rows as $row) {
+            $this->assertNotNull($row);
+        }
+        $error ?? $this->expectNotToPerformAssertions();
+        $item = made();
+        if ($error) {
+            return;
+        }
+        $this->assertInstanceOf(Cart::class, $item);
+    }
+
+    public function testSameBranch($ok)
+    {
+        if ($ok) {
+            $this->assertTrue($ok);
+            <weak_warning descr="The declared return type already guarantees this; the assertion can go.">$this->assertInstanceOf(Cart::class, made())</weak_warning>;
+        }
+    }
 }
 
 <weak_warning descr="The declared return type already guarantees this; the assertion can go.">CartTest::assertInstanceOf(Cart::class, made())</weak_warning>;

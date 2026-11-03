@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- UnnecessaryAssertion keeps an assertion whose only companion checks sit
+  in branches, loops or operands it is not part of (an `expectException()`
+  in an `if` the assertion's path skips): removing it could leave a run
+  that checks nothing.
 - NestedPositiveIfStatements' quick-fix indents the merged body from the
   line of the parent `if` when its condition is split over several lines,
   instead of from the continuation line holding its brace.
