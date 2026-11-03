@@ -99,6 +99,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage knows that `str_repeat()` of valid UTF-8 text
+  encodes (`json_encode(['k' => str_repeat('A', 1024)])`).
 - JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` on a
   `json_encode()` that builds the message of an exception being thrown,
   where the flag would replace that exception with a `JsonException`.

@@ -582,6 +582,8 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 			return true
 		case "md5", "sha1": // a second argument may ask for the raw binary digest
 			return ok && len(args) == 1
+		case "str_repeat": // repeated valid UTF-8 stays valid
+			return ok && len(args) == 2 && jsonEncodableText(ctx, args[0], depth)
 		}
 		return false
 	case *syntax.Variable:

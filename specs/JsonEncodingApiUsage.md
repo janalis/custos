@@ -220,7 +220,8 @@ own fix.
   `dechex`, `decbin`, `decoct`, `crc32`, `strlen`, `count`, `time`,
   `intval`, `intdiv`, `rand`, `mt_rand`, `random_int`, and `md5` or
   `sha1` given their text alone (a second argument may ask for the raw
-  binary digest). So does `+`, `-` or `*` between two integers (literals,
+  binary digest), and `str_repeat` given two arguments whose text is
+  itself such a value other than an array (`str_repeat('A', 1024)`). So does `+`, `-` or `*` between two integers (literals,
   such calls or such operations) and the negation of one: an overflow
   gives a finite float, which encodes (`['exp' => time() + 3600]`);
   division and `**` may give an infinite one. So does `.` between two
