@@ -34,3 +34,34 @@ function mine($v)
 {
     return $v;
 }
+
+function decoded(string $path)
+{
+    $data = json_decode(file_get_contents($path), true);
+    if (null === $data) {
+        throw new \RuntimeException('invalid');
+    }
+    $rows = json_decode(file_get_contents($path), true);
+    if (!is_array($rows) || isset($data['x'])) {
+        return [];
+    }
+    $more = json_decode(file_get_contents($path));
+    if (isset($more)) {
+        return $more;
+    }
+    if (is_null(json_decode(file_get_contents($path)))) {
+        return null;
+    }
+    $flags = <warning descr="Handle file reading failure before using its result.">json_decode(file_get_contents($path))</warning>;
+    if ($flags === false) {
+        return null;
+    }
+    $state = <warning descr="Handle file reading failure before using its result.">unserialize(file_get_contents($path))</warning>;
+    if (isset($state)) {
+        return $state;
+    }
+    if (is_null(<warning descr="Handle file reading failure before using its result.">unserialize(file_get_contents($path))</warning>)) {
+        return null;
+    }
+    return [$data, $rows, null === <warning descr="Handle file reading failure before using its result.">unserialize(file_get_contents($path))</warning>];
+}

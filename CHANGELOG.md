@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked no longer reports a read given to
+  `json_decode()` whose result is tested at once, directly or through the
+  variable storing it (`null === $data`, `is_array()`, `isset()`, a
+  condition): a failed read decodes to `null` like invalid JSON.
 - TypeUnsafeComparison no longer asks for `===` when a value typed
   `array|false` (or holding objects or `null`) is compared with a non-empty
   array literal: only the array case can be equal, and `===` would also

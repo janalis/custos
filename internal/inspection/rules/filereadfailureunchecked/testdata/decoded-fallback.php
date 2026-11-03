@@ -11,7 +11,7 @@ function decodedChecks(string $file): array
     $b = isset(json_decode(file_get_contents($file))->name);
     $c = empty(json_decode(file_get_contents($file), true)['items']);
     $d = <warning descr="Handle file reading failure before using its result.">json_decode(file_get_contents($file), true)</warning>['extra'];
-    $e = <warning descr="Handle file reading failure before using its result.">json_decode(file_get_contents($file), true)</warning> ? 1 : 0;
+    $e = json_decode(file_get_contents($file), true) ? 1 : 0;
     $f = [<warning descr="Handle file reading failure before using its result.">json_decode(file_get_contents($file), true)</warning>] ?? [];
     $g = <warning descr="Handle file reading failure before using its result.">json_decode(file_get_contents($file), true)</warning> + 1 ?? 0;
     $h = $a->{<warning descr="Handle file reading failure before using its result.">json_decode(file_get_contents($file))</warning>} ?? null;

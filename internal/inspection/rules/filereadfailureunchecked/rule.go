@@ -58,7 +58,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) || trimmedEmptyTested(ctx, n, input) || assertedText(ctx, n, input) || searchTested(ctx, n, input) || unserializeTested(ctx, n, input) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) || trimmedEmptyTested(ctx, n, input) || assertedText(ctx, n, input) || searchTested(ctx, n, input) || decodedTested(ctx, n, input) {
 			continue
 		}
 
@@ -396,35 +396,51 @@ func nextRead(ctx *analysis.Context, as *syntax.Assign, v *syntax.Variable) *syn
 	return after[1].Var
 }
 
-// unserializeTested reports whether input is the text unserialize() call n
-// reads, for a result tested at once for its kind or for false (E17): the
-// failure value unserializes to false like any corrupt text, which the test
-// rejects.
-func unserializeTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+// decodedTested reports whether the read is the text unserialize() or
+// json_decode() call n reads, for a result tested at once for its kind or
+// for the value a corrupt text gives (E17): the failure value, read as the
+// empty text, unserializes to false and decodes to null like any corrupt
+// text, which the test rejects.
+func decodedTested(ctx *analysis.Context, n syntax.Node, _ syntax.Expr) bool {
 	call, ok := n.(*syntax.FuncCall)
-	if !ok || semanticquery.NativeBuiltinName(ctx, call) != "unserialize" || semanticquery.CallArgument(call.Args, 0, "data") != input {
+	if !ok {
+		return false
+	}
+	// The text is the only string parameter of either function: json_decode()
+	// gives null, unserialize() false.
+	decodesNull := false
+	switch semanticquery.NativeBuiltinName(ctx, call) {
+	case "unserialize":
+	case "json_decode":
+		decodesNull = true
+	default:
 		return false
 	}
 	return testedAtOnce(ctx, call, func(x syntax.Node) bool {
 		switch p := x.Parent().(type) {
 		case *syntax.Instanceof:
 			return true
+		case *syntax.Isset:
+			return decodesNull
 		case *syntax.Binary:
 			if p.Op.Kind == syntax.TCoalesce {
 				return false
 			}
-			other := p.Right
-			if syntax.Node(other) == x {
-				other = p.Left
+			other := syntax.UnwrapParens(p.Right)
+			if syntax.Node(p.Right) == x {
+				other = syntax.UnwrapParens(p.Left)
 			}
-			if v, ok := astquery.BoolConst(syntax.UnwrapParens(other)); ok && !v {
+			v, isBool := astquery.BoolConst(other)
+			if decodesNull && syntax.IsNullConst(other) || !decodesNull && isBool && !v {
 				return p.Op.Kind == syntax.TIsIdentical || p.Op.Kind == syntax.TIsNotIdentical
 			}
 		case *syntax.Arg:
 			if kind := astquery.ParentFuncCall(x); kind != nil {
 				switch semanticquery.NativeBuiltinName(ctx, kind) {
-				case "is_array", "is_object", "is_string", "is_int", "is_bool":
+				case "is_array", "is_object", "is_string", "is_int":
 					return true
+				case "is_null", "is_bool":
+					return decodesNull
 				}
 			}
 			return false
