@@ -103,10 +103,21 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// custos: loose comparisons meant as such (D5a, D5b).
 	if tucEmptinessTest(ctx, b.Left, b.Right) || tucEmptinessTest(ctx, b.Right, b.Left) ||
-		tucCastTest(ctx, b.Left, b.Right) || tucCastTest(ctx, b.Right, b.Left) {
+		tucCastTest(ctx, b.Left, b.Right) || tucCastTest(ctx, b.Right, b.Left) || tucNumericComparison(ctx, b.Left, b.Right) {
 		return
 	}
 	ctx.ReportSeverity(span, diagnostic.SeverityInfo, "Prefer '"+strict+"' to avoid implicit type juggling.") // D6
+}
+
+// tucNumericComparison reports a float compared with a number that may be
+// an int (`1 == $ratio` on a float): == compares their values, === would
+// never hold between the int and the float (D5d, custos).
+func tucNumericComparison(ctx *analysis.Context, a, b syntax.Expr) bool {
+	ta, tb := ctx.TypeOf(a), ctx.TypeOf(b)
+	if ta.IsUnknown() || tb.IsUnknown() || !ta.OnlyOf("int", "float") || !tb.OnlyOf("int", "float") {
+		return false
+	}
+	return ta.OnlyOf("float") && tb.Has("int") || tb.OnlyOf("float") && ta.Has("int")
 }
 
 // tucMayBeBool reports whether e may hold a boolean: a type that is unknown,

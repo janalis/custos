@@ -113,6 +113,13 @@ string literal here).
   unknown, `mixed` or arrays only. `==` on arrays holds when they have the
   same key/value pairs in any order; `===` also requires the same order and
   element types, a different test (`find($path) == $expected`).
+- **D5d** (custos) The comparison is not a *numeric comparison* across
+  types: both operands' inferred types are known and made only of `int` and
+  `float`, one is only `float` and the other may be an int (`1 == $ratio`
+  on a `float`, `$count != 2.5` on an `int`). `==` compares the two values;
+  `===` never holds between an int and a float, so it would change the
+  result. Two ints, two floats, or `int|float` on both sides are still
+  reported.
 - **D6** Then report kind H.
 
 At most one report per expression (M, S or H).
@@ -315,6 +322,10 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
   webmozart/assert), nor for a comparison of a value of unknown type with
   `true` or `false` (Drupal's link checker settings, the Redis extension's
   tests).
+- **Numbers of both kinds (custos diverges, D5d).** Upstream prefers
+  `===` for `1 == $number` on a float, as in a translator's plural rules;
+  `===` there is always false. custos stays silent when one operand may
+  be an int and the other a float.
 - **Boolean-or-string flags (custos diverges, D3a).** Upstream reports
   `'true' != $content['success']` on a decoded JSON payload as a string
   comparison. The loose comparison deliberately accepts `true` and

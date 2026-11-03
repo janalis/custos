@@ -73,3 +73,20 @@ function disjoint(array $rows, string $s, ?array $maybe, \DateTime $at, int ...$
     $f = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$s == ''</weak_warning>;
     return [$a, $b, $c, $d, $e, $f, $g, $h];
 }
+
+function numeric(float $ratio, int $count, int|float $amount, ?float $maybe, $unknown)
+{
+    // An int compared with a float compares values; === would never hold.
+    $a = 1 == $ratio;
+    $b = $count != 2.5;
+    $c = $amount == $ratio;
+    // Same numeric types, a nullable or an unknown operand.
+    $d = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$count == 2</weak_warning>;
+    $e = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$ratio == 1.5</weak_warning>;
+    $f = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">1 == $maybe</weak_warning>;
+    $g = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">1 == $unknown</weak_warning>;
+    // A number that may be a float on both sides: an int counter is often
+    // inferred so.
+    $h = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$amount == $count</weak_warning>;
+    return [$a, $b, $c, $d, $e, $f, $g, $h];
+}

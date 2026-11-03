@@ -99,6 +99,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- TypeUnsafeComparison no longer suggests `===` for an int compared with a
+  float, such as `1 == $number` on a float, where `===` would never hold.
 - FileReadFailureUnchecked no longer reports `file_get_contents()` of one of
   PHP's own streams, such as `file_get_contents('php://stdin')`, which
   cannot fail like the `fopen()` form it already accepted.
