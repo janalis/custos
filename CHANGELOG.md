@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- TypeUnsafeArraySearch no longer reports a needle built by concatenation
+  that starts or ends with a literal that rules out a numeric string, such
+  as `in_array($operation . '_any', $rules)`.
 - UnnecessaryAssertion no longer reports an assertion that is the only
   check of its test, such as
   `$this->assertInstanceOf(Connection::class, Connection::fromDsn($dsn))`:

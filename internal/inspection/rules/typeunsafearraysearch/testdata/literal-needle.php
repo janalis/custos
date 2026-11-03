@@ -89,3 +89,18 @@ function through(array $info, bool $old) {
     }
     return $r;
 }
+
+function concatenated(array $list, $op, $id, $n) {
+    $r = [];
+    $r[] = in_array($op . '_any', $list);
+    $r[] = in_array('field_' . $id, $list);
+    $r[] = in_array(('k' . $id) . $n . '.', $list);
+    $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($op . '1', $list)</weak_warning>;
+    $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($op . "\n", $list)</weak_warning>;
+    $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array('-' . $id, $list)</weak_warning>;
+    $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($op . '', $list)</weak_warning>;
+    $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array('' . $op, $list)</weak_warning>;
+    $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($op . $id, $list)</weak_warning>;
+    $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($op . "x$id", $list)</weak_warning>;
+    return $r;
+}

@@ -66,7 +66,13 @@ Visit every function call.
     as such a string literal (without interpolation) or `Name::class`, or
     such a class constant, is skipped whatever the haystack:
     `in_array('admin', $roles)` → skipped; `in_array('42', $roles)`,
-    `in_array("$id", $roles)` → reported. The needle may also be a local
+    `in_array("$id", $roles)` → reported. The needle may also be a
+    concatenation that ends with a string literal (without interpolation)
+    whose last character, once decoded, is not whitespace, a digit or `.`,
+    or that starts with one whose first character is not whitespace, a
+    sign, a digit or `.`: such a string is never numeric
+    (`in_array($op . '_any', $rules)`, `in_array('field_' . $id, $keys)`
+    → skipped; `in_array($op . '1', $rules)` → reported). It may also be a local
     variable every value of which is such a string, or the value variable
     of an enclosing `foreach` (not by reference) over such an array
     literal, or over a local variable that E1 accepts as a haystack, that

@@ -123,8 +123,37 @@ func literalStringNeedle(ctx *analysis.Context, n syntax.Expr) bool {
 		}
 		return true
 	}
+	if b, ok := n.(*syntax.Binary); ok && b.Op.Kind == syntax.TDot {
+		return nonNumericConcat(b)
+	}
 	_, interpolated := n.(*syntax.InterpolatedString)
 	return !interpolated && nonNumericString(ctx, n)
+}
+
+// nonNumericConcat reports a concatenation that ends with a string literal
+// whose last character, or starts with one whose first character, cannot
+// end or start a numeric string: numeric strings allow only whitespace
+// around the sign, digits, `.` and exponent.
+func nonNumericConcat(b *syntax.Binary) bool {
+	if last, ok := syntax.UnwrapParens(b.Right).(*syntax.Literal); ok {
+		if v, ok := syntax.LiteralStringValue(last); ok && v != "" && !strings.ContainsAny(v[len(v)-1:], " \t\n\r\v\f.0123456789") {
+			return true
+		}
+	}
+	first := b.Left
+	for {
+		inner, ok := syntax.UnwrapParens(first).(*syntax.Binary)
+		if !ok || inner.Op.Kind != syntax.TDot {
+			break
+		}
+		first = inner.Left
+	}
+	lit, ok := syntax.UnwrapParens(first).(*syntax.Literal)
+	if !ok {
+		return false
+	}
+	v, ok := syntax.LiteralStringValue(lit)
+	return ok && v != "" && !strings.ContainsAny(v[:1], " \t\n\r\v\f.+-0123456789")
 }
 
 // foreachOverLiteral reports a needle that is the value variable of an
