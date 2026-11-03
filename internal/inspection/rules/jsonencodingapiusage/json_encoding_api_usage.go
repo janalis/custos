@@ -1,6 +1,7 @@
 package jsonencodingapiusage
 
 import (
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -600,12 +601,13 @@ func jsonInt(ctx *analysis.Context, e syntax.Expr) bool {
 }
 
 // jsonEncodableConst reports a constant whose every known initializer is
-// encodable (E10). Each constant read counts as one level of depth, which
-// also ends a cycle of constants.
+// encodable (E10). Each constant read counts as one level of depth; value
+// discovery ends a cycle of constants.
 func jsonEncodableConst(ctx *analysis.Context, c syntax.Expr, depth int) bool {
-	values, known := semanticquery.LocalValuesKnown(ctx.Types(), c)
-	if !known || len(values) == 0 || depth >= 64 {
-		return false
+	values, _ := semanticquery.LocalValuesKnown(ctx.Types(), c)
+	if len(values) == 0 {
+		// Declared in another file or by PHP: its indexed initializer.
+		return jsonIndexedConst(ctx, c)
 	}
 	for _, v := range values {
 		if !jsonEncodable(ctx, v, depth+1) {
@@ -613,6 +615,41 @@ func jsonEncodableConst(ctx *analysis.Context, c syntax.Expr, depth int) bool {
 		}
 	}
 	return true
+}
+
+// jsonInteger matches the text of a decimal integer.
+var jsonInteger = regexp.MustCompile(`^-?\d+$`)
+
+// jsonIndexedConst reports a constant declared outside the file whose
+// indexed initializer is an integer or, declared in the project, one plain
+// quoted string of valid UTF-8 without escapes or interpolation. PHP's own
+// string constants are left out: their stub values are those of the
+// machine that built the stubs.
+func jsonIndexedConst(ctx *analysis.Context, c syntax.Expr) bool {
+	var value string
+	builtin := false
+	if x, ok := c.(*syntax.ConstFetch); ok {
+		k := semanticquery.ResolveConstant(ctx.Types(), x)
+		if k == nil {
+			return false
+		}
+		value, builtin = k.Value, k.Builtin
+	} else {
+		x := c.(*syntax.ClassConstFetch)
+		k := ctx.Index().FindConst(ctx.Types().ClassRef(x.Class), x.Name.(*syntax.Identifier).Value, ctx.PHP)
+		if k == nil || k.Case {
+			return false
+		}
+		value = k.Value
+	}
+	if jsonInteger.MatchString(value) {
+		return true
+	}
+	if builtin || len(value) < 2 {
+		return false
+	}
+	q, body := value[0], value[1:len(value)-1]
+	return (q == '\'' || q == '"') && value[len(value)-1] == q && !strings.ContainsAny(body, "'\"$\\") && utf8.ValidString(body)
 }
 
 // jsonFailureTest reports whether x is tested for a failed JSON call: the

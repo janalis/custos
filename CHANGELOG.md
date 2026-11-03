@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage accepts class and global constants declared in
+  another file, and PHP's own integer constants such as `E_ALL`, as values
+  `json_encode()` cannot fail on.
 - CallableParameterUseCaseInTypeContext types `get_cfg_var()` with a literal
   directive name as a string or `false`, so
   `$format = $format ?: ini_get('a') ?: get_cfg_var('a')` no longer counts

@@ -212,7 +212,12 @@ own fix.
   when its value is such a value: a global constant, or a class constant
   named through a class name, `self` or `parent` (`self::KEY_ID` holding
   a string literal), but not through `static`, which a subclass may
-  redefine; each constant read counts as one level of nesting. Floats are not
+  redefine; each constant read counts as one level of nesting. A constant
+  declared in another file counts when its initializer is an integer
+  literal or a single quoted string of valid UTF-8 with no quote, `$` or
+  backslash inside; one of PHP's own constants counts when its value is
+  an integer (`E_ALL`, `\LIBXML_NOENT`), not when it is a string, whose
+  value depends on the installation (`PHP_VERSION`). Floats are not
   included: a literal such as `1e999` is infinite, which json_encode
   cannot encode. The call must keep the default depth, and its flags, when
   given, must be a `|` chain of `JSON_*` constants and `0` without
