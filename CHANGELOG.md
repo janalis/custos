@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked no longer reports a read given to
+  `unserialize()` whose result is tested at once (`is_array()`,
+  `instanceof`, `=== false`, a condition): a failed read unserializes to
+  `false` like corrupt text.
 - FileReadFailureUnchecked no longer reports a read searched at once by
   `str_contains()`, `str_starts_with()` or `str_ends_with()` for literal
   text (`if (!str_contains($code, '@marker')) { continue; }`), where a

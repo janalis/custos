@@ -58,7 +58,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) || trimmedEmptyTested(ctx, n, input) || assertedText(ctx, n, input) || searchTested(ctx, n, input) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) || trimmedEmptyTested(ctx, n, input) || assertedText(ctx, n, input) || searchTested(ctx, n, input) || unserializeTested(ctx, n, input) {
 			continue
 		}
 
@@ -347,24 +347,68 @@ func trimmedEmptyTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr)
 	default:
 		return false
 	}
+	return testedAtOnce(ctx, call, emptinessTest)
+}
+
+// testedAtOnce reports whether the value of call meets test where it is
+// produced, or is assigned by a plain statement to a variable whose next
+// read meets it.
+func testedAtOnce(ctx *analysis.Context, call syntax.Node, test func(syntax.Node) bool) bool {
 	x := unparen(call)
 	as, ok := x.Parent().(*syntax.Assign)
 	if !ok || syntax.Node(as.Value) != x {
-		return emptinessTest(x)
+		return test(x)
 	}
 	v, plain := syntax.UnwrapParens(as.Var).(*syntax.Variable)
 	if !plain || v.NameExpr != nil || as.Op.Kind != syntax.TEqual || as.ByRef {
 		return false
 	}
 	if _, statement := unparen(as).Parent().(*syntax.ExprStmt); !statement {
-		return emptinessTest(unparen(as))
+		return test(unparen(as))
 	}
 	for _, a := range flowquery.VarAccesses(ctx.File, syntax.EnclosingVariableScope(as), v.Name) {
 		if a.Var.Span().Start > as.Span().End {
-			return !a.Write && emptinessTest(unparen(a.Var))
+			return !a.Write && test(unparen(a.Var))
 		}
 	}
 	return false
+}
+
+// unserializeTested reports whether input is the text unserialize() call n
+// reads, for a result tested at once for its kind or for false (E17): the
+// failure value unserializes to false like any corrupt text, which the test
+// rejects.
+func unserializeTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+	call, ok := n.(*syntax.FuncCall)
+	if !ok || semanticquery.NativeBuiltinName(ctx, call) != "unserialize" || semanticquery.CallArgument(call.Args, 0, "data") != input {
+		return false
+	}
+	return testedAtOnce(ctx, call, func(x syntax.Node) bool {
+		switch p := x.Parent().(type) {
+		case *syntax.Instanceof:
+			return true
+		case *syntax.Binary:
+			if p.Op.Kind == syntax.TCoalesce {
+				return false
+			}
+			other := p.Right
+			if syntax.Node(other) == x {
+				other = p.Left
+			}
+			if v, ok := astquery.BoolConst(syntax.UnwrapParens(other)); ok && !v {
+				return p.Op.Kind == syntax.TIsIdentical || p.Op.Kind == syntax.TIsNotIdentical
+			}
+		case *syntax.Arg:
+			if kind := astquery.ParentFuncCall(x); kind != nil {
+				switch semanticquery.NativeBuiltinName(ctx, kind) {
+				case "is_array", "is_object", "is_string", "is_int", "is_bool":
+					return true
+				}
+			}
+			return false
+		}
+		return emptinessTest(x)
+	})
 }
 
 // searchTested reports whether input is the haystack of a str_contains(),
