@@ -48,3 +48,19 @@ function rewrittenImport(string $raw): callable
         return <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($key)</weak_warning>;
     };
 }
+
+class Conn
+{
+    public function add(string $body, array $headers): string { return $body; }
+    public function fill(array &$headers): void { $headers[] = "\xB1"; }
+}
+
+function nullableReceiver(?Conn $c): array
+{
+    // a method called on null throws before binding its arguments
+    $headers = ['type' => 'a'];
+    $c->add('x', $headers);
+    $filled = ['type' => 'a'];
+    $c->fill($filled);
+    return [json_encode(['headers' => $headers]), <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($filled)</weak_warning>];
+}

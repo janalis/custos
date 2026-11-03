@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Rules that follow a variable through calls (JsonEncodingApiUsage and
+  others) resolve a method called on a nullable receiver (`?Conn $c;
+  $c->add($x)`) to its class: an argument passed by value no longer makes
+  the variable unknown.
 - OnlyWritesOnParameter no longer reports an inline assignment such as
   `$version = $docVersion = '7.4';` as never used when the function
   includes a file, which may read the variable.

@@ -247,6 +247,9 @@ own fix.
   known and is such a value, and none of its elements is written in place
   (`$rows = ['a' => 1]; json_encode($rows);`, not after `$rows[] = $text;`);
   a parameter, a by-reference write or any other write leaves it unknown.
+  A method call on a receiver that may be `null` binds its arguments as
+  the method of its class declares them: called on `null`, it throws before
+  binding any.
   A variable a closure imports by value (`use ($key)`) holds the values of
   the enclosing variable where the closure is created, and counts the same
   way when neither scope writes it otherwise; one imported by reference

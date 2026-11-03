@@ -49,10 +49,9 @@ func calleeParameters(env *infer.Env, call syntax.Node) (Callee, bool) {
 		if !ok {
 			return Callee{}, false
 		}
-		typ := env.TypeOf(c.Var)
-		if c.NullSafe {
-			typ = typ.Without("null")
-		}
+		// Calling a method on null throws before any argument is bound, and
+		// `?->` skips the call: only the classes of the receiver bind them.
+		typ := env.TypeOf(c.Var).Without("null")
 		classes := typ.Classes()
 		if len(classes) != len(typ.Atoms()) || len(classes) == 0 {
 			return Callee{}, false
