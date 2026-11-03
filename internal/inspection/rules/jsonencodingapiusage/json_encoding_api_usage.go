@@ -549,6 +549,9 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		return ok && utf8.ValidString(v)
 	case *syntax.Unary:
 		return x.Op.Kind == syntax.TMinus && jsonEncodable(ctx, x.Expr, depth)
+	case *syntax.Binary:
+		// Text joined from such values is valid UTF-8 too.
+		return x.Op.Kind == syntax.TDot && jsonEncodableText(ctx, x.Left, depth) && jsonEncodableText(ctx, x.Right, depth)
 	case *syntax.ClassConstFetch:
 		// `Name::class` is a class name of valid UTF-8 (not `static::class`,
 		// known only at run time, nor `static::NAME`, which a subclass may
@@ -578,6 +581,15 @@ func jsonEncodable(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		return true
 	}
 	return false
+}
+
+// jsonEncodableText reports an operand of `.` that converts to valid
+// UTF-8: an encodable value other than an array (`'T' . count($a)`).
+func jsonEncodableText(ctx *analysis.Context, e syntax.Expr, depth int) bool {
+	if _, array := syntax.UnwrapParens(e).(*syntax.Array); array {
+		return false
+	}
+	return jsonEncodable(ctx, e, depth)
 }
 
 // jsonIntFunctions are PHP's functions that return only an integer.

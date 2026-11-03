@@ -99,6 +99,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage accepts text joined from values `json_encode()` cannot
+  fail on, such as `['token' => 'T' . count($rows)]`.
 - JsonEncodingApiUsage no longer reports a `json_encode()` that feeds a
   `json_decode()` whose failure is handled, as in
   `array_keys(json_decode(json_encode($x), true))`: a failed encode makes
