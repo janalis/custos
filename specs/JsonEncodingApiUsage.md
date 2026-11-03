@@ -126,7 +126,9 @@ own fix.
   - for `json_decode` on PHP 8.0 and later, outside a `try` with a
     `catch`, the argument of a parameter of one of PHP's own functions
     declared `array` alone (`array_keys(json_decode($s, true))`): the
-    failure value `null` is a `TypeError` there;
+    failure value `null` is a `TypeError` there; so is an element or
+    property read on the result (`array_column($item['rows'], 'id')`),
+    `null` too when the decode failed;
   - the value checked by a PHPUnit assertion PHPUnit itself declares
     (found in its `Assert` or `TestCase` class) that fails on both
     failure values: `assertIsArray`, `assertIsObject`, `assertIsString`,

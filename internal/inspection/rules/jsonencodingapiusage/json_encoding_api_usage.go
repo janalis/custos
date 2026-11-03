@@ -936,8 +936,9 @@ func jsonTypedParam(ctx *analysis.Context, scope syntax.Node, name string, decod
 
 // jsonFetchedFallback reports an element or property read from a decoded
 // value that falls back when the value is missing: `$doc[0] ?? []`,
-// `isset($doc->tags)`, `empty($doc['k'])`, or that a PHPUnit assertion
-// rejecting null checks. A failed decode yields null, whose elements read
+// `isset($doc->tags)`, `empty($doc['k'])`, that a PHPUnit assertion
+// rejecting null checks, or given to an array-only parameter of PHP's own
+// functions (`array_column($doc['rows'], 'id')`). A failed decode yields null, whose elements read
 // as missing, that is null.
 func jsonFetchedFallback(ctx *analysis.Context, x syntax.Expr) bool {
 	var outer syntax.Node = x
@@ -960,7 +961,13 @@ func jsonFetchedFallback(ctx *analysis.Context, x syntax.Expr) bool {
 		case *syntax.Isset, *syntax.Empty:
 			return outer != syntax.Node(x)
 		case *syntax.Arg:
-			return outer != syntax.Node(x) && jsonAsserted(ctx, p.Parent().Parent(), p, true)
+			if outer == syntax.Node(x) {
+				return false
+			}
+			if f, ok := p.Parent().Parent().(*syntax.FuncCall); ok && jsonArrayOnly(ctx, f, p.Value) {
+				return true
+			}
+			return jsonAsserted(ctx, p.Parent().Parent(), p, true)
 		case *syntax.Assign:
 			// `$html = $data['html'];` copies the read: the copy's first read
 			// tested like the read itself counts.

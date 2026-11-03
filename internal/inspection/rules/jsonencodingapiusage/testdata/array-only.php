@@ -15,7 +15,12 @@ function keys(string $raw, array $base): array
     } catch (\TypeError $e) {
         $g = [];
     }
-    return [$a, $b, $c, $d, $e, $f, $g];
+    $item = json_decode($raw, true);
+    $h = array_column($item['rows'], 'id');
+    $i = array_keys(json_decode($raw, true)['rows']);
+    $other = <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>;
+    $j = count($other['rows']);
+    return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j];
 }
 
 function mine(array $a): array
