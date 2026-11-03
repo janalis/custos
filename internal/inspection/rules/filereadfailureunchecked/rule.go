@@ -2,6 +2,7 @@
 package filereadfailureunchecked
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -55,7 +56,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) || decodedFallback(ctx, n, input) || unmatchedSubject(ctx, n, input) || rejectsEmpty(ctx, n, input) || lengthTested(ctx, n, input) {
 			continue
 		}
 
@@ -264,4 +265,51 @@ func rejectsEmpty(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool 
 		}
 	}
 	return len(targets) > 0
+}
+
+// lengthTested reports whether input is the text strlen() or mb_strlen()
+// call n measures for a comparison with an integer that tells the empty
+// text apart (E12): `strlen($s) > 0`, `48 > strlen($s)`, `strlen($s) === 0`.
+// The failure value reads as the empty text, which takes the same branch.
+func lengthTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+	call, ok := n.(*syntax.FuncCall)
+	if !ok || semanticquery.CallArgument(call.Args, 0, "string") != input {
+		return false
+	}
+	if name := semanticquery.NativeBuiltinName(ctx, call); name != "strlen" && name != "mb_strlen" {
+		return false
+	}
+	var x syntax.Node = call
+	for {
+		if _, paren := x.Parent().(*syntax.Paren); !paren {
+			break
+		}
+		x = x.Parent()
+	}
+	cmp, ok := x.Parent().(*syntax.Binary)
+	if !ok {
+		return false
+	}
+	op, bound := cmp.Op.Kind, cmp.Right
+	if syntax.Node(cmp.Right) == x {
+		bound = cmp.Left
+		if mirrored, ordering := syntax.MirroredComparison[op]; ordering {
+			op = mirrored
+		}
+	}
+	lit, ok := syntax.UnwrapParens(bound).(*syntax.Literal)
+	if !ok || lit.LitKind != syntax.LitInt {
+		return false
+	}
+	// An integer literal too large for PHP is a float, never parsed here.
+	least, _ := strconv.ParseInt(lit.Raw, 0, 64)
+	switch op {
+	case syntax.TGreater, syntax.TIsSmallerOrEqual:
+		return least >= 0
+	case syntax.TIsGreaterOrEqual, syntax.TLess:
+		return least >= 1
+	case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+		return least == 0
+	}
+	return false
 }

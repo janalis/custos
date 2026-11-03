@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked accepts a length test as the failure check, as in
+  `if (48 > strlen($content)) { return null; }`: a failed read has length
+  zero like an empty file.
 - TypeUnsafeArraySearch no longer reports a needle that is an object's
   class name, such as `in_array(get_class($constraint), $skipTypes)` or
   `$o::class`, which is never numeric.

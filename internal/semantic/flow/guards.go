@@ -81,6 +81,10 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		// A constant-first comparison states the same fact. It only pins the
 		// variable to a literal in the written order, as it always did.
 		e.refineInts(n, f, truth)
+		if text := e.nonEmptyText(n, truth); text != nil {
+			// null, whose strlen() PHP deprecates, stays a possible value.
+			exclude(text, f, true, false)
+		}
 		written := n
 		mirrored := constantOperand(n.Left) && !constantOperand(n.Right)
 		if mirrored {
@@ -782,4 +786,38 @@ func falsyConstant(x syntax.Expr) bool {
 		}
 	}
 	return false
+}
+
+// nonEmptyText returns the argument of strlen() or mb_strlen() when
+// comparison n, holding as truth says, bounds its length to at least one
+// (`strlen($s) > 0`, `48 > strlen($s)` that does not hold): false reads as
+// the empty text there, of length zero.
+func (e *Env) nonEmptyText(n *syntax.Binary, truth bool) syntax.Expr {
+	call, ok := syntax.UnwrapParens(n.Left).(*syntax.FuncCall)
+	bound := n.Right
+	op := n.Op.Kind
+	if !ok {
+		call, ok = syntax.UnwrapParens(n.Right).(*syntax.FuncCall)
+		bound, op = n.Left, syntax.MirroredComparison[op]
+	}
+	if !truth {
+		op = map[syntax.TokenKind]syntax.TokenKind{
+			syntax.TGreater: syntax.TIsSmallerOrEqual, syntax.TIsSmallerOrEqual: syntax.TGreater,
+			syntax.TLess: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TLess,
+		}[op]
+	}
+	text, known := literalText(bound)
+	if !ok || !known {
+		return nil
+	}
+	least, err := strconv.ParseInt(text, 10, 64)
+	if err != nil || !(op == syntax.TGreater && least >= 0 || op == syntax.TIsGreaterOrEqual && least >= 1) {
+		return nil
+	}
+	name, builtin := e.callName(call)
+	args, valid := e.guardArguments(call)
+	if !builtin || !valid || len(args) == 0 || name != "strlen" && name != "mb_strlen" {
+		return nil
+	}
+	return args[0].Value
 }

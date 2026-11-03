@@ -97,7 +97,7 @@ func TestGuardsOutsideBranches(t *testing.T) {
 		{"array-only parameter", `$u=scandir($a); if (count($u) > 0) { probe($u); }`, true, true},
 		{"array-only parameter, later statement", `$u=scandir($a); $n = in_array('x', $u); probe($u);`, true, true},
 		{"nullable array parameter", `$u=scandir($a); $x = array_merge_recursive(...$u); $m = new ArrayIterator(); probe($u);`, false, false},
-		{"scalar parameter", `$u=scandir($a); if (strlen($u) > 0) { probe($u); }`, false, false},
+		{"scalar parameter", `$u=scandir($a); if (strlen($u) >= 0) { probe($u); }`, false, false},
 		{"mixed parameter", `$u=scandir($a); var_dump($u); probe($u);`, false, false},
 		{"array-only parameter in a try", `$u=scandir($a); try { $n = count($u); } catch (TypeError $e) { $n = 0; } probe($u);`, false, false},
 		{"array-only parameter in a try without catch", `$u=scandir($a); try { $n = count($u); } finally { echo 1; } probe($u);`, true, true},

@@ -288,3 +288,10 @@ func (k TokenKind) String() string {
 	}
 	return "TOKEN(?)"
 }
+
+// MirroredComparison maps an ordering comparison to the one that holds with
+// its operands swapped (`a < b` is `b > a`).
+var MirroredComparison = map[TokenKind]TokenKind{
+	TGreater: TLess, TLess: TGreater,
+	TIsGreaterOrEqual: TIsSmallerOrEqual, TIsSmallerOrEqual: TIsGreaterOrEqual,
+}
