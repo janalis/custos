@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- UnnecessaryAssertion no longer reports a test's assertions when all of
+  them are redundant: each counted as the other's companion, and removing
+  both left a test that checks nothing.
 - NestedPositiveIfStatements' quick-fix writes `elseif` instead of
   `else if` when the chain it extends already uses `elseif`.
 - JsonEncodingApiUsage follows local variables holding integers into

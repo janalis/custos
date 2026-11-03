@@ -176,7 +176,10 @@ parentheses stripped first):
   `foreach`), a `catch` block or the right operand of `&&`, `||`, `and`,
   `or` or `??` that does not also hold the assertion: it may not run when
   the assertion does (`if ($error) { $this->expectException(…); }` before
-  `if ($error) { return; } $this->assertInstanceOf(…);`).
+  `if ($error) { return; } $this->assertInstanceOf(…);`). Nor does an
+  assertion that Part A itself finds redundant: when every check of a test
+  is redundant, removing them all would leave a test that checks nothing,
+  so none of them is reported.
 
 ## Report
 

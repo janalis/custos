@@ -53,6 +53,20 @@ abstract class CartTest
         $this->assertInstanceOf(Cart::class, $item);
     }
 
+    // Redundant assertions are no companions: removing all would leave none.
+    public function testOnlyRedundant()
+    {
+        $this->assertInstanceOf(Cart::class, made());
+        $this->assertInstanceOf(Cart::class, made());
+    }
+
+    public function testRedundantBesideCheck($ok)
+    {
+        <weak_warning descr="The declared return type already guarantees this; the assertion can go.">$this->assertInstanceOf(Cart::class, made())</weak_warning>;
+        <weak_warning descr="The declared return type already guarantees this; the assertion can go.">$this->assertInstanceOf(Cart::class, made())</weak_warning>;
+        $this->assertTrue($ok);
+    }
+
     public function testSameBranch($ok)
     {
         if ($ok) {

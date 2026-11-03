@@ -192,9 +192,19 @@ func uaArgMayBindByRef(ctx *analysis.Context, arg *syntax.Arg) bool {
 	return !ok || !strings.HasPrefix(strings.ToLower(c.Name), "assert")
 }
 
+// uaCheckTyped reports a redundant assertion unless it is the only check of
+// its test (Part A).
 func uaCheckTyped(ctx *analysis.Context, c phpunit.PuCall) {
+	if uaRedundant(ctx, c) && !uaSoleCheck(ctx, c.Node) { // E7 (custos)
+		ctx.ReportNode(c.Node, uaTypedMsg)
+	}
+}
+
+// uaRedundant reports whether assertion c checks what the declared type
+// already guarantees (Part A).
+func uaRedundant(ctx *analysis.Context, c phpunit.PuCall) bool {
 	if ctx.PHP < phpversion.PHP70 { // E1
-		return
+		return false
 	}
 	pos := 0 // D1
 	switch c.Name {
@@ -202,61 +212,59 @@ func uaCheckTyped(ctx *analysis.Context, c phpunit.PuCall) {
 	case "assertInstanceOf", "assertInternalType":
 		pos = 1
 	default:
-		return
+		return false
 	}
 	args, ok := c.Values()
 	if !ok || len(args) < pos+1 {
-		return
+		return false
 	}
 	vals := uaValues(ctx, args[pos]) // D2
 	if len(vals) != 1 {
-		return
+		return false
 	}
 	if uaNullSafeChain(vals[0]) { // E4b (custos)
-		return
+		return false
 	}
 	t, ok := uaDeclaredReturn(ctx, vals[0]) // D3–D5
 	if !ok || len(t.Atoms()) != 1 {
-		return
+		return false
 	}
 	atom := t.Atoms()[0]
 	switch c.Name { // D6
 	case "assertNull", "assertEmpty":
 		if !strings.EqualFold(strings.TrimPrefix(atom, `\`), "void") {
-			return
+			return false
 		}
 	case "assertInstanceOf":
 		cn, ok := phpunit.PuClassConstClass(args[0])
 		if !ok {
-			return
+			return false
 		}
 		fqn := phpunit.PuResolveClassName(ctx, cn)
 		if fqn == "" || ctx.Index().Class(fqn, ctx.PHP) == nil {
-			return
+			return false
 		}
 		if !strings.HasPrefix(atom, `\`) || !strings.EqualFold(atom[1:], fqn) {
-			return
+			return false
 		}
 	case "assertInternalType":
 		lit, ok := args[0].(*syntax.Literal)
 		if !ok {
-			return
+			return false
 		}
 		name, ok := astquery.StringLiteralValue(lit.Raw)
 		if !ok || !uaInternalTypeMatches(name, atom) {
-			return
+			return false
 		}
 	}
-	if uaSoleCheck(c.Node) { // E7 (custos)
-		return
-	}
-	ctx.ReportNode(c.Node, uaTypedMsg)
+	return true
 }
 
 // uaSoleCheck reports whether call is the only assertion or expectation
 // (a call named assert… or expect…) in its method: without it the test
-// would check nothing, and PHPUnit reports such a test as risky.
-func uaSoleCheck(call syntax.Node) bool {
+// would check nothing, and PHPUnit reports such a test as risky. Redundant
+// assertions do not count: removing them all would leave no check either.
+func uaSoleCheck(ctx *analysis.Context, call syntax.Node) bool {
 	scope := syntax.EnclosingFuncLike(call)
 	for p := scope; p != nil; p = syntax.EnclosingFuncLike(p) {
 		scope = p
@@ -268,7 +276,7 @@ func uaSoleCheck(call syntax.Node) bool {
 	syntax.Inspect(scope, func(n syntax.Node) bool {
 		if c, ok := phpunit.AsPuCall(n); ok && n != call {
 			name := strings.ToLower(c.Name)
-			if (strings.HasPrefix(name, "assert") || strings.HasPrefix(name, "expect")) && !uaConditionalApart(n, call, scope) {
+			if (strings.HasPrefix(name, "assert") || strings.HasPrefix(name, "expect")) && !uaConditionalApart(n, call, scope) && !uaRedundant(ctx, c) {
 				sole = false
 			}
 		}
