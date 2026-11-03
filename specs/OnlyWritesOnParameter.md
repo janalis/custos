@@ -89,6 +89,12 @@ For each plain assignment `$v = …` or by-reference assignment `$v = &…`
   or, when the function itself calls `spl_object_id()` or
   `spl_object_hash()`, any object (`object` or a class): the array keeps
   those objects alive while the function runs, which is its purpose.
+- **D4f** (custos refinement, see Divergences) Reference elements: for an
+  Entry 3 local, drop all **W** findings when every lost write is an
+  element write and the function makes an array element a reference
+  anywhere (`[&$x]`, `$a['k'] = &$y`, `foreach ($rows as &$row)`): the
+  element written may be such a reference, and writing it writes the
+  variable it refers to.
 - **D5** The target is a simple variable with a non-empty literal name that
   is not one of `_GET`, `_POST`, `_SESSION`, `_REQUEST`, `_FILES`, `_COOKIE`,
   `_ENV`, `_SERVER`, `GLOBALS`, `HTTP_RAW_POST_DATA`.
@@ -349,6 +355,11 @@ function silenced(array $out)
   `spl_object_id()` or `spl_object_hash()`: a freed object's id goes to
   the next object created, so the array prevents collisions (Symfony's
   VarDumper cloner).
+- **custos diverges — reference elements (D4f).** Upstream reports
+  `$slots[0] = 999;` when `$slots` is never read. When `$slots` holds a
+  reference (`$slots = [&$x];`, or a copy of such an array), the write
+  goes to `$x` and is not lost: custos does not report element writes in
+  a function that makes array elements references.
 - **compact() / get_defined_vars() (E8) — custos refinement, not upstream.**
   Upstream's flow analysis does not see names passed to `compact()`, so
   `if (!($page = $repo->find()))) { throw …; } return compact('page');`

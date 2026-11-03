@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- OnlyWritesOnParameter no longer reports an element write in a function
+  that makes array elements references, as in
+  `$slots = [&$x]; $slots[0] = 999;`, which writes `$x`.
 - JsonEncodingApiUsage no longer offers to add `JSON_THROW_ON_ERROR` to a
   `json_decode()` whose text may be `null`, such as an untyped property
   read before it is set: the decode would throw where it returned `null`.

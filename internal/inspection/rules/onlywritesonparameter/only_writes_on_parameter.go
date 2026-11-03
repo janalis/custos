@@ -34,6 +34,7 @@ type owpScope struct {
 	body     *syntax.Block
 	reported map[syntax.Span]bool
 	includes int8                             // -1 unknown, 0 no, 1 yes
+	refSlots int8                             // -1 unknown, 0 no, 1 yes
 	labels   int8                             // -1 unknown, 0 no, 1 yes
 	byName   map[string][]flowquery.VarAccess // all accesses of the scope, computed once
 }
@@ -51,7 +52,7 @@ func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
 	if body == nil || n.Span().Len() == 0 { // E2
 		return
 	}
-	s := &owpScope{ctx: ctx, scope: n, body: body, reported: map[syntax.Span]bool{}, includes: -1, labels: -1}
+	s := &owpScope{ctx: ctx, scope: n, body: body, reported: map[syntax.Span]bool{}, includes: -1, labels: -1, refSlots: -1}
 	excluded := map[string]bool{}
 	// Entry 1: parameters.
 	for _, p := range syntax.FuncLikeParams(n) {
@@ -106,7 +107,7 @@ func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
 			done[v.Name] = true
 			name := v.Name
 			s.analyse(name, func(targets []syntax.Node) bool { // D8, D4c
-				return s.holdsObject(name) || s.elementWritesMayReachObject(targets) || s.keepsAlive(targets)
+				return s.holdsObject(name) || s.elementWritesMayReachObject(targets) || s.keepsAlive(targets) || s.elementWritesMayReachReference(targets)
 			})
 		}
 		return true
@@ -548,6 +549,40 @@ func (s *owpScope) elementWritesMayReachObject(targets []syntax.Node) bool {
 		}
 	}
 	return true
+}
+
+// elementWritesMayReachReference reports whether every write target of a
+// local is an element write in a scope that makes an array element a
+// reference (`[&$x]`, `$a['k'] = &$y`, `foreach ($a as &$v)`): the
+// element written may be such a reference, whose write is not lost
+// (custos, D4f).
+func (s *owpScope) elementWritesMayReachReference(targets []syntax.Node) bool {
+	for _, t := range targets {
+		if _, ok := t.(*syntax.ArrayDimFetch); !ok {
+			return false
+		}
+	}
+	if s.refSlots < 0 {
+		s.refSlots = 0
+		syntax.Inspect(s.body, func(n syntax.Node) bool {
+			switch x := n.(type) {
+			case *syntax.ArrayItem:
+				if x.ByRef {
+					s.refSlots = 1
+				}
+			case *syntax.Assign:
+				if _, element := x.Var.(*syntax.ArrayDimFetch); element && x.ByRef {
+					s.refSlots = 1
+				}
+			case *syntax.Foreach:
+				if x.ByRef {
+					s.refSlots = 1
+				}
+			}
+			return s.refSlots == 0
+		})
+	}
+	return s.refSlots == 1
 }
 
 // keepsAlive reports whether every write target of a local stores, as an
