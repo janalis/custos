@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The StrContainsCanBeUsed, StrStartsWithCanBeUsed and StrEndsWithCanBeUsed
+  quick-fixes drop the parentheses that held only the replaced comparison,
+  so `(strpos($s, "\r") !== false) || $x` becomes
+  `str_contains($s, "\r") || $x`.
 - FileReadFailureUnchecked accepts a trimmed read tested for emptiness, as
   in `if ('' === $content = trim(file_get_contents($f))) { return []; }`:
   a failed read trims to the empty text like an empty file.

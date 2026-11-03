@@ -86,6 +86,9 @@ mixed pairs whose lengths use different units.
   break only, the fix keeps that separator; the message shows `, `.
   - `substr($file, -strlen('.php')) === '.php'` → `str_ends_with($file, '.php')`
   - `$ext !== substr($name, - strlen($ext))` → `!str_ends_with($name, $ext)`
+- (custos) Parentheses that hold only `B` are replaced too, unless a
+  comment lies between them and `B`: the call needs none
+  (`(substr($f, -4) === '.php') || $x` → `str_ends_with($f, '.php') || $x`).
 - (custos) No fix when a comment lies in the replaced comparison outside
   the copied arguments: the rebuilt call would drop it.
 

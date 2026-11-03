@@ -88,10 +88,16 @@ func ReportStrCallReplacementFix(ctx *analysis.Context, m StrCallCompare, fn str
 		ctx.Report(span, "Replace with '"+r+"'.")
 		return
 	}
+	// custos: parentheses that only held the comparison go with it; a call
+	// needs none.
+	edit := span
+	if p, ok := m.Cmp.Parent().(*syntax.Paren); ok && !astquery.DropsComment(ctx.File, p.Span(), r) {
+		edit = p.Span()
+	}
 	ctx.Report(span, "Replace with '"+r+"'.", diagnostic.Fix{
 		Title: "Use " + fn + "()",
 		Edits: func() []diagnostic.TextEdit {
-			return []diagnostic.TextEdit{{Span: span, NewText: fixed}}
+			return []diagnostic.TextEdit{{Span: edit, NewText: fixed}}
 		},
 	})
 }

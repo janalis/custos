@@ -63,6 +63,9 @@ because its mutable default encoding does not establish byte equivalence.
   break only, the fix keeps that separator; the message shows `, `.
   - `0 === strpos($path, '/')` → `str_starts_with($path, '/')`
   - `strpos($s, $p) !== 0` → `!str_starts_with($s, $p)`
+- (custos) Parentheses that hold only `B` are replaced too, unless a
+  comment lies between them and `B`: the call needs none
+  (`(0 === strpos($p, "/")) || $x` → `str_starts_with($p, "/") || $x`).
 - (custos) No fix when a comment lies in the replaced comparison outside
   the copied arguments: the rebuilt call would drop it.
 

@@ -67,6 +67,9 @@ because its mutable default encoding does not establish byte equivalence.
   break only, the fix keeps that separator; the message shows `, `.
   - `strpos($s, 'x') !== false` → `str_contains($s, 'x')`
   - `false === \strpos($s, $t)` → `!\str_contains($s, $t)`
+- (custos) Parentheses that hold only `B` are replaced too, unless a
+  comment lies between them and `B`: the call needs none
+  (`(strpos($s, "\r") !== false) || $x` → `str_contains($s, "\r") || $x`).
 - (custos) No fix when a comment lies in the replaced comparison outside
   the copied arguments: the rebuilt call would drop it.
 
