@@ -110,14 +110,28 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // tucNumericComparison reports a float compared with a number that may be
-// an int (`1 == $ratio` on a float): == compares their values, === would
-// never hold between the int and the float (D5d, custos).
+// an int (`1 == $ratio` on a float), or a number compared with a value that
+// is a number or a string (`80 != $port` on `int|string|null`): == compares
+// their values, === would never hold between the int and the float or the
+// number and its numeric string (D5d, custos).
 func tucNumericComparison(ctx *analysis.Context, a, b syntax.Expr) bool {
 	ta, tb := ctx.TypeOf(a), ctx.TypeOf(b)
-	if ta.IsUnknown() || tb.IsUnknown() || !ta.OnlyOf("int", "float") || !tb.OnlyOf("int", "float") {
+	if ta.IsUnknown() || tb.IsUnknown() {
 		return false
 	}
-	return ta.OnlyOf("float") && tb.Has("int") || tb.OnlyOf("float") && ta.Has("int")
+	return tucNumberAgainst(ta, tb) || tucNumberAgainst(tb, ta)
+}
+
+// tucNumberAgainst reports a number compared with a float, or with a value
+// of scalar or null types holding both a number and a string.
+func tucNumberAgainst(number, other types.Type) bool {
+	if !number.OnlyOf("int", "float") {
+		return false
+	}
+	if other.OnlyOf("int", "float") {
+		return number.OnlyOf("float") && other.Has("int") || other.OnlyOf("float") && number.Has("int")
+	}
+	return other.OnlyOf("int", "float", "string", "null") && other.Has("string") && (other.Has("int") || other.Has("float"))
 }
 
 // tucMayBeBool reports whether e may hold a boolean: a type that is unknown,

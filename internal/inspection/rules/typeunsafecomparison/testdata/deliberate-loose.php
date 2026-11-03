@@ -74,8 +74,14 @@ function disjoint(array $rows, string $s, ?array $maybe, \DateTime $at, int ...$
     return [$a, $b, $c, $d, $e, $f, $g, $h];
 }
 
-function numeric(float $ratio, int $count, int|float $amount, ?float $maybe, $unknown)
+function numeric(float $ratio, int $count, int|float $amount, ?float $maybe, $unknown, int|string|null $port, string $text, int|string|\Stringable $mixed)
 {
+    // A number compared with a number or its string (`'80'`).
+    $i = 80 != $port;
+    $j = $port == 1.5;
+    // A plain string, or a type that may hold an object.
+    $k = <weak_warning descr="Prefer '!==' to avoid implicit type juggling.">80 != $text</weak_warning>;
+    $l = <weak_warning descr="Prefer '!==' to avoid implicit type juggling.">80 != $mixed</weak_warning>;
     // An int compared with a float compares values; === would never hold.
     $a = 1 == $ratio;
     $b = $count != 2.5;

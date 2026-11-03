@@ -118,7 +118,11 @@ string literal here).
   `float`, one is only `float` and the other may be an int (`1 == $ratio`
   on a `float`, `$count != 2.5` on an `int`). `==` compares the two values;
   `===` never holds between an int and a float, so it would change the
-  result. Two ints, two floats, or `int|float` on both sides are still
+  result. So is a number (only `int` and `float`) compared with a value
+  whose known type, made only of scalar types and `null`, holds `string`
+  next to `int` or `float` (`80 != $port` on `int|string|null`): the value
+  may be the number's numeric string, which `===` never matches. Two ints,
+  two floats, `int|float` on both sides, or a plain `string` are still
   reported.
 - **D6** Then report kind H.
 
