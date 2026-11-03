@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage counts `assertTrue()` on a JSON result, and
+  `assertFalse()` on a decoded one, such as
+  `$this->assertFalse($body['saveToSentItems'])`, as testing the failure.
 - FileReadFailureUnchecked accepts a length test as the failure check, as in
   `if (48 > strlen($content)) { return null; }`: a failed read has length
   zero like an empty file.

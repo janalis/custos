@@ -12,6 +12,8 @@ namespace PHPUnit\Framework {
         public static function assertNotEmpty(mixed $actual, string $message = ""): void {}
         public static function assertEmpty(mixed $actual, string $message = ""): void {}
         public static function assertEquals(mixed $expected, mixed $actual, string $message = ""): void {}
+        public static function assertTrue(mixed $condition, string $message = ""): void {}
+        public static function assertFalse(mixed $condition, string $message = ""): void {}
         public static function assertEqualsCanonicalizing(mixed $expected, mixed $actual, string $message = ""): void {}
         public static function assertEqualsIgnoringCase(mixed $expected, mixed $actual, string $message = ""): void {}
         public static function assertEqualsWithDelta(mixed $expected, mixed $actual, float $delta, string $message = ""): void {}
@@ -92,6 +94,10 @@ namespace App\Tests {
         public function testCapturedExpected(string $body, $any): void
         {
             $this->assertEqualsCanonicalizing(['b', 'a'], json_decode($body, true));
+            $this->assertTrue(json_decode($body));
+            $this->assertTrue(json_encode($any));
+            $this->assertFalse(json_decode($body, true)['saveToSentItems']);
+            $this->assertFalse(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_encode($any)</weak_warning>);
             $this->assertEqualsIgnoringCase('OK', json_decode($body));
             $this->assertEqualsWithDelta(2.5, <weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($body)</weak_warning>, 3.0);
             $expected = ['a' => 1];

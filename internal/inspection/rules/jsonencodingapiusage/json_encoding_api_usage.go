@@ -709,13 +709,13 @@ func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
 
 // jsonAssertions are PHPUnit's assertions that fail on the failure value
 // of both JSON functions (null, false), with the position of the checked
-// argument: type checks, assertNotEmpty, and the assertions that need an
-// array, a countable or an iterable.
+// argument: type checks, assertNotEmpty, assertTrue, and the assertions
+// that need an array, a countable or an iterable.
 var jsonAssertions = map[string]int{
 	"assertisarray": 0, "assertisobject": 0, "assertisstring": 0, "assertisiterable": 0,
 	"assertiscountable": 0, "assertinstanceof": 1, "assertnotempty": 0,
 	"assertarrayhaskey": 1, "assertarraynothaskey": 1, "assertcount": 1, "assertnotcount": 1,
-	"assertcontains": 1, "assertnotcontains": 1,
+	"assertcontains": 1, "assertnotcontains": 1, "asserttrue": 0,
 }
 
 // jsonStringAssertions are PHPUnit's assertions whose second parameter is
@@ -738,7 +738,8 @@ var jsonLooseAssertions = map[string]bool{
 
 // jsonAsserted reports whether arg is the value a PHPUnit assertion checks
 // and the assertion fails on the failure value: a type assertion,
-// assertNotNull for json_decode or assertNotFalse for json_encode.
+// assertNotNull or assertFalse for json_decode or assertNotFalse for
+// json_encode.
 func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, decode bool) bool {
 	c, ok := phpunit.AsPuCall(call)
 	if !ok || arg.Name != nil || !phpunit.PuAssertion(ctx, call) && !phpunit.UnindexedAssertion(ctx, call) {
@@ -764,7 +765,7 @@ func jsonAsserted(ctx *analysis.Context, call syntax.Node, arg *syntax.Arg, deco
 	case known:
 	case decode && jsonStringAssertions[name]:
 		at = 1
-	case name == "assertnotnull" && decode, name == "assertnotfalse" && !decode:
+	case name == "assertnotnull" && decode, name == "assertnotfalse" && !decode, name == "assertfalse" && decode:
 		at = 0
 	default:
 		return false

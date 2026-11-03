@@ -131,8 +131,8 @@ own fix.
     `assertArrayNotHasKey`, `assertCount`, `assertNotCount`,
     `assertContains` or `assertNotContains` (second argument: the array,
     countable or iterable they need), passed by position; also
-    `assertNotNull` for `json_decode` and `assertNotFalse` for
-    `json_encode`; also `assertSame`, and `assertEquals` with its
+    `assertNotNull` and `assertFalse` for `json_decode`, `assertNotFalse`
+    for `json_encode`, and `assertTrue` for both; also `assertSame`, and `assertEquals` with its
     `assertEqualsCanonicalizing` and `assertEqualsIgnoringCase` variants,
     when the other of their first two arguments, passed by position, is a
     literal the failure value does not match: for `assertSame` any array,
