@@ -24,8 +24,9 @@ func (typeUnsafeComparison) Kinds() []syntax.NodeKind { return []syntax.NodeKind
 func (typeUnsafeComparison) Semantic()                {}
 
 // comparableClasses are classes whose instances PHP compares meaningfully.
+// Only DateTime and DateTimeImmutable implement DateTimeInterface (custos).
 var comparableClasses = []string{
-	`DateTime`, `DateTimeImmutable`, `IntlBreakIterator`, `IntlTimeZone`,
+	`DateTime`, `DateTimeImmutable`, `DateTimeInterface`, `IntlBreakIterator`, `IntlTimeZone`,
 	`PDO`, `PDOStatement`, `ArrayObject`, `SplObjectStorage`, `Closure`,
 }
 

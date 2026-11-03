@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- TypeUnsafeComparison no longer asks for `===` on a `\DateTimeInterface`
+  value, which is always a `DateTime` or `DateTimeImmutable` compared by
+  its date.
 - ReturnTypeCanBeDeclared no longer suggests a type without `null` for a
   method that a known descendant declares or infers as returning `null`,
   such as a setter returning `$this` overridden by one returning nothing.

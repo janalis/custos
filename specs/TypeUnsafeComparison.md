@@ -87,6 +87,9 @@ string literal here).
   `\PDO`, `\PDOStatement`, `\ArrayObject`, `\SplObjectStorage`, `\Closure`. Operands are used as written (a parenthesised
   operand has the type of its content). Types such as `\DateTime|false`
   (e.g. return of `date_create()` from stubs) count as comparable.
+  (custos) `\DateTimeInterface` counts as well: PHP lets only
+  `\DateTime` and `\DateTimeImmutable` implement it, so a value of that
+  type is one of them (`$v instanceof \DateTimeInterface && $v == $other`).
 - **D5a** (custos) The comparison is not an *emptiness or truthiness
   test*: one operand is `false`, `true`, `null`, `0`, `''` or `'0'` and the
   other's inferred type holds `false`, `null` or `bool` together with
