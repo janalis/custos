@@ -9,7 +9,7 @@ function keys(string $raw, array $base): array
     $c = count(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
     $d = array_search('x', json_decode($raw, true));
     $e = strtoupper(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw)</weak_warning>);
-    $f = mine(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
+    $f = mine(json_decode($raw, true));
     try {
         $g = array_keys(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>);
     } catch (\TypeError $e) {
@@ -33,4 +33,30 @@ function keys(string $raw, array $base): array
 function mine(array $a): array
 {
     return $a;
+}
+
+function maybe(?array $a): array
+{
+    return $a ?? [];
+}
+
+// A parameter of the project declared `array` rejects null too.
+class Settings
+{
+    public static function fromArray(array $values): self
+    {
+        return new self();
+    }
+
+    public function load(string $raw): array
+    {
+        return [
+            self::fromArray(json_decode($raw, true)),
+            Settings::fromArray(json_decode($raw, true)['nested']),
+            mine(json_decode($raw, true)),
+            maybe(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>),
+            static::fromArray(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>),
+            $this->fromArray(<weak_warning descr="Pass JSON_THROW_ON_ERROR in the flags of this call.">json_decode($raw, true)</weak_warning>),
+        ];
+    }
 }

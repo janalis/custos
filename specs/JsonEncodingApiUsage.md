@@ -123,10 +123,13 @@ own fix.
   - the argument of a type test: `is_array`, `is_string`, `is_object`,
     `is_null`, `is_bool`, `is_int`, `is_float`, `is_scalar`,
     `is_iterable` or `is_countable`;
-  - for `json_decode` on PHP 8.0 and later, outside a `try` with a
-    `catch`, the argument of a parameter of one of PHP's own functions
-    declared `array` alone (`array_keys(json_decode($s, true))`): the
-    failure value `null` is a `TypeError` there; so is an element or
+  - for `json_decode`, outside a `try` with a `catch`, the argument of a
+    parameter declared `array` alone: of one of PHP's own functions on PHP
+    8.0 and later (`array_keys(json_decode($s, true))`), or of a function
+    of the project or a static method named through a class name, `self`
+    or `parent`, which no override may widen
+    (`self::fromArray(json_decode($json, true))`): the failure value `null`
+    is a `TypeError` there; so is an element or
     property read on the result (`array_column($item['rows'], 'id')`),
     `null` too when the decode failed;
   - for `json_encode`, the text (`json` argument, parentheses and `@`

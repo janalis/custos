@@ -719,9 +719,9 @@ func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
 			if nm, ok := f.Name.(*syntax.Name); ok && jsonTypeChecks[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))] {
 				return true
 			}
-			if decode && jsonArrayOnly(ctx, f, x) {
-				return true
-			}
+		}
+		if decode && jsonArrayOnly(ctx, call, x) {
+			return true
 		}
 		return jsonAsserted(ctx, call, p, decode)
 	}
@@ -782,16 +782,27 @@ func jsonRoundTrip(ctx *analysis.Context, call *syntax.FuncCall) bool {
 	return jsonFailureHandled(ctx, dec, true)
 }
 
-// jsonArrayOnly reports whether x is given, on PHP 8.0 and later and
-// outside a `try` with a `catch`, to a parameter of one of PHP's own
-// functions that only accepts an array (`array_keys(json_decode($s, true))`):
-// the failure value null is a TypeError there.
-func jsonArrayOnly(ctx *analysis.Context, call *syntax.FuncCall, x syntax.Expr) bool {
-	if ctx.PHP.Below(phpversion.PHP80) {
+// jsonArrayOnly reports whether x is given, outside a `try` with a
+// `catch`, to a parameter declared `array` alone (`array_keys(json_decode($s,
+// true))`): the failure value null is a TypeError there. A parameter of
+// PHP's own functions rejects it from PHP 8.0 on; one of a function of the
+// project, or of a method a class name, `self` or `parent` names (no
+// override may widen it), always.
+func jsonArrayOnly(ctx *analysis.Context, call syntax.Node, x syntax.Expr) bool {
+	var args *syntax.ArgList
+	switch c := call.(type) {
+	case *syntax.FuncCall:
+		args = c.Args
+	case *syntax.StaticCall:
+		if n, named := c.Class.(*syntax.Name); !named || strings.EqualFold(n.Value, "static") {
+			return false
+		}
+		args = c.Args
+	default:
 		return false
 	}
 	callee, ok := semanticquery.ResolveCallee(ctx, call)
-	if !ok || !callee.Builtin {
+	if !ok || callee.Builtin && ctx.PHP.Below(phpversion.PHP80) {
 		return false
 	}
 	for p := call.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
@@ -800,7 +811,7 @@ func jsonArrayOnly(ctx *analysis.Context, call *syntax.FuncCall, x syntax.Expr) 
 		}
 	}
 	for i, param := range callee.Params {
-		if param.Type == "array" && !param.Variadic && semanticquery.CallArgument(call.Args, i, param.Name) == x {
+		if param.Type == "array" && !param.Variadic && semanticquery.CallArgument(args, i, param.Name) == x {
 			return true
 		}
 	}
@@ -1011,7 +1022,7 @@ func jsonFetchedFallback(ctx *analysis.Context, x syntax.Expr) bool {
 			if outer == syntax.Node(x) {
 				return false
 			}
-			if f, ok := p.Parent().Parent().(*syntax.FuncCall); ok && jsonArrayOnly(ctx, f, p.Value) {
+			if jsonArrayOnly(ctx, p.Parent().Parent(), p.Value) {
 				return true
 			}
 			return jsonAsserted(ctx, p.Parent().Parent(), p, true)

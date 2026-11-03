@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage no longer reports a decode passed to a project
+  function or static method whose parameter is declared `array`, such as
+  `self::fromArray(json_decode($json, true))`, where a failure is a
+  `TypeError`.
 - JsonEncodingApiUsage accepts text joined from values `json_encode()` cannot
   fail on, such as `['token' => 'T' . count($rows)]`.
 - JsonEncodingApiUsage no longer reports a `json_encode()` that feeds a
