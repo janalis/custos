@@ -89,15 +89,15 @@ func literalStringHaystack(ctx *analysis.Context, h syntax.Expr) bool {
 	return literalStringArray(ctx, h)
 }
 
-// literalStringArray reports an array literal of non-numeric strings and
-// class names (E1).
+// literalStringArray reports an array literal whose values are non-numeric
+// strings and class names, under any keys, which a search ignores (E1).
 func literalStringArray(ctx *analysis.Context, h syntax.Expr) bool {
 	arr, ok := h.(*syntax.Array)
 	if !ok || len(arr.Items) == 0 {
 		return false
 	}
 	for _, it := range arr.Items {
-		if it == nil || it.Key != nil || it.Unpack || it.Value == nil || !nonNumericString(ctx, it.Value) {
+		if it == nil || it.Unpack || it.Value == nil || !nonNumericString(ctx, it.Value) {
 			return false
 		}
 	}

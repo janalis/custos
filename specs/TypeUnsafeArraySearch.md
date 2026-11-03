@@ -36,7 +36,8 @@ Visit every function call.
 
 - **E1** *Literal string haystack*: `H` is an array literal (`[...]` or
   `array(...)`, not wrapped in parentheses) with at least one element, and
-  **every** element is a plain value element (no `key =>`, no spread) whose
+  **every** element is a value element (no spread; custos accepts any
+  `key =>`, see Divergences) whose
   value is a class name written `Name::class` (custos, see Divergences) or
   a string literal (any quoting) whose contents, after trimming
   surrounding whitespace, are non-empty and are not a numeric string (PHP's
@@ -45,7 +46,7 @@ Visit every function call.
   Contents are taken raw (escape sequences not decoded).
   - `['draft', 'final']` → skipped.
   - `['10', '20']`, `['-1', '1.5']` (numeric), `['']` / `[' ']` (empty after trim),
-    `['k' => 'v']` (keyed), `['a', 5]` (non-string), `['a', $x]` → not
+    `['a', 5]` (non-string), `['a', $x]` → not
     skipped → reported.
   - An empty array literal `[]` is not skipped by E1.
   - (custos) `H` may also be a local variable whose every possible value
@@ -213,6 +214,10 @@ function pick($code, array $allowed) {
   array-literal element typing). Where custos cannot infer a type, the call is
   reported (safe side). The upstream fixture only needs: inline `@var` with
   `int`/`int[]`/`array`, literal `'1'` vs `[]`.
+- **Keyed haystacks (custos diverges, E1).** Upstream only accepts an
+  array literal without keys. A search compares the values alone, so
+  custos accepts a literal whose values qualify under any keys
+  (`in_array($route, ['entity.test' => 'entity.canonical'])`).
 - **Numeric strings in E1 (custos diverges).** Upstream only treats
   digit-only strings as numeric, so a haystack such as `['-1', '1.5']` or
   `['1e3']` is skipped as "plain strings" although PHP compares numeric

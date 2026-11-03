@@ -5,7 +5,8 @@ function pick($code, array $allowed) {
     $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">\array_search(7, [])</weak_warning>;
     $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">array_search($code, ['404', '500'])</weak_warning>;
     $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($code, ['  '])</weak_warning>;
-    $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($code, ['x' => 'yes'])</weak_warning>;
+    $r[] = in_array($code, ['x' => 'yes']);
+    $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($code, ['x' => '1'])</weak_warning>;
     $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array($code, ['on', 1])</weak_warning>;
     $r[] = <weak_warning descr="Pass a third argument to say whether this search must be type-strict.">in_array('1', [])</weak_warning>;
 

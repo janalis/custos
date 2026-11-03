@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- TypeUnsafeArraySearch accepts a keyed array literal of non-numeric
+  strings as haystack, such as `in_array($route, ['a.test' => 'a.view'])`:
+  a search ignores the keys.
 - FileReadFailureUnchecked no longer reports reads concatenated into a
   PHPUnit assertion's failure message, such as
   `$this->assertSame(0, $status, $output.$error)`.
