@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked follows a read into a PHPUnit assertion through
+  `strtr()`, `str_replace()`, `str_ireplace()` and `preg_replace()` with an
+  empty replacement, and through variables whose next read is the next
+  step, as it already did for nested `trim()` or `escapeshellcmd()` calls.
 - FileReadFailureUnchecked no longer reports a read given to
   `unserialize()` whose result is tested at once (`is_array()`,
   `instanceof`, `=== false`, a condition): a failed read unserializes to

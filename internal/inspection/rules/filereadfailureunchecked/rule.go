@@ -366,12 +366,34 @@ func testedAtOnce(ctx *analysis.Context, call syntax.Node, test func(syntax.Node
 	if _, statement := unparen(as).Parent().(*syntax.ExprStmt); !statement {
 		return test(unparen(as))
 	}
+	next := nextRead(ctx, as, v)
+	return next != nil && test(unparen(next))
+}
+
+// nextRead returns the next read of v after the assignment statement as,
+// when no write comes first; the value of an assignment to v is read
+// before v is written (`$v = trim($v);`).
+func nextRead(ctx *analysis.Context, as *syntax.Assign, v *syntax.Variable) *syntax.Variable {
+	var after []flowquery.VarAccess
 	for _, a := range flowquery.VarAccesses(ctx.File, syntax.EnclosingVariableScope(as), v.Name) {
 		if a.Var.Span().Start > as.Span().End {
-			return !a.Write && test(unparen(a.Var))
+			after = append(after, a)
 		}
 	}
-	return false
+	if len(after) == 0 {
+		return nil
+	}
+	if !after[0].Write {
+		return after[0].Var
+	}
+	w, ok := after[0].By.(*syntax.Assign)
+	if !ok || len(after) < 2 || after[1].Write {
+		return nil
+	}
+	if read := after[1].Var.Span(); read.Start < w.Value.Span().Start || read.End > w.Value.Span().End {
+		return nil
+	}
+	return after[1].Var
 }
 
 // unserializeTested reports whether input is the text unserialize() call n
@@ -433,22 +455,28 @@ func searchTested(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool 
 	return ok && text != "" && emptinessTest(unparen(call))
 }
 
-// emptyPreserving names the text parameter of builtins that turn the empty
-// text into the empty text, as they do with the failure value.
-var emptyPreserving = map[string]string{
-	"addslashes": "string", "escapeshellcmd": "command", "html_entity_decode": "string",
-	"htmlspecialchars": "string", "lcfirst": "string", "ltrim": "string",
-	"mb_strtolower": "string", "mb_strtoupper": "string", "nl2br": "string",
-	"rtrim": "string", "strip_tags": "string", "stripslashes": "string",
-	"strtolower": "string", "strtoupper": "string", "trim": "string",
-	"ucfirst": "string", "ucwords": "string",
+// emptyPreserving names the text parameter, and its position, of builtins
+// that turn the empty text into the empty text, as they do with the failure
+// value (preg_replace() only when it replaces with the empty text).
+var emptyPreserving = map[string]struct {
+	at   int
+	name string
+}{
+	"addslashes": {0, "string"}, "escapeshellcmd": {0, "command"}, "html_entity_decode": {0, "string"},
+	"htmlspecialchars": {0, "string"}, "lcfirst": {0, "string"}, "ltrim": {0, "string"},
+	"mb_strtolower": {0, "string"}, "mb_strtoupper": {0, "string"}, "nl2br": {0, "string"},
+	"preg_replace": {2, "subject"}, "rtrim": {0, "string"}, "str_ireplace": {2, "subject"},
+	"str_replace": {2, "subject"}, "strip_tags": {0, "string"}, "stripslashes": {0, "string"},
+	"strtolower": {0, "string"}, "strtoupper": {0, "string"}, "strtr": {0, "string"},
+	"trim": {0, "string"}, "ucfirst": {0, "string"}, "ucwords": {0, "string"},
 }
 
 // assertedText reports whether input is the text an emptyPreserving builtin
-// call n transforms for a result given, directly or through more such
-// calls, to a PHPUnit assertion that fails on the empty text (E15): no
-// argument is the empty text and the assertion does not let the failure
-// pass as text.
+// call n transforms for a result given to a PHPUnit assertion that fails on
+// the empty text (E15), directly, through more such calls or through plain
+// assignments to a variable whose next read is the next step: no argument
+// of the assertion is the empty text and it does not let the failure pass
+// as text.
 func assertedText(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
 	x := n
 	for {
@@ -456,11 +484,25 @@ func assertedText(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool 
 		if !ok {
 			return false
 		}
-		name, known := emptyPreserving[semanticquery.NativeBuiltinName(ctx, call)]
-		if !known || semanticquery.CallArgument(call.Args, 0, name) != input {
+		name := semanticquery.NativeBuiltinName(ctx, call)
+		param, known := emptyPreserving[name]
+		if !known || semanticquery.CallArgument(call.Args, param.at, param.name) != input ||
+			name == "preg_replace" && !emptyText(semanticquery.CallArgument(call.Args, 1, "replacement")) {
 			return false
 		}
-		arg, ok := unparen(call).Parent().(*syntax.Arg)
+		result := unparen(call)
+		if as, ok := result.Parent().(*syntax.Assign); ok && syntax.Node(as.Value) == result {
+			v, plain := syntax.UnwrapParens(as.Var).(*syntax.Variable)
+			if _, statement := unparen(as).Parent().(*syntax.ExprStmt); !plain || v.NameExpr != nil || as.Op.Kind != syntax.TEqual || as.ByRef || !statement {
+				return false
+			}
+			next := nextRead(ctx, as, v)
+			if next == nil {
+				return false
+			}
+			result = unparen(next)
+		}
+		arg, ok := result.Parent().(*syntax.Arg)
 		if !ok {
 			return false
 		}
