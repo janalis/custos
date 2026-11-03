@@ -7,6 +7,21 @@ function last(array $items, object $stub)
     return $key;
 }
 
+// By reference, the loop leaves every entry of the array a reference.
+function referenced(array $keys, $redis)
+{
+    foreach ($keys as &$key) {}
+    return $redis->hMget('h', $keys);
+}
+
+function referencedUnused(array $keys, array $other, array $more)
+{
+    <weak_warning descr="This construct has an empty body block.">foreach</weak_warning> ($keys as &$key) {}
+    <weak_warning descr="This construct has an empty body block.">foreach</weak_warning> ($more as $plain) {}
+    <weak_warning descr="This construct has an empty body block.">foreach</weak_warning> ($other['k'] as &$entry) {}
+    return [$more, $other];
+}
+
 function unused(array $items)
 {
     <weak_warning descr="This construct has an empty body block.">foreach</weak_warning> ($items as $key => $item) {}

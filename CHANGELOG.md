@@ -99,6 +99,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- MissingOrEmptyGroupStatement no longer reports an empty `foreach` taking
+  its values by reference over an array read afterwards, such as
+  `foreach ($keys as &$key) {}`, which leaves each entry a reference.
 - Rules that follow the values of local variables no longer lose track of
   one passed to a method that reaches `__call()`, such as a test double's
   `$mock->toArray($data)`: PHP never passes such arguments by reference.

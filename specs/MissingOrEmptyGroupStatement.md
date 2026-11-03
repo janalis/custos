@@ -56,7 +56,10 @@ to the `if`.
   its key or value target is not a plain variable (`as $stub->class =>
   $stub->position`, a destructuring list), or a key or value variable is
   mentioned after the loop in the same function (or file), or a
-  variable-variable is.
+  variable-variable is. A loop taking its values by reference over a plain
+  variable leaves every entry of that array a reference: a mention of the
+  array after the loop counts too (`foreach ($keys as &$key) {}` before
+  `hMget('h', $keys)`).
 
 - E7: an empty `if` or `elseif` body that holds a comment and is followed
   by another `elseif` or an `else` of the same chain is not reported by

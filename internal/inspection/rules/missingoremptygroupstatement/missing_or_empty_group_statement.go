@@ -192,10 +192,14 @@ func skipBranch(f *syntax.File, n syntax.Node, b *syntax.Block) bool {
 }
 
 // leavesLast reports whether an empty foreach is run for the last key or
-// value it leaves: a target other than a plain variable (`$stub->class`,
+// value it leaves, or, by reference, for the references it leaves in the
+// array: a target other than a plain variable (`$stub->class`,
 // `$row['k']`), or a variable mentioned after the loop (E6).
 func leavesLast(f *syntax.File, fe *syntax.Foreach) bool {
 	names := map[string]bool{}
+	if v, ok := syntax.UnwrapParens(fe.Expr).(*syntax.Variable); ok && fe.ByRef {
+		names[v.Name] = true
+	}
 	for _, t := range []syntax.Expr{fe.Key, fe.Value} {
 		switch t := t.(type) {
 		case nil:
