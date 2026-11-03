@@ -395,8 +395,16 @@ func tucArrayEquality(ctx *analysis.Context, arr, other syntax.Expr) bool {
 			return false
 		}
 	}
+	// An object never equals an array, nor do false and null a non-empty one.
+	filled := false
+	if lit, ok := syntax.UnwrapParens(arr).(*syntax.Array); ok {
+		filled = slices.ContainsFunc(lit.Items, func(it *syntax.ArrayItem) bool { return it != nil && !it.Unpack })
+	}
 	for _, p := range tucNormalizedParts(ctx, other) {
-		if p != "array" && p != "mixed" {
+		switch {
+		case p == "array", p == "mixed", p == "object", strings.HasPrefix(p, `\`):
+		case filled && (p == "false" || p == "null"):
+		default:
 			return false
 		}
 	}

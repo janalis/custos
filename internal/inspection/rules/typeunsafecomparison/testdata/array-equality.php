@@ -10,3 +10,17 @@ function compare(array $a, array $b, mixed $m, $u, string $s, int|array $mixedTy
     $nullable = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$maybe == $b</weak_warning>;
     return [$same, $fromMixed, $unknown, $list, $text, $either, $nullable];
 }
+
+// An object never equals an array, nor do false and null a non-empty one.
+function unions(array|false $r, array|\stdClass $o, ?array $n, array|bool $b, array $a)
+{
+    return [
+        $r == ['b' => 1.0],
+        ([1]) != $n,
+        $o == $a,
+        <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$r == []</weak_warning>,
+        <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$r == [...$a]</weak_warning>,
+        <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$n == $a</weak_warning>,
+        <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$b == ['x']</weak_warning>,
+    ];
+}

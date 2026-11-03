@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- TypeUnsafeComparison no longer asks for `===` when a value typed
+  `array|false` (or holding objects or `null`) is compared with a non-empty
+  array literal: only the array case can be equal, and `===` would also
+  compare the order of the elements.
 - JsonEncodingApiUsage accepts a decode ending a branch of an `if` when the
   statement after that `if` checks `json_last_error()`; it no longer
   offers a `JSON_THROW_ON_ERROR` fix that would bypass that fallback.

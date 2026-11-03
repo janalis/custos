@@ -115,7 +115,11 @@ string literal here).
   operand's type is known and made of arrays only, and the other's is
   unknown, `mixed` or arrays only. `==` on arrays holds when they have the
   same key/value pairs in any order; `===` also requires the same order and
-  element types, a different test (`find($path) == $expected`).
+  element types, a different test (`find($path) == $expected`). The other
+  operand may also hold objects, which never equal an array, and, when the
+  first operand is an array literal with an element that is not unpacked,
+  `false` or `null`, which never equal a non-empty array
+  (`$redis->zRange('k', 0, -1) == ['b' => 1.0]` on `Redis|array|false`).
 - **D5d** (custos) The comparison is not a *numeric comparison* across
   types: both operands' inferred types are known and made only of `int` and
   `float`, one is only `float` and the other may be an int (`1 == $ratio`
