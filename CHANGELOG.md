@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- UnnecessaryAssertion no longer reports an assertion that is the only
+  check of its test, such as
+  `$this->assertInstanceOf(Connection::class, Connection::fromDsn($dsn))`:
+  removing it would leave a test PHPUnit flags as risky.
 - JsonEncodingApiUsage treats `assertEqualsCanonicalizing` and
   `assertEqualsIgnoringCase` like `assertEquals`, and accepts a literal the
   test captures in a closure by value, as in

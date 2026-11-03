@@ -160,6 +160,11 @@ parentheses stripped first):
   different class (even a subclass) or a non-class type.
 - **E6** `expects($this->once())`, `expects($this->never())`,
   `expects($matcher)`, `expects(any())`.
+- **E7** (custos) Part A when the assertion is the only assertion or
+  expectation of its function or method, counting closures inside it: no
+  other method or static call there is named `assert…` or `expect…`
+  (case-insensitive). The assertion is then what keeps the test from
+  checking nothing, and removing it leaves a test PHPUnit reports as risky.
 
 ## Report
 
@@ -336,6 +341,11 @@ abstract class CartTest
   (V3). Calls it cannot resolve count as possibly by-reference, which can
   hide a true positive when the variable is also passed to an unknown
   callee.
+- **Only check of a test (custos diverges, E7).** Upstream reports a
+  redundant assertion even when nothing else in the test asserts or
+  expects anything; removing it, as advised, turns a test that proves the
+  call does not throw into one PHPUnit flags as risky. custos stays silent
+  there.
 - **`self` return type (custos diverges).** `self` is resolved to the
   declaring class (or the class importing the declaring trait), never to the
   receiver's class, so `assertInstanceOf(Leaf::class, $leaf->root())` with

@@ -231,7 +231,34 @@ func uaCheckTyped(ctx *analysis.Context, c phpunit.PuCall) {
 			return
 		}
 	}
+	if uaSoleCheck(c.Node) { // E7 (custos)
+		return
+	}
 	ctx.ReportNode(c.Node, uaTypedMsg)
+}
+
+// uaSoleCheck reports whether call is the only assertion or expectation
+// (a call named assert… or expect…) in its method: without it the test
+// would check nothing, and PHPUnit reports such a test as risky.
+func uaSoleCheck(call syntax.Node) bool {
+	scope := syntax.EnclosingFuncLike(call)
+	for p := scope; p != nil; p = syntax.EnclosingFuncLike(p) {
+		scope = p
+	}
+	if scope == nil {
+		return false
+	}
+	sole := true
+	syntax.Inspect(scope, func(n syntax.Node) bool {
+		if c, ok := phpunit.AsPuCall(n); ok && n != call {
+			name := strings.ToLower(c.Name)
+			if strings.HasPrefix(name, "assert") || strings.HasPrefix(name, "expect") {
+				sole = false
+			}
+		}
+		return sole
+	})
+	return sole
 }
 
 // uaNullSafeChain reports whether a nullsafe access (`?->`) anywhere in
