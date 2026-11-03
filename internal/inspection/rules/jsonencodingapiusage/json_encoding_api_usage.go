@@ -115,7 +115,7 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if hasFlags && jsonStrictFlags(ctx, flags.Value) { // D4, D5
 		return
 	}
-	if jsonFailureHandled(ctx, call, decode) { // E8
+	if jsonFailureHandled(ctx, call, decode) || !decode && jsonRoundTrip(ctx, call) { // E8
 		return
 	}
 	if decode && jsonMayBeNull(ctx, subject.Value) { // F7
@@ -733,6 +733,41 @@ func jsonMayBeNull(ctx *analysis.Context, e syntax.Expr) bool {
 	}
 	prop := ctx.Index().FindProperty(strings.TrimPrefix(classes[0], `\`), id.Value, ctx.PHP)
 	return prop != nil && prop.Type == "" && !prop.HasDefault
+}
+
+// jsonRoundTrip reports a json_encode call that is, parentheses and `@`
+// aside, the text of a json_decode call whose own failure is tested or
+// throws: a failed encode gives the empty text, which fails that decode.
+func jsonRoundTrip(ctx *analysis.Context, call *syntax.FuncCall) bool {
+	var x syntax.Node = call
+	for {
+		switch p := x.Parent().(type) {
+		case *syntax.Paren:
+			x = p
+			continue
+		case *syntax.Unary:
+			if p.Op.Kind == syntax.TAt {
+				x = p
+				continue
+			}
+		}
+		break
+	}
+	arg, ok := x.Parent().(*syntax.Arg)
+	if !ok {
+		return false
+	}
+	dec, ok := arg.Parent().Parent().(*syntax.FuncCall)
+	if !ok || ctx.GlobalFunctionName(dec) != "json_decode" {
+		return false
+	}
+	if text, ok := jsonArg(dec, "json", 0); !ok || text != arg {
+		return false
+	}
+	if flags, ok := jsonArg(dec, "flags", 3); ok && jsonStrictFlags(ctx, flags.Value) {
+		return true
+	}
+	return jsonFailureHandled(ctx, dec, true)
 }
 
 // jsonArrayOnly reports whether x is given, on PHP 8.0 and later and

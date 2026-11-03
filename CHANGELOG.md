@@ -99,6 +99,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- JsonEncodingApiUsage no longer reports a `json_encode()` that feeds a
+  `json_decode()` whose failure is handled, as in
+  `array_keys(json_decode(json_encode($x), true))`: a failed encode makes
+  the decode fail too.
 - MissingOrEmptyGroupStatement no longer reports an empty `foreach` taking
   its values by reference over an array read afterwards, such as
   `foreach ($keys as &$key) {}`, which leaves each entry a reference.

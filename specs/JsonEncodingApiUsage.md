@@ -129,6 +129,11 @@ own fix.
     failure value `null` is a `TypeError` there; so is an element or
     property read on the result (`array_column($item['rows'], 'id')`),
     `null` too when the decode failed;
+  - for `json_encode`, the text (`json` argument, parentheses and `@`
+    aside) of a `json_decode` whose own failure is tested where it is
+    produced as above, or whose flags hold `JSON_THROW_ON_ERROR`
+    (`array_keys(json_decode(json_encode($x), true))`): a failed encode
+    gives the empty text, which that decode rejects;
   - the value checked by a PHPUnit assertion PHPUnit itself declares
     (found in its `Assert` or `TestCase` class) that fails on both
     failure values: `assertIsArray`, `assertIsObject`, `assertIsString`,
