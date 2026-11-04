@@ -60,7 +60,8 @@ Possible-values rules (applied recursively, each node visited at most once to
 avoid cycles; parentheses around any expression are stripped first):
 
 - **R1** Ternary `c ? a : b`: union of the values of `a` and `b` (the
-  condition is not a value).
+  condition is not a value). For a short ternary `a ?: b`, include the
+  values of both `a` and `b`: the first operand is also a possible result.
 - **R2** Null coalescing `a ?? b`: union of the values of `a` and `b`.
 - **R3** Variable `$v`: look up the innermost enclosing function, method,
   closure or arrow function. If there is none (top-level code), the set is
@@ -173,12 +174,23 @@ $top = 'get_defined_vars';
 $top();
 ```
 
+Short ternaries retain both possible result expressions:
+
+```php
+<?php
+function importColumns($fallback, $columns) {
+    $loader = 'extract' ?: $fallback;
+    $loader($columns); // reported: extract is a candidate callable
+}
+```
+
 ## Divergences
 
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
-- Short ternary `a ?: b` in R1: which operands upstream treats as values is not
-  covered by fixtures. custos takes only `b` as a value: `$fn = 'extract' ?:
-  $other;` contributes no `'extract'` candidate.
+- **Short ternaries (custos refinement).** Both operands of `a ?: b` are
+  candidate values. This includes the callable string in
+  `$fn = 'extract' ?: $other;`, which can be the expression's result.
+  Upstream handling is not covered by fixtures.
 - **Reaching assignments (custos diverges):** upstream's R3 collects every
   assignment to the variable in the function regardless of order or
   reachability, so `$fn = 'extract'; $fn = 'trim'; $fn($row);` or an

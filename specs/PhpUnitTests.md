@@ -11,7 +11,8 @@ php: { min: "", max: "" }
 ## Summary
 
 A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the
-targets of `@covers`, `@depends` and `@dataProvider`, flags a redundant `@test`
+targets of `@covers`, `@depends` and `@dataProvider` and their PHPUnit
+attribute equivalents, flags a redundant `@test`
 and (optionally) unnamed datasets. On assertion and mock-builder calls it
 points at generic assertions that have a dedicated, more expressive PHPUnit
 counterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,
@@ -20,7 +21,7 @@ counterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,
 
 The rule has two independent halves:
 
-- **Part A** — docblock tags on methods.
+- **Part A** — docblock tags on methods and PHPUnit metadata attributes.
 - **Part B** — method calls whose name starts with `assert`, or is `expects`
   or `will`.
 
@@ -48,7 +49,8 @@ of every class-like and every matching method call is examined.
 - **D4 — tag value.** For `@dataProvider`, `@depends`, `@covers` the tag's
   first element after the tag name must be a reference-like word
   (identifier, qualified name, `Name::member`, `::member`, optionally followed
-  by `()`); otherwise the tag is ignored (e.g. empty tag).
+  by `()`); otherwise the tag is ignored (e.g. empty tag). For `@depends`,
+  skip a leading `clone` or `shallowClone` modifier and use the next word.
 
 Reference resolution used below: a reference is the word from D4. It may
 contain a class part and a member part separated by `::`.
@@ -97,8 +99,10 @@ contain a class part and a member part separated by `::`.
   report (error).
 - **D8** If it resolves to a method whose name does **not** start with `test`
   (case-sensitive prefix) **and** whose docblock has no `@test` tag anywhere
-  (any position; missing docblock counts as none) → report (error).
-  A method named `test…` or carrying `@test` is a valid dependency.
+  (any position; missing docblock counts as none) **and** it has no resolved
+  PHPUnit `Test` attribute → report (error).
+  A method named `test…`, carrying `@test`, or carrying the resolved PHPUnit
+  `Test` attribute is a valid dependency.
 
 #### `@covers`
 
@@ -135,6 +139,34 @@ contain a class part and a member part separated by `::`.
 - **D12** Report placement: D5–D10 highlight the **name identifier of the
   method carrying the docblock** (the test method), not the tag. D11
   highlights only the tag-name token `@test`.
+
+### PHPUnit metadata attributes
+
+- **D12a** On PHP 8.0 and later, examine attributes whose resolved class is
+  `PHPUnit\Framework\Attributes\DataProvider`, `Depends`, `CoversClass`
+  or `Test` in that same namespace. Imported aliases and fully qualified
+  names count; unrelated attributes with the same short name do not.
+  No installed PHPUnit version is required to recognize these names.
+  An attribute target string follows ordinary PHP string escape rules.
+- **D12b** A method's `DataProvider` or `Depends` attribute supplies its
+  target through the first positional argument or the named `methodName`
+  argument. A non-interpolated string supplies the reference. Missing,
+  dynamic or ambiguous arguments are ignored. Apply D5–D8 and the named
+  dataset option to that reference, including the unresolved-hierarchy
+  exception. `Test` identifies a dependency method as a test; it does not
+  itself produce a redundant-tag report or quick-fix.
+- **D12c** `CoversClass` on a method or named class supplies its target
+  through the first positional argument or the named `className` argument.
+  A resolvable `Name::class` expression or a non-interpolated string supplies
+  the class target. A string names the class as written, independently of
+  the current namespace; a class-name expression uses ordinary class-name
+  resolution. Report an error when that target does not resolve to a
+  class-like declaration. Dynamic, missing or ambiguous arguments are
+  ignored.
+- **D12d** Attribute target findings highlight the name of the method or
+  class carrying the attribute, with the same messages and severities as
+  the equivalent docblock target checks. Each attribute is checked
+  independently. Attribute findings have no quick-fix.
 
 ### Part B — assertion and mock calls
 
@@ -364,7 +396,7 @@ integer/float literal, optionally with a unary minus.
 
 ## Exceptions (no report)
 
-- **E1** Methods without docblock, functions, closures (Part A).
+- **E1** Methods without recognized metadata, functions and closures (Part A).
 - **E2** Tags not in annotation position (D3); tags with no reference value.
 - **E3** `@dataProvider`/`@depends` resolving to a valid target (D5/D8);
   `@covers` satisfied per D10.
@@ -528,7 +560,7 @@ filled, in order, with the original arguments that follow the message
   too. The docblock opener `/**` is never deleted.
   `/** @test */` → `/** */`; a line ` * @test` inside a multi-line docblock
   becomes an (otherwise blank) line.
-- D5–D10 and D6 have no fix.
+- D5–D10, D6 and attribute target checks have no fix.
 
 ## Options
 
@@ -790,6 +822,27 @@ class ArchiveTest
 }
 ```
 
+PHPUnit metadata attributes resolve through imports, while `Test` marks a
+dependency target without a name prefix:
+
+```php
+<?php
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Depends;
+use PHPUnit\Framework\Attributes\Test;
+
+class InvoiceChecks {
+    public static function invoiceRows() { return ['small' => [2]]; }
+    #[Test]
+    public function seedInvoice() { return 2; }
+    #[DataProvider(methodName: 'invoiceRows')]
+    #[Depends('seedInvoice')]
+    public function acceptsInvoice($count) {}
+    /** @depends shallowClone seedInvoice */
+    public function acceptsCopiedInvoice() {}
+}
+```
+
 ## Divergences
 
 - **Streams are not files (custos diverges, D28a, D28b).** Upstream
@@ -918,14 +971,17 @@ class ArchiveTest
   `PHPUNIT91`; else it declares `assertIsInt` but not `assertInternalType` →
   `PHPUNIT90`; else `assertIsInt` → `PHPUNIT80`; else `PHPUNIT70`. When
   PHPUnit is not indexed either, `PHPUNIT80`.
-- **`@depends clone x` / `@depends shallowClone x`**: the modifier word is
-  taken as the reference and reported, by upstream and by custos alike.
+- **Dependency modifiers (custos diverges).** `@depends clone x` and
+  `@depends shallowClone x` resolve `x`, rather than treating the cloning
+  modifier as a method name and producing a false report.
 - **No test-case check**: any class method docblock and any `assert*` call
   on any receiver is examined. Kept as upstream: the upstream fixtures wrap
   their code in plain classes, and restricting to test classes would drop all
   conformance coverage for a rare false positive.
-- **PHPUnit 10+ attributes** (`#[DataProvider]`, `#[Depends]`, `#[CoversClass]`,
-  `#[Test]`) are not examined, by upstream or by custos.
+- **PHPUnit attributes (custos extension).** Resolved PHPUnit metadata
+  attributes receive the same target validation as docblock metadata.
+  Upstream does not examine them. A `Test` attribute also identifies
+  dependency targets that have no `test` prefix or `@test` tag.
 - **Fully qualified tag names (custos diverges).** PHPUnit reads the class
   names of `@covers`, `@coversDefaultClass`, `@depends` and
   `@dataProvider` as fully qualified (no leading `\` needed). A name that

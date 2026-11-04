@@ -129,7 +129,20 @@ withhold a finding, never to raise one. Where a `goto` label may let a jump
 bypass a guard, `semanticquery.NativeLabelled` says so, and the guard proves
 nothing.
 
-PHPUnit call and version support belongs in `phpunit`. Preserve the
+Constant string consumers can use `syntax.LiteralStringValue` for decoded
+quoted strings, heredocs and nowdocs. `syntax.DecodeLiteralString` additionally
+maps each decoded byte to its original source span, including entire escape
+sequences and indentation removal. Request that mapping only when source
+positions are needed; quoted-string helpers retain their narrower contracts.
+
+`flowquery.MethodReceiverEffect` describes a possible receiver mutation through
+member accesses and fluent chains. Its conditional flag records nullsafe
+accesses; a possible mutation is never proof that a write occurred.
+`Flow().ParameterRead` uses CFG results to ask whether a parameter's entry
+value is read. Only a known negative result proves that value unused; unknown
+values, arrow captures and incomplete scopes stay conservative.
+
+PHPUnit declaration metadata, call and version support belongs in `phpunit`. Preserve the
 difference between a written call name and its actual runtime target,
 especially when deciding whether a fix is safe.
 

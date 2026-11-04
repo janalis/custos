@@ -7,6 +7,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -87,6 +88,7 @@ func noreCandidates(ctx *analysis.Context, n syntax.Node) (*syntax.FuncCall, str
 	if first == nil {
 		return nil, "", nil, false
 	}
+	mayWrite := func(a *syntax.Arg) bool { return semanticquery.ArgumentMayWrite(ctx.Types(), a) }
 	var cands []syntax.Expr // D2
 	arr, array := first.Value.(*syntax.Array)
 	if array {
@@ -94,11 +96,11 @@ func noreCandidates(ctx *analysis.Context, n syntax.Node) (*syntax.FuncCall, str
 			if it == nil || it.Value == nil {
 				continue
 			}
-			if lit := semanticquery.LocalStringLiteral(ctx.Types(), it.Value); lit != nil {
+			if lit := flowquery.ConstantStringWithReferences(ctx.File, it.Value, mayWrite); lit != nil {
 				cands = append(cands, lit)
 			}
 		}
-	} else if lit := semanticquery.LocalStringLiteral(ctx.Types(), first.Value); lit != nil {
+	} else if lit := flowquery.ConstantStringWithReferences(ctx.File, first.Value, mayWrite); lit != nil {
 		cands = append(cands, lit)
 	}
 	return call, fn, cands, array
@@ -146,13 +148,19 @@ func noreProvenPattern(a, lit syntax.Expr) bool {
 // parsed (so the call checks may run).
 func (c *noreCase) checkLiteral() bool {
 	raw, _, ok := astquery.QuotedStringRaw(c.lit) // D3
+	v, _ := astquery.QuotedStringValue(c.lit)
+	if !ok {
+		if literal, isLiteral := c.lit.(*syntax.Literal); isLiteral {
+			v, ok = syntax.LiteralStringValue(literal)
+			raw = v
+		}
+	}
 	if !ok || raw == "" {
 		return false
 	}
 	body, mods, ok := noreSplitDelimiters(raw) // D4
 	// The string value decides what PHP sees: "\x2fa\x2f" and "/a/i\n" are
 	// delimited although their source text is not.
-	v, _ := astquery.QuotedStringValue(c.lit)
 	vbody, _, vok := noreSplitDelimiters(v)
 	if !ok {
 		if c.fn != "preg_quote" && !vok { // D6

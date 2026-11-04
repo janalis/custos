@@ -90,6 +90,12 @@ body, unless it is in a test context (E6).
 - **D10** Within that whole assignment expression (target and right-hand side,
   including nested closures and strings), the parameter's name occurs exactly
   once (as the target).
+- **D10a** Report only when no reachable execution reads the original
+  parameter value. A read on any reachable predecessor, including a jump
+  that bypasses the apparent first write, prevents the report. If aliases,
+  captures, dynamic behavior or uncertain control flow prevent proving this,
+  do not report. The direct-body assignment and two-access requirements
+  above still apply.
 - Report the target variable.
 
 ### D. `=+`, `=-`, `=!` formatting typo
@@ -314,6 +320,19 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
     [$s, $t] = sample_pair();            // int[]|false
     <error descr="Destructuring a value that is not an array.">[$u] = $line</error>;   // string remains
     <error descr="Destructuring a value that is not an array.">[$w] = $none</error>;   // only false
+}
+```
+
+A jump can read the incoming parameter before an assignment that appears
+first in the source. The parameter-overwrite check does not report it:
+
+```php
+<?php
+function jumpRead($incoming) {
+    goto consume;
+    $incoming = 'replacement';
+consume:
+    echo $incoming;
 }
 ```
 

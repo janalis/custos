@@ -15,9 +15,3 @@ yields 1/0 while the rewrite yields true/false:
 - a value position (assignment, return, argument, `echo`): skipped, as
   true/false would leak where 1/0 was expected (`: int` returns under
   `strict_types`, arithmetic).
-
-## Known gaps
-
-- Heredoc and nowdoc patterns are not analysed. A nowdoc, or a heredoc
-  without interpolation, could be handled like a quoted literal whose
-  contents are its body.

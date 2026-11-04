@@ -713,6 +713,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.Closure:
 		// The body executes only on invocation, where it can write these names.
 		for _, use := range n.Uses {
+			if use.Var != nil {
+				e.eval(use.Var, f, r, depth+1)
+			}
 			if use.ByRef && use.Var != nil {
 				f.alias(use.Var.Name, aliasHeld)
 				if written := e.holderWrites(n, use.Var.Name); retained(written) {

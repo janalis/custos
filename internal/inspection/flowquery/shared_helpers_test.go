@@ -4,6 +4,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"custos/internal/php/syntax"
 )
 
 func TestPossibleValuesReaching(t *testing.T) {
@@ -41,5 +43,29 @@ func TestPossibleValuesReachingEdges(t *testing.T) {
 		if vals, known := PossibleValuesReaching(f, ProbeArg(f)); known != want || len(vals) != 0 {
 			t.Errorf("%s: got %v %v", src, vals, known)
 		}
+	}
+}
+
+func TestShortTernaryValueDiscovery(t *testing.T) {
+	f := Parse(t, `<?php function f() { $x = 'extract' ?: 'compact'; probe($x ?: 'parse_str'); }`)
+	for _, discover := range []func(*syntax.File, syntax.Expr) ([]syntax.Expr, bool){PossibleValuesKnown, PossibleValuesReaching, PossibleValuesComplete} {
+		values, known := discover(f, ProbeArg(f))
+		var got []string
+		for _, value := range values {
+			got = append(got, Text(f, value))
+		}
+		sort.Strings(got)
+		if !known || strings.Join(got, " ") != "'compact' 'extract' 'parse_str'" {
+			t.Fatalf("%v, %v", got, known)
+		}
+	}
+}
+
+func BenchmarkShortTernaryDiscovery(b *testing.B) {
+	f := Parse(b, `<?php function f() { $x = 'extract' ?: 'compact'; probe($x ?: 'parse_str'); }`)
+	arg := ProbeArg(f)
+	b.ReportAllocs()
+	for b.Loop() {
+		PossibleValuesReaching(f, arg)
 	}
 }

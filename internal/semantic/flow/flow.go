@@ -712,6 +712,7 @@ type Env struct {
 }
 
 type scopeResult struct {
+	parameterReads  map[string]uint8
 	gaps            map[string]syntax.Span
 	originTypes     *infer.Env
 	originKeys      map[syntax.Expr]string

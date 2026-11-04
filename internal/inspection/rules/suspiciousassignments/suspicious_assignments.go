@@ -252,7 +252,7 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 			firstTwo[v.Name] = append(firstTwo[v.Name], v)
 		}
 	})
-	for _, p := range params {
+	for parameter, p := range params {
 		if p.ByRef || p.Var == nil || p.Var.Name == "" {
 			continue
 		}
@@ -282,7 +282,8 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 			}
 			return true
 		})
-		if count == 1 {
+		read, known := ctx.Flow().ParameterRead(fn, parameter)
+		if count == 1 && known && !read {
 			ctx.ReportNode(first, "Parameter is overwritten before its value is used.")
 		}
 	}

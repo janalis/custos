@@ -114,9 +114,9 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		switch {
 		case len(n.Args.Args) == 0:
 			return types.Array, true
-		case constLiteral(arg(0)) == "true":
+		case e.TypeOf(arg(0)).OnlyOf("true"):
 			return types.Float, true
-		case constLiteral(arg(0)) == "false":
+		case e.TypeOf(arg(0)).OnlyOf("false"):
 			return types.Array, true
 		}
 	case "var_export", "print_r":
@@ -180,13 +180,10 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		if len(n.Args.Args) == 0 {
 			return types.Of("int[]", "false"), true
 		}
-		if c, ok := syntax.UnwrapParens(arg(0)).(*syntax.ConstFetch); ok && c.Name != nil {
-			switch strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`)) {
-			case "false":
-				return types.Of("int[]", "false"), true
-			case "true":
-				return types.Of("int", "float", "false"), true
-			}
+		if value := e.TypeOf(arg(0)); value.OnlyOf("false") {
+			return types.Of("int[]", "false"), true
+		} else if value.OnlyOf("true") {
+			return types.Of("int", "float", "false"), true
 		}
 	case "sscanf":
 		// Without output variables the matches are returned (null when

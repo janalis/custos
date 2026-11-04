@@ -35,3 +35,27 @@ func StringLiteralWithReferences(f *syntax.File, e syntax.Expr, mayWrite func(*s
 	}
 	return found
 }
+
+// ConstantStringWithReferences finds one noninterpolated constant string,
+// including heredoc and nowdoc, among lexical candidates. Other values are
+// ignored, as in SingleStringLiteral; unknown discovery proves nothing.
+func ConstantStringWithReferences(f *syntax.File, e syntax.Expr, mayWrite func(*syntax.Arg) bool) syntax.Expr {
+	var found syntax.Expr
+	values, known := PossibleValuesWithReferences(f, e, mayWrite)
+	if !known {
+		return nil
+	}
+	for _, value := range values {
+		literal, ok := value.(*syntax.Literal)
+		if !ok {
+			continue
+		}
+		if _, ok := syntax.LiteralStringValue(literal); ok {
+			if found != nil {
+				return nil
+			}
+			found = value
+		}
+	}
+	return found
+}

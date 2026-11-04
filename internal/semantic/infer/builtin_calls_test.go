@@ -73,3 +73,22 @@ function f(string $f, $flags) {
 		"gv": "float|int[]",
 	})
 }
+
+func TestBooleanArgumentReturnContracts(t *testing.T) {
+	check(t, `<?php
+function f(bool $flag) {
+    $off = false;
+    $on = true;
+    t('hrOff', hrtime($off));
+    t('hrOn', hrtime(as_number: $on));
+    t('tvOff', gettimeofday($off));
+    t('tvOn', gettimeofday(as_float: $on));
+    if ($flag === false) { t('hrGuard', hrtime($flag)); }
+    t('hrUnknown', hrtime($flag));
+}
+`, map[string]string{
+		"hrOff": "false|int[]", "hrOn": "false|float|int",
+		"tvOff": "array", "tvOn": "float", "hrGuard": "false|int[]",
+		"hrUnknown": "false|float|int|int[]",
+	})
+}

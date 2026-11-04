@@ -21,7 +21,7 @@ func DiscoverValues(env *infer.Env, e syntax.Expr) []syntax.Expr {
 // known; when known is false, vals is nil and consumers must stay silent.
 func DiscoverValuesKnown(env *infer.Env, e syntax.Expr) (vals []syntax.Expr, known bool) {
 	d := &discoverer{ValueWalk: flowquery.NewValueWalk(env.File), env: env}
-	d.ElvisCond, d.SkipEmpty = true, true
+	d.SkipEmpty = true
 	d.Resolve = d.resolveExpr
 	d.ReferenceArgument = d.referenceArgument
 	d.Collect(e)

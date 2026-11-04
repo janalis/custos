@@ -9,6 +9,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Value discovery retains both short-ternary operands, and builtin return
+  inference follows proven boolean arguments to `hrtime` and `gettimeofday`.
+- Parameter-overwrite checks require flow evidence; nullsafe calls retain
+  possible receiver mutations when checking loop independence.
+- Regex checks accept constant heredoc and nowdoc patterns. Constant strings
+  can retain source mappings through escapes and indentation removal.
+- PHPUnit metadata checks support resolved attributes and dependency clone
+  modifiers alongside docblock annotations.
+
 - Flow analysis preserves complete values through proven literal-array spreads.
 
 - Array unions, spreads, computed keys and shape-limit fallback retain union

@@ -11,7 +11,8 @@ title: PhpUnitTests
 Group: [PHPUnit](/rules/#phpunit) · PhpStorm name: `PhpUnitTestsInspection`
 
 A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the
-targets of `@covers`, `@depends` and `@dataProvider`, flags a redundant `@test`
+targets of `@covers`, `@depends` and `@dataProvider` and their PHPUnit
+attribute equivalents, flags a redundant `@test`
 and (optionally) unnamed datasets. On assertion and mock-builder calls it
 points at generic assertions that have a dedicated, more expressive PHPUnit
 counterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,
@@ -20,7 +21,7 @@ counterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,
 
 The rule has two independent halves:
 
-- **Part A** — docblock tags on methods.
+- **Part A** — docblock tags on methods and PHPUnit metadata attributes.
 - **Part B** — method calls whose name starts with `assert`, or is `expects`
   or `will`.
 

@@ -65,7 +65,13 @@ faster. Only a few findings carry a fix (the plain-function replacements).
   double-quoted without embedded variables/expressions), and its raw
   contents `R` (the source text between the quotes, escape sequences **not**
   decoded — `'\\d'` gives the three characters `\\d`) are non-empty. Empty
-  contents (`''`) → nothing at all for that literal.
+  contents (`''`) → nothing at all for that literal. A nowdoc or a heredoc
+  without interpolation also qualifies: its contents are the body, excluding
+  the final line break before the closing marker and removing the closing
+  marker's indentation from body lines according to PHP's string rules.
+  Diagnostic ranges must refer to the corresponding original source bytes.
+  No quick-fix is offered unless its replacement preserves the string value
+  and valid PHP syntax.
 - **D4** Delimiter parsing of `R`, as PHP does it. Leading whitespace
   bytes (space, tab, `\n`, `\v`, `\f`, `\r` as they appear in the raw
   contents) are skipped first. If the first remaining character is an ASCII
@@ -654,6 +660,16 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 }
 ```
 
+A nowdoc body is eligible for the same pattern checks as a quoted string:
+
+```php
+<?php
+$recordPattern = <<<'MATCH_RECORD'
+/^record[0-9]+$/
+MATCH_RECORD;
+preg_match($recordPattern, $line);
+```
+
 ## Divergences
 
 - **Line-by-line patterns (custos diverges, D19).** Upstream asks for `/s`
@@ -742,8 +758,9 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   the surrounding pattern uses a delimiter preg_quote already escapes
   (`'{' . preg_quote($s) . '}'`, common in Symfony), so reporting every
   1-argument call would add false positives.
-- **Heredoc/nowdoc patterns:** upstream handling unverified; custos does
-  not analyse heredoc or nowdoc patterns.
+- **Heredoc/nowdoc patterns (custos extension).** Non-interpolated bodies
+  are analyzed alongside quoted strings. Upstream handling remains
+  unverified. Interpolated heredocs stay excluded.
 - **Function-name matching — custos diverges from upstream.** Upstream matches
   the `preg_*` functions (and the case conversions of D23) by the name as
   written (case-sensitive, any namespace qualifier, no resolution), so a

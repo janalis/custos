@@ -17,10 +17,14 @@ type phpUnitTests struct{}
 func (phpUnitTests) ID() string { return "PhpUnitTests" }
 func (phpUnitTests) Semantic()  {}
 func (phpUnitTests) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KMethod, syntax.KMethodCall, syntax.KStaticCall}
+	return []syntax.NodeKind{syntax.KClassLike, syntax.KMethod, syntax.KMethodCall, syntax.KStaticCall}
 }
 
 func (phpUnitTests) Check(ctx *analysis.Context, n syntax.Node) {
+	if class, ok := n.(*syntax.ClassLike); ok {
+		putCheckClassAttributes(ctx, class)
+		return
+	}
 	if m, ok := n.(*syntax.Method); ok {
 		putCheckTags(ctx, m)
 		return

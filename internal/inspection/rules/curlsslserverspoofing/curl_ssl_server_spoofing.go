@@ -64,7 +64,7 @@ type curlValues struct {
 // verdict classifies every value discovered from e; both results are false
 // when the discovery is unknown.
 func (w *curlValues) verdict(e syntax.Expr) (enable, disable bool) {
-	w.ElvisCond, w.SkipEmpty = true, true
+	w.SkipEmpty = true
 	w.Resolve = w.resolve
 	w.Collect(e)
 	vals, _ := w.Result()
