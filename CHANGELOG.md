@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Preserve known PDO bindings and DOM child facts through redundant conditional operations.
+
 ### Changed
 
 - Flow analysis preserves complete values through proven literal-array spreads.

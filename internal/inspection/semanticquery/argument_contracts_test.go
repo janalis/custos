@@ -264,3 +264,33 @@ func TestStringConsumerDuplicateDeclarations(t *testing.T) {
 		})
 	}
 }
+
+func TestConditionalExecuteBindings(t *testing.T) {
+	for _, tc := range []struct {
+		body  string
+		known bool
+	}{
+		{`$s->bindValue(':x',1);if($flag){$s->bindValue(':x',2);}`, true},
+		{`$s->bindValue(':x',1);if($flag){$s->bindValue(':y',2);}`, false},
+		{`if($flag){$s->bindValue(':x',1);}$s->bindValue(':x',2);`, true},
+		{`$s->bindValue(1,1);if($flag){$s->bindValue(1,2);}`, true},
+		{`if($flag){$s->bindValue($name,1);}`, false},
+	} {
+		probeNative(t, `$s=(new PDO('sqlite::memory:'))->prepare('SELECT :x');`+tc.body+`probe($s->execute());`, func(ctx *analysis.Context, c *syntax.FuncCall) {
+			call := CallArgument(c.Args, 0, "").(*syntax.MethodCall)
+			bindings, known := ExecuteBindings(ctx, call)
+			if known != tc.known || known && len(bindings) != 1 {
+				t.Errorf("%s: bindings=%v known=%v", tc.body, bindings, known)
+			}
+		})
+	}
+}
+
+func TestConditionalBindingsInsideLoopRemainUnknown(t *testing.T) {
+	probeNative(t, `$s=(new PDO('sqlite::memory:'))->prepare('SELECT :x');$s->bindValue(':x',1);if($flag){$s->bindValue(':x',2);}while($run){probe($s->execute());$capture=fn()=>$s->bindValue(':y',2);}`, func(ctx *analysis.Context, c *syntax.FuncCall) {
+		call := CallArgument(c.Args, 0, "").(*syntax.MethodCall)
+		if _, known := ExecuteBindings(ctx, call); known {
+			t.Fatal("loop-carried history authorized exact bindings")
+		}
+	})
+}

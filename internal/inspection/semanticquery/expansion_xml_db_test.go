@@ -82,6 +82,9 @@ func TestExpansionDOMChildrenProof(t *testing.T) {
 	}{
 		{`$d=new DOMDocument();$d->loadXML('<x><y/></x>');probe($d->documentElement);`, true},
 		{`$d=new DOMDocument();probe($d->documentElement);`, false},
+		{`$d=new DOMDocument();$d->loadXML('<x><y/></x>');if($flag){$d->loadXML('<a><b/></a>');}probe($d->documentElement);`, true},
+		{`$d=new DOMDocument();$d->loadXML('<x><y/></x>');if($flag){$d->loadXML('<a/>');}probe($d->documentElement);`, false},
+		{`$d=new DOMDocument();if($flag){$d->load('other.xml');}$d->loadXML('<x><y/></x>');probe($d->documentElement);`, true},
 		{`$d=new DOMDocument();$d->loadXML('<x><y/></x>');$d->load('other.xml');probe($d->documentElement);`, false},
 		{`$d=new DOMDocument();$d->loadXML($xml);probe($d->documentElement);`, false},
 		{`$d=new DOMDocument();$n=$d->createElement('x');$n->appendChild($d->createElement('y'));probe($n);`, true},

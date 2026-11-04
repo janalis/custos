@@ -174,23 +174,47 @@ func ExecuteBindings(ctx *analysis.Context, c *syntax.MethodCall) (map[string]bo
 		}
 		return bindings, true
 	}
+	history := NativeCallHistory(ctx, c, c.Var, "bindparam", "bindvalue")
+	if !history.Complete {
+		return nil, false
+	}
 	if _, known := ctx.Flow().StateBefore(c, c.Var); !known {
-		return nil, false
+		// Only relax the coarse state check for a local receiver with an
+		// explicitly conditional history. The history query rejects escapes.
+		if _, local := c.Var.(*syntax.Variable); !local {
+			return nil, false
+		}
+		conditional := false
+		for _, event := range history.Events {
+			conditional = conditional || !event.Must
+		}
+		if !conditional {
+			return nil, false
+		}
+
 	}
-	prior, historyKnown := NativeCallHistory(ctx, c, c.Var, "bindparam", "bindvalue").Certain()
-	if !historyKnown {
-		return nil, false
-	}
-	for _, node := range prior {
-		binding := node.(*syntax.MethodCall)
+	possible := map[string]bool{}
+	for _, event := range history.Events {
+		binding := event.Node.(*syntax.MethodCall)
 		value := CallArgument(binding.Args, 0, "param")
 		if name, known := NativeString(ctx, value); known {
-			bindings[strings.TrimPrefix(name, ":")] = true
+			key := strings.TrimPrefix(name, ":")
+			possible[key] = true
+			if event.Must {
+				bindings[key] = true
+			}
 		} else if position, known := NativeInt(ctx, value); known && position > 0 {
-			bindings[strconv.FormatInt(position-1, 10)] = true
+			key := strconv.FormatInt(position-1, 10)
+			possible[key] = true
+			if event.Must {
+				bindings[key] = true
+			}
 		} else {
 			return nil, false
 		}
+	}
+	if len(possible) != len(bindings) {
+		return nil, false
 	}
 	return bindings, true
 }
