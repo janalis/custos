@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-11-04
+
 ### Added
 
 - Without a `comparisonStyle` in `custos.json`, the comparison style comes
@@ -412,7 +414,8 @@ First public release.
   stay inside the project; `custos fix` never writes through symlinks; the
   language server rejects malformed or oversized messages.
 
-[Unreleased]: https://github.com/janalis/custos/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/janalis/custos/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/janalis/custos/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/janalis/custos/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/janalis/custos/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/janalis/custos/compare/v0.1.4...v0.1.5
