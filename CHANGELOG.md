@@ -7,6 +7,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Flow analysis preserves complete values through proven literal-array spreads.
+
 - Array unions, spreads, computed keys and shape-limit fallback retain union
   and nested element types, including documented generic element contracts.
 - Impossible narrowing alternatives no longer erase known types when loop

@@ -660,7 +660,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			e.eval(item.Key, f, r, depth+1)
 			value := e.eval(item.Value, f, r, depth+1)
 			v = merge(v, value)
-			if item.Unpack || item.ByRef {
+			if item.ByRef || item.Unpack && !e.completeSpread(value) {
 				v.Complete = false
 			}
 			if item.Unpack && !value.plain {
@@ -3078,6 +3078,29 @@ func (e *Env) loaded(n *syntax.ClassConstFetch) bool {
 	if strings.EqualFold(class.Value, "static") {
 		declared := e.types.Index.Class(own, e.types.PHP)
 		return constant.Final || declared.Final
+	}
+	return true
+}
+
+// completeSpread accepts only an evaluated literal-array producer. Completeness
+// already accounts for nested spreads, references and unknown element values.
+func (e *Env) completeSpread(v Value) bool {
+	if !v.Complete || v.Expr == nil || e.types.PHP.Below(phpversion.PHP74) {
+		return false
+	}
+	array, ok := syntax.UnwrapParens(v.Expr).(*syntax.Array)
+	if !ok {
+		return false
+	}
+	if e.types.PHP.AtLeast(phpversion.PHP81) {
+		return true
+	}
+	// Before 8.1 string keys cannot be unpacked. Restrict this proof to
+	// implicit numeric keys; explicit and nested keys remain conservative.
+	for _, item := range array.Items {
+		if item != nil && (item.Key != nil || item.Unpack) {
+			return false
+		}
 	}
 	return true
 }
