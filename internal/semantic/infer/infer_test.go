@@ -72,7 +72,7 @@ class Repo {
 		"item": `\App\Item`, "name": "string", "strlen": "int", "str_replace": "string",
 		"new": `\App\Item`, "static": `\App\Item`, "class": "string", "coalesce": "string",
 		"dates": `\DateTime[]`, "ternary": "int|string", "nullsafe": "null|string",
-		"hinted": `\App\Item`, "dt": "string", "cast": "int", "arr": "int[]", "mixedarr": "array",
+		"hinted": `\App\Item`, "dt": "string", "cast": "int", "arr": "int[]", "mixedarr": "int[]|string[]",
 	})
 }
 
@@ -484,8 +484,8 @@ function f(bool $c, $u) {
     t('merged', $m); t('ma', $m['a']); t('mb', $m['b']);
 }
 `, map[string]string{
-		"lit": "array{a: int, b: string}", "a": "int", "b": "string", "missing": "?unknown",
-		"list": "array{0: int, 1: string, 5: true, 6: false}", "l1": "string", "l6": "false", "l1s": "string",
+		"lit": "int[]|string[]{a: int, b: string}", "a": "int", "b": "string", "missing": "?unknown",
+		"list": "false[]|int[]|string[]|true[]{0: int, 1: string, 5: true, 6: false}", "l1": "string", "l6": "false", "l1s": "string",
 		"unpack": "non-empty array", "empty": "array{}", "nested": "float",
 		"merged": "int[]|string[]{a: int|string, b?: int}", "ma": "int|string", "mb": "int",
 	})
@@ -524,7 +524,7 @@ function f(array $xs, string $k) {
 `, map[string]string{
 		"name": "string", "n": "int", "overwritten": "int|string", "computed": "int|null",
 		"nestedWrite": "int", "otherKey": "string", "append": "int",
-		"byRef": "?unknown", "foreachRef": "?unknown", "destructKey": "string", "destructPos": "string",
+		"byRef": "int|string", "foreachRef": "int|string", "destructKey": "string", "destructPos": "string",
 	})
 }
 

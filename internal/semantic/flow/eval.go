@@ -1108,7 +1108,12 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	if args != nil {
 		values = make([]Value, 0, len(args.Args))
 		for _, x := range args.Args {
-			values = append(values, e.eval(x, f, r, depth+1))
+			value := e.eval(x, f, r, depth+1)
+			if a, ok := x.(*syntax.Arg); ok && a.Unpack {
+				// Capture entries before a later argument can replace them.
+				value.elements = e.elements(a.Value, f, r)
+			}
+			values = append(values, value)
 			if a, ok := x.(*syntax.Arg); ok {
 				written = append(written, a)
 			}

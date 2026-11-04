@@ -32,6 +32,9 @@ func (r *relativeBinding) has(t Type, depth int) bool {
 			}
 		}
 	}
+	if t.element != nil && r.has(*t.element, depth+1) {
+		return true
+	}
 	return r.hasArray(t.arr, depth+1)
 }
 
@@ -101,7 +104,7 @@ func (r *relativeBinding) bind(t Type, depth int) (Type, bool) {
 	changed := atoms != nil
 	if changed {
 		out = Of(atoms...)
-		out.arr, out.gen, out.inter = t.arr, t.gen, t.inter
+		out.arr, out.gen, out.inter, out.element = t.arr, t.gen, t.inter, t.element
 		out = out.withValueFacts(t)
 	}
 	var gens []genEntry
@@ -133,6 +136,12 @@ func (r *relativeBinding) bind(t Type, depth int) (Type, bool) {
 	if gens != nil {
 		out = out.withGen(gens)
 		changed = true
+	}
+	if t.element != nil {
+		if elem, change := r.bind(*t.element, depth+1); change {
+			out = out.WithElem(elem)
+			changed = true
+		}
 	}
 	if arr, change := r.array(t.arr, depth+1); change {
 		out.arr = arr

@@ -136,7 +136,7 @@ func (e *Env) instanceOf(t types.Type, cls string) types.Type {
 		parts = append(parts, instanceType(t, cls))
 	}
 	if len(parts) == 0 {
-		return types.Unknown
+		return types.Bottom
 	}
 	return types.Union(parts...)
 }
@@ -288,7 +288,7 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 					// Declarations hold in the native environment: identical
 					// to a constant of a type the value cannot have, the
 					// branch never runs.
-					return types.Unknown
+					return types.Bottom
 				}
 				return e.assertIs(t, vt)
 			}
@@ -361,7 +361,7 @@ func emptyCmp(t types.Type, strict, holds bool) types.Type {
 	switch {
 	case holds && strict:
 		if !t.LengthsWithin(0, 0).Has("string") {
-			return types.Unknown // never identical: the branch does not run
+			return types.Bottom // never identical: the branch does not run
 		}
 		return types.StringLengths(types.IntRange{})
 	case holds:
@@ -449,7 +449,7 @@ func intCmp(t types.Type, v int64, strict, holds bool) types.Type {
 	switch {
 	case holds && strict:
 		if !t.HasInt(v) {
-			return types.Unknown // never identical: the branch does not run
+			return types.Bottom // never identical: the branch does not run
 		}
 		return types.Ints(types.IntRange{Lo: v, Hi: v})
 	case holds:

@@ -73,7 +73,7 @@ func TestArrayBuiltinArguments(t *testing.T) {
 		"i2aList":            "\\DateTime[]",
 		"i2aPlain":           "mixed[]",
 		"i2aUnknown":         "mixed[]",
-		"intersectKey":       "array{a?: int, b?: string}",
+		"intersectKey":       "int[]|string[]{a?: int, b?: string}",
 		"keys":               "string[]",
 		"keysList":           "non-empty string[]",
 		"keysPlain":          "int[]|string[]",

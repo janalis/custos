@@ -37,16 +37,16 @@ function run(array $plain, $unknown, string $key) {
  t('nestedValue', [...[[1]], [2]]);
 }
 `, map[string]string{
-		"union":    "array{keep: int, 7: string, new: true, 8: float}",
-		"assigned": "array{keep: int, 7: string, new: true, 8: float}", "key": "int",
+		"union":    "float[]|int[]|string[]|true[]{keep: int, 7: string, new: true, 8: float}",
+		"assigned": "float[]|int[]|string[]|true[]{keep: int, 7: string, new: true, 8: float}", "key": "int",
 		"empty": "array{}", "leftEmpty": "int[]{0: int}", "rightEmpty": "int[]{0: int}",
-		"spread":  "array{0: int, 1: string, 2: true, 3: float}",
-		"strings": "array{x: string, y: int}", "nested": "int[]{0: int, 1: int, 2: int}", "emptySpread": "array{}",
+		"spread":  "float[]|int[]|string[]|true[]{0: int, 1: string, 2: true, 3: float}",
+		"strings": "false[]|int[]|string[]{x: string, y: int}", "nested": "int[]{0: int, 1: int, 2: int}", "emptySpread": "array{}",
 		"unknown": "array", "unknownExplicit": "non-empty array", "plain": "array", "computed": "non-empty int[]",
 		"arrayUnknown": "non-empty array", "typed": "int[]", "typedUnion": "non-empty int[]",
 		"optional": "int[]", "optionalUnion": "int[]", "open": "non-empty array", "openUnion": "non-empty array",
 		"negative": "int[]{-4: int, -3: int, -2: int}", "numeric": "int", "numericAssign": "int",
-		"nestedValue": "array{0: int[]{0: int}, 1: int[]{0: int}}",
+		"nestedValue": "int[][]{0: int[]{0: int}, 1: int[]{0: int}}<array{0: int}>",
 	})
 }
 
@@ -58,7 +58,7 @@ func TestArraySpreadVersions(t *testing.T) {
 		{phpversion.PHP73, `return [...[1]];`, "array"},
 		{phpversion.PHP74, `return [...[9=>1], 2];`, "int[]{0: int, 1: int}"},
 		{phpversion.PHP80, `return [...['x'=>1]];`, "non-empty array"},
-		{phpversion.PHP81, `return [...['x'=>1], 'x'=>'a'];`, "array{x: string}"},
+		{phpversion.PHP81, `return [...['x'=>1], 'x'=>'a'];`, "int[]|string[]{x: string}"},
 		{phpversion.PHP82, `return [-4=>1, ...[2]];`, "int[]{-4: int, 0: int}"},
 	} {
 		t.Run(fmt.Sprintf("%s_%s", tc.version, tc.src), func(t *testing.T) {

@@ -232,9 +232,11 @@ A crash on one file must not end the process or other files' results. Work
 fanned out per file goes through the `project` worker pool, which recovers
 panics on its goroutines; `AnalyzeBuffer` turns a crash outside any rule into
 an `internal-failure` result, and `fixing.Edits` computes a lazy fix's edits
-under recovery. Cross-file flow composition runs a bounded number of rounds;
-summaries still unsettled after them are dropped, so calls into those files
-read as unresolved rather than as clean.
+under recovery. Cross-file flow composition discovers dependencies, groups
+recursive files, and processes dependency groups before their readers.
+Graph rediscovery and per-file summarization are bounded; summaries still
+unsettled after those limits are dropped, so calls into those files read as
+unresolved rather than as clean.
 
 Use hostile-input regression tests and fuzz targets for these contracts.
 Measure hot-path changes with `make bench` and allocation counts.

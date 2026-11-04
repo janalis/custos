@@ -44,15 +44,15 @@ binary, the target PHP version or the parse and inference options change, so
 results are the same with or without it. `--no-cache` neither reads nor
 writes it.
 
+Cross-file flow follows dependencies even on a first run. Recursive groups
+are analyzed under bounded work limits; summaries that do not settle are
+left unresolved.
+
 With `--flow-order`, the cache also keeps the order in which the run
-summarized the cross-file flow of the checked files, and the next run with
-the flag summarizes each file after the ones it calls, instead of again once
-they settle. A repeated run over symfony/src takes about 12% less time.
-Results stay the same, except that a chain of calls across files too long
-for a run without the flag, whose end it reports as unresolved, may be
-followed to the end. Setting `flow.order` to `true` in
-[`custos.json`](./configuration) has the same effect, also in the language
-server.
+summarized the checked files. The next run uses it as a scheduling hint,
+which can avoid repeating summaries during dependency discovery. Setting
+`flow.order` to `true` in [`custos.json`](./configuration) has the same
+effect, also in the language server.
 
 ## Common flags
 
@@ -67,7 +67,7 @@ These apply to both `analyse` and `fix`:
 | `--config DIR` | Start the search for the [project root](./configuration#project-root) here. |
 | `--exclude a,b` | Extra directories to skip, as `exclude` in `custos.json`. |
 | `--no-cache` | Do not reuse or save the [declarations of dependencies](#paths) between runs. |
-| `--flow-order` | Summarize cross-file flow in the [order the last run saved](#paths): faster, and may follow longer call chains. |
+| `--flow-order` | Summarize cross-file flow in the [order the last run saved](#paths): a scheduling hint for dependency discovery. |
 | `--cpuprofile FILE` | Write a Go CPU profile of the analysis to FILE (for `go tool pprof`). |
 
 ## analyse

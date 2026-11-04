@@ -28,7 +28,7 @@ var defaultSrc = ".cache/stubs-src/*phpstorm-stubs*"
 
 // indexRevision names the extraction that produced the index in VERSION;
 // bump it whenever a change to the index alters the generated data.
-const indexRevision = "index-v5"
+const indexRevision = "index-v6"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 

@@ -2,7 +2,6 @@ package infer
 
 import (
 	"strconv"
-	"strings"
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
@@ -40,8 +39,17 @@ func arrayElements(t types.Type) types.Type {
 // elementArray retains the existing literal-array atom representation.
 func elementArray(elem types.Type, nonEmpty bool) types.Type {
 	t := types.Array
-	if !elem.IsUnknown() && !elem.OnlyOf("never") && len(elem.Atoms()) == 1 && !strings.HasSuffix(elem.Atoms()[0], "[]") {
-		t = types.Of(elem.Atoms()[0] + "[]").WithElem(elem)
+	if !elem.IsUnknown() && !elem.OnlyOf("never") {
+		if len(elem.Atoms()) == 1 {
+			t = types.Of(elem.Atoms()[0] + "[]")
+		} else {
+			atoms := make([]string, len(elem.Atoms()))
+			for i, atom := range elem.Atoms() {
+				atoms[i] = atom + "[]"
+			}
+			t = types.Of(atoms...)
+		}
+		t = t.WithElem(elem)
 	}
 	return t.WithNonEmpty(nonEmpty)
 }

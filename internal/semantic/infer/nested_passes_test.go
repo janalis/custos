@@ -26,7 +26,7 @@ func TestNestedWritesPassLimit(t *testing.T) {
 	for _, tc := range []struct {
 		passes int
 		want   string
-	}{{1, "?unknown"}, {4, "array"}} {
+	}{{1, "?unknown"}, {4, "string[][]"}} {
 		maxNestedPasses = tc.passes
 		e := NewEnv(f, names.New(f), ix, phpversion.PHP84, Options{})
 		if got := e.TypeOf(last).ShapeString(); got != tc.want {

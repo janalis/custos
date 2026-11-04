@@ -67,9 +67,8 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 	if long == nil || long.Equal(fromDisk) {
 		t.Fatal("composition did not retain distinct wrapper summaries")
 	}
-	// A chain across files takes a round per file: one longer than the
-	// composition budget must stop conservatively, rather than recurse
-	// indefinitely or retain parser trees in the snapshot.
+	// Cross-file dependencies settle without retaining parser trees in
+	// the snapshot.
 	var paths []string
 	var srcs [][]byte
 	for i := range 12 {
@@ -178,9 +177,7 @@ func TestFlowBuildUpdateSelfRecursionAndUnreadable(t *testing.T) {
 	}
 }
 
-// A chain of wrappers across files settles one file per round; past the
-// rounds, the unsettled summaries are dropped and the call reads as
-// unresolved rather than as clean.
+// Acyclic chains settle even beyond the graph-rediscovery round limit.
 func TestFlowChainAcrossFiles(t *testing.T) {
 	for _, n := range []int{12, maxRounds + 1} {
 		root := t.TempDir()
@@ -198,11 +195,10 @@ func TestFlowChainAcrossFiles(t *testing.T) {
 			if r.Path != main {
 				continue
 			}
-			settled := n <= maxRounds
-			if got := len(r.Findings) == 1; got != settled {
+			if len(r.Findings) != 1 {
 				t.Errorf("chain of %d: findings %+v", n, r.Findings)
 			}
-			if got := len(r.Incomplete) == 1 && r.Incomplete[0].Reason == "unresolved-dispatch"; got == settled {
+			if len(r.Incomplete) != 0 {
 				t.Errorf("chain of %d: status %+v", n, r.Incomplete)
 			}
 		}
@@ -303,15 +299,14 @@ func TestFlowBuildOrdered(t *testing.T) {
 	}
 }
 
-// A chain longer than the rounds loses its end without an order; one from
-// an earlier build settles it whole.
+// Cold and cached orders both settle chains longer than the round limit.
 func TestFlowBuildOrderedSettlesLongChains(t *testing.T) {
 	files := writeChain(t, maxRounds+3)
 	opt := syntax.Options{Version: phpversion.Default}
 	ix := BuildIndex(files, opt, infer.Options{})
 	plain := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
-	if plain.results[maxRounds-1] == nil || plain.results[maxRounds] != nil {
-		t.Fatal("the rounds bound the chain")
+	if slices.Contains(plain.results, nil) {
+		t.Fatal("cold dependency ordering lost the chain")
 	}
 	ordered := BuildFlowOrdered(context.Background(), files, nil, opt, ix, flow.Options{}, plain.Order())
 	if slices.Contains(ordered.results, nil) {
@@ -334,7 +329,7 @@ func TestFlowBuildUpdateKeepsOrder(t *testing.T) {
 		whole bool
 	}{{plain, false}, {BuildFlowOrdered(context.Background(), files, nil, opt, ix, flow.Options{}, plain.Order()), true}} {
 		next, ok := tc.build.Update(edit, ix)
-		if !ok || (next.order != nil) != tc.whole || !slices.Contains(next.results, nil) == !tc.whole {
+		if !ok || (next.order != nil) != tc.whole || slices.Contains(next.results, nil) || !next.Snapshot.Equal(plain.Snapshot) {
 			t.Fatalf("ordered %v: update ok=%v ordered=%v dropped=%v", tc.whole, ok, next.order != nil, slices.Contains(next.results, nil))
 		}
 	}

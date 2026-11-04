@@ -70,7 +70,7 @@ function run($xs, $full, $optional, $unknown, array $args) {
  t('zipOptional', array_map(null, [1], $optional));
 }
 `, map[string]string{
-		"identity": "array{a: int, 4: string}", "identityEmpty": "array{}", "identityNamed": "int[]{a: int}",
+		"identity": "int[]|string[]{a: int, 4: string}", "identityEmpty": "array{}", "identityNamed": "int[]{a: int}",
 		"mapped": "string[]{a: string, 4: string}", "mappedEmpty": "int[]{}", "mappedOptional": "int[]{a?: int}",
 		"mappedTyped": "int[]", "mappedFull": "non-empty int[]", "multiNonEmpty": "non-empty int[]",
 		"multiMaybeEmpty": "int[]", "multiEmpty": "int[]", "multiInvalid": "int[]", "unknownCallback": "array",

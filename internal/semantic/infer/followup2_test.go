@@ -382,7 +382,7 @@ namespace {
 		"values": "array", "isset": "bool", "clone": "?unknown", "offset": "string", "fallbackConst": "?unknown",
 		"globalConst": "int", "missingConst": "?unknown", "anon": identity, "dynStatic": "?unknown", "magic": "int",
 		"yield": "?unknown", "intConst": "int", "dynName": "?unknown", "bare": "?unknown", "staticProp": "?unknown", "unknownClass": "?unknown", "destructCall": "?unknown",
-		"dup": "array{a: string}", "destructString": "?unknown", "dq": "int", "ternaryOther": "non-empty array",
+		"dup": "int[]|string[]{a: string}", "destructString": "?unknown", "dq": "int", "ternaryOther": "non-empty array",
 	})
 }
 

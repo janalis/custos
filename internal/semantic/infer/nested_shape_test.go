@@ -88,8 +88,8 @@ function rewrite(array $m, array $keys) {
 		// Writes into an array that started empty may also create the
 		// element: its other keys are optional. A typed array's elements
 		// are taken as present.
-		"group":  `array{edition?: \Edition, files: \File[]}`,
-		"entry":  `array{verse: \Verse, forms: \Form[]}`,
+		"group":  `\Edition[]|\File[][]|array[]{edition?: \Edition, files: \File[]}`,
+		"entry":  `\Form[][]|\Verse[]|array|array[]{verse: \Verse, forms: \Form[]}`,
 		"plain":  "array",
 		"object": "?unknown",
 		// A key whose old value is unknown holds what is written: unknown
@@ -100,7 +100,7 @@ function rewrite(array $m, array $keys) {
 		// What the loop wrote back is what it read: nothing new.
 		"loopRead": "int[][]<array>",
 		// Values computed from the element itself are unknown: its keys stay.
-		"readBack": "non-empty array|mixed[]{id?: ?unknown, pairs?: ?unknown}",
+		"readBack": "non-empty array|int[]|mixed[]{id?: ?unknown, pairs?: ?unknown}",
 		// A callable may be an array that stops being one; destructuring
 		// and references leave arrays of unknown values.
 		"callable":     "?unknown",

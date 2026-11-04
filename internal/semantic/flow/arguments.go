@@ -8,10 +8,11 @@ import (
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/names"
+	"custos/internal/semantic/types"
 )
 
 // BoundArguments returns values in declaration parameter order. Unknown
-// targets, variadic/unpacked arguments and duplicate bindings are incomplete.
+// targets, uncertain packs and duplicate bindings are incomplete.
 func (e *Env) BoundArguments(at syntax.Node) ([]Value, bool) {
 	r := e.scope(syntax.EnclosingVariableScope(at))
 	for _, c := range r.calls {
@@ -921,44 +922,112 @@ func (e *Env) bind(at syntax.Node, values []Value) ([]Value, bool) {
 	case *syntax.StaticCall:
 		list = n.Args
 	}
+	if len(params) > 64 || list != nil && len(list.Args) > 256 {
+		return nil, false
+	}
 	args := make([]Value, len(params))
 	seen := make([]bool, len(params))
-	position := 0
-	if list == nil {
-		return args, len(params) == 0
-	}
-	for i, x := range list.Args {
-		a, ok := x.(*syntax.Arg)
-		if !ok || a.Unpack || a.ByRef || i >= len(values) {
-			return nil, false
+	position, count := 0, 0
+	named, unpacked, explicitNamed := false, false, false
+	put := func(name string, isNamed bool, value Value) bool {
+		count++
+		if count > 256 {
+			return false
 		}
 		p := position
-		if a.Name != nil {
-			p = -1
+		if isNamed {
+			if e.types.PHP.Below(phpversion.PHP80) {
+				return false
+			}
+			named, p = true, -1
 			for j, param := range params {
-				if param.Name == a.Name.Value {
+				if param.Name == name || param.Variadic {
 					p = j
 					break
 				}
 			}
 		} else {
+			if named {
+				return false
+			}
 			position++
+			if last := len(params) - 1; last >= 0 && p >= last && params[last].Variadic {
+				p = last
+			}
 		}
-		if p < 0 || p >= len(params) || seen[p] || params[p].Variadic || params[p].ByRef {
-			return nil, false
+		if p < 0 || p >= len(params) || params[p].ByRef || seen[p] && !params[p].Variadic {
+			return false
+		}
+		if params[p].Variadic {
+			// Only the pack's values come from the actual arguments: its
+			// numeric and named keys are supplied by the call itself.
+			if !seen[p] {
+				args[p] = Value{Complete: true}
+			}
+			args[p] = merge(args[p], value)
+		} else {
+			args[p] = value
 		}
 		seen[p] = true
-		args[p] = values[i]
+		return true
+	}
+	names := map[string]bool{}
+	if list != nil {
+		for i, x := range list.Args {
+			a, ok := x.(*syntax.Arg)
+			if !ok || a.ByRef || i >= len(values) {
+				return nil, false
+			}
+			if a.Unpack {
+				if explicitNamed || e.types.PHP.Below(phpversion.PHP56) {
+					return nil, false
+				}
+				unpacked = true
+				// PHPDoc does not prove the runtime keys or their order.
+				t := e.types.Native().TypeOf(a.Value)
+				if !t.IsArrayLike() || !t.IsSealedShape() {
+					return nil, false
+				}
+				for _, key := range t.ShapeKeys() {
+					v, held := values[i].elements.lookup(key.Name)
+					isNamed := !types.IsIntKey(key.Name)
+					if key.Optional || !held || !uniqueArgument(key.Name, isNamed, names) || !put(key.Name, isNamed, v) {
+						return nil, false
+					}
+				}
+				continue
+			}
+			name := ""
+			if a.Name != nil {
+				name = a.Name.Value
+				explicitNamed = true
+			}
+			if unpacked && (name == "" || e.types.PHP.Below(phpversion.PHP81)) || !uniqueArgument(name, a.Name != nil, names) || !put(name, a.Name != nil, values[i]) {
+				return nil, false
+			}
+		}
 	}
 	for i, p := range params {
 		if !seen[i] {
-			if !p.Optional {
+			if !p.Optional && !p.Variadic {
 				return nil, false
 			}
 			args[i] = Value{Complete: true}
 		}
 	}
 	return args, true
+}
+
+// uniqueArgument rejects repeated named keys, including in a variadic pack.
+func uniqueArgument(name string, isNamed bool, seen map[string]bool) bool {
+	if !isNamed {
+		return true
+	}
+	if seen[name] {
+		return false
+	}
+	seen[name] = true
+	return true
 }
 
 // accepted records what a call proves by returning. Since PHP 8 a PHP

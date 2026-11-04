@@ -56,7 +56,7 @@ func newCommon(name string, stderr io.Writer) *common {
 	c.fs.StringVar(&c.exclude, "exclude", "", "comma-separated extra directories to exclude")
 	c.fs.StringVar(&c.profile, "cpuprofile", "", "write a CPU profile to this file")
 	c.fs.BoolVar(&c.noCache, "no-cache", false, "do not reuse or save the declarations of dependencies between runs")
-	c.fs.BoolVar(&c.flowOrder, "flow-order", false, "summarize cross-file flow in the order the last run saved (faster; may settle call chains a run without it gives up on)")
+	c.fs.BoolVar(&c.flowOrder, "flow-order", false, "use the last saved cross-file summary order as a scheduling hint")
 	return c
 }
 

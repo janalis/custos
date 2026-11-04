@@ -104,7 +104,7 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	if len(infos) > 0 {
 		t = t.withInfo(unionInfo(infos))
 	}
-	return t.withGen(unionGen(t, pts)).withInter(unionInter(pts))
+	return t.withGen(unionGen(t, pts)).withInter(unionInter(pts)).withUnionElements(pts)
 }
 
 // part parses one union member: its atoms and array facts (shapes
@@ -179,11 +179,7 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		for _, a := range in.atoms {
 			out = append(out, a+"[]")
 		}
-		t := ofAtoms(out)
-		if in.arr != nil {
-			t = t.withInfo(&arrayInfo{elem: in.arr})
-		}
-		return t
+		return ofAtoms(out).WithElem(in)
 	}
 	// Constant types require semantic information; unsupported constants are mixed.
 	if strings.Contains(s, "::") && !strings.ContainsAny(s, "<{(") {
@@ -410,7 +406,11 @@ func (p *docParser) arrayPart(low, args string, resolve Resolver, depth int) Typ
 			}
 			a.elem = el.arr
 		}
-		return Of(out...).withInfo(&a)
+		t := Of(out...).withInfo(&a)
+		if closed {
+			t = t.WithElem(el)
+		}
+		return t
 	}
 	if low == "iterable" {
 		return Of("iterable")

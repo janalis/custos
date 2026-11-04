@@ -293,18 +293,29 @@ func (t Type) WithoutShape() Type {
 // WithoutArrayInfo drops every array fact beyond the atoms (tools/genstubs
 // stores plain atom sets).
 func (t Type) WithoutArrayInfo() Type {
-	t.arr = nil
+	t.arr, t.element = nil, nil
 	return t
 }
 
-// WithElem attaches the array facts of elem (the element type) to t's `T[]`
-// members.
+// WithElem attaches the complete element contract to t's `T[]` members.
 func (t Type) WithElem(elem Type) Type {
-	if elem.arr == nil && (t.arr == nil || t.arr.elem == nil) {
+	if !t.hasArrayAtom() {
+		return t
+	}
+	t.element = nil
+	if !t.Has("array") && (elem.element != nil || elem.gen != nil || elem.inter != nil || elem.ints != nil || elem.lens != nil || elem.cases != nil || elem.strs != nil) {
+		contract := elem
+		t.element = &contract
+	}
+	info := elem.arr
+	if t.element != nil {
+		info = nil // the full contract already contains the nested array facts
+	}
+	if info == nil && (t.arr == nil || t.arr.elem == nil) {
 		return t
 	}
 	a := t.cloneInfo()
-	a.elem = elem.arr
+	a.elem = info
 	return t.withInfo(a)
 }
 
@@ -411,6 +422,9 @@ func (t Type) ShapeString() string {
 		}
 		base = t.joinParts(parts)
 	}
+	if t.element != nil {
+		base += "<" + t.element.ShapeString() + ">"
+	}
 	if t.arr == nil {
 		return base
 	}
@@ -463,8 +477,35 @@ func (a *arrayInfo) isNonEmptyByKeys() bool {
 // atoms and array facts (shapes on the `array` member, `non-empty-array`,
 // element shapes). Used to store doc types in the symbol index.
 func (t Type) DocString() string {
-	if t.arr == nil && t.gen == nil {
+	if t.arr == nil && t.gen == nil && t.element == nil {
 		return t.String()
+	}
+	if t.HasShape() {
+		// A shape describes the array as a whole, including heterogeneous
+		// and nested elements; emitting T[] atoms here loses its keys.
+		parts := []string{docAtom("array", t.arr)}
+		for _, atom := range t.atoms {
+			if atom != "array" && !strings.HasSuffix(atom, "[]") {
+				parts = append(parts, Type{atoms: []string{atom}, gen: t.gen}.DocString())
+			}
+		}
+		return strings.Join(parts, "|")
+	}
+	if t.element != nil {
+		prefix, key := "array", "int|string"
+		if t.IsNonEmptyArray() {
+			prefix = "non-empty-array"
+		}
+		if t.arr != nil {
+			key = t.arr.keyDoc()
+		}
+		parts := []string{prefix + "<" + key + "," + t.element.DocString() + ">"}
+		for _, atom := range t.atoms {
+			if atom != "array" && !strings.HasSuffix(atom, "[]") {
+				parts = append(parts, Type{atoms: []string{atom}, gen: t.gen}.DocString())
+			}
+		}
+		return strings.Join(parts, "|")
 	}
 	parts := make([]string, len(t.atoms))
 	for i, a := range t.atoms {

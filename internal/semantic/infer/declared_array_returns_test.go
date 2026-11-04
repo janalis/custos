@@ -24,8 +24,8 @@ t('documented', documented()); t('mixedBody', mixedBody(true));
 t('final', (new Repo())->all()); t('open', (new Open())->all());
 $cb = 'rows'; t('callable', call_user_func('rows'));
 `, map[string]string{
-		"rows": "array{0: int[]{id: int}}", "maybe": "int[]|null{a: int}", "strict": "string[]{k: string}",
+		"rows": "int[][]{0: int[]{id: int}}<array{id: int}>", "maybe": "int[]|null{a: int}", "strict": "string[]{k: string}",
 		"scalar": "array", "documented": "string[]", "mixedBody": "array", "final": "int[]{n: int}",
-		"open": "array", "own": "true[]{p: true}", "callable": "array{0: int[]{id: int}}",
+		"open": "array", "own": "true[]{p: true}", "callable": "int[][]{0: int[]{id: int}}<array{id: int}>",
 	})
 }

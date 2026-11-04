@@ -22,27 +22,31 @@ import (
 // facts are kept the same way: int values (ints.go), string lengths
 // (lengths.go), enum cases (cases.go) and string values (strings.go).
 type Type struct {
-	atoms []string   // sorted, unique; nil = unknown
-	arr   *arrayInfo // optional array facts; nil when none
-	gen   []genEntry // generic arguments of class atoms (see gen.go); nil when none
-	inter *[]string  // class atoms forming one intersection (see inter.go); nil when none
-	ints  []IntRange // values of the int atom (see ints.go); nil when unconstrained
-	lens  []IntRange // byte lengths of the string atom (see lengths.go); nil when unconstrained
-	cases *enumCases // cases of one enum class atom (see cases.go); nil when unconstrained
-	strs  *strFacts  // values of the string atom (see strings.go); nil when untracked
+	atoms   []string   // sorted, unique; nil = unknown
+	arr     *arrayInfo // optional array facts; nil when none
+	element *Type      // complete element metadata not expressible by T[] atoms
+	gen     []genEntry // generic arguments of class atoms (see gen.go); nil when none
+	inter   *[]string  // class atoms forming one intersection (see inter.go); nil when none
+	ints    []IntRange // values of the int atom (see ints.go); nil when unconstrained
+	lens    []IntRange // byte lengths of the string atom (see lengths.go); nil when unconstrained
+	cases   *enumCases // cases of one enum class atom (see cases.go); nil when unconstrained
+	strs    *strFacts  // values of the string atom (see strings.go); nil when untracked
 }
 
 // Common types.
 var (
 	Unknown = Type{}
-	Mixed   = Of("mixed")
-	Int     = Of("int")
-	Float   = Of("float")
-	String  = Of("string")
-	Bool    = Of("bool")
-	Null    = Of("null")
-	Array   = Of("array")
-	Void    = Of("void")
+	// Bottom is an impossible narrowing, distinct from missing information.
+	// IsUnknown remains true so existing consumers cannot use it as evidence.
+	Bottom = Type{atoms: []string{}}
+	Mixed  = Of("mixed")
+	Int    = Of("int")
+	Float  = Of("float")
+	String = Of("string")
+	Bool   = Of("bool")
+	Null   = Of("null")
+	Array  = Of("array")
+	Void   = Of("void")
 )
 
 // Of builds a type from atoms (normalised and deduplicated).
@@ -52,6 +56,9 @@ func Of(atoms ...string) Type {
 		if a = normalizeAtom(a); a != "" {
 			out = append(out, a)
 		}
+	}
+	if len(out) == 0 {
+		return Unknown
 	}
 	// never is the bottom type: it disappears from any non-empty union.
 	if len(out) > 1 {
@@ -79,6 +86,10 @@ func Of(atoms ...string) Type {
 
 // IsUnknown reports whether nothing is known about the type.
 func (t Type) IsUnknown() bool { return len(t.atoms) == 0 }
+
+// IsBottom reports a narrowing with no possible value. Unlike unknown,
+// it contributes no alternatives to a union.
+func (t Type) IsBottom() bool { return t.atoms != nil && len(t.atoms) == 0 }
 
 // Atoms returns the atoms (do not modify).
 func (t Type) Atoms() []string { return t.atoms }
@@ -130,6 +141,9 @@ func Union(ts ...Type) Type {
 	var all []string
 	info, ints, lens, cases, strs := false, false, false, false, false
 	for _, t := range ts {
+		if t.IsBottom() {
+			continue
+		}
 		if t.IsUnknown() {
 			return Unknown
 		}
@@ -137,6 +151,9 @@ func Union(ts ...Type) Type {
 		info = info || t.arr != nil
 		ints, lens = ints || t.ints != nil, lens || t.lens != nil
 		cases, strs = cases || t.cases != nil, strs || t.strs != nil
+	}
+	if len(all) == 0 && len(ts) > 0 {
+		return Bottom
 	}
 	u := Of(all...)
 	if info {
@@ -154,7 +171,24 @@ func Union(ts ...Type) Type {
 	if strs && u.Has("string") {
 		u.strs = unionStrs(ts)
 	}
-	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts))
+	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts)).withUnionElements(ts)
+}
+
+// withUnionElements preserves complete element contracts across array members.
+func (t Type) withUnionElements(ts []Type) Type {
+	for _, array := range ts {
+		if array.element != nil {
+			var elems []Type
+			for _, member := range ts {
+				if member.hasArrayAtom() {
+					elems = append(elems, member.Elem())
+				}
+			}
+			t = t.WithElem(Union(elems...))
+			break
+		}
+	}
+	return t
 }
 
 // absorbEmptyArrays drops the empty arrays (`[]`) of ts when another member
@@ -212,7 +246,17 @@ func (t Type) Without(atoms ...string) Type {
 			out = append(out, a)
 		}
 	}
-	return Type{atoms: out}.withInfo(t.arr).withGen(t.gen).withInter(t.Intersection()).withValueFacts(t)
+	outType := Type{atoms: out}.withInfo(t.arr).withGen(t.gen).withInter(t.Intersection()).withValueFacts(t)
+	if outType.hasArrayAtom() && t.element != nil {
+		elem := *t.element
+		for _, atom := range drop {
+			if strings.HasSuffix(atom, "[]") {
+				elem = elem.Without(strings.TrimSuffix(atom, "[]"))
+			}
+		}
+		outType = outType.WithElem(elem)
+	}
+	return outType
 }
 
 // withValueFacts carries the value facts of from (int values, string lengths
@@ -246,6 +290,12 @@ func (t Type) IsNullable() bool { return t.Has("null") }
 
 // Elem returns the element type of array atoms (T[] → T); unknown when none.
 func (t Type) Elem() Type {
+	if t.Has("array") {
+		return Unknown
+	}
+	if t.element != nil {
+		return *t.element
+	}
 	var out []string
 	for _, a := range t.atoms {
 		if strings.HasSuffix(a, "[]") {

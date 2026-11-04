@@ -26,14 +26,8 @@ type condBudget struct {
 }
 
 // unionNarrowed is the union of two alternative narrowings of one type; an
-// emptied (unknown) side is an impossible path and adds nothing.
+// bottom side is an impossible path; unknown still invalidates the union.
 func unionNarrowed(a, b types.Type) types.Type {
-	switch {
-	case a.IsUnknown():
-		return b
-	case b.IsUnknown():
-		return a
-	}
 	return types.Union(a, b)
 }
 
@@ -383,7 +377,7 @@ func narrowAtoms(t types.Type, atoms []string, truthy bool) types.Type {
 		// Every known member fails: a branch the types say is impossible
 		// (often a PHPDoc type that does not hold, `!is_object($x)` on a
 		// `@var Foo`): unknown rather than the refuted type.
-		return types.Unknown
+		return types.Bottom
 	}
 	return t.Without(drop...) // keeps array facts (shapes) of the remaining members
 }

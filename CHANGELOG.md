@@ -5,6 +5,18 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Array unions, spreads, computed keys and shape-limit fallback retain union
+  and nested element types, including documented generic element contracts.
+- Impossible narrowing alternatives no longer erase known types when loop
+  values or branch results are joined; missing information stays conservative.
+- Flow analysis follows provable argument unpacking and bounded variadic
+  packs, preserving input provenance through wrappers.
+- Cross-file flow summaries follow dependencies on cold runs too, so long
+  acyclic call chains no longer consume a round per file. Recursive groups
+  remain bounded, and `--flow-order` remains an optional scheduling hint.
+
 ## [0.1.8] - 2026-11-04
 
 ### Added

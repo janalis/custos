@@ -74,9 +74,9 @@ const maxWaves = 16
 // summarized in waves of growing depth, the deepest together, each wave
 // against the snapshot of the waves before; composition then goes on as in
 // BuildFlow. Most files thus read settled contracts the first time instead
-// of being summarized again once they settle. Where BuildFlow settles
-// every file, the snapshot is the same; a call chain whose end BuildFlow
-// drops past its rounds may settle here instead.
+// of being summarized again once they settle. Cold builds discover the
+// dependency order during composition; the supplied order is only a hint
+// that can avoid early repeated summaries.
 func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *FlowBuild {
 	trees := make([]*syntax.File, len(files))
 	// A file that crashes the parser keeps no tree: it is not summarized.
@@ -464,13 +464,24 @@ func (b *FlowBuild) reads() [][]int {
 // (strongly connected components with more than one node, or a node with
 // an edge to itself), restricted to the nodes in.
 func cyclicFiles(edges [][]int, in []bool) []bool {
+	cyclic := make([]bool, len(edges))
+	for _, component := range flowComponents(edges, in) {
+		for _, i := range component {
+			cyclic[i] = len(component) > 1 || slices.Contains(edges[i], i)
+		}
+	}
+	return cyclic
+}
+
+// flowComponents returns strongly connected components, dependencies first.
+func flowComponents(edges [][]int, in []bool) [][]int {
 	n := len(edges)
 	index, low := make([]int, n), make([]int, n)
 	for i := range index {
 		index[i] = -1
 	}
 	onStack := make([]bool, n)
-	cyclic := make([]bool, n)
+	var components [][]int
 	var stack []int
 	next := 0
 	var connect func(v int)
@@ -482,9 +493,6 @@ func cyclicFiles(edges [][]int, in []bool) []bool {
 		for _, w := range edges[v] {
 			if !in[w] {
 				continue
-			}
-			if w == v {
-				cyclic[v] = true
 			}
 			if index[w] < 0 {
 				connect(w)
@@ -504,11 +512,7 @@ func cyclicFiles(edges [][]int, in []bool) []bool {
 					break
 				}
 			}
-			if len(component) > 1 {
-				for _, w := range component {
-					cyclic[w] = true
-				}
-			}
+			components = append(components, component)
 		}
 	}
 	for v := range n {
@@ -516,7 +520,7 @@ func cyclicFiles(edges [][]int, in []bool) []bool {
 			connect(v)
 		}
 	}
-	return cyclic
+	return components
 }
 
 // parseFlowSource parses src, or the file at path when src is nil; nil
@@ -532,8 +536,8 @@ func parseFlowSource(path string, src []byte, opt syntax.Options) *syntax.File {
 }
 
 // maxRounds bounds the rounds of compose. A round redoes only the files
-// whose summaries read a contract the previous one changed, and each round
-// settles one more file of a chain of calls across files.
+// whose summaries read a changed contract. Each round discovers a new
+// dependency graph; chain length within that graph does not consume rounds.
 const maxRounds = 32
 
 // maxSummaries bounds how often compose summarizes one file. A file of a
@@ -546,30 +550,88 @@ const maxSummaries = 8
 // compose runs the bounded fixed point from snapshot: a file is summarized
 // (again) when it has no summary or a contract its summaries read differs
 // from the snapshot they were computed against (against). The files of a
-// round read the snapshot of the round before: they are summarized side by
-// side. What has not settled when it stops is dropped (see unsettled).
+// wave read one immutable snapshot and run side by side; dependency waves
+// run in order. What has not settled when it stops is dropped (see unsettled).
 func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, against []*flow.Snapshot, ix *index.Index, tree func(int) *syntax.File) *flow.Snapshot {
 	summarized := make([]int, len(b.results))
 	for range maxRounds {
-		if ctx.Err() != nil {
-			return snapshot
-		}
-		var work []int
-		for i, r := range b.results {
-			if (r == nil || !r.Current(against[i], snapshot)) && summarized[i] < maxSummaries {
-				work = append(work, i)
-				summarized[i]++
+		changed := false
+		for _, wave := range b.flowWaves() {
+			// Acyclic files settle in one pass after their dependencies.
+			// Recursion settles within its wave before its readers run.
+			for range maxSummaries {
+				if ctx.Err() != nil {
+					return snapshot
+				}
+				var work []int
+				for _, i := range wave.files {
+					r := b.results[i]
+					if (r == nil || !r.Current(against[i], snapshot)) && summarized[i] < maxSummaries {
+						work = append(work, i)
+						summarized[i]++
+					}
+				}
+				if len(work) == 0 {
+					break
+				}
+				b.summarize(ctx, work, snapshot, against, ix, tree)
+				next := flow.NewSnapshotWithOptions(b.options, b.results...)
+				if snapshot.Equal(next) {
+					snapshot = next
+					break
+				}
+				snapshot, changed = next, true
+				if !wave.recursive {
+					break
+				}
 			}
 		}
-		b.summarize(ctx, work, snapshot, against, ix, tree)
-		next := flow.NewSnapshotWithOptions(b.options, b.results...)
-		if snapshot.Equal(next) {
-			snapshot = next
+		if !changed {
 			break
 		}
-		snapshot = next
 	}
+
 	return b.unsettled(snapshot, against)
+}
+
+// flowWaves groups dependency components by depth. Independent components
+// remain parallel; cycles share a wave and use compose's per-file budget.
+type flowWave struct {
+	files     []int
+	recursive bool
+}
+
+func (b *FlowBuild) flowWaves() []flowWave {
+	edges := b.reads()
+	in := make([]bool, len(edges))
+	for i := range in {
+		in[i] = true
+	}
+	components := flowComponents(edges, in)
+	owner := make([]int, len(edges))
+	for c, files := range components {
+		for _, i := range files {
+			owner[i] = c
+		}
+	}
+	depth := make([]int, len(components))
+	var waves []flowWave
+	for c, files := range components {
+		for _, i := range files {
+			for _, j := range edges[i] {
+				if owner[j] != c {
+					depth[c] = max(depth[c], depth[owner[j]]+1)
+				}
+			}
+		}
+		for len(waves) <= depth[c] {
+			waves = append(waves, flowWave{})
+		}
+		wave := &waves[depth[c]]
+		wave.files = append(wave.files, files...)
+		wave.recursive = wave.recursive || len(files) > 1 || slices.Contains(edges[files[0]], files[0])
+	}
+	return waves
 }
 
 // summarize summarizes the files of work side by side against snapshot.
