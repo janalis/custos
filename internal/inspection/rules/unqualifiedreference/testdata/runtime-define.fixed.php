@@ -22,7 +22,7 @@ namespace App\Poly {
 
 namespace {
     \define(__NAMESPACE__ . '\M_PI', 1);
-    echo \M_PI;
+    echo M_PI;
 }
 
 namespace App\Other {

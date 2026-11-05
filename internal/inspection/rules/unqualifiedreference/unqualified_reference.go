@@ -118,7 +118,7 @@ func uqEligible(ctx *analysis.Context, name *syntax.Name, constant bool) bool {
 		return false
 	}
 	ns := uqGoverningNamespace(name) // D4
-	if ns == nil {
+	if ns == nil || ctx.Names().Namespace(name.Span().Start) == "" {
 		return false
 	}
 	for _, st := range ns.Stmts { // D6
@@ -163,7 +163,7 @@ func (unqualifiedReference) callback(ctx *analysis.Context, call *syntax.FuncCal
 	if !ok || astquery.ArgCount(call) < 2 {                      // D7
 		return
 	}
-	if uqGoverningNamespace(call) == nil { // D4 (custos: Part B too)
+	if ctx.Names().Namespace(call.Span().Start) == "" { // D4 (custos: Part B too)
 		return
 	}
 	value := uqArgument(call, pos, "callback")                                                      // D8: the argument bound to the callback

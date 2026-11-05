@@ -731,7 +731,7 @@ func (e *Env) Sinks(at syntax.Node) []Sink {
 	name := e.sinkSummaryName(at)
 	summary, ok := e.contract(name)
 	if !ok {
-		return nil
+		return e.closedSinks(at)
 	}
 	args, known := e.BoundArguments(at)
 	if !known {

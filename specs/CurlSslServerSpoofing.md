@@ -22,13 +22,16 @@ case-sensitive) is exactly `CURLOPT_SSL_VERIFYHOST` (kind **H**) or
 `CURLOPT_SSL_VERIFYPEER` (kind **P**). Let `K` be that reference. Determine
 the *setting site* from where `K` sits; exactly one of:
 
-- **D1 (curl_setopt call)** `K` is a direct argument of a plain function call
-  resolving to the global function `curl_setopt` (name compared
-  case-insensitively; a same-named namespaced function does not count), and
-  that call has exactly **3** arguments. The value `V` is
-  the third argument. The reported node is the whole call.
-  (Upstream does not check that `K` is the second argument — see
-  Divergences.)
+- **D1 (curl_setopt call)** A call resolves to the native builtin
+  `curl_setopt` (name compared case-insensitively; user-defined declarations
+  with the same name do not count). Its arguments must bind unambiguously
+  to the builtin's `handle`, `option` and `value` parameters, with no missing,
+  duplicate or extra argument. `K` must be the expression bound to `option`;
+  `V` is the expression bound to `value`. Positional arguments, reordered
+  named arguments and unpacked arguments with provable keys and contents
+  count according to PHP's argument-binding rules at the configured language
+  version. An unknown unpacking or otherwise unprovable binding gives no
+  report. The reported node is the whole call.
 - **D2 (array element)** `K` is the key of a `key => value` array element
   (any array literal, `[...]` or `array(...)`, in any context — e.g. a
   `curl_setopt_array()` options array). `V` is the element's value. The
@@ -89,9 +92,10 @@ Each discovered value is classified:
 
 ## Exceptions (no report)
 
-- **E1** `curl_setopt` with other than 3 arguments; calls to other
-  functions, including a namespaced lookalike `curl_setopt` that the call
-  resolves to.
+- **E1** `curl_setopt` calls without a valid, provable binding of all three
+  parameters; calls to other functions, including a user-defined lookalike
+  `curl_setopt` that the call resolves to. A verification constant bound to
+  `handle` or `value`, rather than `option`, is not a setting site.
 - **E2** `K` used as an array element *value* (`[CURLOPT_SSL_VERIFYPEER]`),
   in a comparison, as an argument of other functions, or in an array access
   not under a plain assignment (`$o[CURLOPT_SSL_VERIFYPEER] ??= 0`,
@@ -163,6 +167,15 @@ function fetch($handle, $insecure)
 }
 ```
 
+Named arguments retain their parameter roles regardless of written order:
+
+```php
+<?php
+curl_setopt(value: false, handle: $connection, option: CURLOPT_SSL_VERIFYPEER); // reported
+curl_setopt(CURLOPT_SSL_VERIFYPEER, $unrelatedOption, false); // not a setting site
+curl_setopt(...[$connection, CURLOPT_SSL_VERIFYHOST, 0]); // reported
+```
+
 ## Divergences
 
 - **E7 — custos diverges from upstream.** Upstream reports an array
@@ -183,10 +196,10 @@ function fetch($handle, $insecure)
   reaching a local variable's use and stays silent for a property
   overwritten with an unclassifiable value (Detection, E6). A disabling
   value that remains one possible alternative is still reported.
-- D1 accepts `K` in any argument position of `curl_setopt`
-  (`curl_setopt($h, $opt, CURLOPT_SSL_VERIFYPEER)` would evaluate the
-  constant itself as the value; that resolves to a multi-digit number and is
-  ignored, so in practice nothing is reported). custos does the same: `K` is
-  not required to be the second argument.
+- **Option argument roles (custos diverges).** Only the argument bound to
+  `option` selects the TLS setting. Treating a verification constant in the
+  handle or value position as the option can produce a false report on an
+  invalid or unrelated call. Named arguments and provable unpacking follow
+  those same roles instead of their written positions.
 - For H, `true` counts as disabling (cURL treats `true` as `1`, which is not
   the safe value `2`). Keep.

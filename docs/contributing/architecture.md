@@ -140,13 +140,24 @@ member accesses and fluent chains. Its conditional flag records nullsafe
 accesses; a possible mutation is never proof that a write occurred.
 `Flow().ParameterRead` uses CFG results to ask whether a parameter's entry
 value is read. Only a known negative result proves that value unused; unknown
-values, arrow captures and incomplete scopes stay conservative.
+values and incomplete scopes stay conservative. Captures are observed when the
+closure is created; arrow parameter names shadow outer names. Scope introspection
+observes the possible current parameter bindings at the call's execution point.
 
 PHPUnit declaration metadata, call and version support belongs in `phpunit`. Preserve the
 difference between a written call name and its actual runtime target,
 especially when deciding whether a fix is safe.
 
 ## Semantic evidence and fix safety
+
+`infer.Env.BuiltinArguments` resolves a native function and returns source
+expressions in parameter order. It validates the entire call, including PHP
+version rules, duplicate bindings and bounded literal argument packs; unknown
+or variadic bindings establish no value or omission proof. Use this when a rule
+needs runtime argument roles rather than their written positions.
+`types.Type.ArrayCardinality` supplies lower and upper bounds only for sealed,
+array-only types. A quick-fix needing runtime cardinality uses native inference
+and requires equal bounds; documented shapes alone cannot authorize the edit.
 
 A written name is not enough to identify a builtin. Use the analysis context's
 resolved global-function queries so namespace functions and imports retain
@@ -188,7 +199,12 @@ open documents.
   never validates file paths or network destinations.
 - A method wrapper needs a final receiver class, a final method or an
   accessible private method, with one unconditional declaration. Overridable
-  methods stay conservative.
+  methods stay conservative. A native receiver union of at most eight final
+  classes may instead join return contracts and possible sinks when every
+  target, declaration chain and argument binding is known. PHPDoc-only unions,
+  escaped receivers, missing targets, generators and reference bindings do not
+  establish that proof. Each class-metadata and callable contract participates
+  in the cross-file dependency graph.
 - Catch paths are pruned only for blocks proven non-throwing. Calls, uncertain
   reads or writes, callbacks and object destruction keep exception paths;
   `finally` blocks follow the applicable exits. `declare(ticks=…)` disables

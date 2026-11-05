@@ -9,6 +9,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Parameter-use proofs observe captures and scope-introspection reads at their
+  evaluation points, including shadowed arrow parameters and selected arguments.
+- Builtin argument binding supports positional, named and literal unpacked
+  arguments; cURL TLS checks use the resolved option and value roles.
+- Qualification checks skip global namespace blocks in mixed-namespace files.
+- Replacement merges preserve empty-list padding and use proven native array
+  cardinality while retaining observable argument evaluation.
+- Flow summaries join returns and possible sinks across bounded native unions
+  of final receiver classes, with every target and binding verified.
+
 - Value discovery retains both short-ternary operands, and builtin return
   inference follows proven boolean arguments to `hrtime` and `gettimeofday`.
 - Parameter-overwrite checks require flow evidence; nullsafe calls retain

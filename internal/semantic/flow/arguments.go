@@ -922,6 +922,10 @@ func (e *Env) bind(at syntax.Node, values []Value) ([]Value, bool) {
 	case *syntax.StaticCall:
 		list = n.Args
 	}
+	return e.bindTo(list, params, values)
+}
+
+func (e *Env) bindTo(list *syntax.ArgList, params []index.Param, values []Value) ([]Value, bool) {
 	if len(params) > 64 || list != nil && len(list.Args) > 256 {
 		return nil, false
 	}

@@ -176,3 +176,14 @@ function h() {}
 		t.Error("IsBuiltinType")
 	}
 }
+
+func TestEffectiveGlobalNamespaceBlock(t *testing.T) {
+	src := `<?php namespace A { strlen('a'); } namespace { strlen('b'); } namespace B { strlen('c'); }`
+	f := syntax.Parse("names.php", []byte(src), syntax.Options{Version: phpversion.Max})
+	r := New(f)
+	for marker, want := range map[string]string{"strlen('a')": "A", "strlen('b')": "", "strlen('c')": "B"} {
+		if got := r.Namespace(uint32(strings.Index(src, marker))); got != want {
+			t.Fatalf("%s: %s", marker, got)
+		}
+	}
+}

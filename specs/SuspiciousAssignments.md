@@ -95,7 +95,19 @@ body, unless it is in a test context (E6).
   that bypasses the apparent first write, prevents the report. If aliases,
   captures, dynamic behavior or uncertain control flow prevent proving this,
   do not report. The direct-body assignment and two-access requirements
-  above still apply.
+  above still apply. Arrow functions capture free variables by value when
+  their expressions are evaluated: capturing the original parameter is a
+  read at that point even when the arrow is invoked later. An arrow
+  parameter of the same name shadows the outer variable and does not read
+  it. Explicit closure captures likewise observe the value at creation;
+  capture by reference must remain conservative. Scope-introspection calls
+  that can observe local variables also count as reads when evaluated,
+  including their use inside another expression. A statically known
+  `compact()` name list reads the named variables. Unknown names or a getter
+  index conservatively observe every binding they might select at that
+  evaluation point; this does not count as reading an original parameter
+  value already absent from all those bindings. Unknown values or unknown
+  scope effects prevent proof that the original parameter was unread.
 - Report the target variable.
 
 ### D. `=+`, `=-`, `=!` formatting typo
@@ -336,6 +348,18 @@ consume:
 }
 ```
 
+Arrow captures observe the incoming value at creation, before a later write:
+
+```php
+<?php
+function preserveIncoming($incoming) {
+    $snapshot = fn() => $incoming;
+    $incoming = 'new value'; // no parameter-overwrite report
+    echo $incoming;
+    return $snapshot;
+}
+```
+
 ## Divergences
 
 - **D16 reference bindings (custos diverges).** Upstream reports
@@ -410,11 +434,24 @@ consume:
   missing-`break` bug. A target read by a statement after its write (in its
   own case or in a later one, before the overwrite; for an assignment, its
   right-hand side) is dropped from `W` (Mautic installer steps).
-- **Check C positional reads (custos diverges).** A function that calls
-  `func_get_arg()` or `func_get_args()` (outside nested functions) reads
-  the passed values without naming the parameter, so its parameters are
-  not reported (`$b = func_num_args() > 1 ? func_get_arg(1) : null;`
-  keeps a deprecated signature working).
+- **Check C positional reads (custos diverges).** On PHP 7.0 and later,
+  `func_get_args()` observes the current parameter bindings when the call
+  executes. A `func_get_arg()` call with a known index observes only the
+  selected parameter. A read before its original value is overwritten
+  prevents a parameter-overwrite report; introspection executed only after
+  that overwrite does not itself preserve the original value or prevent
+  the report. Thus `$b = func_num_args() > 1 ? func_get_arg(1) : null;`
+  still reads the original second argument on the right-hand side and is
+  not reported. With `$b = 'replacement'; return func_get_args();`, the
+  getter observes the replacement and does not excuse losing the original
+  `$b`. An unknown selected index conservatively observes every current
+  parameter binding it could select. If none of those bindings can contain
+  a particular original parameter value, that selection does not prevent
+  proving that value unused. Unknown selected values or otherwise unknown
+  scope effects still prevent proof. Before PHP
+  7.0, positional introspection can expose the original passed values;
+  retain that possibility conservatively rather than proving an overwrite
+  harmless from the current bindings alone.
 - **Check C promoted parameters (custos diverges).** In
   `__construct(public string $name) { $name = 'x'; ... }` the argument was
   copied to `$this->name` by promotion before the first statement, so the

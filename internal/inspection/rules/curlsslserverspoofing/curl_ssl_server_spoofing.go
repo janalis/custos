@@ -220,17 +220,13 @@ func curlOwnProperty(target syntax.Expr, name string) bool {
 
 // curlSettingSite implements D1–D3: the reported node and the value set.
 func curlSettingSite(ctx *analysis.Context, k *syntax.ConstFetch) (site syntax.Node, value syntax.Expr) {
+	if call := curlArgumentCall(k); call != nil && ctx.IsGlobalFunctionCall(call, "curl_setopt") {
+		args, known := ctx.Types().Native().BuiltinArguments(call)
+		if known && len(args) == 3 && syntax.UnwrapParens(args[1]) == k {
+			return call, args[2]
+		}
+	}
 	switch p := k.Parent().(type) {
-	case *syntax.Arg: // D1 (an Arg's only expression child is its value)
-		call := astquery.ParentFuncCall(k)
-		if call == nil || !ctx.IsGlobalFunctionCall(call, "curl_setopt") || astquery.ArgCount(call) != 3 {
-			return nil, nil
-		}
-		third, ok := call.Args.Args[2].(*syntax.Arg)
-		if !ok || third.Value == nil {
-			return nil, nil
-		}
-		return call, third.Value
 	case *syntax.ArrayItem: // D2
 		if p.Key != syntax.Expr(k) || p.Value == nil {
 			return nil, nil
@@ -353,4 +349,18 @@ func curlBool(enable bool) int {
 		return 1
 	}
 	return -1
+}
+
+// Find the enclosing call for a constant inside a literal argument pack too.
+func curlArgumentCall(node syntax.Node) *syntax.FuncCall {
+	for steps := 0; node.Parent() != nil && steps < 64; steps++ {
+		node = node.Parent()
+		if call, ok := node.(*syntax.FuncCall); ok {
+			return call
+		}
+		if syntax.IsVariableScope(node) {
+			break
+		}
+	}
+	return nil
 }

@@ -623,3 +623,19 @@ func keyDoc(key uint8) string {
 		return "int|string"
 	}
 }
+
+// ArrayCardinality returns bounds for the number of entries in a sealed
+// array-only type. Optional keys affect the upper bound, never the lower one.
+// Unknown shapes and unions with non-arrays establish no cardinality proof.
+func (t Type) ArrayCardinality() (minimum, maximum int, known bool) {
+	if !t.IsArrayLike() || !t.IsSealedShape() {
+		return 0, 0, false
+	}
+	for _, key := range t.ShapeKeys() {
+		if !key.Optional {
+			minimum++
+		}
+		maximum++
+	}
+	return minimum, maximum, true
+}

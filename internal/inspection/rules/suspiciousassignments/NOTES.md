@@ -9,3 +9,10 @@
   two accesses of every parameter; a walk per parameter was quadratic.
 - D16 skips conditional blocks that always terminate using
   `syntax.Terminates`.
+
+## Implicit reads
+
+The flow engine records arrow captures at construction and observes current
+bindings for scope introspection at execution. Parameter-overwrite candidates
+still use the existing first-access and direct-statement filters; the shared
+proof decides whether the original entry value can be read.

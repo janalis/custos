@@ -27,3 +27,23 @@ func TestUnionAbsorbsEmptyArrays(t *testing.T) {
 		}
 	}
 }
+
+func TestArrayCardinality(t *testing.T) {
+	for _, tc := range []struct {
+		doc              string
+		minimum, maximum int
+		known            bool
+	}{
+		{"array{}", 0, 0, true},
+		{"array{a: int, b?: string}", 1, 2, true},
+		{"array{a:int,b:string}", 2, 2, true},
+		{"array", 0, 0, false},
+		{"array{}|null", 0, 0, false},
+		{"int", 0, 0, false},
+	} {
+		minimum, maximum, known := FromDoc(tc.doc, nil).ArrayCardinality()
+		if minimum != tc.minimum || maximum != tc.maximum || known != tc.known {
+			t.Fatalf("%s: %d %d %v", tc.doc, minimum, maximum, known)
+		}
+	}
+}

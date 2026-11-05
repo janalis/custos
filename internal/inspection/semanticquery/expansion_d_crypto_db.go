@@ -134,11 +134,15 @@ func IsBuiltinConst(ctx *analysis.Context, e syntax.Expr, name string) bool {
 // CurlSetting returns the value c sets for the cURL option constant option,
 // through curl_setopt() or a literal curl_setopt_array(); nil otherwise.
 func CurlSetting(ctx *analysis.Context, c *syntax.FuncCall, option string) syntax.Expr {
-	if NativeBuiltin(ctx, c, "curl_setopt") && IsBuiltinConst(ctx, CallArgument(c.Args, 1, "option"), option) {
-		return CallArgument(c.Args, 2, "value")
+	args, known := ctx.Types().Native().BuiltinArguments(c)
+	if !known {
+		return nil
+	}
+	if NativeBuiltin(ctx, c, "curl_setopt") && len(args) == 3 && IsBuiltinConst(ctx, args[1], option) {
+		return args[2]
 	}
 	if NativeBuiltin(ctx, c, "curl_setopt_array") {
-		a := NativeArray(ctx, CallArgument(c.Args, 1, "options"))
+		a := NativeArray(ctx, args[1])
 		if a == nil {
 			return nil
 		}

@@ -51,8 +51,8 @@ func TestReviewSafety(t *testing.T) {
 		// search and replace lists must stay paired
 		{"short replace list", "<?php function f($s) { $s = str_replace(['a', 'b'], ['1'], $s); $s = str_replace('c', '3', $s); }", 1, ""},
 		{"long replace list", "<?php function f($s) { return str_replace('c', '3', str_replace(['a'], ['1', '2'], $s)); }", 1, ""},
-		{"empty replace list", "<?php function f($s) { $s = str_replace(['a', 'b'], [], $s); $s = str_replace(['c', 'd'], ['3', '4'], $s); }", 1, ""},
-		{"empty search list", "<?php function f($s) { $s = str_replace([], 'x', $s); $s = str_replace('c', '3', $s); }", 1, ""},
+		{"empty replace list", "<?php function f($s) { $s = str_replace(['a', 'b'], [], $s); $s = str_replace(['c', 'd'], ['3', '4'], $s); }", 1, "<?php function f($s) { $s = str_replace(array('a', 'b', 'c', 'd'), array('', '', '3', '4'), $s); }"},
+		{"empty search list", "<?php function f($s) { $s = str_replace([], 'x', $s); $s = str_replace('c', '3', $s); }", 1, "<?php function f($s) { $s = str_replace('c', '3', $s); }"},
 		{"short list in the latest call", "<?php function f($s) { $s = str_replace('c', '3', $s); $s = str_replace(['a', 'b'], ['1'], $s); }", 1, "<?php function f($s) { $s = str_replace(array('c', 'a', 'b'), array('3', '1'), $s); }"},
 		{"boxed replace of a longer search", "<?php function f($s) { $s = str_replace(['a', 'b'], ['-'], $s); $s = str_replace('c', '-', $s); }", 1, ""},
 		{"boxed replace in the latest call", "<?php function f($s) { $s = str_replace('c', '-', $s); $s = str_replace(['a', 'b'], ['-'], $s); }", 1, "<?php function f($s) { $s = str_replace(array('c', 'a', 'b'), array('-', '-'), $s); }"},

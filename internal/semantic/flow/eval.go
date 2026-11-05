@@ -221,6 +221,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			}
 			f.definite = false
 			v = Value{}
+			if assignment, target := n.Parent().(*syntax.Assign); !target || assignment.Var != n || assignment.Op.Kind != syntax.TEqual {
+				e.observeParameters(n, f, r)
+			}
 			if name, known := literalText(n.NameExpr); known && external(name) {
 				v = e.request(name, n, f)
 			}
@@ -726,7 +729,8 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				}
 			}
 		}
-	case *syntax.ArrowFunction: // The body executes only on invocation.
+	case *syntax.ArrowFunction: // Capture now; execute the body only on invocation.
+		e.observeArrow(n, f, r)
 	case *syntax.Yield, *syntax.YieldFrom:
 		e.suspend(x, f, r, depth)
 		// What the consumer sends back is not known.
@@ -1094,9 +1098,24 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 	}
 	followed := followTyped
+	closedFollowed := followTyped
 	if receiver != nil {
 		untest(receiver, f, true)
 		followed = e.follows(receiver, f)
+		closedFollowed = followed
+		if followed == followLoose {
+			known := closedBinding(receiver, f)
+			if known {
+				closedFollowed = followTyped
+			}
+			if r.closedReceivers == nil {
+				r.closedReceivers = map[syntax.Node]bool{}
+			}
+			if earlier, seen := r.closedReceivers[n]; seen {
+				known = known && earlier
+			}
+			r.closedReceivers[n] = known
+		}
 		if name := plainVariable(receiver); name != "" && name != "this" {
 			// What the variable holds wherever the call is reached.
 			if r.receivers == nil {
@@ -1125,6 +1144,9 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	f.unmatchAll(r)
 	leaving(f, r)
 	name, builtin, result, documented := e.callee(n)
+	if builtin {
+		e.observeIntrospection(n, name, args, f, r)
+	}
 	c := Call{Node: n, Name: name, Receiver: receiver, Arguments: values}
 	if i, ok := r.callIndex[n]; ok {
 		for j, v := range values {
@@ -1189,10 +1211,14 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
 	} else if !builtin {
-		r.gap("unresolved-dispatch", n.Span())
-		// Nothing is known about what an unresolved callee returns: it may
-		// well validate or escape its arguments.
-		v = Value{Expr: v.Expr}
+		if returned, known := e.closedReturn(n, values, closedFollowed); known {
+			v = returned
+			v.Expr = n.(syntax.Expr)
+		} else {
+			r.gap("unresolved-dispatch", n.Span())
+			// An unresolved callee may validate or escape its arguments.
+			v = Value{Expr: v.Expr}
+		}
 	}
 	if builtin {
 		contract := transforms[name]

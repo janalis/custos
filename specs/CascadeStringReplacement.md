@@ -151,12 +151,46 @@ each fix pass).
   - *Pairing.* When every call replaces with the same string literal
     (F1 shortcut) nothing more is asked. Otherwise: a string search needs a
     string replace; a string replace needs a search array literal without
-    spread element and with at least one element (it is copied once per
-    search element); and an array search with an array replace must be two
-    array literals without spread element and of equal length — except in
+    spread element (it is copied once per search element, including zero
+    copies for an empty search); and an array search with an array replace must be two
+    array literals without spread element and of equal length, unless empty
+    lists are handled by the special cases below — except in
     the latest call, whose elements end both merged lists, where PHP's own
     padding (missing replacements are `''`, extra ones are ignored) keeps
-    working.
+    working. Empty search and replace lists contribute zero elements.
+    An empty replacement for a nonempty search can be merged only when
+    missing replacements remain empty strings for those searches: explicitly
+    preserve that padding before any later pairs, or withhold the fix.
+    Discarding an expression because its search list is empty, or because
+    its replacements are unused, is allowed only when its evaluation has no
+    observable effect.
+  - *Empty-list conversion order.* When any search or replacement list in
+    the merge is empty, removing an intermediate call must not move a later
+    argument read or observable operation ahead of the first subject's
+    string conversion. Conversion can invoke `__toString()` or an error
+    handler and change values the later call reads. If the subject is not
+    proven to be a string and a later search or replacement argument reads
+    a value or performs another observable operation, withhold the fix.
+    Later arguments made only of pure literals remain eligible, subject to
+    the other checks. Preserve argument validation and implicit conversions
+    too: an array element's string conversion can invoke user code even
+    when the subject is already a string. For these empty-list fixes, every
+    search and replacement array must have elements proven by native type
+    evidence to be scalar or null (an empty array qualifies), and scalar
+    search and replacement arguments must already be strings. PHPDoc alone
+    does not establish this evidence. Unknown or object element conversions
+    keep the fix unavailable; do not remove or reorder coercions, type
+    errors or deprecations. A string result type alone does not prove safe
+    evaluation: `(string)$object` produces a string but may invoke
+    `__toString()`. Require both the native type evidence above and proof
+    that evaluating search or replacement expressions introduces no
+    implicit user-code conversion. Simple literal or variable reads and
+    primitive array entries are supported; opaque casts or calls may
+    conservatively leave the fix unavailable. A subject expression capable
+    of running user code still requires later arguments to be pure literals,
+    even when its result type is a string. These additional restrictions
+    apply to merges that involve empty lists; existing nonempty-only cases
+    are unchanged.
   - *Evaluation order.* The merged call evaluates all searches, then all
     replacements, then the first call's subject. At most one search/replace
     argument may have side effects (any call, `new`, assignment, `++`/`--`,
@@ -199,9 +233,9 @@ each fix pass).
   spread arrays overwrite each other and drop entries.
   - If `to` is an array literal, it keeps its own text and the `from`
     elements are inserted right after its opening bracket/parenthesis
-    (after any whitespace there), each followed by `, `. If `to` is an
-    **empty** array literal nothing is inserted (upstream quirk, see
-    Divergences).
+    (after any whitespace there). Separate inserted and existing elements
+    with `, `; an empty target still receives all elements of `from`. An
+    empty source contributes no elements.
   - Otherwise a new array literal is created: `array(` + elements joined
     with `, ` + `)` (converted to the configured syntax in F5).
   - **Explicit keys.** Look at the search and replace array literals of all
@@ -330,6 +364,46 @@ function swap(array $from, array $to, $text) {
 }
 ```
 
+Empty arrays can be merged when replacement pairing remains unchanged:
+
+```php
+<?php
+$label = str_replace([], [], $input);
+$label = str_replace([':'], ['-'], $label);
+```
+
+The safe merged result is:
+
+```php
+<?php
+$label = str_replace([':'], ['-'], $input);
+```
+
+A preceding `str_replace([':'], [], $input)` instead needs a replacement
+`''` paired with `':'` before later searches; merging the raw empty
+replacement list would incorrectly use the later call's replacement.
+
+An empty first search still converts an object subject before the later
+call evaluates its replacement. No merge fix is safe in this example:
+
+```php
+<?php
+class RenderedToken {
+    public function __construct(private mixed &$replacement) {}
+    public function __toString(): string {
+        $this->replacement = 'changed';
+        return 'a';
+    }
+}
+$replacement = 'initial';
+$token = new RenderedToken($replacement);
+$text = str_replace([], [], $token);
+$text = str_replace('a', $replacement, $text); // no merge fix
+```
+
+The original returns `'changed'`; a merged call that reads `$replacement`
+before converting `$token` would instead return `'initial'`.
+
 ## Divergences
 
 - **Comments (custos diverges).** Upstream's fix deletes the comments of
@@ -337,10 +411,11 @@ function swap(array $from, array $to, $text) {
 - **Arity of the merged-in call not checked upstream:** `G`/`I` are not
   required to have 3 arguments (upstream would fail on fewer). custos
   requires exactly 3 arguments for `G` and `I` as well.
-- **Empty array target:** `merge(to = [], from)` silently drops `from`'s
-  elements, changing behavior. custos still reports but offers no fix when
-  a search or replace argument of either call is an empty array literal.
-  No fixture covers it.
+- **Empty arrays (custos diverges).** An empty merge target retains the
+  source elements instead of dropping them. Empty searches contribute no
+  pairs; empty replacement lists preserve PHP's empty-string padding.
+  Fixes still require the pairing and evaluation-order checks, so an empty
+  list never authorizes dropping an observable argument evaluation.
 - **Spread of array-only arguments:** custos diverges from upstream (F3).
   Upstream spreads such arguments as plain `...$x` from PHP 7.4. Arrays
   with string keys cannot be spread before 8.1 (the merged call would

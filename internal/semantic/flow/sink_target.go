@@ -36,15 +36,8 @@ func (e *Env) sinkSummaryName(at syntax.Node) string {
 	if m != nil {
 		e.contract(sinkClassKey(m.Class))
 	}
-	// Protected accessibility also depends on the lexical class's ancestry.
-	within := e.types.ClassFQN(syntax.EnclosingClass(at))
-	for steps := 0; within != "" && steps < MaxDepth*4; steps++ {
-		e.contract(sinkClassKey(within))
-		decls := e.types.Index.ClassDecls(within, e.types.PHP)
-		if len(decls) != 1 {
-			return ""
-		}
-		within = decls[0].Parent
+	if !e.sinkLexicalContext(at) {
+		return ""
 	}
 	exact := m != nil && (m.Final || m.Visibility == index.Private)
 	for steps := 0; steps < MaxDepth*4; steps++ {
@@ -135,4 +128,19 @@ func describeSinkClass(n *syntax.ClassLike, types *infer.Env) *sinkClass {
 		}
 	}
 	return c
+}
+
+// Visibility also depends on the lexical caller's ancestry. Track it even
+// when the receiver is a different, closed class set.
+func (e *Env) sinkLexicalContext(at syntax.Node) bool {
+	within := e.types.ClassFQN(syntax.EnclosingClass(at))
+	for steps := 0; within != "" && steps < MaxDepth*4; steps++ {
+		e.contract(sinkClassKey(within))
+		decls := e.types.Index.ClassDecls(within, e.types.PHP)
+		if len(decls) != 1 {
+			return false
+		}
+		within = decls[0].Parent
+	}
+	return within == ""
 }

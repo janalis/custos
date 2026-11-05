@@ -16,46 +16,8 @@ func (e *Env) ParameterRead(scope syntax.Node, parameter int) (read, known bool)
 	}
 	if r.parameterReads == nil {
 		r.parameterReads = map[string]uint8{}
-		// Captured reads are evaluated by a different scope; their absence from
-		// this scope's value table cannot establish that an entry value is unused.
-		opaque := false
-		syntax.Inspect(syntax.VariableScopeBody(scope), func(n syntax.Node) bool {
-			switch n := n.(type) {
-			case *syntax.Function, *syntax.ClassLike:
-				return false
-			case *syntax.Closure:
-				return false
-			case *syntax.FuncCall:
-				if name, builtin := e.callName(n); builtin {
-					switch name {
-					case "compact", "get_defined_vars", "func_get_arg", "func_get_args":
-						opaque = true
-					}
-				}
-			case *syntax.Variable:
-				if n.NameExpr != nil {
-					assignment, target := n.Parent().(*syntax.Assign)
-					if !target || assignment.Var != n || assignment.Op.Kind != syntax.TEqual {
-						opaque = true
-					}
-				}
-			case *syntax.ArrowFunction:
-				syntax.Inspect(n.Expr, func(child syntax.Node) bool {
-					if v, ok := child.(*syntax.Variable); ok {
-						r.parameterReads[v.Name] |= 1
-					}
-					return true
-				})
-				return false
-			}
-			return true
-		})
-		if opaque {
-			for _, param := range params {
-				if param.Var != nil {
-					r.parameterReads[param.Var.Name] |= 1
-				}
-			}
+		for name, state := range r.parameterObserved {
+			r.parameterReads[name] = state
 		}
 		for expr, value := range r.values {
 			v, ok := expr.(*syntax.Variable)

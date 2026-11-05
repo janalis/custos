@@ -22,7 +22,7 @@ namespace App\Poly {
 
 namespace {
     \define(__NAMESPACE__ . '\M_PI', 1);
-    echo <weak_warning descr="Write '\M_PI' to allow compile-time binding.">M_PI</weak_warning>;
+    echo M_PI;
 }
 
 namespace App\Other {
