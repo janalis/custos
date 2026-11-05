@@ -15,15 +15,23 @@ func (e *Env) pureBind(contract *pureContract, args []Value, weak bool) ([]Value
 	if len(args) != len(contract.params) {
 		return nil, false
 	}
-	bound := make([]Value, len(args))
+	// Evaluation reads slots by value. Copy only when a declared parameter
+	// needs its own coerced scalar; unconstrained slots can reuse the binding.
+	bound := args
+	copied := false
 	for i, param := range contract.params {
 		value := args[i]
 		if !value.Complete || value.replaced || value.Invalidated != 0 {
 			return nil, false
 		}
 		if scalar, known := knownScalar(value); known {
-			if !(param.nullable && scalar.k == 'n') {
+			if !param.typ.IsUnknown() && !param.typ.Has("mixed") && !(param.nullable && scalar.k == 'n') {
 				value = e.constrainType(param.typ, scalarValue(scalar), weak)
+				if !copied {
+					bound = append([]Value(nil), args...)
+					copied = true
+				}
+				bound[i] = value
 			}
 		} else if !param.typ.IsUnknown() && !param.typ.Has("mixed") && (value.elements == nil || !recordForwardType(param.typ)) {
 			return nil, false
@@ -31,7 +39,6 @@ func (e *Env) pureBind(contract *pureContract, args []Value, weak bool) ([]Value
 		if !value.Complete {
 			return nil, false
 		}
-		bound[i] = value
 	}
 	return bound, true
 }

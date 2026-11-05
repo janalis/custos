@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Reduce pure callback contract compilation allocations by sharing immutable
+  parameter-slot instructions, keeping small variable-binding sets on the stack
+  and copying invocation slots only for declared scalar coercions.
+
 - Evaluate bounded scalar return expressions for named and returned callbacks,
   including literal defaults, immutable captures and proven pure wrapper chains.
 - Join agreeing callback truth outcomes across distinct normal returns after

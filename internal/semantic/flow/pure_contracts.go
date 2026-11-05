@@ -49,12 +49,47 @@ type pureContract struct {
 	outer      int
 }
 
+// Slot instructions contain no declaration or invocation state and can be
+// shared across contracts. Outer and invocation parameters each have 64 slots.
+var pureSlots = func() [128]pureExpr {
+	var slots [128]pureExpr
+	for i := range slots {
+		slots[i] = pureExpr{kind: pureSlot, slot: i, cost: 1, depth: 1}
+	}
+	return slots
+}()
+
+type pureBinding struct {
+	name  string
+	value *pureExpr
+}
+
 type pureCompiler struct {
 	env   *Env
-	vars  map[string]*pureExpr
+	vars  []pureBinding
+	extra map[string]*pureExpr
 	work  int
 	name  string
 	calls []string
+}
+
+// Small scopes keep bindings on the compiler's stack. Larger scopes retain
+// constant-time overflow lookup without allocating a map for every function.
+func (c *pureCompiler) bind(name string, value *pureExpr) {
+	for i := range c.vars {
+		if c.vars[i].name == name {
+			c.vars[i].value = value
+			return
+		}
+	}
+	if len(c.vars) < 8 {
+		c.vars = append(c.vars, pureBinding{name: name, value: value})
+		return
+	}
+	if c.extra == nil {
+		c.extra = make(map[string]*pureExpr)
+	}
+	c.extra[name] = value
 }
 
 func pureConstant(value constantScalar) *pureExpr {
@@ -101,12 +136,13 @@ func (e *Env) compilePure(scope syntax.Node, r *scopeResult, captures map[string
 	if !known {
 		return nil
 	}
-	c := pureCompiler{env: e, vars: make(map[string]*pureExpr, len(captures)+len(params))}
+	var locals [8]pureBinding
+	c := pureCompiler{env: e, vars: locals[:0]}
 	for name, value := range captures {
-		c.vars[name] = value
+		c.bind(name, value)
 	}
 	for i, param := range params {
-		c.vars[param.name] = &pureExpr{kind: pureSlot, slot: outer + i, cost: 1, depth: 1}
+		c.bind(param.name, &pureSlots[outer+i])
 	}
 	if e.summarizing != nil {
 		c.name = e.summarizing.names[scope]
@@ -138,7 +174,7 @@ func (e *Env) compilePure(scope syntax.Node, r *scopeResult, captures map[string
 				}
 				cost += value.cost
 				steps = append(steps, value)
-				c.vars[variable.Name] = value
+				c.bind(variable.Name, value)
 			default:
 				return nil
 			}
@@ -164,7 +200,12 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 	switch n := expr.(type) {
 	case *syntax.Variable:
 		if n.NameExpr == nil {
-			return c.vars[n.Name]
+			for _, binding := range c.vars {
+				if binding.name == n.Name {
+					return binding.value
+				}
+			}
+			return c.extra[n.Name]
 		}
 	case *syntax.Literal, *syntax.ConstFetch:
 		fuel := 256
