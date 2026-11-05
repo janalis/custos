@@ -16,10 +16,8 @@ import (
 // targets, uncertain packs and duplicate bindings are incomplete.
 func (e *Env) BoundArguments(at syntax.Node) ([]Value, bool) {
 	r := e.scope(syntax.EnclosingVariableScope(at))
-	for _, c := range r.calls {
-		if c.Node == at {
-			return e.bind(at, c.Arguments)
-		}
+	if i, recorded := r.callIndex[at]; recorded {
+		return e.bind(at, r.calls[i].Arguments)
 	}
 	return nil, false
 }

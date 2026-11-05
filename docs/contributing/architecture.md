@@ -192,6 +192,10 @@ must discard definite facts rather than authorize a finding or fix.
 
 ## Flow and project summaries
 
+Published call histories preserve source order. Their node index is rebuilt after
+sorting so argument and sink queries can look up calls directly, including calls
+whose evaluation order differs from source order.
+
 Flow queries track reachable assignments, branch guards, object and resource
 identities and context-specific validation, and distinguish an unchecked read
 result from one rejected by a strict failure check. Project analysis builds

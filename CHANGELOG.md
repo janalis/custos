@@ -9,6 +9,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Use indexed flow call lookups while preserving source-ordered histories,
+  including nested calls and native callable replay.
+
 - Cache resolved method and constructor argument metadata per flow environment,
   refreshing it when the symbol index or PHP version changes.
 

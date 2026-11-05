@@ -121,24 +121,23 @@ func (e *Env) closedSinks(at syntax.Node) []Sink {
 		return nil
 	}
 	call := at.(*syntax.MethodCall)
-	for _, called := range r.calls {
-		if called.Node != at {
-			continue
-		}
-		var sinks []Sink
-		for _, contract := range contracts {
-			args, known := e.bindTo(call.Args, contract.method.Params, called.Arguments)
-			if !known {
-				return nil
-			}
-			for _, sink := range contract.summary.Sinks {
-				sink.Argument = substitute(sink.Argument, args, true)
-				sinks = appendSinks(sinks, []Sink{sink})
-			}
-		}
-		return sinks
+	i, recorded := r.callIndex[at]
+	if !recorded {
+		return nil
 	}
-	return nil
+	called := r.calls[i]
+	var sinks []Sink
+	for _, contract := range contracts {
+		args, known := e.bindTo(call.Args, contract.method.Params, called.Arguments)
+		if !known {
+			return nil
+		}
+		for _, sink := range contract.summary.Sinks {
+			sink.Argument = substitute(sink.Argument, args, true)
+			sinks = appendSinks(sinks, []Sink{sink})
+		}
+	}
+	return sinks
 }
 
 // Native type inference may retain a finite union while the value lattice has

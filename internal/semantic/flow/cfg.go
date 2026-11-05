@@ -979,6 +979,11 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 		r.cut = 0
 	}
 	sort.Slice(r.calls, func(i, j int) bool { return r.calls[i].Node.Span().Start < r.calls[j].Node.Span().Start })
+	// Evaluation order can differ from source order for nested calls.
+	// Publish indices into the same ordered history that queries observe.
+	for i, call := range r.calls {
+		r.callIndex[call.Node] = i
+	}
 	return r
 }
 
