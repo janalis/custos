@@ -322,10 +322,21 @@ const (
 // elementSet is never modified once a binding holds it: a write makes a new
 // one, which lets every copy of the array value share it.
 type elementSet struct {
-	items map[string]Value
-	order []string // nil unless insertion order is proven for the complete set
-	depth int      // bounded structural cost, including branching
-	width int      // upper bound on the number of entries during construction
+	whole    bool // every runtime entry is tracked; false after losing an entry
+	optional bool // tracked keys may be absent, so membership/count is not exact
+	items    map[string]Value
+	order    []string // nil unless insertion order is proven for the complete set
+	depth    int      // bounded structural cost, including branching
+	width    int      // upper bound on the number of entries during construction
+}
+
+// Empty element sets contain no mutable evaluation metadata and are shared.
+var emptyElements = &elementSet{whole: true}
+
+func cloneElements(s *elementSet) *elementSet {
+	out := *s
+	out.items = maps.Clone(s.items)
+	return &out
 }
 
 // put is only used while constructing an unpublished set. A loop that wraps
@@ -368,6 +379,10 @@ func (s *elementSet) with(key string, v Value) *elementSet {
 		width += len(s.items)
 	}
 	n := &elementSet{items: map[string]Value{}, width: width}
+	if s != nil {
+		n.whole = s.whole
+		n.optional = s.optional
+	}
 	n.put(key, v)
 	if s != nil {
 		for k, old := range s.items {
@@ -388,7 +403,7 @@ func common(a, b *elementSet) *elementSet {
 	if a == nil || b == nil {
 		return nil
 	}
-	kept := slices.Equal(a.order, b.order)
+	kept := slices.Equal(a.order, b.order) && (!a.whole || b.whole && len(a.items) == len(b.items)) && (!b.optional || a.optional)
 	for k, v := range a.items {
 		w, ok := b.items[k]
 		if !ok || !equal(merge(v, w), v) {
@@ -399,7 +414,7 @@ func common(a, b *elementSet) *elementSet {
 	if kept {
 		return a
 	}
-	n := &elementSet{items: map[string]Value{}, width: min(len(a.items), len(b.items))}
+	n := &elementSet{items: map[string]Value{}, width: min(len(a.items), len(b.items)), whole: a.whole && b.whole && len(a.items) == len(b.items), optional: a.optional || b.optional}
 	if slices.Equal(a.order, b.order) {
 		n.order = a.order
 	}
@@ -410,6 +425,9 @@ func common(a, b *elementSet) *elementSet {
 	}
 	if len(n.items) == 0 {
 		return nil
+	}
+	if len(n.items) != len(a.items) {
+		n.whole = false
 	}
 	return n
 }

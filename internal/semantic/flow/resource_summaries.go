@@ -107,6 +107,7 @@ func (e *Env) instantiateResource(at syntax.Node, contract *resourceReturn, args
 // Effects describe only the state shared by every normal completion. No callee
 // identity or syntax survives publication; each use binds caller identities.
 type resourceEffect struct {
+	onTrue    bool
 	parameter int
 	operation string
 	checked   bool
@@ -122,8 +123,25 @@ func summarizeResourceEffects(scope syntax.Node, r *scopeResult, sum Summary) []
 			return nil
 		}
 		state := r.exitStates[p.Var.Span().Start+1]
+		pending := false
 		switch state.Operation {
-		case "fclose", "pclose":
+		case "fclose", "@indirect:fclose":
+			if !state.closeChecked {
+				if !booleanResourceReturn(scope) {
+					continue
+				}
+				result := syntax.UnwrapParens(sum.Return.Expr)
+				switch result.(type) {
+				case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+				default:
+					continue
+				}
+				if !sum.Return.Complete || sum.Return.replaced || sum.Return.Invalidated != 0 || result.Span() != state.Span {
+					continue
+				}
+				pending = true
+			}
+		case "pclose":
 			if !state.closeChecked {
 				continue
 			}
@@ -131,7 +149,7 @@ func summarizeResourceEffects(scope syntax.Node, r *scopeResult, sum Summary) []
 		default:
 			continue
 		}
-		effects = append(effects, resourceEffect{parameter: i, operation: state.Operation, checked: state.closeChecked})
+		effects = append(effects, resourceEffect{parameter: i, operation: state.Operation, checked: state.closeChecked, onTrue: pending})
 	}
 	return effects
 }
@@ -155,10 +173,49 @@ func (e *Env) resourceEffects(at syntax.Node, effects []resourceEffect, args []V
 	states := map[uint32]State{}
 	for _, effect := range effects {
 		id, _, known := e.instantiateResource(at, &resourceReturn{parameter: effect.parameter}, args, f, r)
+		if !known && effect.onTrue && effect.parameter >= 0 && effect.parameter < len(args) && pendingParameter(at, args[effect.parameter], f) {
+			id, known = args[effect.parameter].Identity, true
+		}
 		if !known {
 			return nil
 		}
-		states[id] = State{Operation: effect.operation, Span: at.Span(), Successful: effect.checked, closeChecked: effect.checked}
+		operation := effect.operation
+		if effect.onTrue {
+			operation = "@indirect:fclose"
+		}
+		states[id] = State{Operation: operation, Span: at.Span(), Successful: effect.checked, closeChecked: effect.checked}
 	}
 	return states
+}
+
+// A successful close also validates an unchanged symbolic parameter. This is
+// only a pending conditional effect, never allocation evidence for pass-throughs.
+func pendingParameter(at syntax.Node, value Value, f *frame) bool {
+	if !value.Complete || value.replaced || value.Invalidated != 0 || value.Identity == 0 {
+		return false
+	}
+	for _, param := range syntax.VariableScopeParams(syntax.EnclosingVariableScope(at)) {
+		if param.Var == nil || param.ByRef || param.Variadic || param.Type != nil && !types.FromNode(param.Type, nil).Has("mixed") {
+			continue
+		}
+		_, aliased := f.aliased[param.Var.Name]
+		if !aliased && value.Identity == param.Var.Span().Start+1 && f.vars[param.Var.Name].Identity == value.Identity {
+			return true
+		}
+	}
+	return false
+}
+
+// A declared scalar coercion can preserve truth while changing strict boolean
+// comparisons. Conditional close contracts only export unchanged boolean results.
+func booleanResourceReturn(scope syntax.Node) bool {
+	var declared syntax.Expr
+	switch node := scope.(type) {
+	case *syntax.Function:
+		declared = node.ReturnType
+	case *syntax.Method:
+		declared = node.ReturnType
+	}
+	result := types.FromNode(declared, nil)
+	return result.IsUnknown() || result.Has("mixed") || result.OnlyOf("bool", "null")
 }

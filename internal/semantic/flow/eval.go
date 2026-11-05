@@ -834,6 +834,23 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	default:
 		v.plain, v.deep = false, false
 	}
+	// Shape completeness describes an array value, not a scalar coercion or
+	// predicate computed from that array. Only value-preserving forms retain it.
+	if v.elements != nil {
+		switch node := x.(type) {
+		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.Array, *syntax.ArrayDimFetch, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		case *syntax.Unary:
+			if node.Op.Kind != syntax.TArrayCast && node.Op.Kind != syntax.TAt {
+				v.elements = nil
+			}
+		case *syntax.Binary:
+			if node.Op.Kind != syntax.TPlus && node.Op.Kind != syntax.TCoalesce {
+				v.elements = nil
+			}
+		default:
+			v.elements = nil
+		}
+	}
 	if v.targets != nil || v.returned != nil {
 		switch x.(type) {
 		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.Closure, *syntax.ArrowFunction, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
@@ -1156,7 +1173,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	mapping := false
 	if call, ok := n.(*syntax.FuncCall); ok {
 		name, builtin := e.callName(call)
-		mapping = builtin && name == "array_map"
+		mapping = builtin && (name == "array_map" || name == "array_filter")
 	}
 	values := []Value{}
 	var argumentStorage [8]*syntax.Arg
@@ -1533,6 +1550,11 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	if builtin && name == "array_map" {
 		if mapped, known := e.mappedCallback(n, args, values, f, r); known {
 			v = mapped
+		}
+	}
+	if builtin && name == "array_filter" {
+		if filtered, known := e.filteredCallback(n, args, values, f, r); known {
+			v = filtered
 		}
 	}
 	return v
@@ -1924,11 +1946,14 @@ func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet 
 }
 
 func (e *Env) literalElements(n *syntax.Array, r *scopeResult) *elementSet {
+	if len(n.Items) == 0 {
+		return emptyElements
+	}
 	if len(n.Items) > MaxSources {
 		return nil
 	}
 	next, counting := int64(0), true
-	set := &elementSet{items: make(map[string]Value, len(n.Items)), width: len(n.Items)}
+	set := &elementSet{items: make(map[string]Value, len(n.Items)), width: len(n.Items), whole: true}
 	for _, item := range n.Items {
 		if item == nil || item.Unpack || item.ByRef {
 			return nil

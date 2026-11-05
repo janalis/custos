@@ -42,6 +42,9 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 	switch n := syntax.UnwrapParens(expr).(type) {
 	case *syntax.Variable, *syntax.Assign:
 		if truth {
+			if assignment, ok := n.(*syntax.Assign); ok && assignment.Op.Kind == syntax.TEqual && !assignment.ByRef {
+				refineIndirectClose(syntax.UnwrapParens(assignment.Value), f)
+			}
 			if variable, ok := n.(*syntax.Variable); ok {
 				value := f.vars[variable.Name]
 				if value.Complete && !value.replaced && value.Invalidated == 0 {
@@ -124,6 +127,13 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			}
 		}
 		flag := constantName(n.Right)
+		if flag == "true" || flag == "false" {
+			equal := n.Op.Kind == syntax.TIsEqual || n.Op.Kind == syntax.TIsIdentical
+			unequal := n.Op.Kind == syntax.TIsNotEqual || n.Op.Kind == syntax.TIsNotIdentical
+			if (equal || unequal) && (truth == equal) == (flag == "true") {
+				refineIndirectClose(n.Left, f)
+			}
+		}
 		if (truth && n.Op.Kind == syntax.TIsIdentical) || (!truth && n.Op.Kind == syntax.TIsNotIdentical) {
 			if variable, ok := syntax.UnwrapParens(n.Left).(*syntax.Variable); ok && variable.NameExpr == nil && !mirrored {
 				if _, literal := literalText(n.Right); literal {
@@ -183,7 +193,14 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 				}
 			}
 		}
+	case *syntax.StaticCall:
+		if truth {
+			refineIndirectClose(n, f)
+		}
 	case *syntax.MethodCall:
+		if truth {
+			refineIndirectClose(n, f)
+		}
 		name, builtin := e.callName(n)
 		if truth && builtin && name == "begintransaction" {
 			if variable, ok := n.Var.(*syntax.Variable); ok {
@@ -835,16 +852,30 @@ func (e *Env) nonEmptyText(n *syntax.Binary, truth bool) syntax.Expr {
 // A saved native result can prove success only while its exact pending
 // operation is still current; later operations and escapes remove that state.
 func refineIndirectClose(expr syntax.Expr, f *frame) {
-	call, ok := expr.(*syntax.FuncCall)
-	if !ok {
-		return
-	}
-	for id, state := range f.states {
-		if state.Span == call.Span() && state.Operation == "@indirect:fclose" {
-			state.Operation = "fclose"
-			state.Successful = true
-			state.closeChecked = true
-			f.setState(id, state)
+	for range MaxDepth {
+		switch node := syntax.UnwrapParens(expr).(type) {
+		case *syntax.Variable:
+			value := f.vars[node.Name]
+			if node.NameExpr != nil || !value.Complete || value.replaced || value.Invalidated != 0 {
+				return
+			}
+			expr = value.Expr
+		case *syntax.Assign:
+			if node.Op.Kind != syntax.TEqual || node.ByRef {
+				return
+			}
+			expr = node.Value
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+			for id, state := range f.states {
+				if state.Span == node.Span() && state.Operation == "@indirect:fclose" {
+					state.Operation = "fclose"
+					state.Successful, state.closeChecked = true, true
+					f.setState(id, state)
+				}
+			}
+			return
+		default:
+			return
 		}
 	}
 }

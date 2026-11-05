@@ -233,15 +233,26 @@ open documents.
 - Finite `array_map` inputs evaluate supported callback contracts per element.
   One input preserves literal keys; up to eight complete inputs with proven
   insertion order bind positional values, pad shorter inputs with null and use
-  numeric output keys. Immutable nested element provenance crosses local
+  numeric output keys. Proven sealed argument packs use the runtime-role binder;
+  an unpacked pack must retain every entry, independently of its native shape.
+  A null callback keeps one input or zips several inputs into numeric rows.
+  Immutable nested element provenance crosses local
   invocation frames and bounded syntax-free return templates. Callback effects do not establish caller operation
   facts or execution-order proofs. Unknown inputs and unsupported bindings use
   conservative aggregate provenance.
-- Returned closure contracts contain only parameter metadata, symbolic values
-  and sinks. Capture-free closures and immutable by-value captures can cross
+- Finite `array_filter` inputs reuse callback binding and sink contracts in
+  value, key or combined mode. Retained entries keep their original provenance;
+  predicate results never act as transformations. Unknown truth keeps possible
+  entries without establishing complete output membership. Mutable entry values
+  establish no output-field proof.
+- Returned closure contracts contain only parameter metadata, symbolic values,
+  bounded nested shape templates and sinks. Capture-free closures and immutable by-value captures can cross
   project boundaries; references, mutable captures, generators and static state
   cannot. Each caller supplies its own factory argument snapshots.
 - Indirect native closes remain pending until the exact result is proven true.
+  Fixed quiet wrappers returning an unchanged close result reuse that relation,
+  including supported wrapper chains and closed method calls. Scalar return
+  coercions establish no such boolean identity proof.
   Saved results retain that proof only while the pending operation is current;
   failure branches, later operations and escapes establish no close proof.
 - Closure invocation frames copy operation states. A returned fresh resource gets
@@ -266,6 +277,14 @@ open documents.
 Nested element facts have bounded depth and branching cost even when loops wrap an
 earlier array. Exhaustion discards field detail while retaining aggregate
 provenance. Return templates use a deterministic budget for the whole tree.
+Whole-entry completeness and insertion order are separate from value completeness;
+losing an entry invalidates complete-pack and exact-cardinality proofs. Optional
+filter entries retain all possible values for single-input mapping but establish
+no exact argument-pack or multi-input positional proof. Scalar
+coercions and predicates discard operand array shapes. Compact templates are
+immutable: unchanged subtrees and empty sets are shared, while changed fields
+trigger a map copy. Predicate literals are retained only when declared parameter or return
+conversion cannot change their scalar kind.
 
 Expression values use small, lazily allocated blocks behind per-scope indices;
 queries still return value copies. Branch bindings retain copy-on-write maps,

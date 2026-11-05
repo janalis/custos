@@ -46,6 +46,13 @@ code. Newly closed states require proven success. Repeated actual handle
 identities, reference or variadic parameters, escaping handles and uncertain
 bindings establish no operation proof.
 
+A fixed quiet wrapper returning the unchanged result of its close can establish
+closed state when that result is true. This includes supported wrapper chains
+and closed method targets. Saved results retain the relation only while the
+same close remains current; later operations, reassignment, escapes and unrelated
+return values discard it. Scalar return coercions that change boolean identity
+establish no result-dependent close contract.
+
 ## Report
 
 - Range: the complete violating call or expression identified by D1; for a declaration-state violation, the offending property access or assignment. Highlight the final unsafe use for source-to-use findings.

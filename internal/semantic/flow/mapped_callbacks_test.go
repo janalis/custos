@@ -15,13 +15,13 @@ func TestMappedCallableContracts(t *testing.T) {
 		{`$xs=array_map(fn($x)=>htmlspecialchars($x),['label'=>$_GET['x']]);probe($xs['label']);`, false},
 		{`function esc($x){return htmlspecialchars($x);}$xs=array_map('esc',[$_GET['x']]);probe($xs[0]);`, false},
 		{`$xs=array_map('unknown',[$_GET['x']]);probe($xs[0]);`, true},
-		{`$xs=array_map('htmlspecialchars',...[[$_GET['x']]]);probe($xs[0]);`, true},
+		{`$xs=array_map('htmlspecialchars',...[[$_GET['x']]]);probe($xs[0]);`, false},
 		{`$xs=array_map(wrong:[$_GET['x']],callback:'htmlspecialchars');probe($xs[0]);`, true},
 		{`function f($key){$a=['clean'];$a[$key]=$_GET['x'];$xs=array_map('strtolower',$a);probe($xs);}`, true},
 		{`function f($flag){$a=$flag?['shared'=>'clean','left'=>$_GET['x']]:['shared'=>'clean','right'=>$_GET['x']];$xs=array_map('strtolower',$a);probe($xs);}`, true},
 		{`$xs=array_map(null,[$_GET['x']]);probe($xs[0]);`, true},
 		{`$xs=array_map('htmlspecialchars',[$_GET['x']],[ENT_QUOTES]);probe($xs[0]);`, false},
-		{`$xs=array_map(...['htmlspecialchars',[$_GET['x']]]);probe($xs[0]);`, true},
+		{`$xs=array_map(...['htmlspecialchars',[$_GET['x']]]);probe($xs[0]);`, false},
 	} {
 		e, file := summarized(t, tc.source)
 		x := argument(callsNamed(file, "probe")[0])

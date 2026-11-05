@@ -58,10 +58,22 @@ func substituteValue(template Value, args []Value, known bool, depth int, fuel *
 	v.Safe |= template.Safe
 	if template.elements != nil && depth > 0 && len(template.elements.items) <= *fuel {
 		*fuel -= len(template.elements.items)
-		v.elements = &elementSet{items: make(map[string]Value, len(template.elements.items)), order: template.elements.order, width: len(template.elements.items)}
-		for _, key := range sortedElementKeys(template.elements) {
-			element := template.elements.items[key]
-			v.elements.put(key, substituteValue(element, args, known, depth-1, fuel))
+		if len(template.elements.items) == 0 {
+			v.elements = emptyElements
+		} else {
+			v.elements = template.elements
+			changed := false
+			for _, key := range sortedElementKeys(template.elements) {
+				before := template.elements.items[key]
+				after := substituteValue(before, args, known, depth-1, fuel)
+				if !equal(before, after) {
+					if !changed {
+						v.elements = cloneElements(template.elements)
+						changed = true
+					}
+					v.elements.put(key, after)
+				}
+			}
 		}
 	}
 	return v
@@ -93,17 +105,30 @@ func compactElements(elements *elementSet, depth int, fuel *int) *elementSet {
 		return nil
 	}
 	*fuel -= len(elements.items)
-	out := &elementSet{items: make(map[string]Value, len(elements.items)), order: elements.order, width: len(elements.items)}
+	if len(elements.items) == 0 {
+		return emptyElements
+	}
+	out := elements
+	changed := false
 	for _, key := range sortedElementKeys(elements) {
 		value := elements.items[key]
 		entry := compactCallableValue(value)
 		entry.elements = compactElements(value.elements, depth-1, fuel)
-		out.put(key, entry)
+		if !equal(value, entry) {
+			if !changed {
+				out = cloneElements(elements)
+				changed = true
+			}
+			out.put(key, entry)
+		}
 	}
 	return out
 }
 
 func sortedElementKeys(elements *elementSet) []string {
+	if len(elements.order) == len(elements.items) && sort.StringsAreSorted(elements.order) {
+		return elements.order
+	}
 	keys := make([]string, 0, len(elements.items))
 	for key := range elements.items {
 		keys = append(keys, key)

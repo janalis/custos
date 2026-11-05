@@ -418,6 +418,7 @@ func (e *Env) summarize(n syntax.Node) {
 			sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, scalars: left.scalars}
 		}
 	}
+	sum.Return = constrainCallbackReturn(n, sum.Return)
 	sum.resource = e.summarizeResource(n, r, sum)
 	sum.effects = summarizeResourceEffects(n, r, sum)
 	if sum.Fixed && !byReference(n) {

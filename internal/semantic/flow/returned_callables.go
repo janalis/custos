@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/types"
 )
 
 // Returned closures publish only symbolic values, parameter metadata and sinks.
@@ -41,7 +42,7 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 		if !capture.Complete || !capture.plain || !capture.deep || capture.replaced || capture.Invalidated != 0 {
 			return nil
 		}
-		seeds[name] = compactCallableValue(capture)
+		seeds[name] = compactReturnedValue(capture)
 	}
 	lastRequired := -1
 	for i, param := range params {
@@ -62,7 +63,7 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 				return nil
 			}
 		}
-		contract.defaults = append(contract.defaults, compactCallableValue(initial))
+		contract.defaults = append(contract.defaults, compactReturnedValue(initial))
 		seeds[param.Var.Name] = Value{Complete: true, Sources: []Source{{Kind: "parameter", Parameter: outer + i}}, plain: e.typed(param, false), deep: e.typed(param, true)}
 	}
 	previous, had := e.scopes[expr]
@@ -97,7 +98,8 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 	if !result.Complete || result.targets != nil || result.returned != nil {
 		return nil
 	}
-	contract.result = compactCallableValue(result)
+	result = constrainCallbackReturn(expr, result)
+	contract.result = compactReturnedValue(result)
 	for _, call := range body.calls {
 		contract.sinks = appendSinks(contract.sinks, e.nativeSinks(call))
 		contract.sinks = appendSinks(contract.sinks, e.Sinks(call.Node))
@@ -112,7 +114,7 @@ func bindReturned(contract *returnedCallable, args []Value) *callableValue {
 	}
 	outer := make([]Value, len(args))
 	for i, value := range args {
-		outer[i] = compactCallableValue(value)
+		outer[i] = compactReturnedValue(value)
 	}
 	return &callableValue{contract: contract, outer: outer}
 }
@@ -171,7 +173,66 @@ func joinReturned(a, b *callableValue) *callableValue {
 	}
 	joined := &callableValue{contract: a.contract, outer: make([]Value, len(a.outer))}
 	for i, value := range a.outer {
-		joined.outer[i] = compactCallableValue(merge(value, b.outer[i]))
+		joined.outer[i] = compactReturnedValue(merge(value, b.outer[i]))
 	}
 	return joined
+}
+
+func compactReturnedValue(value Value) Value {
+	out := compactCallableValue(value)
+	fuel := MaxSources
+	out.elements = compactElements(value.elements, MaxDepth, &fuel)
+	return out
+}
+
+// Declared scalar bindings can coerce constants before a predicate observes
+// them. In particular, negative floating zero becomes the truthy string "-0".
+// Retain literal truth only for an exact scalar member of the return type.
+func constrainCallbackReturn(scope syntax.Node, value Value) Value {
+	var declared syntax.Expr
+	switch node := scope.(type) {
+	case *syntax.Function:
+		declared = node.ReturnType
+	case *syntax.Method:
+		declared = node.ReturnType
+	case *syntax.Closure:
+		declared = node.ReturnType
+	case *syntax.ArrowFunction:
+		declared = node.ReturnType
+	}
+	return constrainDeclaredValue(declared, value)
+}
+
+func constrainDeclaredValue(declared syntax.Expr, value Value) Value {
+	if declared == nil {
+		return value
+	}
+	result := types.FromNode(declared, nil)
+	if result.IsUnknown() || result.Has("mixed") {
+		return value
+	}
+	if !result.Has("array") && !result.Has("iterable") {
+		value.elements = nil
+	}
+	fuel := 256
+	scalar, known := constantValue(value.Expr, MaxDepth, &fuel)
+	if known {
+		name := "null"
+		switch scalar.k {
+		case 'i':
+			name = "int"
+		case 'f':
+			name = "float"
+		case 's':
+			name = "string"
+		case 'b':
+			name = "bool"
+		}
+		if !result.Has(name) {
+			value.Expr, value.interval, value.origins = nil, nil, nil
+			value.elements = nil
+			value.Complete, value.NonFalse, value.NonNull, value.LengthKnown = false, false, false, false
+		}
+	}
+	return value
 }

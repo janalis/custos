@@ -137,5 +137,12 @@ func (e *Env) invokeCallableTarget(at syntax.Node, expr syntax.Expr, list *synta
 	if known {
 		result.Identity = identity
 	}
+	effects := e.resourceEffects(at, summary.effects, args, f, r)
+	for id, state := range effects {
+		if states == nil {
+			states = map[uint32]State{}
+		}
+		states[id] = state
+	}
 	return result, states, true
 }

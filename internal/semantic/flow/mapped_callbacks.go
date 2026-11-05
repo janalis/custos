@@ -1,7 +1,6 @@
 package flow
 
 import (
-	"sort"
 	"strconv"
 
 	"custos/internal/php/syntax"
@@ -12,53 +11,57 @@ import (
 // about execution order or caller resources.
 func (e *Env) mappedCallback(at syntax.Node, args *syntax.ArgList, values []Value, f *frame, r *scopeResult) (Value, bool) {
 	call, ok := at.(*syntax.FuncCall)
-	if !ok || args == nil || len(args.Args) < 2 || len(args.Args) > 9 || len(values) != len(args.Args) {
+	if !ok {
 		return Value{}, false
 	}
-	for _, node := range args.Args {
-		arg, ok := node.(*syntax.Arg)
-		if !ok || arg.ByRef || arg.Unpack || len(values) > 2 && arg.Name != nil {
-			return Value{}, false
-		}
-	}
-	bound, known := e.bind(at, values)
-	if !known {
+	bound, _, known := e.callbackBindings(at, args, values, true)
+	if !known || len(bound) != 3 {
 		return Value{}, false
 	}
 	callee := bound[0]
 	if !callee.Complete || callee.replaced || callee.Invalidated != 0 {
 		return Value{}, false
 	}
-	inputs := values[1:]
-	if len(values) == 2 {
-		inputs = []Value{bound[1]}
+	inputs := []Value{bound[1]}
+	extra := bound[2].elements
+	if extra != nil {
+		if len(extra.items) > 7 {
+			return Value{}, false
+		}
+		for i := range len(extra.items) {
+			input, held := extra.lookup(strconv.Itoa(i))
+			if !held {
+				return Value{}, false
+			}
+			inputs = append(inputs, input)
+		}
 	}
+	zip := constantName(callee.Expr) == "null"
 	keysByInput := make([][]string, len(inputs))
 	count := 0
 	for i, input := range inputs {
 		if !input.Complete || input.replaced || input.Invalidated != 0 || input.elements == nil {
 			return Value{}, false
 		}
-		// Cardinality and order must describe every entry, not a retained subset.
-		low, high, complete := e.types.Native().TypeOf(input.Expr).ArrayCardinality()
-		if !complete || low != high || low != len(input.elements.items) {
+		// Whole sets, unlike retained subsets after mutation or escape, prove
+		// that every entry was captured even inside a sealed argument pack.
+		if !input.elements.whole || len(inputs) > 1 && input.elements.optional {
 			return Value{}, false
 		}
 		keys := input.elements.order
 		if len(inputs) == 1 {
-			keys = make([]string, 0, len(input.elements.items))
-			for key := range input.elements.items {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
+			keys = sortedElementKeys(input.elements)
 		} else if len(keys) != len(input.elements.items) {
 			return Value{}, false
 		}
 		keysByInput[i] = keys
 		count = max(count, len(keys))
 	}
+	if count == 0 {
+		return Value{Complete: true, Expr: call, plain: true, deep: true, elements: emptyElements}, true
+	}
 	prior, had := r.closureSinks[at]
-	mapped := &elementSet{items: make(map[string]Value, count), width: count}
+	mapped := &elementSet{items: make(map[string]Value, count), width: count, whole: true}
 	result := Value{Complete: true, Expr: call, plain: true, deep: true}
 	for offset := range count {
 		key := strconv.Itoa(offset)
@@ -76,11 +79,30 @@ func (e *Env) mappedCallback(at syntax.Node, args *syntax.ArgList, values []Valu
 				value = input.elements.items[keysByInput[i][offset]]
 			}
 			arguments[i] = value
-			forwarded.Args = append(forwarded.Args, &syntax.Arg{Value: input.Expr})
+			expr := input.Expr
+			if expr == nil {
+				expr = call
+			}
+			forwarded.Args = append(forwarded.Args, &syntax.Arg{Value: expr})
 		}
 		var returned Value
 		var known bool
-		if callee.returned != nil {
+		if zip {
+			if len(arguments) == 1 {
+				returned = arguments[0]
+			} else {
+				entries := &elementSet{items: map[string]Value{}, width: len(arguments), whole: true}
+				returned = Value{Complete: true, plain: true, deep: true}
+				for i, value := range arguments {
+					slot := strconv.Itoa(i)
+					entries.put(slot, elementValue(value))
+					entries.order = append(entries.order, slot)
+					returned = merge(returned, value)
+				}
+				returned.elements = entries
+			}
+			known = true
+		} else if callee.returned != nil {
 			returned, _, known = e.invokeReturned(at, callee.returned, forwarded, arguments, r)
 		} else {
 			returned, _, known = e.invokeCallableSet(at, callee, forwarded, arguments, &branch, r)
@@ -100,6 +122,7 @@ func (e *Env) mappedCallback(at syntax.Node, args *syntax.ArgList, values []Valu
 	}
 	if len(inputs) == 1 {
 		mapped.order = inputs[0].elements.order
+		mapped.optional = inputs[0].elements.optional
 	} else {
 		for i := range count {
 			mapped.order = append(mapped.order, strconv.Itoa(i))

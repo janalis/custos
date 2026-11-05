@@ -9,6 +9,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Analyze supported finite filter callbacks for unsafe uses and proven predicates,
+  preserving original retained values and respecting return coercions.
+- Preserve nested provenance through returned closures and immutable captures.
+- Bind proven sealed mapping argument packs and support null-callback zip results.
+- Follow unchanged close results through fixed wrappers and closed methods,
+  retaining success proofs only while the corresponding operation is current.
+- Share empty shapes and unchanged compact templates to reduce flow allocations.
+
 - Reuse the flow summary declaration inventory for local contract queries.
 - Evaluate supported finite multi-array callbacks with insertion order, null
   padding and PHP key behavior; preserve bounded nested return provenance.

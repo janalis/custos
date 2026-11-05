@@ -55,6 +55,18 @@ retain their own provenance, including through bounded immutable wrapper
 contracts. Unknown input order, incomplete entries, unsupported callback bindings
 and alias mutations cannot establish a clean field.
 
+Proven sealed argument packs can supply finite mapping callbacks and arrays.
+With a null mapping callback, one array keeps its entries; several arrays form
+position-matched rows with null for missing entries. Returned closures may carry
+bounded nested field provenance through factories and immutable captures.
+
+Finite filters retain original values rather than their predicate results.
+Known callback bindings carry unsafe uses, including value-only, key-only and
+combined modes. Proven predicate truth can discard entries; unknown predicates
+keep their original possibilities without proving exact output membership.
+Declared parameter or return coercions cannot establish literal predicate truth from the
+unconverted value.
+
 Literal keys and computed request names use PHP string decoding for the parsed
 source version. Escape sequences PHP preserves remain distinct from actual
 control characters before PHP numeric-key normalization is applied.

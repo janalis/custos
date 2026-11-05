@@ -103,6 +103,10 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 			}
 			bound[i] = value
 		}
+		// Defaults of null make a scalar parameter implicitly nullable as well.
+		if !(constantName(p.Default) == "null" && constantName(bound[i].Expr) == "null") {
+			bound[i] = constrainDeclaredValue(p.Type, bound[i])
+		}
 		seeds[p.Var.Name] = bound[i]
 	}
 	// Invocation analysis has its own cache entry only while executing. The
@@ -138,6 +142,7 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 			}
 		}
 	}
+	result = constrainCallbackReturn(expr, result)
 	var sinks []Sink
 	for _, called := range r.calls {
 		sinks = appendSinks(sinks, e.nativeSinks(called))
