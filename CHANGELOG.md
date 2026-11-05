@@ -9,6 +9,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Cache resolved method and constructor argument metadata per flow environment,
+  refreshing it when the symbol index or PHP version changes.
+
 - Reduce flow-analysis allocations with indexed expression-value storage,
   unchanged-fact branch reuse and cached class identity keys.
 - Resolve terminal native-value queries without candidate-walk allocation or

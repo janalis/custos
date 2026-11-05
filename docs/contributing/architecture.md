@@ -256,6 +256,10 @@ Expression values use small, lazily allocated blocks behind per-scope indices;
 queries still return value copies. Branch bindings retain copy-on-write maps,
 and recording an unchanged fact keeps the existing map shared. Class identity
 keys may be cached, but each contract use must still record its dependency.
+Resolved member declaration metadata is cached per call site, index identity
+and revision, and PHP version. Unresolved lookups remain eligible for later
+inference. Keep live receiver, visibility and contract dependency proofs at
+each use.
 Terminal native-value queries may skip discovery only when they produce the
 same candidate as the full discovery procedure; properties, constants and
 conditional alternatives keep their existing resolution path.

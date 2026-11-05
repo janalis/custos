@@ -97,7 +97,46 @@ func (e *Env) ReferenceResult(call syntax.Node, target *syntax.Arg) (Value, bool
 	return v, true
 }
 
+// Only resolved member metadata is cached. Snapshot reads and live receiver
+// proofs stay at their existing call sites, and unresolved inference can refine.
+type declarationCache struct {
+	index    *index.Index
+	revision uint64
+	php      phpversion.Version
+	members  map[syntax.Node]callDeclaration
+}
+
+type callDeclaration struct {
+	params []index.Param
+	name   string
+}
+
 func (e *Env) declaration(at syntax.Node) ([]index.Param, string, bool) {
+	switch at.(type) {
+	case *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+		if e.types != nil && e.types.Index != nil {
+			cache := &e.declarations
+			revision := e.types.Index.Revision()
+			if cache.index != e.types.Index || cache.revision != revision || cache.php != e.types.PHP {
+				*cache = declarationCache{index: e.types.Index, revision: revision, php: e.types.PHP}
+			}
+			if found, known := cache.members[at]; known {
+				return found.params, found.name, true
+			}
+			params, name, known := e.lookupDeclaration(at)
+			if known {
+				if cache.members == nil {
+					cache.members = map[syntax.Node]callDeclaration{}
+				}
+				cache.members[at] = callDeclaration{params: params, name: name}
+			}
+			return params, name, known
+		}
+	}
+	return e.lookupDeclaration(at)
+}
+
+func (e *Env) lookupDeclaration(at syntax.Node) ([]index.Param, string, bool) {
 	switch n := at.(type) {
 	case *syntax.FuncCall:
 		if f := e.types.ResolveFunction(n); f != nil {

@@ -678,6 +678,7 @@ type Options struct{ Assertions bool }
 
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
+	declarations    declarationCache
 	classKeys       map[string]string
 	invocationDepth int
 	arrowNames      map[*syntax.ArrowFunction]captureNames
