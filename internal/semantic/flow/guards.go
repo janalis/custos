@@ -42,6 +42,12 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 	switch n := syntax.UnwrapParens(expr).(type) {
 	case *syntax.Variable, *syntax.Assign:
 		if truth {
+			if variable, ok := n.(*syntax.Variable); ok {
+				value := f.vars[variable.Name]
+				if value.Complete && !value.replaced && value.Invalidated == 0 {
+					refineIndirectClose(value.Expr, f)
+				}
+			}
 			exclude(n, f, true, true)
 		}
 		if flag, ok := n.(*syntax.Variable); ok && flag.NameExpr == nil {
@@ -189,6 +195,9 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			}
 		}
 	case *syntax.FuncCall:
+		if truth {
+			refineIndirectClose(n, f)
+		}
 		name, builtin := e.callName(n)
 		if !builtin {
 			return
@@ -821,4 +830,21 @@ func (e *Env) nonEmptyText(n *syntax.Binary, truth bool) syntax.Expr {
 		return nil
 	}
 	return args[0].Value
+}
+
+// A saved native result can prove success only while its exact pending
+// operation is still current; later operations and escapes remove that state.
+func refineIndirectClose(expr syntax.Expr, f *frame) {
+	call, ok := expr.(*syntax.FuncCall)
+	if !ok {
+		return
+	}
+	for id, state := range f.states {
+		if state.Span == call.Span() && state.Operation == "@indirect:fclose" {
+			state.Operation = "fclose"
+			state.Successful = true
+			state.closeChecked = true
+			f.setState(id, state)
+		}
+	}
 }

@@ -775,7 +775,7 @@ func TestCodeThatRunsWithoutACallEntersTheFunctionAgain(t *testing.T) {
 		{`function it($a, $o) { static $u; $n = array_map('make', [1]); $u = parse_url($a); if ($u === false) { return; } echo $n[0]; probe($u); }`, false},
 		{`function it($a, $o) { static $u; $n = array_map($o, [1]); $u = parse_url($a); if ($u === false) { return; } echo $n[0]; probe($u); }`, false},
 		{`function it($a, $o) { static $u; $n = array_map('strtoupper', ['a']); $u = parse_url($a); if ($u === false) { return; } echo $n[0]; probe($u); }`, true},
-		{`function it($a, $o) { static $u; $n = array_map('array_values', [[1]]); $u = parse_url($a); if ($u === false) { return; } echo $n[0]; probe($u); }`, false},
+		{`function it($a, $o) { static $u; $n = array_map('array_values', [[1]]); $u = parse_url($a); if ($u === false) { return; } echo $n[0]; probe($u); }`, true},
 		{`function it($a, $o) { static $u; $n = array_filter([1, 2]); $u = parse_url($a); if ($u === false) { return; } echo $n[0]; probe($u); }`, true},
 		{`function it($a, $o) { static $u; $n = [1]; usort($n, 'strcmp'); $u = parse_url($a); if ($u === false) { return; } echo $n[0]; probe($u); }`, true},
 		{`function it($a, $o) { static $u; $n = [1]; usort($n, $o); $u = parse_url($a); if ($u === false) { return; } echo $n[0]; probe($u); }`, false},

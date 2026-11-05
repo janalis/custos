@@ -222,8 +222,21 @@ open documents.
   and incomplete status propagates to it.
 - First-class project-function references and known project callbacks passed to
   `call_user_func` or `call_user_func_array` reuse complete callable summaries and
-  binding proofs. Native first-class targets and unresolved callback shapes remain
-  conservative.
+  binding proofs. Native function targets reuse native contracts. Closed method callbacks and
+  invokable objects require native receiver evidence and non-overridable visible
+  targets. Complete finite alternatives join all targets, including literal
+  callable names; unsupported alternatives establish no proof.
+- Finite `array_map` inputs evaluate supported callback contracts per element,
+  preserving literal keys. Callback effects do not establish caller operation
+  facts or execution-order proofs. Unknown inputs and unsupported bindings use
+  conservative aggregate provenance.
+- Returned closure contracts contain only parameter metadata, symbolic values
+  and sinks. Capture-free closures and immutable by-value captures can cross
+  project boundaries; references, mutable captures, generators and static state
+  cannot. Each caller supplies its own factory argument snapshots.
+- Indirect native closes remain pending until the exact result is proven true.
+  Saved results retain that proof only while the pending operation is current;
+  failure branches, later operations and escapes establish no close proof.
 - Closure invocation frames copy operation states. A returned fresh resource gets
   a caller identity; a borrowed identity preserves the existing caller state.
   Only states shared by normal completions are projected, and a newly observed

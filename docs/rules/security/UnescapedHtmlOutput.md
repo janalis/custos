@@ -103,6 +103,8 @@ A catch contributes values only when its try body can throw. Bounded inert liter
 
 Native first-class function references and callback helpers preserve supported native transformations and sinks. Project method callbacks require a native receiver and a closed, visible method target. A bounded complete set of callable alternatives joins every target; an unknown alternative establishes no result proof.
 
+A complete finite mapped input retains the supported callback result for each element and preserves literal keys. Literal callable-name alternatives, closed invokable objects and returned closures with immutable captures preserve supported output provenance; unknown alternatives and mutable or reference captures establish no proof.
+
 ## Fix
 
 None. Wrapping the value in `htmlspecialchars` is not behavior-preserving in general: the page charset cannot be proven from one output statement, so a forced `UTF-8` with `ENT_SUBSTITUTE` may rewrite bytes of a page in another encoding, and an array-valued request parameter, emitted today as `Array`, would raise a `TypeError` on PHP 8. The escaping call, its flags and its charset are left to the author.

@@ -826,11 +826,12 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	default:
 		v.plain, v.deep = false, false
 	}
-	if v.targets != nil {
+	if v.targets != nil || v.returned != nil {
 		switch x.(type) {
 		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.Closure, *syntax.ArrowFunction, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 		default:
 			v.targets = nil
+			v.returned = nil
 		}
 	}
 	// Only an expression that hands its operand on unchanged yields the
@@ -1144,6 +1145,11 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			r.receivers[n] = max(r.receivers[n], followed)
 		}
 	}
+	mapping := false
+	if call, ok := n.(*syntax.FuncCall); ok {
+		name, builtin := e.callName(call)
+		mapping = builtin && name == "array_map"
+	}
 	values := []Value{}
 	var argumentStorage [8]*syntax.Arg
 	written := argumentStorage[:0]
@@ -1151,7 +1157,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		values = make([]Value, 0, len(args.Args))
 		for _, x := range args.Args {
 			value := e.eval(x, f, r, depth+1)
-			if a, ok := x.(*syntax.Arg); ok && a.Unpack {
+			if a, ok := x.(*syntax.Arg); ok && (a.Unpack || mapping) {
 				// Capture entries before a later argument can replace them.
 				value.elements = e.elements(a.Value, f, r)
 			}
@@ -1244,6 +1250,9 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		v = substitute(s.Return, bound, boundOK)
 		v.Expr = n.(syntax.Expr)
 		v.Safe |= s.Return.Safe
+		if boundOK {
+			v.returned = bindReturned(s.returned, bound)
+		}
 		v.scalars = s.Return.scalars && len(v.Sources) > 0
 		if boundOK && v.Complete {
 			if identity, states, known := e.instantiateResource(n, s.resource, bound, f, r); known {
@@ -1472,7 +1481,10 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 			delete(f.states, values[i].Identity)
 		}
 	}
-	e.invalidateReferences(n, args, f, r)
+	// Supported invocation bindings reject every reference parameter.
+	if !invoked {
+		e.invalidateReferences(n, args, f, r)
+	}
 	if args != nil && !input.prepared {
 		e.accepted(n, args, builtin, followed, f)
 	}
@@ -1493,6 +1505,11 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	v.deep = v.plain && (kind&kindArray == 0 || e.sealed(n, name, args, r))
 	if builtin && e.keyed(n, name, args) {
 		v.plain, v.deep = true, true
+	}
+	if builtin && name == "array_map" {
+		if mapped, known := e.mappedCallback(n, args, values, f, r); known {
+			v = mapped
+		}
 	}
 	return v
 }
@@ -1852,6 +1869,8 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 // whole.
 func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet {
 	switch n := syntax.UnwrapParens(value).(type) {
+	case *syntax.FuncCall:
+		return r.values[n].elements
 	case *syntax.Variable:
 		if n.NameExpr == nil && !external(n.Name) {
 			return f.vars[n.Name].elements

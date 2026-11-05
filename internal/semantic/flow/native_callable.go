@@ -46,6 +46,11 @@ func (e *Env) invokeNativeCallable(at syntax.Node, args *syntax.ArgList, values 
 			if bound[i].Expr == nil {
 				if captured, known := r.values[ordered[i]]; known && captured.Complete {
 					bound[i].Expr = captured.Expr
+					// A sealed callback pack holds the resource captured at creation,
+					// even when its source variable later names another stream.
+					if i == 0 && strings.EqualFold(strings.TrimPrefix(name, `\`), "fclose") && r.allocations[captured.Identity] && captured.Invalidated == 0 && !captured.replaced {
+						bound[i].Identity = captured.Identity
+					}
 				}
 			}
 			arg := &syntax.Arg{Value: ordered[i]}
@@ -80,12 +85,12 @@ func (e *Env) invokeNativeCallable(at syntax.Node, args *syntax.ArgList, values 
 		r.closureSinks = map[syntax.Node][]Sink{}
 	}
 	r.closureSinks[at] = appendSinks(r.closureSinks[at], sinks)
-	// Indirect boolean guards do not yet prove a close succeeded. Preserve
-	// identity and discard a new close state rather than treating failure as
-	// success in callers whose syntax contains no direct fclose invocation.
+	// Keep an indirect close pending until its exact result proves success.
+	// Pending states are not closed-state proofs on failure or unchecked paths.
 	for id, state := range f.states {
 		if state.Span == at.Span() && !state.closeChecked && (state.Operation == "fclose" || state.Operation == "pclose" || state.Operation == "curl_close") {
-			delete(f.states, id)
+			state.Operation = "@indirect:" + state.Operation
+			f.setState(id, state)
 		}
 	}
 	states := map[uint32]State{}

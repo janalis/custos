@@ -76,6 +76,14 @@ func (e *Env) invokeCallable(at syntax.Node, values []Value, f *frame, r *scopeR
 	if !callee.Complete || callee.replaced || callee.Invalidated != 0 {
 		return Value{}, nil, false
 	}
+	if callee.returned != nil {
+		return e.invokeReturned(at, callee.returned, list, values, r)
+	}
+	if callee.targets == nil {
+		if target, known := e.invokableObject(call.Name, callee, at, f); known {
+			return e.invokeBoundMethod(at, target, list, values, f, r)
+		}
+	}
 	return e.invokeCallableSet(at, callee, list, values, f, r)
 }
 
@@ -115,6 +123,7 @@ func (e *Env) invokeCallableTarget(at syntax.Node, expr syntax.Expr, list *synta
 		return Value{}, nil, false
 	}
 	result := substitute(summary.Return, args, true)
+	result.returned = bindReturned(summary.returned, args)
 	var sinks []Sink
 	for _, sink := range summary.Sinks {
 		sink.Argument = substitute(sink.Argument, args, true)

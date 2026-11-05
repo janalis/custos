@@ -9,6 +9,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Finite `array_map` inputs reuse supported callback transformations and sinks.
+- Checked indirect stream closes retain success and failure branch distinctions,
+  including saved results whose operation is still current.
+- Literal callable-name alternatives and closed invokable objects retain
+  supported return and sink provenance.
+- Returned closures publish syntax-free contracts for capture-free bodies and
+  immutable captures, with caller-specific argument snapshots.
+
 - Native and closed project-method callables reuse return and sink contracts;
   bounded complete callable alternatives retain joined provenance.
 - Builtin argument binding follows proven unmodified local literal packs.

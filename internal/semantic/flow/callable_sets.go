@@ -126,3 +126,20 @@ func (e *Env) invokeCallableSet(at syntax.Node, callee Value, list *syntax.ArgLi
 	r.closureSinks[at] = appendSinks(prior, sinks)
 	return result, projected, true
 }
+
+// Literal names can participate in a finite target set before resolution.
+// Every member must still resolve and bind at the eventual invocation.
+func joinCallableValues(a, b Value) *callableSet {
+	left, right := a.targets, b.targets
+	if left == nil {
+		if literal, ok := syntax.UnwrapParens(a.Expr).(*syntax.Literal); ok && literal.LitKind == syntax.LitString {
+			left = oneCallableTarget(literal)
+		}
+	}
+	if right == nil {
+		if literal, ok := syntax.UnwrapParens(b.Expr).(*syntax.Literal); ok && literal.LitKind == syntax.LitString {
+			right = oneCallableTarget(literal)
+		}
+	}
+	return joinCallableTargets(left, right)
+}

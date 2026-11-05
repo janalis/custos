@@ -51,6 +51,8 @@ establish this transfer.
 
 Named function and closed method factories preserve fresh resource identity independently at each caller. Pure parameter pass-through functions preserve the supplied resource identity and its current operation state. Reference returns, opaque mutations and uncertain producers establish no resource-return contract.
 
+A first-class native close or callback-helper close establishes a closed stream on the branch where its exact result is true. A saved result can establish the same proof while that operation is still current. Failure, unchecked results, later operations and escaped handles establish no closed-state proof.
+
 ## Fix
 
 No automatic fix: the correct operation order or reopening policy is unknown.

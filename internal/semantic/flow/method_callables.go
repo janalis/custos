@@ -111,6 +111,7 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 		return Value{}, nil, false
 	}
 	result := substitute(summary.Return, args, true)
+	result.returned = bindReturned(summary.returned, args)
 	var sinks []Sink
 	for _, sink := range summary.Sinks {
 		sink.Argument = substitute(sink.Argument, args, true)
@@ -131,4 +132,19 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 		states[target.receiver.Identity] = State{}
 	}
 	return result, states, true
+}
+
+func (e *Env) invokableObject(expr syntax.Expr, receiver Value, at syntax.Node, f *frame) (*boundMethod, bool) {
+	if !receiver.Complete || receiver.replaced || receiver.Invalidated != 0 || e.follows(expr, f) == followLoose {
+		return nil, false
+	}
+	typ := e.types.Native().TypeOf(expr)
+	if len(typ.Classes()) != 1 || len(typ.Atoms()) != 1 {
+		return nil, false
+	}
+	target, known := e.closedMethod(at, typ.Classes()[0], "__invoke", false)
+	if !known || target.method.ByRef {
+		return nil, false
+	}
+	return &boundMethod{name: strings.ToLower(target.method.Class + "::" + target.method.Name), params: target.method.Params, receiver: receiver}, true
 }

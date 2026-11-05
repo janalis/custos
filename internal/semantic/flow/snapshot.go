@@ -23,6 +23,7 @@ type Sink struct {
 
 // Summary is a compact, syntax-free callable return and sink contract.
 type Summary struct {
+	returned *returnedCallable
 	resource *resourceReturn
 	// dispatch is a reserved, syntax-free class metadata contract.
 	dispatch  *sinkClass
@@ -402,6 +403,10 @@ func (e *Env) summarize(n syntax.Node) {
 		}
 	}
 	sum.resource = e.summarizeResource(n, r, sum)
+	if sum.Fixed && !byReference(n) {
+		sum.returned = e.summarizeReturned(sum.Return, r, len(syntax.VariableScopeParams(n)))
+	}
+	sum.Return.returned = nil
 	sum.Return.targets = nil
 	sum.Return.Expr = nil
 	sum.Return.interval = nil
@@ -661,6 +666,7 @@ func (e *Env) nativeSinks(c Call) []Sink {
 	}
 	value := args[position]
 	value.targets = nil
+	value.returned = nil
 	value.Expr = nil
 	value.interval = nil
 	value.origins = nil
