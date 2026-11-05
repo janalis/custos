@@ -26,7 +26,7 @@ func (e *Env) BoundArguments(at syntax.Node) ([]Value, bool) {
 // Sources include inputs retained on any path; Expr is present only for a
 // single reaching expression from the local reference channel.
 // Unpacked, variadic and unresolved bindings cannot establish this proof.
-// Multiple reference arguments may alias, so their outputs are not projected.
+// Multiple reference outputs require distinct, unaliased local argument cells.
 // A callee that may modify request globals can also write the actual argument
 // through another route; its parameter-only summary cannot prove this result.
 func (e *Env) ReferenceResult(call syntax.Node, target *syntax.Arg) (Value, bool) {
@@ -81,7 +81,7 @@ func (e *Env) ReferenceResult(call syntax.Node, target *syntax.Arg) (Value, bool
 			at = i
 		}
 	}
-	if at < 0 || references != 1 || !params[positions[at]].ByRef {
+	if at < 0 || references != 1 && !r.distinctReferences[call] || !params[positions[at]].ByRef {
 		return Value{}, false
 	}
 	if _, described := summary.ByRef[positions[at]]; !described {
@@ -181,6 +181,22 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 	params, _, known := e.declaration(at)
 	var few [8]int
 	positions := parameters(list, params, few[:0])
+	referenceCount := 0
+	for _, param := range params {
+		if param.ByRef {
+			referenceCount++
+		}
+	}
+	if known && referenceCount > 1 {
+		distinct := distinctReferenceLocals(list, params, positions, f, r)
+		if old, seen := r.distinctReferences[at]; seen {
+			distinct = distinct && old
+		}
+		if r.distinctReferences == nil {
+			r.distinctReferences = map[syntax.Node]bool{}
+		}
+		r.distinctReferences[at] = distinct
+	}
 	for i, x := range list.Args {
 		a, ok := x.(*syntax.Arg)
 		if !ok {
@@ -1313,4 +1329,35 @@ func (e *Env) localBody(name string) syntax.Node {
 		return body
 	}
 	return nil
+}
+
+// Only independent local cells may reuse parameter-only reference summaries.
+// Alias groups, captured storage, globals, static locals and element lvalues
+// can overlap through paths not represented by their written variable names.
+func distinctReferenceLocals(list *syntax.ArgList, params []index.Param, positions []int, f *frame, r *scopeResult) bool {
+	if r.global || !f.definite {
+		return false
+	}
+	names := map[string]bool{}
+	count := 0
+	for i, node := range list.Args {
+		p := positions[i]
+		arg, ok := node.(*syntax.Arg)
+		if !ok || arg.Unpack || arg.ByRef || p < 0 {
+			return false
+		}
+		if !params[p].ByRef {
+			continue
+		}
+		name := plainVariable(arg.Value)
+		value := f.vars[name]
+		_, shared := f.aliased[name]
+		_, static := r.statics[name]
+		if !value.Complete || value.replaced || value.Invalidated != 0 || name == "" || external(name) || name == "GLOBALS" || names[name] || shared || static || r.globalNames[name] {
+			return false
+		}
+		names[name] = true
+		count++
+	}
+	return count > 1
 }

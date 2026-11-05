@@ -103,3 +103,62 @@ func (e *Env) instantiateResource(at syntax.Node, contract *resourceReturn, args
 	}
 	return id, map[uint32]State{id: state}, true
 }
+
+// Effects describe only the state shared by every normal completion. No callee
+// identity or syntax survives publication; each use binds caller identities.
+type resourceEffect struct {
+	parameter int
+	operation string
+	checked   bool
+}
+
+func summarizeResourceEffects(scope syntax.Node, r *scopeResult, sum Summary) []resourceEffect {
+	if !r.complete || !sum.Fixed || !sum.Quiet || sum.Generator || byReference(scope) {
+		return nil
+	}
+	var effects []resourceEffect
+	for i, p := range syntax.VariableScopeParams(scope) {
+		if p.Var == nil || p.ByRef || p.Variadic {
+			return nil
+		}
+		state := r.exitStates[p.Var.Span().Start+1]
+		switch state.Operation {
+		case "fclose", "pclose":
+			if !state.closeChecked {
+				continue
+			}
+		case "fread", "fwrite":
+		default:
+			continue
+		}
+		effects = append(effects, resourceEffect{parameter: i, operation: state.Operation, checked: state.closeChecked})
+	}
+	return effects
+}
+
+func (e *Env) resourceEffects(at syntax.Node, effects []resourceEffect, args []Value, f *frame, r *scopeResult) map[uint32]State {
+	if len(effects) == 0 {
+		return nil
+	}
+	// Distinct parameters can name the same handle at a call site. Their symbolic
+	// histories do not describe that ordering, so reject overlapping identities.
+	ids := map[uint32]bool{}
+	for _, value := range args {
+		if value.Identity == 0 {
+			continue
+		}
+		if ids[value.Identity] {
+			return nil
+		}
+		ids[value.Identity] = true
+	}
+	states := map[uint32]State{}
+	for _, effect := range effects {
+		id, _, known := e.instantiateResource(at, &resourceReturn{parameter: effect.parameter}, args, f, r)
+		if !known {
+			return nil
+		}
+		states[id] = State{Operation: effect.operation, Span: at.Span(), Successful: effect.checked, closeChecked: effect.checked}
+	}
+	return states
+}

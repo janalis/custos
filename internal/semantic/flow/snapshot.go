@@ -25,6 +25,7 @@ type Sink struct {
 type Summary struct {
 	returned *returnedCallable
 	resource *resourceReturn
+	effects  []resourceEffect
 	// dispatch is a reserved, syntax-free class metadata contract.
 	dispatch  *sinkClass
 	Return    Value
@@ -326,6 +327,21 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 		}
 		return true
 	})
+	// Reuse the declaration inventory instead of walking the file again on
+	// the first local producer or nested-contract query.
+	e.localBodies = make(map[string]syntax.Node, len(s.declared))
+	for key, declarations := range s.declared {
+		for _, declaration := range declarations {
+			switch declaration.(type) {
+			case *syntax.Function, *syntax.Method:
+				if _, duplicate := e.localBodies[key]; duplicate {
+					e.localBodies[key] = nil
+				} else {
+					e.localBodies[key] = declaration
+				}
+			}
+		}
+	}
 	e.summarizing = s
 	for _, n := range order {
 		e.summarize(n)
@@ -403,12 +419,15 @@ func (e *Env) summarize(n syntax.Node) {
 		}
 	}
 	sum.resource = e.summarizeResource(n, r, sum)
+	sum.effects = summarizeResourceEffects(n, r, sum)
 	if sum.Fixed && !byReference(n) {
 		sum.returned = e.summarizeReturned(sum.Return, r, len(syntax.VariableScopeParams(n)))
 	}
 	sum.Return.returned = nil
 	sum.Return.targets = nil
 	sum.Return.Expr = nil
+	shapeFuel := MaxSources
+	sum.Return.elements = compactElements(sum.Return.elements, MaxDepth, &shapeFuel)
 	sum.Return.interval = nil
 	sum.Return.origins = nil
 	sum.Return.Identity = 0
@@ -668,6 +687,7 @@ func (e *Env) nativeSinks(c Call) []Sink {
 	value.targets = nil
 	value.returned = nil
 	value.Expr = nil
+	value.elements = nil
 	value.interval = nil
 	value.origins = nil
 	value.Identity = 0

@@ -241,7 +241,6 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 					v = Value{Sources: spread.Sources, Safe: spread.Safe}
 				}
 			}
-			v.elements = nil
 			v.tested, v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull, v.entry = nil, nil, false, false, false, false, false
 		}
 	case *syntax.Paren:
@@ -605,6 +604,13 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			v.scalars = false
 			v.Safe |= everyContext
 		}
+		if slot, constant := arrayKey(n.Dim); constant {
+			if own, tracked := r.values.at(n.Var).elements.lookup(slot); tracked {
+				v = elementValue(own)
+				v.Expr = x
+				v.plain, v.deep = own.plain, own.deep
+			}
+		}
 		if variable, ok := root.(*syntax.Variable); ok {
 			key, known := literalText(n.Dim)
 			if variable.NameExpr == nil && !external(variable.Name) {
@@ -615,7 +621,8 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				switch {
 				case tracked:
 					// The element's own last write decides what it holds.
-					v = Value{Complete: own.Complete, Sources: own.Sources, Safe: own.Safe, Expr: x}
+					v = elementValue(own)
+					v.Expr = x
 				case whole == uploadEntry && known && uploadField(key):
 					// The server chooses these fields of an uploaded file.
 					v = Value{Expr: x, Complete: true}
@@ -675,6 +682,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			}
 		}
 		v.Expr = x
+		v.elements = e.literalElements(n, r)
 	case *syntax.PropertyFetch:
 		e.eval(n.Var, f, r, depth+1)
 		if conditional(n) {
@@ -1250,6 +1258,9 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		v = substitute(s.Return, bound, boundOK)
 		v.Expr = n.(syntax.Expr)
 		v.Safe |= s.Return.Safe
+		if v.elements != nil && (!s.Fixed || !e.preciseSummaryTarget(n, closedFollowed)) {
+			v.elements = nil
+		}
 		if boundOK {
 			v.returned = bindReturned(s.returned, bound)
 		}
@@ -1258,6 +1269,19 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 			if identity, states, known := e.instantiateResource(n, s.resource, bound, f, r); known {
 				v.Identity = identity
 				invoked, invocationStates = true, states
+			}
+		}
+		if boundOK && len(s.effects) > 0 && e.preciseSummaryTarget(n, closedFollowed) {
+			effects := e.resourceEffects(n, s.effects, bound, f, r)
+			if len(effects) > 0 {
+				if invocationStates == nil {
+					invocationStates = effects
+				} else {
+					for id, state := range effects {
+						invocationStates[id] = state
+					}
+				}
+				invoked = true
 			}
 		}
 		if s.Generator {
@@ -1869,7 +1893,7 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 // whole.
 func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet {
 	switch n := syntax.UnwrapParens(value).(type) {
-	case *syntax.FuncCall:
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.ArrayDimFetch:
 		return r.values.at(n).elements
 	case *syntax.Variable:
 		if n.NameExpr == nil && !external(n.Name) {
@@ -1894,36 +1918,43 @@ func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet 
 			return common(e.elements(n.Then, f, r), e.elements(n.Else, f, r))
 		}
 	case *syntax.Array:
-		if len(n.Items) == 0 || len(n.Items) > MaxSources {
-			return nil
-		}
-		next, counting := int64(0), true
-		set := &elementSet{items: make(map[string]Value, len(n.Items))}
-		for _, item := range n.Items {
-			if item == nil || item.Unpack || item.ByRef {
-				return nil
-			}
-			key, known := strconv.FormatInt(next, 10), counting
-			if item.Key != nil {
-				key, known = arrayKey(item.Key)
-			}
-			if !known {
-				return nil
-			}
-			// PHP numbers an item without a key after the largest integer
-			// key so far; what follows a negative one depends on its version.
-			if index, err := strconv.ParseInt(key, 10, 64); err == nil && index >= next {
-				next = index + 1
-			} else if err == nil && index < 0 {
-				counting = false
-			}
-			own := r.values.at(item.Value)
-			set.items[key] = Value{Complete: own.Complete, Sources: own.Sources, Safe: own.Safe}
-		}
-		r.operations += len(set.items)
-		return set
+		return r.values.at(n).elements
 	}
 	return nil
+}
+
+func (e *Env) literalElements(n *syntax.Array, r *scopeResult) *elementSet {
+	if len(n.Items) > MaxSources {
+		return nil
+	}
+	next, counting := int64(0), true
+	set := &elementSet{items: make(map[string]Value, len(n.Items)), width: len(n.Items)}
+	for _, item := range n.Items {
+		if item == nil || item.Unpack || item.ByRef {
+			return nil
+		}
+		key, known := strconv.FormatInt(next, 10), counting
+		if item.Key != nil {
+			key, known = arrayKey(item.Key)
+		}
+		if !known {
+			return nil
+		}
+		// PHP numbers an item without a key after the largest integer
+		// key so far; what follows a negative one depends on its version.
+		if index, err := strconv.ParseInt(key, 10, 64); err == nil && index >= next {
+			next = index + 1
+		} else if err == nil && index < 0 {
+			counting = false
+		}
+		own := r.values.at(item.Value)
+		if _, existed := set.items[key]; !existed {
+			set.order = append(set.order, key)
+		}
+		set.put(key, elementValue(own))
+	}
+	r.operations += len(set.items)
+	return set
 }
 
 // arrayKey returns the key PHP uses for a constant array offset: a decimal

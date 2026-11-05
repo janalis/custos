@@ -40,6 +40,12 @@ Named function and closed method factories preserve fresh resource identity inde
 
 A first-class native close or callback-helper close establishes a closed stream on the branch where its exact result is true. A saved result can establish the same proof while that operation is still current. Failure, unchecked results, later operations and escaped handles establish no closed-state proof.
 
+A fixed wrapper may project operations on borrowed stream parameters when the
+same state reaches every normal completion and the wrapper cannot run unknown
+code. Newly closed states require proven success. Repeated actual handle
+identities, reference or variadic parameters, escaping handles and uncertain
+bindings establish no operation proof.
+
 ## Report
 
 - Range: the complete violating call or expression identified by D1; for a declaration-state violation, the offending property access or assignment. Highlight the final unsafe use for source-to-use findings.

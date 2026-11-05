@@ -5,6 +5,8 @@ package flow
 import (
 	"cmp"
 	"maps"
+	"math/bits"
+	"slices"
 	"sort"
 	"strings"
 
@@ -319,7 +321,27 @@ const (
 
 // elementSet is never modified once a binding holds it: a write makes a new
 // one, which lets every copy of the array value share it.
-type elementSet struct{ items map[string]Value }
+type elementSet struct {
+	items map[string]Value
+	order []string // nil unless insertion order is proven for the complete set
+	depth int      // bounded structural cost, including branching
+	width int      // upper bound on the number of entries during construction
+}
+
+// put is only used while constructing an unpublished set. A loop that wraps
+// its previous array cannot accumulate an unbounded chain of nested facts.
+func (s *elementSet) put(key string, value Value) {
+	height := bits.Len(uint(max(1, s.width)))
+	if value.elements != nil {
+		if value.elements.depth+height > MaxDepth {
+			value.elements = nil
+		} else {
+			height += value.elements.depth
+		}
+	}
+	s.depth = max(s.depth, height)
+	s.items[key] = value
+}
 
 // without returns the set less one element, which a callee holding a
 // reference to it may have rewritten; nothing when the element is not known.
@@ -327,10 +349,10 @@ func (s *elementSet) without(key string, known bool) *elementSet {
 	if s == nil || !known {
 		return nil
 	}
-	n := &elementSet{items: map[string]Value{}}
+	n := &elementSet{items: map[string]Value{}, width: len(s.items)}
 	for k, v := range s.items {
 		if k != key {
-			n.items[k] = v
+			n.put(k, v)
 		}
 	}
 	if len(n.items) == 0 {
@@ -341,11 +363,16 @@ func (s *elementSet) without(key string, known bool) *elementSet {
 
 // with returns the set with one more element written.
 func (s *elementSet) with(key string, v Value) *elementSet {
-	n := &elementSet{items: map[string]Value{key: v}}
+	width := 1
+	if s != nil {
+		width += len(s.items)
+	}
+	n := &elementSet{items: map[string]Value{}, width: width}
+	n.put(key, v)
 	if s != nil {
 		for k, old := range s.items {
 			if k != key {
-				n.items[k] = old
+				n.put(k, old)
 			}
 		}
 	}
@@ -361,7 +388,7 @@ func common(a, b *elementSet) *elementSet {
 	if a == nil || b == nil {
 		return nil
 	}
-	kept := true
+	kept := slices.Equal(a.order, b.order)
 	for k, v := range a.items {
 		w, ok := b.items[k]
 		if !ok || !equal(merge(v, w), v) {
@@ -372,10 +399,13 @@ func common(a, b *elementSet) *elementSet {
 	if kept {
 		return a
 	}
-	n := &elementSet{items: map[string]Value{}}
+	n := &elementSet{items: map[string]Value{}, width: min(len(a.items), len(b.items))}
+	if slices.Equal(a.order, b.order) {
+		n.order = a.order
+	}
 	for k, v := range a.items {
 		if w, ok := b.items[k]; ok {
-			n.items[k] = merge(v, w)
+			n.put(k, merge(v, w))
 		}
 	}
 	if len(n.items) == 0 {
@@ -724,22 +754,23 @@ type Env struct {
 }
 
 type scopeResult struct {
-	callables         map[syntax.Expr]string
-	boundMethods      map[syntax.Expr]*boundMethod
-	allocations       map[uint32]bool
-	exitStates        map[uint32]State
-	closures          map[syntax.Expr]map[string]Value
-	closureSinks      map[syntax.Node][]Sink
-	parameterReads    map[string]uint8
-	parameterObserved map[string]uint8
-	closedReceivers   map[syntax.Node]bool
-	gaps              map[string]syntax.Span
-	originTypes       *infer.Env
-	originKeys        map[syntax.Expr]string
-	originReserve     int
-	originContracts   map[string]bool
-	generator         bool
-	values            valueStore
+	distinctReferences map[syntax.Node]bool
+	callables          map[syntax.Expr]string
+	boundMethods       map[syntax.Expr]*boundMethod
+	allocations        map[uint32]bool
+	exitStates         map[uint32]State
+	closures           map[syntax.Expr]map[string]Value
+	closureSinks       map[syntax.Node][]Sink
+	parameterReads     map[string]uint8
+	parameterObserved  map[string]uint8
+	closedReceivers    map[syntax.Node]bool
+	gaps               map[string]syntax.Span
+	originTypes        *infer.Env
+	originKeys         map[syntax.Expr]string
+	originReserve      int
+	originContracts    map[string]bool
+	generator          bool
+	values             valueStore
 	// reads names the contracts the result was computed from, with those of
 	// the results and facts it read; nil when Summarize did not compute it.
 	reads     map[string]bool

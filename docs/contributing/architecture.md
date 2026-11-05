@@ -230,8 +230,11 @@ open documents.
   invokable objects require native receiver evidence and non-overridable visible
   targets. Complete finite alternatives join all targets, including literal
   callable names; unsupported alternatives establish no proof.
-- Finite `array_map` inputs evaluate supported callback contracts per element,
-  preserving literal keys. Callback effects do not establish caller operation
+- Finite `array_map` inputs evaluate supported callback contracts per element.
+  One input preserves literal keys; up to eight complete inputs with proven
+  insertion order bind positional values, pad shorter inputs with null and use
+  numeric output keys. Immutable nested element provenance crosses local
+  invocation frames and bounded syntax-free return templates. Callback effects do not establish caller operation
   facts or execution-order proofs. Unknown inputs and unsupported bindings use
   conservative aggregate provenance.
 - Returned closure contracts contain only parameter metadata, symbolic values
@@ -245,9 +248,13 @@ open documents.
   a caller identity; a borrowed identity preserves the existing caller state.
   Only states shared by normal completions are projected, and a newly observed
   close requires proven success. Other callee-local identities are dropped.
-- `Flow().ReferenceResult` also projects a single reference output from a proven
+- `Flow().ReferenceResult` also projects reference outputs from a proven
   final or private method. Nullable, escaped and PHPDoc-only receivers do not
-  establish that replacement proof; multiple reference arguments remain unknown.
+  establish that replacement proof. Multiple reference outputs require distinct,
+  unaliased local cells; globals, static locals and element lvalues remain unknown.
+- Fixed quiet wrappers project common `fread`, `fwrite` and checked-close states
+  onto proven borrowed resources. Escapes, repeated actual handle identities,
+  reference parameters and variadics establish no effect proof.
 - Catch paths are pruned only for blocks proven non-throwing. Calls, uncertain
   reads or writes, callbacks and object destruction keep exception paths;
   `finally` blocks follow the applicable exits. `declare(ticks=…)` disables
@@ -256,10 +263,15 @@ open documents.
   and exhausted budgets discard definite facts: an unknown result is never
   proof of a bug.
 
+Nested element facts have bounded depth and branching cost even when loops wrap an
+earlier array. Exhaustion discards field detail while retaining aggregate
+provenance. Return templates use a deterministic budget for the whole tree.
+
 Expression values use small, lazily allocated blocks behind per-scope indices;
 queries still return value copies. Branch bindings retain copy-on-write maps,
 and recording an unchanged fact keeps the existing map shared. Class identity
 keys may be cached, but each contract use must still record its dependency.
+Summarization reuses its declaration inventory for local producer queries.
 Resolved member declaration metadata is cached per call site, index identity
 and revision, and PHP version. Unresolved lookups remain eligible for later
 inference. Keep live receiver, visibility and contract dependency proofs at

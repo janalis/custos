@@ -149,3 +149,25 @@ func closedBinding(receiver syntax.Expr, f *frame) bool {
 	_, aliased := f.aliased[name]
 	return tracked && !aliased && value.Complete && !value.replaced && value.Invalidated == 0
 }
+
+// Precise return shapes and state effects require the body that actually runs,
+// not an overridable or documented-only receiver contract. Class metadata reads
+// remain dependencies.
+func (e *Env) preciseSummaryTarget(at syntax.Node, followed uint8) bool {
+	switch call := at.(type) {
+	case *syntax.FuncCall:
+		return true
+	case *syntax.MethodCall:
+		native := e.types.Native().TypeOf(call.Var)
+		if call.NullSafe || followed == followLoose || len(native.Classes()) != 1 || len(native.Atoms()) != 1 {
+			return false
+		}
+	case *syntax.StaticCall:
+		class, named := call.Class.(*syntax.Name)
+		if !named || strings.EqualFold(class.Value, "static") {
+			return false
+		}
+	}
+	name := e.sinkSummaryName(at)
+	return name != "" && name == e.summaryName(at)
+}

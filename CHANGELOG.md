@@ -9,6 +9,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Reuse the flow summary declaration inventory for local contract queries.
+- Evaluate supported finite multi-array callbacks with insertion order, null
+  padding and PHP key behavior; preserve bounded nested return provenance.
+- Project multiple reference outputs for distinct, unaliased local variables.
+- Carry common borrowed-stream reads, writes and proven successful closes
+  through fixed wrapper contracts, with dependency invalidation on edits.
+
 - Use indexed flow call lookups while preserving source-ordered histories,
   including nested calls and native callable replay.
 

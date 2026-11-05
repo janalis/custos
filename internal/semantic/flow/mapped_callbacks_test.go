@@ -20,7 +20,7 @@ func TestMappedCallableContracts(t *testing.T) {
 		{`function f($key){$a=['clean'];$a[$key]=$_GET['x'];$xs=array_map('strtolower',$a);probe($xs);}`, true},
 		{`function f($flag){$a=$flag?['shared'=>'clean','left'=>$_GET['x']]:['shared'=>'clean','right'=>$_GET['x']];$xs=array_map('strtolower',$a);probe($xs);}`, true},
 		{`$xs=array_map(null,[$_GET['x']]);probe($xs[0]);`, true},
-		{`$xs=array_map('htmlspecialchars',[$_GET['x']],[ENT_QUOTES]);probe($xs[0]);`, true},
+		{`$xs=array_map('htmlspecialchars',[$_GET['x']],[ENT_QUOTES]);probe($xs[0]);`, false},
 		{`$xs=array_map(...['htmlspecialchars',[$_GET['x']]]);probe($xs[0]);`, true},
 	} {
 		e, file := summarized(t, tc.source)

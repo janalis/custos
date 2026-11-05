@@ -44,7 +44,16 @@ method cannot be overridden, including final methods on extensible classes. Ever
 possible target and argument binding must be known. A proven final or private
 method with one unaliased reference argument may also replace the request data
 held by that argument. A nullable or escaped receiver, PHPDoc-only receiver claim,
-unknown effects or multiple reference arguments establish no replacement proof.
+unknown effects or overlapping reference arguments establish no replacement proof.
+Multiple reference outputs require distinct local variables without aliases,
+reference captures, static storage or global bindings.
+
+Complete finite array mappings may bind several input arrays in insertion order,
+with null for missing positions and numeric result keys when several arrays are
+supplied. A single input preserves its keys. Proven nested callback return fields
+retain their own provenance, including through bounded immutable wrapper
+contracts. Unknown input order, incomplete entries, unsupported callback bindings
+and alias mutations cannot establish a clean field.
 
 Literal keys and computed request names use PHP string decoding for the parsed
 source version. Escape sequences PHP preserves remain distinct from actual

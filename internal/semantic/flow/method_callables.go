@@ -125,6 +125,13 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 	if resource {
 		result.Identity = identity
 	}
+	effects := e.resourceEffects(at, summary.effects, args, f, r)
+	for id, state := range effects {
+		if states == nil {
+			states = map[uint32]State{}
+		}
+		states[id] = state
+	}
 	if target.receiver.Identity != 0 {
 		if states == nil {
 			states = map[uint32]State{}

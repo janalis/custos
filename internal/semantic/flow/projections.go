@@ -1,5 +1,7 @@
 package flow
 
+import "sort"
+
 // projectValues records a dependency on values rather than keys or the whole
 // array. Sources are immutable and shared until a symbolic projection changes.
 func projectValues(v Value) Value {
@@ -38,6 +40,11 @@ func projectSource(v Value, s Source) Value {
 
 // substitute expands syntax-free dependencies using declaration-ordered args.
 func substitute(template Value, args []Value, known bool) Value {
+	fuel := MaxSources
+	return substituteValue(template, args, known, MaxDepth, &fuel)
+}
+
+func substituteValue(template Value, args []Value, known bool, depth int, fuel *int) Value {
 	v := Value{Complete: template.Complete}
 	for _, source := range template.Sources {
 		if source.Parameter < 0 {
@@ -49,6 +56,14 @@ func substitute(template Value, args []Value, known bool) Value {
 		}
 	}
 	v.Safe |= template.Safe
+	if template.elements != nil && depth > 0 && len(template.elements.items) <= *fuel {
+		*fuel -= len(template.elements.items)
+		v.elements = &elementSet{items: make(map[string]Value, len(template.elements.items)), order: template.elements.order, width: len(template.elements.items)}
+		for _, key := range sortedElementKeys(template.elements) {
+			element := template.elements.items[key]
+			v.elements.put(key, substituteValue(element, args, known, depth-1, fuel))
+		}
+	}
 	return v
 }
 
@@ -69,4 +84,30 @@ func projectKeys(v Value) Value {
 		}
 	}
 	return v
+}
+
+// Compact shapes share only immutable provenance. A single fuel allowance
+// bounds the entire tree; losing nested detail retains aggregate provenance.
+func compactElements(elements *elementSet, depth int, fuel *int) *elementSet {
+	if elements == nil || depth == 0 || len(elements.items) > *fuel {
+		return nil
+	}
+	*fuel -= len(elements.items)
+	out := &elementSet{items: make(map[string]Value, len(elements.items)), order: elements.order, width: len(elements.items)}
+	for _, key := range sortedElementKeys(elements) {
+		value := elements.items[key]
+		entry := compactCallableValue(value)
+		entry.elements = compactElements(value.elements, depth-1, fuel)
+		out.put(key, entry)
+	}
+	return out
+}
+
+func sortedElementKeys(elements *elementSet) []string {
+	keys := make([]string, 0, len(elements.items))
+	for key := range elements.items {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
