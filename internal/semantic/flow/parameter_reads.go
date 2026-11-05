@@ -19,7 +19,8 @@ func (e *Env) ParameterRead(scope syntax.Node, parameter int) (read, known bool)
 		for name, state := range r.parameterObserved {
 			r.parameterReads[name] = state
 		}
-		for expr, value := range r.values {
+		for expr := range r.values.slots {
+			value := r.values.at(expr)
 			v, ok := expr.(*syntax.Variable)
 			if !ok || v.NameExpr != nil {
 				continue

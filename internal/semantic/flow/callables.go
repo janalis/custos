@@ -37,7 +37,7 @@ func (e *Env) invokeCallable(at syntax.Node, values []Value, f *frame, r *scopeR
 	if !ok {
 		return Value{}, nil, false
 	}
-	callee := r.values[call.Name]
+	callee := r.values.at(call.Name)
 	list := call.Args
 	if name, builtin := e.callName(call); builtin {
 		switch name {
@@ -66,8 +66,8 @@ func (e *Env) invokeCallable(at syntax.Node, values []Value, f *frame, r *scopeR
 			if !known || len(args) != 2 {
 				return Value{}, nil, false
 			}
-			callee = r.values[args[0]]
-			packed := r.values[args[1]]
+			callee = r.values.at(args[0])
+			packed := r.values.at(args[1])
 			packed.elements = e.elements(args[1], f, r)
 			list = &syntax.ArgList{Args: []syntax.Expr{&syntax.Arg{Value: args[1], Unpack: true}}}
 			values = []Value{packed}

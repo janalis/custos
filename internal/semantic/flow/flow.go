@@ -433,6 +433,11 @@ type frame struct {
 
 // setVar binds name to v.
 func (f *frame) setVar(name string, v Value) {
+	if f.varsShared != nil && *f.varsShared {
+		if held, known := f.vars[name]; known && equal(held, v) {
+			return
+		}
+	}
 	f.ownVars()
 	f.vars[name] = v
 }
@@ -673,6 +678,7 @@ type Options struct{ Assertions bool }
 
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
+	classKeys       map[string]string
 	invocationDepth int
 	arrowNames      map[*syntax.ArrowFunction]captureNames
 	options         Options
@@ -732,7 +738,7 @@ type scopeResult struct {
 	originReserve     int
 	originContracts   map[string]bool
 	generator         bool
-	values            map[syntax.Expr]Value
+	values            valueStore
 	// reads names the contracts the result was computed from, with those of
 	// the results and facts it read; nil when Summarize did not compute it.
 	reads     map[string]bool
@@ -834,7 +840,7 @@ func (e *Env) Value(x syntax.Expr) Value {
 		return Value{Complete: true}
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	v, ok := r.values[x]
+	v, ok := r.values.get(x)
 	if !ok {
 		return Value{}
 	}
@@ -859,7 +865,7 @@ func (e *Env) Excludes(x syntax.Expr, literal string) bool {
 		return false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	v := r.values[x]
+	v := r.values.at(x)
 	if !r.complete && !beforeCut(r, x) {
 		return false
 	}
@@ -1086,7 +1092,7 @@ func (e *Env) Reaching(x syntax.Expr) ([]Origin, bool) {
 		return nil, false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	v, ok := r.values[x]
+	v, ok := r.values.get(x)
 	switch {
 	case !ok || !r.complete:
 		return nil, false
@@ -1120,7 +1126,7 @@ func (e *Env) Tainted(x syntax.Expr, context Context) bool {
 		return false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	v := r.values[x]
+	v := r.values.at(x)
 	return r.complete && !v.Safe.Covers(context) && tainted(v)
 }
 
@@ -1131,7 +1137,7 @@ func (e *Env) Matched(x syntax.Expr) bool {
 		return false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	return r.complete && r.values[x].matched
+	return r.complete && r.values.at(x).matched
 }
 
 // Calls returns reached calls in a scope, excluding nested scopes. Returned

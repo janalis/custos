@@ -62,7 +62,7 @@ func TestClosureSinks(t *testing.T) {
 		}
 		return true
 	})
-	if e.scope(closure).values[argument(callsNamed(f, "header")[0])].Sources[0].Kind != "parameter" {
+	if e.scope(closure).values.at(argument(callsNamed(f, "header")[0])).Sources[0].Kind != "parameter" {
 		t.Fatal("invocation contaminated symbolic scope")
 	}
 }

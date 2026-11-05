@@ -58,12 +58,12 @@ func TestReferenceResultUnavailable(t *testing.T) {
 		t.Fatal("invented result for foreign argument")
 	}
 	r := e.scope(nil)
-	saved := r.values[arg.Value]
-	delete(r.values, arg.Value)
+	saved := r.values.at(arg.Value)
+	delete(r.values.slots, arg.Value)
 	if _, known := e.ReferenceResult(call, arg); known {
 		t.Fatal("invented result for unevaluated argument")
 	}
-	r.values[arg.Value] = saved
+	r.values.set(arg.Value, saved)
 	r.complete = false
 	if _, known := e.ReferenceResult(call, arg); known {
 		t.Fatal("used incomplete scope")

@@ -73,7 +73,7 @@ func (e *Env) ReferenceResult(call syntax.Node, target *syntax.Arg) (Value, bool
 		if !ok || arg.Unpack || arg.ByRef || p < 0 || params[p].Variadic {
 			return Value{}, false
 		}
-		if _, evaluated := r.values[arg.Value]; !evaluated {
+		if _, evaluated := r.values.get(arg.Value); !evaluated {
 			return Value{}, false
 		}
 		if params[p].ByRef {
@@ -89,7 +89,7 @@ func (e *Env) ReferenceResult(call syntax.Node, target *syntax.Arg) (Value, bool
 	if _, described := summary.ByRef[positions[at]]; !described {
 		return Value{}, false
 	}
-	v := e.left(call, at, list, positions, r.values[target.Value], nil, r)
+	v := e.left(call, at, list, positions, r.values.at(target.Value), nil, r)
 	if body := e.localBody(name); body != nil {
 		p := syntax.VariableScopeParams(body)[positions[at]]
 		v.Expr = e.scope(body).exit[received(p.Var.Name)].Expr
@@ -246,7 +246,7 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 			if position != source.Parameter || !isArg {
 				continue
 			}
-			in := r.values[arg.Value]
+			in := r.values.at(arg.Value)
 			if i == at {
 				in = old
 			}
@@ -873,7 +873,7 @@ func (e *Env) updated(name string, at int, list *syntax.ArgList, positions []int
 		if !ok || i == at || positions[i] >= 0 && strings.Contains(params[positions[i]].Type, "callable") {
 			continue
 		}
-		if in := r.values[other.Value]; tainted(in) {
+		if in := r.values.at(other.Value); tainted(in) {
 			inputs = merge(inputs, Value{Complete: true, Sources: in.Sources, Safe: in.Safe})
 		}
 	}

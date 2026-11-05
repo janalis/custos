@@ -9,6 +9,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Reduce flow-analysis allocations with indexed expression-value storage,
+  unchanged-fact branch reuse and cached class identity keys.
+- Resolve terminal native-value queries without candidate-walk allocation or
+  unnecessary semantic initialization.
+
 - Finite `array_map` inputs reuse supported callback transformations and sinks.
 - Checked indirect stream closes retain success and failure branch distinctions,
   including saved results whose operation is still current.

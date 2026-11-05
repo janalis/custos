@@ -126,6 +126,22 @@ func NativeValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		}
 		return NativeUnsilenced(v)
 	}
+	e = syntax.UnwrapParens(e)
+	if e == nil || e.Span().Len() == 0 {
+		return nil
+	}
+	// Candidate discovery expands only these non-variable forms. Everything
+	// else already is its single candidate, so it needs neither a walk nor
+	// a semantic environment. Keep this dispatch aligned with discoverer.
+	switch n := e.(type) {
+	case *syntax.PropertyFetch, *syntax.StaticPropertyFetch, *syntax.ClassConstFetch, *syntax.ConstFetch, *syntax.Ternary:
+	case *syntax.Binary:
+		if n.Op.Kind != syntax.TCoalesce {
+			return NativeUnsilenced(e)
+		}
+	default:
+		return NativeUnsilenced(e)
+	}
 	values, known := DiscoverValuesKnown(ctx.Types(), e)
 	if !known || len(values) != 1 {
 		return nil

@@ -48,7 +48,7 @@ func (e *Env) closedMethod(at syntax.Node, class, name string, static bool) (clo
 	if !e.sinkLexicalContext(at) {
 		return closedContract{}, false
 	}
-	e.contract(sinkClassKey(class))
+	e.contract(e.classKey(class))
 	decls := e.types.Index.ClassDecls(class, e.types.PHP)
 	if len(decls) != 1 || decls[0].Kind != syntax.KindClass {
 		return closedContract{}, false
@@ -60,7 +60,7 @@ func (e *Env) closedMethod(at syntax.Node, class, name string, static bool) (clo
 	owner := class
 	found := false
 	for range MaxDepth * 4 {
-		meta, known := e.contract(sinkClassKey(owner))
+		meta, known := e.contract(e.classKey(owner))
 		decls := e.types.Index.ClassDecls(owner, e.types.PHP)
 		if !known || meta.dispatch == nil || len(decls) != 1 || decls[0].Kind == syntax.KindTrait {
 			return closedContract{}, false

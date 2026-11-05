@@ -19,7 +19,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		if label, ok := n.Parent().(*syntax.Case); ok && label.Cond == n {
 			// A label is compared loosely with the subject of its switch.
 			subject := label.Parent().(*syntax.Switch).Cond
-			if constantName(subject) == "" && (!v.plain && !textless(subject) || !r.values[subject].plain && !textless(n)) {
+			if constantName(subject) == "" && (!v.plain && !textless(subject) || !r.values.at(subject).plain && !textless(n)) {
 				e.implicit(n, f, r)
 			}
 		}
@@ -123,7 +123,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 // targets are evaluated, then given a key and an element of what the loop
 // iterates.
 func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
-	iterated := r.values[n.Expr]
+	iterated := r.values.at(n.Expr)
 	if n.ByRef || referenceTarget(n.Value, f) {
 		// The loop variable stays bound to an element after the loop.
 		f.alias(rootVariable(n.Value), aliasAny)
@@ -856,15 +856,15 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	default:
 		v.interval = nil
 	}
-	if old, ok := r.values[x]; ok {
+	if old, ok := r.values.get(x); ok {
 		seen := merge(old, v)
 		if _, read := x.(*syntax.Variable); read {
 			// Every visit of the read adds the producers that reach it.
 			seen.origins = origins(old, v, r)
 		}
-		r.values[x] = seen
+		r.values.set(x, seen)
 	} else {
-		r.values[x] = v
+		r.values.set(x, v)
 	}
 	return v
 }
@@ -1238,7 +1238,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		first = bound[0]
 	} else if call, ok := n.(*syntax.FuncCall); ok && builtin && call.Args != nil {
 		if ordered, known := e.guardArguments(call); known && len(ordered) > 0 && ordered[0] != nil {
-			first = r.values[ordered[0]]
+			first = r.values.at(ordered[0])
 		}
 	} else if !builtin && len(values) > 0 {
 		first = values[0]
@@ -1606,7 +1606,7 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 				return false
 			}
 			if expr, ok := child.(syntax.Expr); ok {
-				if v := r.values[expr]; v.Identity != 0 {
+				if v := r.values.at(expr); v.Identity != 0 {
 					identities[v.Identity] = true
 				}
 			}
@@ -1870,7 +1870,7 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet {
 	switch n := syntax.UnwrapParens(value).(type) {
 	case *syntax.FuncCall:
-		return r.values[n].elements
+		return r.values.at(n).elements
 	case *syntax.Variable:
 		if n.NameExpr == nil && !external(n.Name) {
 			return f.vars[n.Name].elements
@@ -1917,7 +1917,7 @@ func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet 
 			} else if err == nil && index < 0 {
 				counting = false
 			}
-			own := r.values[item.Value]
+			own := r.values.at(item.Value)
 			set.items[key] = Value{Complete: own.Complete, Sources: own.Sources, Safe: own.Safe}
 		}
 		r.operations += len(set.items)
@@ -2087,7 +2087,7 @@ func (e *Env) assigns(call syntax.Node, list *syntax.ArgList, f *frame, r *scope
 	}
 	for i, item := range array.Items {
 		e.release(call, names[i], f, r)
-		f.write(r, names[i], r.values[item.Value])
+		f.write(r, names[i], r.values.at(item.Value))
 	}
 	return true
 }
@@ -2145,7 +2145,7 @@ func scalar(r *scopeResult, x syntax.Expr, depth int) bool {
 	case *syntax.Assign:
 		switch n.Op.Kind {
 		case syntax.TPlusEqual, syntax.TCoalesceEqual:
-			return depth > 0 && scalar(r, r.values[n.Var].Expr, depth-1)
+			return depth > 0 && scalar(r, r.values.at(n.Var).Expr, depth-1)
 		}
 		return n.Op.Kind != syntax.TEqual
 	}
@@ -2489,7 +2489,7 @@ func (e *Env) sealed(call syntax.Node, name string, list *syntax.ArgList, r *sco
 		if !ok || at < 0 || invoked(params[at]) && constantName(arg.Value) != "null" && !e.harmless(arg.Value) {
 			return false
 		}
-		if kind := e.kinds(params[at].Type, params[at].DocType); !params[at].ByRef && !r.values[arg.Value].deep && (kind&kindKnown == 0 || kind&(kindObject|kindOpaque|kindArray) != 0) {
+		if kind := e.kinds(params[at].Type, params[at].DocType); !params[at].ByRef && !r.values.at(arg.Value).deep && (kind&kindKnown == 0 || kind&(kindObject|kindOpaque|kindArray) != 0) {
 			return false
 		}
 	}

@@ -243,7 +243,7 @@ func (e *Env) IntEntry(x syntax.Expr) (int64, bool) {
 		}
 	}
 	normal := e.scope(scope)
-	if value := normal.values[x]; !normal.complete || value.Expr == nil && value.interval == nil && value.origins == nil {
+	if value := normal.values.at(x); !normal.complete || value.Expr == nil && value.interval == nil && value.origins == nil {
 		return 0, false
 	}
 	twin := *e
@@ -255,7 +255,7 @@ func (e *Env) IntEntry(x syntax.Expr) (int64, bool) {
 	// Its cloned memo retains normal callee results, and it cannot require
 	// more transfer work than that completed analysis.
 	r := twin.followMode(syntax.EnclosingVariableScope(x), nil, true, x)
-	value := r.values[x]
+	value := r.values.at(x)
 	lo, hi, known := integerBounds(value)
 	return lo, value.Complete && known && lo == hi
 }
@@ -381,8 +381,8 @@ func entryTruth(x syntax.Expr, r *scopeResult) (bool, bool) {
 		}
 	}
 	if n, ok := syntax.UnwrapParens(x).(*syntax.Binary); ok {
-		lo, hi, a := integerBounds(r.values[n.Left])
-		bl, bh, b := integerBounds(r.values[n.Right])
+		lo, hi, a := integerBounds(r.values.at(n.Left))
+		bl, bh, b := integerBounds(r.values.at(n.Right))
 		if a && b && lo == hi && bl == bh {
 			switch n.Op.Kind {
 			case syntax.TLess:
@@ -396,7 +396,7 @@ func entryTruth(x syntax.Expr, r *scopeResult) (bool, bool) {
 			}
 		}
 	}
-	lo, hi, known := integerBounds(r.values[x])
+	lo, hi, known := integerBounds(r.values.at(x))
 	return lo != 0, known && lo == hi
 }
 

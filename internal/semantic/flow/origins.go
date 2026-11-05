@@ -127,7 +127,7 @@ func (e *Env) CompressedOrigins(x syntax.Expr) bool {
 		return false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	v := r.values[x]
+	v := r.values.at(x)
 	return r.complete && v.Expr == nil && v.origins != nil && v.origins.compressed
 }
 

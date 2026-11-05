@@ -771,7 +771,7 @@ func (e *Env) stored(flag *syntax.Variable, f *frame) syntax.Expr {
 		case *syntax.Assign, *syntax.IncDec, *syntax.Closure, *syntax.ArrowFunction:
 			current = false
 		case *syntax.Variable:
-			then, now := r.values[x], f.vars[x.Name]
+			then, now := r.values.at(x), f.vars[x.Name]
 			current = current && x.NameExpr == nil && now.Expr != nil && then.Expr == now.Expr && then.Invalidated == now.Invalidated
 		}
 		return current

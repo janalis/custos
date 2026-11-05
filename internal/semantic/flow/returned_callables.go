@@ -84,7 +84,7 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 	}
 	result := Value{Complete: true}
 	if arrow, ok := expr.(*syntax.ArrowFunction); ok {
-		result = body.values[arrow.Expr]
+		result = body.values.at(arrow.Expr)
 	} else {
 		for i, value := range body.returns {
 			if i == 0 {

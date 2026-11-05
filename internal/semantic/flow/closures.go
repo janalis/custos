@@ -128,7 +128,7 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 	}
 	result := Value{Complete: true}
 	if arrow, ok := expr.(*syntax.ArrowFunction); ok {
-		result = r.values[arrow.Expr]
+		result = r.values.at(arrow.Expr)
 	} else {
 		for i, value := range r.returns {
 			if i == 0 {

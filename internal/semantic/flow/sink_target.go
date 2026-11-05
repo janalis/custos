@@ -34,14 +34,14 @@ func (e *Env) sinkSummaryName(at syntax.Node) string {
 	}
 	m := e.method(at)
 	if m != nil {
-		e.contract(sinkClassKey(m.Class))
+		e.contract(e.classKey(m.Class))
 	}
 	if !e.sinkLexicalContext(at) {
 		return ""
 	}
 	exact := m != nil && (m.Final || m.Visibility == index.Private)
 	for steps := 0; steps < MaxDepth*4; steps++ {
-		meta, _ := e.contract(sinkClassKey(receiver))
+		meta, _ := e.contract(e.classKey(receiver))
 		decls := e.types.Index.ClassDecls(receiver, e.types.PHP)
 		if len(decls) != 1 || decls[0].Kind == syntax.KindTrait {
 			return ""
@@ -82,6 +82,21 @@ func (e *Env) sinkSummaryName(at syntax.Node) string {
 // participates in the existing snapshot dependency, overlay and equality paths.
 func sinkClassKey(name string) string {
 	return "\x00sink-class:" + names.Fold(strings.TrimPrefix(name, `\`))
+}
+
+// Class identity normalization is pure and repeated by visibility and dispatch
+// checks. Keep keys local to this environment; contract reads still occur at
+// every use so snapshot dependency tracking is unchanged.
+func (e *Env) classKey(name string) string {
+	if key, known := e.classKeys[name]; known {
+		return key
+	}
+	key := sinkClassKey(name)
+	if e.classKeys == nil {
+		e.classKeys = map[string]string{}
+	}
+	e.classKeys[name] = key
+	return key
 }
 
 type sinkClass struct {
@@ -135,7 +150,7 @@ func describeSinkClass(n *syntax.ClassLike, types *infer.Env) *sinkClass {
 func (e *Env) sinkLexicalContext(at syntax.Node) bool {
 	within := e.types.ClassFQN(syntax.EnclosingClass(at))
 	for steps := 0; within != "" && steps < MaxDepth*4; steps++ {
-		e.contract(sinkClassKey(within))
+		e.contract(e.classKey(within))
 		decls := e.types.Index.ClassDecls(within, e.types.PHP)
 		if len(decls) != 1 {
 			return false

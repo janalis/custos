@@ -57,7 +57,7 @@ func (e *Env) observeIntrospection(at syntax.Node, name string, args *syntax.Arg
 		if call, ok := at.(*syntax.FuncCall); ok {
 			bound, known := e.types.Native().BuiltinArguments(call)
 			if known && len(bound) > 0 {
-				if position, known := literalInteger(r.values[bound[0]].Expr); known {
+				if position, known := literalInteger(r.values.at(bound[0]).Expr); known {
 					params := syntax.VariableScopeParams(syntax.EnclosingVariableScope(at))
 					if position >= 0 && position < int64(len(params)) && params[position].Var != nil {
 						param := params[position]
@@ -75,7 +75,7 @@ func (e *Env) observeIntrospection(at syntax.Node, name string, args *syntax.Arg
 				e.observeParameters(at, f, r)
 				return
 			}
-			text, known := literalText(r.values[arg.Value].Expr)
+			text, known := literalText(r.values.at(arg.Value).Expr)
 			if !known {
 				e.observeParameters(at, f, r)
 				return

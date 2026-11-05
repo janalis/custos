@@ -16,13 +16,14 @@ type Options struct{ Assertions bool }
 
 // Env infers expression types within one file. Not safe for concurrent use.
 type Env struct {
-	gaps     map[inferenceGapKind]syntax.Span
-	gapOwner *Env
-	options  Options
-	File     *syntax.File
-	Names    *names.Resolver
-	Index    *index.Index // project index layered over the stubs
-	PHP      phpversion.Version
+	classNames map[*syntax.ClassLike]string
+	gaps       map[inferenceGapKind]syntax.Span
+	gapOwner   *Env
+	options    Options
+	File       *syntax.File
+	Names      *names.Resolver
+	Index      *index.Index // project index layered over the stubs
+	PHP        phpversion.Version
 
 	chains map[syntax.Expr]nullsafeFact
 	cache  map[syntax.Expr]types.Type

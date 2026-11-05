@@ -715,23 +715,35 @@ func (e *Env) typed(p *syntax.Param, deep bool) bool {
 	return !deep && (p.Variadic || declared.OnlyOf("array") || e.types.PHP.AtLeast(phpversion.PHP70) && declared.OnlyOf("int", "float", "string", "bool", "true", "false", "null", "array"))
 }
 
-// expressions counts the expressions of scope (the file's top level when
-// nil) outside the functions it declares: about how many values its
-// analysis records, so its maps are allocated once at their size.
-func (e *Env) expressions(scope syntax.Node) int {
-	n := 0
+// expressionSizes estimates the two map capacities separately. Lexical names,
+// declaration headers and plain assignment targets are not evaluated values.
+// These are allocation hints only: both maps grow for any additional entries.
+func (e *Env) expressionSizes(scope syntax.Node) (values, before int) {
 	count := func(x syntax.Node) bool {
-		if _, ok := x.(syntax.Expr); ok {
-			n++
+		switch x.(type) {
+		case syntax.Expr:
+			before++
+			switch n := x.(type) {
+			case *syntax.Name, *syntax.Identifier:
+			case *syntax.Variable:
+				assignment, target := n.Parent().(*syntax.Assign)
+				if !target || assignment.Var != n || assignment.Op.Kind != syntax.TEqual || n.NameExpr != nil {
+					values++
+				}
+			default:
+				values++
+			}
+		case syntax.Stmt:
+			before++
 		}
-		return x == scope || !syntax.IsVariableScope(x)
+		return !syntax.IsVariableScope(x)
 	}
 	if scope == nil {
 		syntax.InspectFile(e.file, count)
 	} else {
-		syntax.Inspect(scope, count)
+		syntax.Inspect(syntax.VariableScopeBody(scope), count)
 	}
-	return n
+	return values, before
 }
 
 func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bool) *scopeResult {
@@ -743,8 +755,8 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 }
 
 func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr, seeds map[string]Value, states map[uint32]State) *scopeResult {
-	size := e.expressions(scope)
-	r := &scopeResult{originTypes: e.types, values: make(map[syntax.Expr]Value, size), before: make(map[syntax.Node]map[uint32]State, size), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
+	values, before := e.expressionSizes(scope)
+	r := &scopeResult{originTypes: e.types, values: newValueStore(values), before: make(map[syntax.Node]map[uint32]State, before), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
 	r.reads = e.begin()
 	defer e.end(r.reads)

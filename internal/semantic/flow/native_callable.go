@@ -44,7 +44,7 @@ func (e *Env) invokeNativeCallable(at syntax.Node, args *syntax.ArgList, values 
 				continue
 			}
 			if bound[i].Expr == nil {
-				if captured, known := r.values[ordered[i]]; known && captured.Complete {
+				if captured, known := r.values.get(ordered[i]); known && captured.Complete {
 					bound[i].Expr = captured.Expr
 					// A sealed callback pack holds the resource captured at creation,
 					// even when its source variable later names another stream.

@@ -725,7 +725,7 @@ func (e *Env) commands(body syntax.Node, r *scopeResult) []Sink {
 			return false
 		}
 		if command, ok := n.(*syntax.InterpolatedString); ok && command.Backtick {
-			if value, reached := r.values[command]; reached {
+			if value, reached := r.values.get(command); reached {
 				value.Expr, value.origins, value.Identity = nil, nil, 0
 				sinks = append(sinks, Sink{Name: "shell_exec", Context: Shell, Argument: value, Path: e.file.Path, Span: command.Span()})
 			}

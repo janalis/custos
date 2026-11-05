@@ -76,7 +76,7 @@ func (e *Env) arrayMethodCallable(at syntax.Node, array *syntax.Array, f *frame,
 	if objectExpr == nil || methodExpr == nil {
 		return nil, false
 	}
-	object, method := r.values[objectExpr], r.values[methodExpr]
+	object, method := r.values.at(objectExpr), r.values.at(methodExpr)
 	name, known := literalText(method.Expr)
 	if !object.Complete || object.replaced || object.Invalidated != 0 || !method.Complete || !known {
 		return nil, false

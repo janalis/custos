@@ -35,9 +35,6 @@ func hasCallable(set *callableSet, expr syntax.Expr) bool {
 }
 
 func joinCallableTargets(a, b *callableSet) *callableSet {
-	if a == nil || b == nil {
-		return nil
-	}
 	extra := 0
 	for _, item := range b.items {
 		if !hasCallable(a, item) {
@@ -131,15 +128,26 @@ func (e *Env) invokeCallableSet(at syntax.Node, callee Value, list *syntax.ArgLi
 // Every member must still resolve and bind at the eventual invocation.
 func joinCallableValues(a, b Value) *callableSet {
 	left, right := a.targets, b.targets
+	var l, r *syntax.Literal
 	if left == nil {
-		if literal, ok := syntax.UnwrapParens(a.Expr).(*syntax.Literal); ok && literal.LitKind == syntax.LitString {
-			left = oneCallableTarget(literal)
+		var known bool
+		l, known = syntax.UnwrapParens(a.Expr).(*syntax.Literal)
+		if !known || l.LitKind != syntax.LitString {
+			return nil
 		}
 	}
 	if right == nil {
-		if literal, ok := syntax.UnwrapParens(b.Expr).(*syntax.Literal); ok && literal.LitKind == syntax.LitString {
-			right = oneCallableTarget(literal)
+		var known bool
+		r, known = syntax.UnwrapParens(b.Expr).(*syntax.Literal)
+		if !known || r.LitKind != syntax.LitString {
+			return nil
 		}
+	}
+	if left == nil {
+		left = oneCallableTarget(l)
+	}
+	if right == nil {
+		right = oneCallableTarget(r)
 	}
 	return joinCallableTargets(left, right)
 }

@@ -10,7 +10,20 @@ import (
 )
 
 // ClassFQN returns the semantic identity of a class declaration.
-func (e *Env) ClassFQN(c *syntax.ClassLike) string { return e.Names.SymbolFQN(c) }
+func (e *Env) ClassFQN(c *syntax.ClassLike) string {
+	if c == nil {
+		return ""
+	}
+	if name, known := e.classNames[c]; known {
+		return name
+	}
+	name := e.Names.SymbolFQN(c)
+	if e.classNames == nil {
+		e.classNames = map[*syntax.ClassLike]string{}
+	}
+	e.classNames[c] = name
+	return name
+}
 
 // selfClass is the class `$this`, `self`, `static` and `new static` denote
 // inside class-like c: its FQN, but "" (unknown) in a trait, whose methods
