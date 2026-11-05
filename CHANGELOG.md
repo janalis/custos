@@ -9,6 +9,17 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- First-class project-function callables and known project callbacks carry
+  return and sink provenance through direct calls and callback helpers.
+- Local closures bind supplied optional arguments, supported primitive defaults
+  and bounded variadic packs with individual positional and named entries.
+- Builtin argument binding expands bounded nested literal array packs using
+  PHP-version-aware key ordering, renumbering and overwrite semantics.
+- Closure-created resources retain caller identities for operation tracking;
+  captured resource returns preserve prior state without reopening it.
+- Constant array slices retain tighter count bounds, and proven empty array
+  alternatives no longer widen unions' element contracts.
+
 - Local closure and arrow calls carry captured values, return provenance and
   possible sinks through bounded invocation analysis.
 - Receiver unions can follow proven final methods on extensible classes;

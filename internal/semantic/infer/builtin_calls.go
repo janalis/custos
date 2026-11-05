@@ -258,7 +258,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 				switch builtin {
 				case "array_filter":
 					cb := arg(1)
-					if cb == nil {
+					if cb == nil && !resolved {
 						for _, node := range n.Args.Args {
 							if node.(*syntax.Arg).Unpack {
 								cb = node.(*syntax.Arg).Value
@@ -270,7 +270,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 				case "array_values":
 					return preserveArrayCount(shapeless(t).WithArrayKey(types.Int), t, false), true
 				case "array_slice":
-					return preserveArrayCount(shapeless(t).WithNonEmpty(false).WithArrayKey(types.Of("int", "string")), t, true), true
+					return sliceArrayCount(shapeless(t).WithNonEmpty(false).WithArrayKey(types.Of("int", "string")), t, arg(1), arg(2)), true
 				case "array_reverse":
 					return preserveArrayCount(shapeless(t).WithArrayKey(types.Of("int", "string")), t, false), true
 				}

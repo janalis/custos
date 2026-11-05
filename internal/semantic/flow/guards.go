@@ -197,12 +197,13 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		if !valid || len(args) == 0 || args[0] == nil {
 			return
 		}
-		if truth && name == "flock" {
+		if truth && (name == "flock" || name == "fclose") {
 			first := args[0]
 			if variable, ok := first.Value.(*syntax.Variable); ok {
 				value := f.vars[variable.Name]
 				if state, ok := f.states[value.Identity]; ok {
 					state.Successful = true
+					state.closeChecked = name == "fclose" && state.Operation == "fclose" && state.Span == n.Span()
 					f.states[value.Identity] = state
 				}
 			}

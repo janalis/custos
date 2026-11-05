@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"maps"
 	"slices"
 	"sort"
 	"strconv"
@@ -738,10 +739,10 @@ func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bo
 }
 
 func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr) *scopeResult {
-	return e.followSeeded(scope, distrust, distrustAll, target, nil)
+	return e.followSeeded(scope, distrust, distrustAll, target, nil, nil)
 }
 
-func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr, seeds map[string]Value) *scopeResult {
+func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr, seeds map[string]Value, states map[uint32]State) *scopeResult {
 	size := e.expressions(scope)
 	r := &scopeResult{originTypes: e.types, values: make(map[syntax.Expr]Value, size), before: make(map[syntax.Node]map[uint32]State, size), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
@@ -788,6 +789,7 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 	g.complete = g.complete && len(g.jumps) == 0
 	initial := frame{owner: r, definite: scope != nil}
 	initial.resetVars()
+	initial.states = maps.Clone(states)
 	switch captured := scope.(type) {
 	case *syntax.Closure:
 		// A captured variable holds a value without a binding.
@@ -946,6 +948,7 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 	// What each variable may hold when the scope ends is what a holder of a
 	// reference to it has written.
 	r.exit = inputs[exit].vars
+	r.exitStates = inputs[done].states
 	leaving(&inputs[exit], r)
 	r.leaves = inputs[done].vars == nil
 	if !g.complete {

@@ -384,9 +384,10 @@ func common(a, b *elementSet) *elementSet {
 
 // State is the most recent operation common to every reaching path.
 type State struct {
-	Operation  string
-	Span       syntax.Span
-	Successful bool
+	Operation    string
+	Span         syntax.Span
+	Successful   bool
+	closeChecked bool // the exact fclose result was proven true
 }
 
 // Call describes a reached call and its argument values (in written order).
@@ -714,6 +715,9 @@ type Env struct {
 }
 
 type scopeResult struct {
+	callables         map[syntax.Expr]string
+	allocations       map[uint32]bool
+	exitStates        map[uint32]State
 	closures          map[syntax.Expr]map[string]Value
 	closureSinks      map[syntax.Node][]Sink
 	parameterReads    map[string]uint8
@@ -1504,6 +1508,7 @@ func agree(a, b State) (State, bool) {
 		return State{}, false
 	}
 	a.Successful = a.Successful && b.Successful
+	a.closeChecked = a.closeChecked && b.closeChecked
 	return a, true
 }
 

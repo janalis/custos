@@ -49,3 +49,18 @@ func BenchmarkCardinalityUnion(b *testing.B) {
 		Union(a, c)
 	}
 }
+
+func TestZeroCountArrayAlternatives(t *testing.T) {
+	empty := Array.WithArrayCardinality(0, 0)
+	other := Of("string[]").WithShape([]ShapeKey{{Name: "0", Type: String}}, true)
+	result := Union(empty, other, empty)
+	if result.Has("array") || !result.Elem().Equal(String) {
+		t.Fatalf("empty alternative widened elements: %s", result.ShapeString())
+	}
+	if low, high, known := result.ArrayCardinality(); !known || low != 0 || high != 1 {
+		t.Fatalf("union size: %d %d %v", low, high, known)
+	}
+	if _, _, known := Union(Unknown, empty).ArrayCardinality(); known {
+		t.Fatal("unknown union retained proof")
+	}
+}

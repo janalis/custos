@@ -36,3 +36,19 @@ func unionCardinality(ts []Type) (minimum, maximum int, known bool) {
 	}
 	return
 }
+
+// Proven zero-entry arrays contribute no keys or element alternatives.
+func canonicalEmptyArrays(ts []Type) []Type {
+	copied := false
+	for i, t := range ts {
+		if t.card == nil || t.card.maximum != 0 || !t.IsArrayLike() {
+			continue
+		}
+		if !copied {
+			ts = append([]Type(nil), ts...)
+			copied = true
+		}
+		ts[i] = Array.WithShape(nil, true)
+	}
+	return ts
+}

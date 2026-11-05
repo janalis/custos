@@ -64,42 +64,45 @@ func (e *Env) captureClosure(expr syntax.Expr, f *frame, r *scopeResult) {
 
 // Only local creation sites retained by an unescaped value can be invoked.
 // No closure values or capture frames enter immutable project snapshots.
-func (e *Env) invokeClosure(at syntax.Node, values []Value, owner *scopeResult) (Value, bool) {
-	call, ok := at.(*syntax.FuncCall)
-	if !ok || e.invocationDepth >= MaxDepth {
-		return Value{}, false
-	}
-	callee := owner.values[call.Name]
-	if !callee.Complete || callee.replaced || callee.Invalidated != 0 {
-		return Value{}, false
-	}
-	expr := syntax.UnwrapParens(callee.Expr)
-	captured, known := owner.closures[expr]
-	if !known {
-		return Value{}, false
+func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[string]Value, args *syntax.ArgList, values []Value, caller *frame, owner *scopeResult) (Value, map[uint32]State, bool) {
+	if e.invocationDepth >= MaxDepth {
+		return Value{}, nil, false
 	}
 	params := syntax.VariableScopeParams(expr)
 	if len(params) > 64 {
-		return Value{}, false
+		return Value{}, nil, false
+	}
+	lastRequired := -1
+	for i, p := range params {
+		if p.Default == nil && !p.Variadic {
+			lastRequired = i
+		}
 	}
 	declarations := make([]index.Param, len(params))
 	for i, p := range params {
-		// Defaults may instantiate objects; variadics need an element pack,
-		// not the scalar join used by ordinary summary substitution.
-		if p.Var == nil || p.ByRef || p.Variadic || p.Default != nil {
-			return Value{}, false
+		// Reference parameters and malformed variadic placement cannot be
+		// projected into an independent invocation frame.
+		if p.Var == nil || p.ByRef || p.Variadic && i != len(params)-1 {
+			return Value{}, nil, false
 		}
-		declarations[i] = index.Param{Name: p.Var.Name}
+		declarations[i] = index.Param{Name: p.Var.Name, Optional: p.Default != nil && i > lastRequired, Variadic: p.Variadic}
 	}
-	bound, known := e.bindTo(call.Args, declarations, values)
+	bound, seen, known := e.bindValues(args, declarations, values, true)
 	if !known {
-		return Value{}, false
+		return Value{}, nil, false
 	}
 	seeds := make(map[string]Value, len(captured)+len(bound))
 	for name, value := range captured {
 		seeds[name] = value
 	}
 	for i, p := range params {
+		if !seen[i] && p.Default != nil {
+			value, known := e.closureDefault(p.Default, owner)
+			if !known {
+				return Value{}, nil, false
+			}
+			bound[i] = value
+		}
 		seeds[p.Var.Name] = bound[i]
 	}
 	// Invocation analysis has its own cache entry only while executing. The
@@ -114,14 +117,14 @@ func (e *Env) invokeClosure(at syntax.Node, values []Value, owner *scopeResult) 
 			delete(e.scopes, expr)
 		}
 	}()
-	r := e.followSeeded(expr, nil, true, nil, seeds)
+	r := e.followSeeded(expr, nil, true, nil, seeds, caller.states)
 	for reason, span := range r.gaps {
 		owner.gap(reason, span)
 	}
 	owner.operations += r.operations
 	owner.copies += r.copies
 	if !r.complete || r.generator || len(r.statics) > 0 || owner.operations > MaxTransfers || owner.copies > MaxCopied {
-		return Value{}, false
+		return Value{}, nil, false
 	}
 	result := Value{Complete: true}
 	if arrow, ok := expr.(*syntax.ArrowFunction); ok {
@@ -145,8 +148,6 @@ func (e *Env) invokeClosure(at syntax.Node, values []Value, owner *scopeResult) 
 		owner.closureSinks = map[syntax.Node][]Sink{}
 	}
 	owner.closureSinks[at] = appendSinks(owner.closureSinks[at], sinks)
-	// Callee-local identities and operation states are not caller resources.
-	// In particular, returning a captured handle must not reopen its state.
-	result.Identity = 0
-	return result, true
+	projected := projectClosureResources(at, &result, seeds, caller, owner, r)
+	return result, projected, true
 }

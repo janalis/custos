@@ -38,7 +38,7 @@ function f($c, array $unknown, $mode) {
  t('mode',count(array_values($xs),$mode));
  $ys=array_values($xs);$ys[]=3;t('mutation',count($ys));
 }
-`, map[string]string{"values": "int<2, 2>", "reverse": "int<2, 2>", "unique": "int<1, 2>", "filter": "int<0, 2>", "slice": "int<0, 2>", "zero": "int<0, 0>", "branch": "int<1, 1>", "emptyBranch": "int<0, 2>", "normal": "int<2, 2>", "normalZero": "int<2, 2>", "recursive": "int", "unknown": "int", "mode": "int", "mutation": "int"})
+`, map[string]string{"values": "int<2, 2>", "reverse": "int<2, 2>", "unique": "int<1, 2>", "filter": "int<0, 2>", "slice": "int<1, 1>", "zero": "int<0, 0>", "branch": "int<1, 1>", "emptyBranch": "int<0, 2>", "normal": "int<2, 2>", "normalZero": "int<2, 2>", "recursive": "int", "unknown": "int", "mode": "int", "mutation": "int"})
 }
 
 func TestCountModeShadowing(t *testing.T) {

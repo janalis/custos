@@ -14,6 +14,16 @@ Detect a stream operation requiring an open resource on an identity closed by a 
 
 ## Detection
 
+A bounded local closure may return a proven fresh stream while preserving its
+identity for later caller operations. Separate invocation sites create separate
+identities. Returning a captured or passed stream preserves the caller's existing
+state rather than recording a new open operation. Only operation states shared
+by every normal completion are carried across the call. A close performed inside
+the closure establishes a new closed state only when its success is proven;
+unknown or conflicting effects discard the state proof. Reference captures,
+escaped callables, retained static state and ambiguous returned identities do not
+establish this transfer.
+
 - D1. Report a stream operation requiring an open resource on an identity closed by a successful fclose on every incoming path.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.

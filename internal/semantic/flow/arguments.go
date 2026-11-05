@@ -2,6 +2,7 @@ package flow
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -949,12 +950,18 @@ func (e *Env) bind(at syntax.Node, values []Value) ([]Value, bool) {
 }
 
 func (e *Env) bindTo(list *syntax.ArgList, params []index.Param, values []Value) ([]Value, bool) {
+	args, _, known := e.bindValues(list, params, values, false)
+	return args, known
+}
+
+func (e *Env) bindValues(list *syntax.ArgList, params []index.Param, values []Value, packs bool) ([]Value, []bool, bool) {
 	if len(params) > 64 || list != nil && len(list.Args) > 256 {
-		return nil, false
+		return nil, nil, false
 	}
 	args := make([]Value, len(params))
 	seen := make([]bool, len(params))
-	position, count := 0, 0
+	position, count, variadicNext := 0, 0, 0
+	var elements *elementSet
 	named, unpacked, explicitNamed := false, false, false
 	put := func(name string, isNamed bool, value Value) bool {
 		count++
@@ -992,6 +999,16 @@ func (e *Env) bindTo(list *syntax.ArgList, params []index.Param, values []Value)
 				args[p] = Value{Complete: true}
 			}
 			args[p] = merge(args[p], value)
+			if packs {
+				key := name
+				if !isNamed {
+					key = strconv.Itoa(variadicNext)
+					variadicNext++
+				}
+				elements = elements.with(key, value)
+				args[p].elements = elements
+				args[p].plain = true
+			}
 		} else {
 			args[p] = value
 		}
@@ -1003,23 +1020,23 @@ func (e *Env) bindTo(list *syntax.ArgList, params []index.Param, values []Value)
 		for i, x := range list.Args {
 			a, ok := x.(*syntax.Arg)
 			if !ok || a.ByRef || i >= len(values) {
-				return nil, false
+				return nil, nil, false
 			}
 			if a.Unpack {
 				if explicitNamed || e.types.PHP.Below(phpversion.PHP56) {
-					return nil, false
+					return nil, nil, false
 				}
 				unpacked = true
 				// PHPDoc does not prove the runtime keys or their order.
 				t := e.types.Native().TypeOf(a.Value)
 				if !t.IsArrayLike() || !t.IsSealedShape() {
-					return nil, false
+					return nil, nil, false
 				}
 				for _, key := range t.ShapeKeys() {
 					v, held := values[i].elements.lookup(key.Name)
 					isNamed := !types.IsIntKey(key.Name)
 					if key.Optional || !held || !uniqueArgument(key.Name, isNamed, names) || !put(key.Name, isNamed, v) {
-						return nil, false
+						return nil, nil, false
 					}
 				}
 				continue
@@ -1030,19 +1047,19 @@ func (e *Env) bindTo(list *syntax.ArgList, params []index.Param, values []Value)
 				explicitNamed = true
 			}
 			if unpacked && (name == "" || e.types.PHP.Below(phpversion.PHP81)) || !uniqueArgument(name, a.Name != nil, names) || !put(name, a.Name != nil, values[i]) {
-				return nil, false
+				return nil, nil, false
 			}
 		}
 	}
 	for i, p := range params {
 		if !seen[i] {
 			if !p.Optional && !p.Variadic {
-				return nil, false
+				return nil, nil, false
 			}
-			args[i] = Value{Complete: true}
+			args[i] = Value{Complete: true, plain: p.Variadic}
 		}
 	}
-	return args, true
+	return args, seen, true
 }
 
 // uniqueArgument rejects repeated named keys, including in a variadic pack.

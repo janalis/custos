@@ -135,6 +135,7 @@ func (t Type) OnlyOf(atoms ...string) bool {
 // Union merges types. Unknown absorbs nothing: unknown|int = int|unknown
 // is represented as unknown (callers must treat partial knowledge as unknown).
 func Union(ts ...Type) Type {
+	ts = canonicalEmptyArrays(ts)
 	low, high, sized := unionCardinality(ts)
 	ts, absorbed := absorbEmptyArrays(ts)
 	if absorbed {
@@ -195,7 +196,7 @@ func (t Type) withUnionElements(ts []Type) Type {
 
 // absorbEmptyArrays drops the empty arrays (`[]`) of ts when another member
 // has array members that hold an empty array too (`T[]`, or `array` without
-// a sealed shape): the union then reads their elements, which an empty array
+// required keys): the union then reads their elements, which an empty array
 // adds none to. absorbed reports a drop; the union is then no longer known
 // non-empty.
 func absorbEmptyArrays(ts []Type) ([]Type, bool) {
@@ -205,8 +206,6 @@ func absorbEmptyArrays(ts []Type) ([]Type, bool) {
 		case t.isEmptyArray():
 			empty++
 		case !t.hasArrayAtom():
-		case t.arr != nil && t.arr.shape && t.arr.sealed:
-			return ts, false // keys become optional instead (see mergeInfo)
 		default:
 			other = true
 		}

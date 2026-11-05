@@ -1096,6 +1096,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	if args != nil && len(args.Args) == 1 {
 		if _, callable := args.Args[0].(*syntax.VariadicPlaceholder); callable {
 			// `f(...)` only makes a closure: nothing is called.
+			e.captureCallable(n, r)
 			return Value{Complete: true, Expr: n.(syntax.Expr), plain: true, deep: true}
 		}
 	}
@@ -1203,6 +1204,8 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	} else if !builtin && len(values) > 0 {
 		first = values[0]
 	}
+	invoked := false
+	var invocationStates map[uint32]State
 	if s, ok := e.contract(e.summaryName(n)); ok {
 		v = Value{Complete: s.Return.Complete, Expr: n.(syntax.Expr), Safe: s.Return.Safe}
 		v = substitute(s.Return, bound, boundOK)
@@ -1213,7 +1216,8 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
 	} else if !builtin {
-		if returned, known := e.invokeClosure(n, values, r); known {
+		if returned, states, known := e.invokeCallable(n, values, f, r); known {
+			invoked, invocationStates = true, states
 			v = returned
 			v.Expr = n.(syntax.Expr)
 		} else if returned, known := e.closedReturn(n, values, closedFollowed); known {
@@ -1358,6 +1362,10 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			// A fresh handle: no code ran on it, whatever its arguments
 			// went through.
 			v.Identity, v.Invalidated = n.Span().Start+1, 0
+			if r.allocations == nil {
+				r.allocations = map[uint32]bool{}
+			}
+			r.allocations[v.Identity] = true
 		case "prepare", "query":
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
@@ -1396,7 +1404,14 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			}
 		}
 	}
-	if v.Identity != 0 {
+	if builtin && (name == "call_user_func" || name == "call_user_func_array") {
+		if returned, states, known := e.invokeCallable(n, values, f, r); known {
+			v = returned
+			v.Expr = n.(syntax.Expr)
+			invoked, invocationStates = true, states
+		}
+	}
+	if v.Identity != 0 && !invoked {
 		f.setState(v.Identity, State{Operation: name, Span: n.Span()})
 	}
 	id := rv.Identity
@@ -1421,6 +1436,15 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	e.invalidateReferences(n, args, f, r)
 	if args != nil {
 		e.accepted(n, args, builtin, followed, f)
+	}
+	if invoked {
+		for identity, state := range invocationStates {
+			if state.Operation == "" {
+				delete(f.states, identity)
+			} else {
+				f.setState(identity, state)
+			}
+		}
 	}
 	// What PHP itself returns is what it declares. An array one of its
 	// functions returns holds what the function was given.

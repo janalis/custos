@@ -154,12 +154,15 @@ especially when deciding whether a fix is safe.
 expressions in parameter order. It validates the entire call, including PHP
 version rules, duplicate bindings and bounded literal argument packs; unknown
 or variadic bindings establish no value or omission proof. Use this when a rule
-needs runtime argument roles rather than their written positions.
+needs runtime argument roles rather than their written positions. Nested literal
+packs are expanded with depth and entry budgets; numeric keys are renumbered on
+array spread, and string keys follow the configured PHP version's overwrite rules.
 `types.Type.ArrayCardinality` supplies lower and upper bounds from sealed,
 array-only types and explicit finite bounds independent of key identities.
 Key-changing operations derive new bounds; mutation drops them. Normal
-`count()` and `sizeof()` calls can use those bounds, while recursive counts
-require separate evidence. A quick-fix needing runtime cardinality uses native
+`count()` and `sizeof()` calls can use those bounds. Constant slice offsets and
+lengths refine the bounds; proven zero-entry alternatives contribute no element
+widening in unions. Recursive counts require separate evidence. A quick-fix needing runtime cardinality uses native
 inference and requires equal bounds; documented shapes alone cannot authorize the edit.
 
 A written name is not enough to identify a builtin. Use the analysis context's
@@ -212,9 +215,19 @@ open documents.
 - Locally created closures and arrows use bounded invocation frames with
   argument values and by-value capture snapshots. Caller-specific bindings never
   replace the ordinary symbolic scope cache or enter project snapshots. Reference
-  captures/parameters, defaults, variadics, generators, static state, escaped values
-  and ambiguous callees remain conservative. Invocation work is charged to the
-  caller's budget and incomplete status propagates to it.
+  captures/parameters, generators, static state, escaped values and ambiguous
+  callees remain conservative. Supplied optional arguments are bound directly;
+  omitted defaults require supported pure primitive values. Variadics retain
+  bounded individual entries. Invocation work is charged to the caller's budget
+  and incomplete status propagates to it.
+- First-class project-function references and known project callbacks passed to
+  `call_user_func` or `call_user_func_array` reuse complete callable summaries and
+  binding proofs. Native first-class targets and unresolved callback shapes remain
+  conservative.
+- Closure invocation frames copy operation states. A returned fresh resource gets
+  a caller identity; a borrowed identity preserves the existing caller state.
+  Only states shared by normal completions are projected, and a newly observed
+  close requires proven success. Other callee-local identities are dropped.
 - `Flow().ReferenceResult` also projects a single reference output from a proven
   final or private method. Nullable, escaped and PHPDoc-only receivers do not
   establish that replacement proof; multiple reference arguments remain unknown.

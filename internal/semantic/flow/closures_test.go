@@ -27,8 +27,8 @@ func TestLocalClosureInvocation(t *testing.T) {
 		{"reference return", `$f=function &($x){return $x;};probe($f($_GET['x']));`, false, false},
 		{"reference arrow", `$f=fn&($x)=>$x;probe($f($_GET['x']));`, false, false},
 		{"reference parameter", `$f=fn(&$x)=>$x;probe($f($_GET['x']));`, false, false},
-		{"variadic", `$f=fn(...$x)=>$x;probe($f($_GET['x']));`, false, false},
-		{"default", `$f=fn($x='safe')=>$x;probe($f());`, false, false},
+		{"variadic", `$f=fn(...$x)=>$x;probe($f($_GET['x']));`, true, true},
+		{"default", `$f=fn($x='safe')=>$x;probe($f());`, true, false},
 		{"unknown", `probe($f($_GET['x']));`, false, false},
 		{"bad binding", `$f=fn($x)=>$x;probe($f(other:$_GET['x']));`, false, false},
 		{"generator", `$f=function($x){yield $x;};probe($f($_GET['x']));`, false, false},
@@ -155,5 +155,64 @@ func TestClosureCaptureBudgets(t *testing.T) {
 	e, f := summarized(t, code)
 	if e.Value(argument(callsNamed(f, "probe")[0])).Complete {
 		t.Fatal("oversized parameter list accepted")
+	}
+}
+
+func TestClosureDefaultAndPackBinding(t *testing.T) {
+	for _, tc := range []struct {
+		source       string
+		known, taint bool
+	}{
+		{`$f=fn($x='safe')=>$x;probe($f($_GET['x']));`, true, true},
+		{`$f=fn($x=new Unknown)=>$x;probe($f($_GET['x']));`, true, true},
+		{`$f=fn($x=new Unknown)=>$x;probe($f());`, false, false},
+		{`$f=fn($x=['v'=>'safe'])=>$x['v'];probe($f());`, true, false},
+		{`$f=fn($x=-1)=>$x;probe($f());`, true, false},
+		{`$f=fn($x=null)=>$x;probe($f());`, true, false},
+		{`$f=fn($x=true)=>$x;probe($f());`, true, false},
+		{`$f=fn($x=Missing)=>$x;probe($f());`, false, false},
+		{`$f=fn($x='safe',$y)=>$y;probe($f(y:$_GET['x']));`, false, false},
+		{`$f=fn(...$xs)=>$xs[0];probe($f($_GET['x'],'safe'));`, true, true},
+		{`$f=fn(...$xs)=>$xs[1];probe($f($_GET['x'],'safe'));`, true, false},
+		{`$f=fn(...$xs)=>$xs['key'];probe($f(key:$_GET['x']));`, true, true},
+		{`$f=fn($first,...$xs)=>$xs[0];probe($f('safe',$_GET['x']));`, true, true},
+		{`$f=fn(...$xs)=>$xs[0];probe($f(...[$_GET['x']]));`, true, true},
+		{`$f=fn(...$xs)=>$xs;probe($f());`, true, false},
+	} {
+		e, f := summarized(t, tc.source)
+		x := argument(callsNamed(f, "probe")[0])
+		v := e.Value(x)
+		if v.Complete != tc.known || v.Complete && e.Tainted(x, HTML) != tc.taint {
+			t.Fatalf("%s: %+v taint=%v", tc.source, v, e.Tainted(x, HTML))
+		}
+	}
+}
+
+func TestClosureDefaultBounds(t *testing.T) {
+	e, _ := environment(t, ``, nil)
+	for _, source := range []string{`fn($x=[1.5=>'x'])=>$x`, `fn($x=[...$other])=>$x`, `fn($x=[new Unknown])=>$x`} {
+		_, file := environment(t, "probe("+source+");", nil)
+		arrow := argument(callsNamed(file, "probe")[0]).(*syntax.ArrowFunction)
+		if _, known := e.closureDefault(arrow.Params[0].Default, &scopeResult{}); known {
+			t.Fatal("effectful default accepted")
+		}
+	}
+	if primitiveDefault(&syntax.Literal{}, 0, new(int)) {
+		t.Fatal("default budget ignored")
+	}
+	r := &scopeResult{operations: MaxTransfers}
+	if _, known := e.closureDefault(&syntax.Literal{LitKind: syntax.LitInt, Raw: "1"}, r); known {
+		t.Fatal("caller budget ignored")
+	}
+}
+
+func TestClosureInvocationDepth(t *testing.T) {
+	expr := `$x`
+	for i := 0; i < MaxDepth+1; i++ {
+		expr = `(fn($x)=>` + expr + `)($x)`
+	}
+	e, f := summarized(t, `function f($x){probe(`+expr+`);}`)
+	if e.Value(argument(callsNamed(f, "probe")[0])).Complete {
+		t.Fatal("invocation depth bound ignored")
 	}
 }

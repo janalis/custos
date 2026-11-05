@@ -111,3 +111,54 @@ func TestBuiltinArgumentMissingValue(t *testing.T) {
 		t.Fatal("recovered missing value bound")
 	}
 }
+
+func TestNestedArgumentPacks(t *testing.T) {
+	for _, tc := range []struct {
+		args    string
+		version phpversion.Version
+		known   bool
+	}{
+		{`...[...[$h],...[CURLOPT_SSL_VERIFYPEER,false]]`, phpversion.PHP74, true},
+		{`...[...[4=>$h],...[8=>CURLOPT_SSL_VERIFYPEER],false]`, phpversion.PHP84, true},
+		{`...[...['handle'=>$h],...['option'=>0],...['option'=>CURLOPT_SSL_VERIFYPEER,'value'=>false]]`, phpversion.PHP81, true},
+		{`...[...['handle'=>$h],'option'=>CURLOPT_SSL_VERIFYPEER,'value'=>false]`, phpversion.PHP80, false},
+		{`...[...[$h],CURLOPT_SSL_VERIFYPEER,false]`, phpversion.PHP73, false},
+		{`...[...$unknown,CURLOPT_SSL_VERIFYPEER,false]`, phpversion.PHP84, false},
+		{`...[...[$h],...[9223372036854775807=>CURLOPT_SSL_VERIFYPEER],false]`, phpversion.PHP84, false},
+		{`...[...[''=>$h],CURLOPT_SSL_VERIFYPEER,false]`, phpversion.PHP84, false},
+		{`...[...['unknown'=>$h],CURLOPT_SSL_VERIFYPEER,false]`, phpversion.PHP84, false},
+		{`...[9223372036854775806=>$h,...[CURLOPT_SSL_VERIFYPEER],false]`, phpversion.PHP84, false},
+	} {
+		e, f := assertionEnv(t, `probe(curl_setopt(`+tc.args+`));`, false, tc.version)
+		args, known := e.BuiltinArguments(assertionRead(f).(*syntax.FuncCall))
+		if known != tc.known {
+			t.Fatalf("%s (%s): %v", tc.args, tc.version, known)
+		}
+		if known {
+			option := args[1].(*syntax.ConstFetch)
+			if option.Name.Value != "CURLOPT_SSL_VERIFYPEER" {
+				t.Fatal("wrong nested option binding")
+			}
+		}
+	}
+	nested := `[$h,CURLOPT_SSL_VERIFYPEER,false]`
+	for i := 0; i < 8; i++ {
+		nested = `[...` + nested + `]`
+	}
+	for _, args := range []string{`...` + nested, `...[...[],` + strings.Repeat(`1,`, maxWrittenArgs) + `]`} {
+		e, f := assertionEnv(t, `probe(curl_setopt(`+args+`));`, false, phpversion.Max)
+		if _, known := e.BuiltinArguments(assertionRead(f).(*syntax.FuncCall)); known {
+			t.Fatal("pack budget ignored")
+		}
+	}
+}
+
+func BenchmarkNestedArgumentPacks(b *testing.B) {
+	file := syntax.Parse("bench.php", []byte(`<?php curl_setopt(...[...['handle'=>$h],...['option'=>CURLOPT_SSL_VERIFYPEER,'value'=>false]]);`), syntax.Options{Version: phpversion.Max})
+	e := NewEnv(file, names.New(file), index.New(stubs.Index()), phpversion.Max, Options{})
+	call := file.Stmts[0].(*syntax.ExprStmt).Expr.(*syntax.FuncCall)
+	b.ReportAllocs()
+	for b.Loop() {
+		e.BuiltinArguments(call)
+	}
+}

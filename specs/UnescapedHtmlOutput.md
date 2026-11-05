@@ -26,9 +26,18 @@ call; propagation follows longer chains within the shared analysis budget. A fun
 
 A locally created closure or arrow function may carry request provenance through
 its return value and unsafe uses when its target, arguments and by-value captures
-are known. Captures take their values when the callable is created. Reference
-captures or parameters, optional or variadic parameters, retained static state,
-generators and escaped or ambiguous targets do not establish that proof.
+are known. Captures take their values when the callable is created. Supplied
+optional arguments are used directly; omitted defaults are followed only when
+they are supported primitive constants or arrays without observable evaluation.
+Bounded variadic packs retain individual positional and named entries. Reference
+captures or parameters, retained static state, generators and escaped or
+ambiguous targets do not establish that proof.
+
+A first-class reference to a known project function, or a known project function
+passed to `call_user_func` or `call_user_func_array`, may carry the same return
+and unsafe-use provenance as a direct call. The complete target and argument
+binding must be proven; conditional or ambiguous declarations, generators,
+reference bindings and unknown argument packs establish no such proof.
 
 A union of native receiver classes may carry wrapper provenance when each called
 method cannot be overridden, including final methods on extensible classes. Every

@@ -25,3 +25,14 @@ func BenchmarkBuiltinBindingAndCount(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkExactSliceCount(b *testing.B) {
+	file := syntax.Parse("bench.php", []byte(`<?php count(array_slice(['a','b','c'],-2,1));`), syntax.Options{Version: phpversion.Max})
+	ix := index.New(stubs.Index())
+	resolver := names.New(file)
+	expr := file.Stmts[0].(*syntax.ExprStmt).Expr
+	b.ReportAllocs()
+	for b.Loop() {
+		infer.NewEnv(file, resolver, ix, phpversion.Max, infer.Options{}).TypeOf(expr)
+	}
+}

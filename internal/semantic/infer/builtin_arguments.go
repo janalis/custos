@@ -96,13 +96,63 @@ func (e *Env) BuiltinArguments(call *syntax.FuncCall) ([]syntax.Expr, bool) {
 }
 
 func literalArgumentPack(array *syntax.Array, version phpversion.Version) ([]string, []syntax.Expr, bool) {
+	work := maxWrittenArgs
+	return expandArgumentPack(array, version, 0, &work)
+}
+
+func expandArgumentPack(array *syntax.Array, version phpversion.Version, depth int, work *int) ([]string, []syntax.Expr, bool) {
+	if depth >= 8 {
+		return nil, nil, false
+	}
 	var keys []string
 	var values []syntax.Expr
 	positions := map[string]int{}
 	next := int64(0)
+	put := func(key string, value syntax.Expr) bool {
+		if n, err := strconv.ParseInt(key, 10, 64); err == nil && strconv.FormatInt(n, 10) == key {
+			if n >= next || len(keys) == 0 && version >= phpversion.PHP83 {
+				if n == 1<<63-1 {
+					return false
+				}
+				next = n + 1
+			}
+		} else if key == "" {
+			return false
+		}
+		if at, exists := positions[key]; exists {
+			values[at] = value
+		} else {
+			positions[key] = len(keys)
+			keys = append(keys, key)
+			values = append(values, value)
+		}
+		return true
+	}
 	for _, item := range array.Items {
-		if item == nil || item.Unpack || item.ByRef || item.Value == nil {
+		*work--
+		if *work < 0 || item == nil || item.ByRef || item.Value == nil {
 			return nil, nil, false
+		}
+		if item.Unpack {
+			nested, ok := syntax.UnwrapParens(item.Value).(*syntax.Array)
+			if !ok || item.Key != nil || version < phpversion.PHP74 {
+				return nil, nil, false
+			}
+			packed, exprs, known := expandArgumentPack(nested, version, depth+1, work)
+			if !known {
+				return nil, nil, false
+			}
+			for i, key := range packed {
+				if n, err := strconv.ParseInt(key, 10, 64); err == nil && strconv.FormatInt(n, 10) == key {
+					key = strconv.FormatInt(next, 10)
+				} else if version < phpversion.PHP81 {
+					return nil, nil, false
+				}
+				if !put(key, exprs[i]) {
+					return nil, nil, false
+				}
+			}
+			continue
 		}
 		key := strconv.FormatInt(next, 10)
 		if item.Key != nil {
@@ -112,21 +162,8 @@ func literalArgumentPack(array *syntax.Array, version phpversion.Version) ([]str
 				return nil, nil, false
 			}
 		}
-		if n, err := strconv.ParseInt(key, 10, 64); err == nil && strconv.FormatInt(n, 10) == key {
-			if n >= next || len(keys) == 0 && version >= phpversion.PHP83 {
-				if n == 1<<63-1 {
-					return nil, nil, false
-				}
-				next = n + 1
-			}
-		} else if key == "" {
+		if !put(key, item.Value) {
 			return nil, nil, false
-		}
-		if at, exists := positions[key]; exists {
-			values[at] = item.Value
-		} else {
-			positions[key] = len(keys)
-			keys, values = append(keys, key), append(values, item.Value)
 		}
 	}
 	return keys, values, true
