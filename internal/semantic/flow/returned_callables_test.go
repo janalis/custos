@@ -87,7 +87,7 @@ func TestReturnedCallableRejectsInvalidBinding(t *testing.T) {
 func TestReturnedCallableInvocationBudget(t *testing.T) {
 	e, file := environment(t, `probe(1);`, nil)
 	r := &scopeResult{complete: true, operations: MaxTransfers}
-	if _, _, known := e.invokeReturned(callsNamed(file, "probe")[0], &callableValue{contract: &returnedCallable{}}, nil, nil, r); known || r.complete {
+	if _, _, known := e.invokeReturned(callsNamed(file, "probe")[0], &callableValue{contract: &returnedCallable{}}, nil, nil, &frame{}, r); known || r.complete {
 		t.Fatal("invocation budget ignored")
 	}
 }

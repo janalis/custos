@@ -751,12 +751,12 @@ func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bo
 }
 
 func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr) *scopeResult {
-	return e.followSeeded(scope, distrust, distrustAll, target, nil, nil)
+	return e.followSeeded(scope, distrust, distrustAll, target, nil, nil, nil)
 }
 
-func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr, seeds map[string]Value, states map[uint32]State) *scopeResult {
+func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr, seeds map[string]Value, states map[uint32]State, resources map[uint32]bool) *scopeResult {
 	values, before := e.expressionSizes(scope)
-	r := &scopeResult{originTypes: e.types, values: newValueStore(values), before: make(map[syntax.Node]map[uint32]State, before), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
+	r := &scopeResult{resourceInputs: resources, originTypes: e.types, values: newValueStore(values), before: make(map[syntax.Node]map[uint32]State, before), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
 	r.reads = e.begin()
 	defer e.end(r.reads)
@@ -767,16 +767,26 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 	exit := g.add(nil)
 	done := g.add(nil, exit)
 	x := exits{ret: done, thrown: exit, brk: done, cont: done}
-	entry := done
+	fallthroughExit := done
+	if body, ok := syntax.VariableScopeBody(scope).(*syntax.Block); ok && body != nil {
+		terminalReturn := false
+		if len(body.Stmts) > 0 {
+			_, terminalReturn = body.Stmts[len(body.Stmts)-1].(*syntax.Return)
+		}
+		if !terminalReturn {
+			fallthroughExit = g.add(nil, done)
+		}
+	}
+	entry := fallthroughExit
 	if scope == nil {
-		entry = g.list(e.file.Stmts, done, x)
+		entry = g.list(e.file.Stmts, fallthroughExit, x)
 	} else {
 		body := syntax.VariableScopeBody(scope)
 		if st, ok := body.(syntax.Stmt); ok {
 			g.body = body
-			entry = g.stmt(st, done, x)
+			entry = g.stmt(st, fallthroughExit, x)
 		} else if body != nil {
-			entry = g.atom(body, done, x)
+			entry = g.atom(body, fallthroughExit, x)
 		}
 	}
 	// All label bodies remain built, including those entered by goto inside a
@@ -963,6 +973,7 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 	r.exitStates = inputs[done].states
 	leaving(&inputs[exit], r)
 	r.leaves = inputs[done].vars == nil
+	r.fallsThrough = fallthroughExit != done && inputs[fallthroughExit].vars != nil
 	if !g.complete {
 		reason := "unsupported-control-flow"
 		if g.full {

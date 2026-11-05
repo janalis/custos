@@ -28,6 +28,13 @@ through a wrapper. The accumulator follows insertion order and starts with the
 explicit initial value, or null when omitted. Unknown membership, callback
 targets, references and unsupported bindings establish no reduction proof.
 
+Callbacks that complete without a value, or with a bare return, produce null.
+A filter may therefore discard every entry while still reaching unsafe header
+uses in the callback. Proven primitive argument and return conversions can
+refine predicates, respecting callback invocation rules and definition
+strictness. Pure bounded accumulator expressions may refine a later predicate;
+uncertain conversions and arithmetic establish no constant result.
+
 ## Exceptions (no report)
 
 - E1. Constant values, validated finite choices, established CR/LF rejection and unknown flows are excluded.

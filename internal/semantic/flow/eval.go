@@ -25,6 +25,9 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		}
 	case *syntax.Return:
 		v := e.eval(n.Expr, f, r, 0)
+		if n.Expr == nil {
+			v = nullResult()
+		}
 		if n.Expr != nil && !v.plain && returnsText(syntax.EnclosingVariableScope(n)) {
 			// The declared type converts an object to text.
 			r.runs = true
@@ -843,6 +846,10 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			v.literal = nil
 		}
 	}
+	switch x.(type) {
+	case *syntax.Binary, *syntax.Unary:
+		v = evaluatedScalar(x, v, r)
+	}
 	if v.elements != nil {
 		switch node := x.(type) {
 		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.Array, *syntax.ArrayDimFetch, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
@@ -1283,6 +1290,16 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		v = substitute(s.Return, bound, boundOK)
 		v.Expr = n.(syntax.Expr)
 		v.Safe |= s.Return.Safe
+		forwarded := false
+		if boundOK && s.Fixed && e.preciseSummaryTarget(n, closedFollowed) {
+			if result, states, ok := e.forwardedReturn(n, s.forward, bound, f, r); ok {
+				v = result
+				v.Expr = n.(syntax.Expr)
+				invocationStates = states
+				invoked = len(states) > 0
+				forwarded = true
+			}
+		}
 		if v.elements != nil && (!s.Fixed || !e.preciseSummaryTarget(n, closedFollowed)) {
 			v.elements = nil
 		}
@@ -1290,7 +1307,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 			v.returned = bindReturned(s.returned, bound)
 		}
 		v.scalars = s.Return.scalars && len(v.Sources) > 0
-		if boundOK && v.Complete && s.Quiet && e.preciseSummaryTarget(n, closedFollowed) {
+		if !forwarded && boundOK && v.Complete && s.Quiet && e.preciseSummaryTarget(n, closedFollowed) {
 			v, invocationStates = e.instantiateRecord(n, v, bound, f, r)
 			invoked = len(invocationStates) > 0
 		}

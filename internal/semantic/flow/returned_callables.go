@@ -12,6 +12,7 @@ import (
 // Returned closures publish only symbolic values, parameter metadata and sinks.
 // Factory argument snapshots are supplied by each caller, never published.
 type returnedCallable struct {
+	forward           *forwardReturn
 	argumentSensitive bool
 	params            []index.Param
 	defaults          []Value
@@ -67,11 +68,11 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 			}
 		}
 		contract.defaults = append(contract.defaults, compactReturnedValue(initial))
-		seeds[param.Var.Name] = Value{Complete: true, Sources: []Source{{Kind: "parameter", Parameter: outer + i}}, plain: e.typed(param, false), deep: e.typed(param, true)}
+		seeds[param.Var.Name] = Value{Complete: true, Sources: []Source{{Kind: "parameter", Parameter: outer + i}}, Identity: param.Var.Span().Start + 1, plain: e.typed(param, false), deep: e.typed(param, true)}
 	}
 	previous, had := e.scopes[expr]
 	e.invocationDepth++
-	body := e.followSeeded(expr, nil, true, nil, seeds, nil)
+	body := e.followSeeded(expr, nil, true, nil, seeds, nil, nil)
 	e.invocationDepth--
 	if had {
 		e.scopes[expr] = previous
@@ -101,7 +102,14 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 	if !result.Complete || result.targets != nil || result.returned != nil {
 		return nil
 	}
+	result = completedReturn(expr, body, result)
+	contract.forward = e.summarizeForward(expr, body, result)
 	result = e.constrainCallbackReturn(expr, scalarSnapshot(result))
+	if body.runs {
+		result = eraseRecordResources(result)
+	} else {
+		result = recordContracts(result, body, nil)
+	}
 	contract.argumentSensitive = body.argumentSensitive || body.runs
 	contract.result = compactReturnedValue(result)
 	for _, call := range body.calls {
@@ -123,7 +131,7 @@ func bindReturned(contract *returnedCallable, args []Value) *callableValue {
 	return &callableValue{contract: contract, outer: outer}
 }
 
-func (e *Env) invokeReturned(at syntax.Node, target *callableValue, list *syntax.ArgList, values []Value, r *scopeResult) (Value, map[uint32]State, bool) {
+func (e *Env) invokeReturned(at syntax.Node, target *callableValue, list *syntax.ArgList, values []Value, f *frame, r *scopeResult) (Value, map[uint32]State, bool) {
 	contract := target.contract
 	r.operations += len(contract.params) + len(contract.sinks) + len(target.outer) + 1
 	r.copies += len(contract.params) + len(target.outer)
@@ -144,6 +152,12 @@ func (e *Env) invokeReturned(at syntax.Node, target *callableValue, list *syntax
 	}
 	args := append(append([]Value(nil), target.outer...), bound...)
 	result := substitute(contract.result, args, true)
+	forwarded, states, ok := e.forwardedReturn(at, contract.forward, bound, f, r)
+	if ok {
+		result = forwarded
+	} else {
+		result, states = e.instantiateRecord(at, result, args, f, r)
+	}
 	if r.closureSinks == nil {
 		r.closureSinks = map[syntax.Node][]Sink{}
 	}
@@ -151,7 +165,7 @@ func (e *Env) invokeReturned(at syntax.Node, target *callableValue, list *syntax
 		sink.Argument = substitute(sink.Argument, args, true)
 		r.closureSinks[at] = appendSinks(r.closureSinks[at], []Sink{sink})
 	}
-	return result, nil, true
+	return result, states, true
 }
 
 func sameReturned(a, b *callableValue) bool {
@@ -194,25 +208,17 @@ func compactReturnedValue(value Value) Value {
 // them. In particular, negative floating zero becomes the truthy string "-0".
 // Retain literal truth only for exact members or proven primitive conversions.
 func (e *Env) constrainCallbackReturn(scope syntax.Node, value Value) Value {
-	var declared syntax.Expr
-	switch node := scope.(type) {
-	case *syntax.Function:
-		declared = node.ReturnType
-	case *syntax.Method:
-		declared = node.ReturnType
-	case *syntax.Closure:
-		declared = node.ReturnType
-	case *syntax.ArrowFunction:
-		declared = node.ReturnType
-	}
-	return e.constrainDeclaredValue(declared, value, !syntax.StrictTypes(e.file))
+	return e.constrainDeclaredValue(returnDeclaration(scope), value, !syntax.StrictTypes(e.file))
 }
 
 func (e *Env) constrainDeclaredValue(declared syntax.Expr, value Value, weak bool) Value {
 	if declared == nil {
 		return value
 	}
-	result := types.FromNode(declared, nil)
+	return e.constrainType(types.FromNode(declared, nil), value, weak)
+}
+
+func (e *Env) constrainType(result types.Type, value Value, weak bool) Value {
 	if result.IsUnknown() || result.Has("mixed") {
 		return value
 	}
@@ -232,7 +238,7 @@ func (e *Env) constrainDeclaredValue(declared syntax.Expr, value Value, weak boo
 		case 'b':
 			name = "bool"
 		}
-		if !result.Has(name) {
+		if !result.Has(name) && !(name == "null" && result.Has("void")) {
 			if len(result.Atoms()) == 1 && e.types.PHP.AtLeast(phpversion.PHP70) {
 				if converted, valid := convertScalar(scalar, result.Atoms()[0], weak); valid {
 					value.Expr = scalarExpression(converted)

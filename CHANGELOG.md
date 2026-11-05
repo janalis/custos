@@ -9,6 +9,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Preserve proven scalar bindings through named and returned callback contracts,
+  respecting argument strictness and the return definition's strictness.
+- Track implicit null results separately from explicit returns and preserve
+  callback sinks when a null predicate discards all entries.
+- Forward complete resource records through pure wrappers and local captures;
+  instantiate returned-closure resource factories independently at each caller.
+- Evaluate bounded primitive callback expressions and reduction accumulators,
+  rejecting overflow, uncertain coercions and excessive string work.
+
 - Accept harmless surplus positional arguments for resolved user callbacks while
   preserving native arity and argument-introspection guards.
 - Follow finite reductions in insertion order for accumulator provenance and sinks.

@@ -60,6 +60,13 @@ a supplied handle and its history. Replacing a field, passing a record to opaque
 code, uncertain membership and resource results from repeated callbacks cannot
 establish a shared closed-state proof.
 
+Pure wrappers may forward complete resource records without changing the
+identities or histories of their fields. Local by-value captures preserve these
+record aliases while the values remain unescaped. A returned closure may create
+a fresh resource record at each invocation; separate invocation sites remain
+independent. Reference bindings, opaque effects and incomplete membership
+establish no such forwarding proof.
+
 ## Report
 
 - Range: the complete violating call or expression identified by D1; for a declaration-state violation, the offending property access or assignment. Highlight the final unsafe use for source-to-use findings.

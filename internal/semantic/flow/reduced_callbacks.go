@@ -36,7 +36,7 @@ func (e *Env) reducedCallback(at syntax.Node, list *syntax.ArgList, values []Val
 		branch := clone(f)
 		var valid bool
 		if callee.returned != nil {
-			carry, _, valid = e.invokeReturned(at, callee.returned, forwarded, arguments, r)
+			carry, _, valid = e.invokeReturned(at, callee.returned, forwarded, arguments, &branch, r)
 		} else {
 			carry, _, valid = e.invokeCallableSet(at, callee, forwarded, arguments, &branch, r)
 		}

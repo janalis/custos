@@ -6,11 +6,20 @@ import "custos/internal/php/syntax"
 // cross an invocation boundary. Other callee-local states remain private.
 func projectClosureResources(at syntax.Node, result *Value, seeds map[string]Value, caller *frame, owner, body *scopeResult) map[uint32]State {
 	projected := map[uint32]State{}
+	ids := map[uint32]bool{}
 	for _, value := range seeds {
-		id := value.Identity
-		if id == 0 {
-			continue
+		if value.Identity != 0 {
+			ids[value.Identity] = true
 		}
+		nested := map[uint32]bool{}
+		collectRecordIdentities(value.elements, nested)
+		for id := range nested {
+			if body.resourceInputs[id] {
+				ids[id] = true
+			}
+		}
+	}
+	for id := range ids {
 		state := body.exitStates[id]
 		prior := caller.states[id]
 		if state != prior && !state.closeChecked && (state.Operation == "fclose" || state.Operation == "pclose" || state.Operation == "curl_close") {

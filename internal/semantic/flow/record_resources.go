@@ -49,8 +49,7 @@ func collectRecordIdentities(set *elementSet, ids map[uint32]bool) {
 func resourceElement(at syntax.Node, value Value, f *frame, r *scopeResult) Value {
 	out := elementValue(value)
 	// Ordinary object identities are never promoted by an array projection.
-	state := f.states[value.storedIdentity]
-	if value.storedIdentity != 0 && value.Complete && !value.replaced && value.Invalidated == 0 && (r.allocations[value.storedIdentity] || (state.Operation == "fclose" || state.Operation == "fread" || state.Operation == "fwrite") && pendingParameter(at, Value{Complete: true, Identity: value.storedIdentity}, f)) {
+	if value.storedIdentity != 0 && value.Complete && !value.replaced && value.Invalidated == 0 && recordResourceEvidence(at, value.storedIdentity, f, r) {
 		out.Identity = value.storedIdentity
 	}
 	return out
@@ -168,13 +167,22 @@ func (e *Env) projectClosureRecord(at syntax.Node, value Value, seeds map[string
 	if value.elements == nil || !value.elements.hasResources {
 		return value, nil
 	}
-	if body.runs {
+	if body.runs || !value.Complete || value.replaced || value.Invalidated != 0 {
 		return eraseRecordResources(value), nil
 	}
 	ids := map[uint32]int{}
 	var args []Value
 	for _, seed := range seeds {
-		if seed.Identity != 0 {
+		nested := map[uint32]bool{}
+		collectRecordIdentities(seed.elements, nested)
+		for id := range nested {
+			if !body.resourceInputs[id] {
+				continue
+			}
+			ids[id] = len(args)
+			args = append(args, Value{Complete: true, Identity: id})
+		}
+		if seed.Identity != 0 && body.resourceInputs[seed.Identity] {
 			ids[seed.Identity] = len(args)
 			args = append(args, seed)
 		}
@@ -257,4 +265,36 @@ func invalidateCallbackRecords(values []Value, f *frame, r *scopeResult) {
 	for id := range ids {
 		delete(f.states, id)
 	}
+}
+
+// Seed proofs distinguish borrowed handles from allocations created in a body.
+func closureResourceInputs(at syntax.Node, seeds map[string]Value, caller *frame, owner *scopeResult) map[uint32]bool {
+	if len(owner.allocations) == 0 && len(owner.resourceInputs) == 0 && len(caller.states) == 0 {
+		return nil
+	}
+	ids := map[uint32]bool{}
+	for _, seed := range seeds {
+		if !seed.Complete || seed.replaced || seed.Invalidated != 0 {
+			continue
+		}
+		if seed.Identity != 0 {
+			ids[seed.Identity] = true
+		}
+		if wholeRecord(seed.elements) {
+			collectRecordIdentities(seed.elements, ids)
+		}
+	}
+	for id := range ids {
+		if !recordResourceEvidence(at, id, caller, owner) {
+			delete(ids, id)
+		}
+	}
+	return ids
+}
+
+// Native stream operations can identify an unchanged untyped parameter even
+// when its allocation happened outside the analyzed scope.
+func recordResourceEvidence(at syntax.Node, id uint32, f *frame, r *scopeResult) bool {
+	state := f.states[id]
+	return r.allocations[id] || r.resourceInputs[id] || (state.Operation == "fclose" || state.Operation == "fread" || state.Operation == "fwrite") && pendingParameter(at, Value{Complete: true, Identity: id}, f)
 }

@@ -778,6 +778,8 @@ type Env struct {
 }
 
 type scopeResult struct {
+	resourceInputs     map[uint32]bool
+	fallsThrough       bool
 	argumentSensitive  bool
 	distinctReferences map[syntax.Node]bool
 	callables          map[syntax.Expr]string

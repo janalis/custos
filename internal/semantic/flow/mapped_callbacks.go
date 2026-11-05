@@ -103,7 +103,7 @@ func (e *Env) mappedCallback(at syntax.Node, args *syntax.ArgList, values []Valu
 			}
 			known = true
 		} else if callee.returned != nil {
-			returned, _, known = e.invokeReturned(at, callee.returned, forwarded, arguments, r)
+			returned, _, known = e.invokeReturned(at, callee.returned, forwarded, arguments, &branch, r)
 		} else {
 			returned, _, known = e.invokeCallableSet(at, callee, forwarded, arguments, &branch, r)
 		}

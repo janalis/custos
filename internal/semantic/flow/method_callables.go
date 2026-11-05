@@ -126,7 +126,12 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 	if resource {
 		result.Identity = identity
 	}
-	result, records := e.instantiateRecord(at, result, args, f, r)
+	var records map[uint32]State
+	if forwarded, projected, ok := e.forwardedReturn(at, summary.forward, args, f, r); ok {
+		result, records = forwarded, projected
+	} else {
+		result, records = e.instantiateRecord(at, result, args, f, r)
+	}
 	for id, state := range records {
 		if states == nil {
 			states = map[uint32]State{}

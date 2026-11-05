@@ -77,7 +77,7 @@ func (e *Env) invokeCallable(at syntax.Node, values []Value, f *frame, r *scopeR
 		return Value{}, nil, false
 	}
 	if callee.returned != nil {
-		return e.invokeReturned(at, callee.returned, list, values, r)
+		return e.invokeReturned(at, callee.returned, list, values, f, r)
 	}
 	if callee.targets == nil {
 		if target, known := e.invokableObject(call.Name, callee, at, f); known {
@@ -138,7 +138,12 @@ func (e *Env) invokeCallableTarget(at syntax.Node, expr syntax.Expr, list *synta
 	if known {
 		result.Identity = identity
 	}
-	result, records := e.instantiateRecord(at, result, args, f, r)
+	var records map[uint32]State
+	if forwarded, projected, ok := e.forwardedReturn(at, summary.forward, args, f, r); ok {
+		result, records = forwarded, projected
+	} else {
+		result, records = e.instantiateRecord(at, result, args, f, r)
+	}
 	for id, state := range records {
 		if states == nil {
 			states = map[uint32]State{}

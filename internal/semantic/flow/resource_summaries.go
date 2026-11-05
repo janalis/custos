@@ -99,7 +99,7 @@ func (e *Env) instantiateResource(at syntax.Node, contract *resourceReturn, args
 	state := f.states[id]
 	// Scope allocations are the strong resource evidence. A native stream
 	// operation can also establish that a previously unknown parameter is one.
-	if !r.allocations[id] && state.Operation != "fclose" && state.Operation != "fread" && state.Operation != "fwrite" {
+	if !r.allocations[id] && !r.resourceInputs[id] && state.Operation != "fclose" && state.Operation != "fread" && state.Operation != "fwrite" {
 		return 0, nil, false
 	}
 	return id, map[uint32]State{id: state}, true

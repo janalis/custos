@@ -72,7 +72,7 @@ func (e *Env) filteredCallback(at syntax.Node, list *syntax.ArgList, values []Va
 			branch := clone(f)
 			var valid bool
 			if callee.returned != nil {
-				predicate, _, valid = e.invokeReturned(at, callee.returned, forwarded, arguments, r)
+				predicate, _, valid = e.invokeReturned(at, callee.returned, forwarded, arguments, &branch, r)
 			} else {
 				predicate, _, valid = e.invokeCallableSet(at, callee, forwarded, arguments, &branch, r)
 			}

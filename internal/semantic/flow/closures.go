@@ -122,7 +122,7 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 			delete(e.scopes, expr)
 		}
 	}()
-	r := e.followSeeded(expr, nil, true, nil, seeds, caller.states)
+	r := e.followSeeded(expr, nil, true, nil, seeds, caller.states, closureResourceInputs(at, seeds, caller, owner))
 	for reason, span := range r.gaps {
 		owner.gap(reason, span)
 	}
@@ -143,6 +143,7 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 			}
 		}
 	}
+	result = completedReturn(expr, r, result)
 	result = e.constrainCallbackReturn(expr, scalarSnapshot(result))
 	var sinks []Sink
 	for _, called := range r.calls {
