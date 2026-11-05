@@ -87,6 +87,7 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 		}
 		declarations[i] = index.Param{Name: p.Var.Name, Optional: p.Default != nil && i > lastRequired, Variadic: p.Variadic}
 	}
+	args, values, trimmed := userArguments(args, declarations, values, true)
 	bound, seen, known := e.bindValues(args, declarations, values, true)
 	if !known {
 		return Value{}, nil, false
@@ -105,7 +106,7 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 		}
 		// Defaults of null make a scalar parameter implicitly nullable as well.
 		if !(constantName(p.Default) == "null" && constantName(bound[i].Expr) == "null") {
-			bound[i] = constrainDeclaredValue(p.Type, bound[i])
+			bound[i] = e.constrainDeclaredValue(p.Type, bound[i], !syntax.StrictTypes(e.file) || e.internalScalarCallback(at))
 		}
 		seeds[p.Var.Name] = bound[i]
 	}
@@ -127,7 +128,7 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 	}
 	owner.operations += r.operations
 	owner.copies += r.copies
-	if !r.complete || r.generator || len(r.statics) > 0 || owner.operations > MaxTransfers || owner.copies > MaxCopied {
+	if !r.complete || r.generator || len(r.statics) > 0 || owner.operations > MaxTransfers || owner.copies > MaxCopied || trimmed && (r.argumentSensitive || r.runs) {
 		return Value{}, nil, false
 	}
 	result := Value{Complete: true}
@@ -136,13 +137,13 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 	} else {
 		for i, value := range r.returns {
 			if i == 0 {
-				result = value
+				result = scalarSnapshot(value)
 			} else {
-				result = merge(result, value)
+				result = merge(result, scalarSnapshot(value))
 			}
 		}
 	}
-	result = constrainCallbackReturn(expr, result)
+	result = e.constrainCallbackReturn(expr, scalarSnapshot(result))
 	var sinks []Sink
 	for _, called := range r.calls {
 		sinks = appendSinks(sinks, e.nativeSinks(called))
@@ -153,6 +154,10 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 		owner.closureSinks = map[syntax.Node][]Sink{}
 	}
 	owner.closureSinks[at] = appendSinks(owner.closureSinks[at], sinks)
+	result, recordStates := e.projectClosureRecord(at, result, seeds, caller, owner, r)
 	projected := projectClosureResources(at, &result, seeds, caller, owner, r)
+	for id, state := range recordStates {
+		projected[id] = state
+	}
 	return result, projected, true
 }

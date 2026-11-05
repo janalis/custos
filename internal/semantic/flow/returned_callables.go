@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/types"
 )
@@ -11,10 +12,11 @@ import (
 // Returned closures publish only symbolic values, parameter metadata and sinks.
 // Factory argument snapshots are supplied by each caller, never published.
 type returnedCallable struct {
-	params   []index.Param
-	defaults []Value
-	result   Value
-	sinks    []Sink
+	argumentSensitive bool
+	params            []index.Param
+	defaults          []Value
+	result            Value
+	sinks             []Sink
 }
 
 type callableValue struct {
@@ -23,7 +25,8 @@ type callableValue struct {
 }
 
 func compactCallableValue(value Value) Value {
-	return Value{Complete: value.Complete, Sources: value.Sources, Safe: value.Safe, scalars: value.scalars}
+	value = scalarSnapshot(value)
+	return Value{record: value.record, Complete: value.Complete, Sources: value.Sources, Safe: value.Safe, scalars: value.scalars, literal: value.literal}
 }
 
 func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *returnedCallable {
@@ -89,16 +92,17 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 	} else {
 		for i, value := range body.returns {
 			if i == 0 {
-				result = value
+				result = scalarSnapshot(value)
 			} else {
-				result = merge(result, value)
+				result = merge(result, scalarSnapshot(value))
 			}
 		}
 	}
 	if !result.Complete || result.targets != nil || result.returned != nil {
 		return nil
 	}
-	result = constrainCallbackReturn(expr, result)
+	result = e.constrainCallbackReturn(expr, scalarSnapshot(result))
+	contract.argumentSensitive = body.argumentSensitive || body.runs
 	contract.result = compactReturnedValue(result)
 	for _, call := range body.calls {
 		contract.sinks = appendSinks(contract.sinks, e.nativeSinks(call))
@@ -128,6 +132,7 @@ func (e *Env) invokeReturned(at syntax.Node, target *callableValue, list *syntax
 		r.gap("flow-budget", at.Span())
 		return Value{}, nil, false
 	}
+	list, values, _ = userArguments(list, contract.params, values, !contract.argumentSensitive)
 	bound, seen, known := e.bindValues(list, contract.params, values, false)
 	if !known {
 		return Value{}, nil, false
@@ -187,8 +192,8 @@ func compactReturnedValue(value Value) Value {
 
 // Declared scalar bindings can coerce constants before a predicate observes
 // them. In particular, negative floating zero becomes the truthy string "-0".
-// Retain literal truth only for an exact scalar member of the return type.
-func constrainCallbackReturn(scope syntax.Node, value Value) Value {
+// Retain literal truth only for exact members or proven primitive conversions.
+func (e *Env) constrainCallbackReturn(scope syntax.Node, value Value) Value {
 	var declared syntax.Expr
 	switch node := scope.(type) {
 	case *syntax.Function:
@@ -200,10 +205,10 @@ func constrainCallbackReturn(scope syntax.Node, value Value) Value {
 	case *syntax.ArrowFunction:
 		declared = node.ReturnType
 	}
-	return constrainDeclaredValue(declared, value)
+	return e.constrainDeclaredValue(declared, value, !syntax.StrictTypes(e.file))
 }
 
-func constrainDeclaredValue(declared syntax.Expr, value Value) Value {
+func (e *Env) constrainDeclaredValue(declared syntax.Expr, value Value, weak bool) Value {
 	if declared == nil {
 		return value
 	}
@@ -214,8 +219,7 @@ func constrainDeclaredValue(declared syntax.Expr, value Value) Value {
 	if !result.Has("array") && !result.Has("iterable") {
 		value.elements = nil
 	}
-	fuel := 256
-	scalar, known := constantValue(value.Expr, MaxDepth, &fuel)
+	scalar, known := knownScalar(value)
 	if known {
 		name := "null"
 		switch scalar.k {
@@ -229,6 +233,19 @@ func constrainDeclaredValue(declared syntax.Expr, value Value) Value {
 			name = "bool"
 		}
 		if !result.Has(name) {
+			if len(result.Atoms()) == 1 && e.types.PHP.AtLeast(phpversion.PHP70) {
+				if converted, valid := convertScalar(scalar, result.Atoms()[0], weak); valid {
+					value.Expr = scalarExpression(converted)
+					literal := converted
+					value.literal = &literal
+					value.interval, value.origins = nil, nil
+					value.Identity, value.storedIdentity = 0, 0
+					value.record = nil
+					value.NonFalse, value.NonNull, value.LengthKnown = false, false, false
+					return value
+				}
+			}
+			value.literal = nil
 			value.Expr, value.interval, value.origins = nil, nil, nil
 			value.elements = nil
 			value.Complete, value.NonFalse, value.NonNull, value.LengthKnown = false, false, false, false

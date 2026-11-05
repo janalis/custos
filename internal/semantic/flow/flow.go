@@ -81,6 +81,8 @@ type Source struct {
 // Value is a conservative union of possible inputs. Safe is the intersection
 // of proven escaping contexts. Expr and Identity require agreement on every path.
 type Value struct {
+	record   *resourceReturn
+	literal  *constantScalar
 	returned *callableValue
 	targets  *callableSet
 	interval *intInterval
@@ -106,6 +108,7 @@ type Value struct {
 	tested, unless *syntax.Binary
 	Length         int64
 	Identity       uint32
+	storedIdentity uint32
 	Invalidated    uint32
 	Safe           Context
 	Complete       bool
@@ -322,12 +325,13 @@ const (
 // elementSet is never modified once a binding holds it: a write makes a new
 // one, which lets every copy of the array value share it.
 type elementSet struct {
-	whole    bool // every runtime entry is tracked; false after losing an entry
-	optional bool // tracked keys may be absent, so membership/count is not exact
-	items    map[string]Value
-	order    []string // nil unless insertion order is proven for the complete set
-	depth    int      // bounded structural cost, including branching
-	width    int      // upper bound on the number of entries during construction
+	hasResources bool
+	whole        bool // every runtime entry is tracked; false after losing an entry
+	optional     bool // tracked keys may be absent, so membership/count is not exact
+	items        map[string]Value
+	order        []string // nil unless insertion order is proven for the complete set
+	depth        int      // bounded structural cost, including branching
+	width        int      // upper bound on the number of entries during construction
 }
 
 // Empty element sets contain no mutable evaluation metadata and are shared.
@@ -350,6 +354,7 @@ func (s *elementSet) put(key string, value Value) {
 			height += value.elements.depth
 		}
 	}
+	s.hasResources = s.hasResources || value.storedIdentity != 0 || value.record != nil || value.elements != nil && value.elements.hasResources
 	s.depth = max(s.depth, height)
 	s.items[key] = value
 }
@@ -726,6 +731,7 @@ type Options struct{ Assertions bool }
 
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
+	recordSites     map[recordSite]uint32
 	declarations    declarationCache
 	classKeys       map[string]string
 	invocationDepth int
@@ -772,6 +778,7 @@ type Env struct {
 }
 
 type scopeResult struct {
+	argumentSensitive  bool
 	distinctReferences map[syntax.Node]bool
 	callables          map[syntax.Expr]string
 	boundMethods       map[syntax.Expr]*boundMethod
@@ -1272,6 +1279,15 @@ func merge(a, b Value) Value {
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
 	v.interval = joinInts(a, b)
+	if sameScalar(a.literal, b.literal) {
+		v.literal = a.literal
+	}
+	if a.storedIdentity == b.storedIdentity {
+		v.storedIdentity = a.storedIdentity
+	}
+	if sameRecord(a.record, b.record) {
+		v.record = a.record
+	}
 	v.elements = common(a.elements, b.elements)
 	v.targets = joinCallableValues(a, b)
 	v.returned = joinReturned(a.returned, b.returned)
@@ -1374,7 +1390,7 @@ func before(a, b Source) bool {
 // equal reports two values that hold the same facts. Element sets are
 // compared by identity, which merge keeps when nothing changes.
 func equal(v, w Value) bool {
-	if !sameReturned(v.returned, w.returned) || !sameCallableTargets(v.targets, w.targets) || !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.replaced != w.replaced || v.plain != w.plain || v.deep != w.deep {
+	if v.storedIdentity != w.storedIdentity || !sameRecord(v.record, w.record) || !sameScalar(v.literal, w.literal) || !sameReturned(v.returned, w.returned) || !sameCallableTargets(v.targets, w.targets) || !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.replaced != w.replaced || v.plain != w.plain || v.deep != w.deep {
 		return false
 	}
 	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || !sameOrigins(v.origins, w.origins) || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {

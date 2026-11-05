@@ -606,7 +606,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 		if slot, constant := arrayKey(n.Dim); constant {
 			if own, tracked := r.values.at(n.Var).elements.lookup(slot); tracked {
-				v = elementValue(own)
+				v = resourceElement(x, own, f, r)
 				v.Expr = x
 				v.plain, v.deep = own.plain, own.deep
 			}
@@ -621,7 +621,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				switch {
 				case tracked:
 					// The element's own last write decides what it holds.
-					v = elementValue(own)
+					v = resourceElement(x, own, f, r)
 					v.Expr = x
 				case whole == uploadEntry && known && uploadField(key):
 					// The server chooses these fields of an uploaded file.
@@ -836,6 +836,13 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	}
 	// Shape completeness describes an array value, not a scalar coercion or
 	// predicate computed from that array. Only value-preserving forms retain it.
+	if v.literal != nil {
+		switch x.(type) {
+		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.ArrayDimFetch, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		default:
+			v.literal = nil
+		}
+	}
 	if v.elements != nil {
 		switch node := x.(type) {
 		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.Array, *syntax.ArrayDimFetch, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
@@ -1173,7 +1180,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	mapping := false
 	if call, ok := n.(*syntax.FuncCall); ok {
 		name, builtin := e.callName(call)
-		mapping = builtin && (name == "array_map" || name == "array_filter")
+		mapping = builtin && (name == "array_map" || name == "array_filter" || name == "array_reduce")
 	}
 	values := []Value{}
 	var argumentStorage [8]*syntax.Arg
@@ -1271,6 +1278,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	invoked := false
 	var invocationStates map[uint32]State
 	if s, ok := e.contract(e.summaryName(n)); ok {
+		r.argumentSensitive = r.argumentSensitive || s.argumentSensitive
 		v = Value{Complete: s.Return.Complete, Expr: n.(syntax.Expr), Safe: s.Return.Safe}
 		v = substitute(s.Return, bound, boundOK)
 		v.Expr = n.(syntax.Expr)
@@ -1282,6 +1290,10 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 			v.returned = bindReturned(s.returned, bound)
 		}
 		v.scalars = s.Return.scalars && len(v.Sources) > 0
+		if boundOK && v.Complete && s.Quiet && e.preciseSummaryTarget(n, closedFollowed) {
+			v, invocationStates = e.instantiateRecord(n, v, bound, f, r)
+			invoked = len(invocationStates) > 0
+		}
 		if boundOK && v.Complete {
 			if identity, states, known := e.instantiateResource(n, s.resource, bound, f, r); known {
 				v.Identity = identity
@@ -1369,6 +1381,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		}
 		// Invoking a closure object runs project code like calling it.
 		if name == "__invoke" || name == "call" || e.callbackParameter(n, args, values) {
+			invalidateCallbackRecords(values, f, r)
 			reenter(n, f, r)
 			if e.exposed(f, r) {
 				e.invalidateShared(n, f, r)
@@ -1557,6 +1570,11 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 			v = filtered
 		}
 	}
+	if builtin && name == "array_reduce" {
+		if reduced, known := e.reducedCallback(n, args, values, f, r); known {
+			v = reduced
+		}
+	}
 	return v
 }
 
@@ -1632,6 +1650,7 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 	identities := map[uint32]bool{}
 	all := false
 	for _, value := range values {
+		collectRecordIdentities(value.elements, identities)
 		if value.Identity != 0 {
 			identities[value.Identity] = true
 		}
@@ -1658,6 +1677,14 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 			}
 			return true
 		})
+	}
+	if all {
+		for _, value := range f.vars {
+			collectRecordIdentities(value.elements, identities)
+		}
+	}
+	for id := range identities {
+		delete(f.states, id)
 	}
 	for name, value := range f.vars {
 		if value.Identity != 0 && (all || identities[value.Identity]) {
@@ -1976,7 +2003,13 @@ func (e *Env) literalElements(n *syntax.Array, r *scopeResult) *elementSet {
 		if _, existed := set.items[key]; !existed {
 			set.order = append(set.order, key)
 		}
-		set.put(key, elementValue(own))
+		entry := elementValue(own)
+		if own.Complete && !own.replaced && own.Invalidated == 0 {
+			entry.storedIdentity = own.Identity
+		} else {
+			entry.storedIdentity = 0
+		}
+		set.put(key, entry)
 	}
 	r.operations += len(set.items)
 	return set

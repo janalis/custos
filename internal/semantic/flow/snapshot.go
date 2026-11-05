@@ -23,9 +23,10 @@ type Sink struct {
 
 // Summary is a compact, syntax-free callable return and sink contract.
 type Summary struct {
-	returned *returnedCallable
-	resource *resourceReturn
-	effects  []resourceEffect
+	argumentSensitive bool
+	returned          *returnedCallable
+	resource          *resourceReturn
+	effects           []resourceEffect
 	// dispatch is a reserved, syntax-free class metadata contract.
 	dispatch  *sinkClass
 	Return    Value
@@ -385,14 +386,14 @@ func (e *Env) summarize(n syntax.Node) {
 	}
 	s.state[n] = summaryBegun
 	r := e.scope(n)
-	sum := Summary{Return: Value{Complete: r.complete}}
+	sum := Summary{Return: Value{Complete: r.complete}, argumentSensitive: r.argumentSensitive}
 	body := syntax.VariableScopeBody(n)
 	sum.Generator = r.generator
 	for i, v := range r.returns {
 		if i == 0 {
-			sum.Return = v
+			sum.Return = scalarSnapshot(v)
 		} else {
-			sum.Return = merge(sum.Return, v)
+			sum.Return = merge(sum.Return, scalarSnapshot(v))
 		}
 	}
 	sum.Return.Complete = sum.Return.Complete && r.complete
@@ -418,8 +419,9 @@ func (e *Env) summarize(n syntax.Node) {
 			sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, scalars: left.scalars}
 		}
 	}
-	sum.Return = constrainCallbackReturn(n, sum.Return)
+	sum.Return = e.constrainCallbackReturn(n, scalarSnapshot(sum.Return))
 	sum.resource = e.summarizeResource(n, r, sum)
+	sum.Return = summarizeRecord(n, r, sum)
 	sum.effects = summarizeResourceEffects(n, r, sum)
 	if sum.Fixed && !byReference(n) {
 		sum.returned = e.summarizeReturned(sum.Return, r, len(syntax.VariableScopeParams(n)))
@@ -431,7 +433,8 @@ func (e *Env) summarize(n syntax.Node) {
 	sum.Return.elements = compactElements(sum.Return.elements, MaxDepth, &shapeFuel)
 	sum.Return.interval = nil
 	sum.Return.origins = nil
-	sum.Return.Identity = 0
+	sum.Return.Identity, sum.Return.storedIdentity = 0, 0
+	sum.Return.record = nil
 	if !sum.Generator {
 		for _, c := range r.calls {
 			sum.Sinks = appendSinks(sum.Sinks, e.nativeSinks(c))

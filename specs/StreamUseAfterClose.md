@@ -53,6 +53,13 @@ same close remains current; later operations, reassignment, escapes and unrelate
 return values discard it. Scalar return coercions that change boolean identity
 establish no result-dependent close contract.
 
+Fixed factories may return handles inside complete records with literal keys,
+including nested records and fields that alias the same handle. Each factory
+invocation creates independent fresh identities; pure record wrappers may retain
+a supplied handle and its history. Replacing a field, passing a record to opaque
+code, uncertain membership and resource results from repeated callbacks cannot
+establish a shared closed-state proof.
+
 ## Report
 
 - Range: the complete violating call or expression identified by D1; for a declaration-state violation, the offending property access or assignment. Highlight the final unsafe use for source-to-use findings.

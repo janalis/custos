@@ -106,6 +106,7 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 	if !known || !summary.Fixed || summary.Generator || !summary.Return.Complete {
 		return Value{}, nil, false
 	}
+	list, values, _ = userArguments(list, target.params, values, summary.Quiet && !summary.argumentSensitive)
 	args, bound := e.bindTo(list, target.params, values)
 	if !bound {
 		return Value{}, nil, false
@@ -124,6 +125,13 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 	identity, states, resource := e.instantiateResource(at, summary.resource, args, f, r)
 	if resource {
 		result.Identity = identity
+	}
+	result, records := e.instantiateRecord(at, result, args, f, r)
+	for id, state := range records {
+		if states == nil {
+			states = map[uint32]State{}
+		}
+		states[id] = state
 	}
 	effects := e.resourceEffects(at, summary.effects, args, f, r)
 	for id, state := range effects {

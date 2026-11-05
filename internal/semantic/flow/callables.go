@@ -118,6 +118,7 @@ func (e *Env) invokeCallableTarget(at syntax.Node, expr syntax.Expr, list *synta
 	if !known || !summary.Fixed || summary.Generator || !summary.Return.Complete {
 		return Value{}, nil, false
 	}
+	list, values, _ = userArguments(list, function.Params, values, summary.Quiet && !summary.argumentSensitive)
 	args, bound := e.bindTo(list, function.Params, values)
 	if !bound {
 		return Value{}, nil, false
@@ -136,6 +137,13 @@ func (e *Env) invokeCallableTarget(at syntax.Node, expr syntax.Expr, list *synta
 	identity, states, known := e.instantiateResource(at, summary.resource, args, f, r)
 	if known {
 		result.Identity = identity
+	}
+	result, records := e.instantiateRecord(at, result, args, f, r)
+	for id, state := range records {
+		if states == nil {
+			states = map[uint32]State{}
+		}
+		states[id] = state
 	}
 	effects := e.resourceEffects(at, summary.effects, args, f, r)
 	for id, state := range effects {

@@ -9,6 +9,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Accept harmless surplus positional arguments for resolved user callbacks while
+  preserving native arity and argument-introspection guards.
+- Follow finite reductions in insertion order for accumulator provenance and sinks.
+- Preserve literal predicates through named and returned-closure summaries; model
+  proven primitive callback coercions with PHP strictness and version checks.
+- Preserve fresh and borrowed stream identities in bounded returned records,
+  including field aliases, separate factory calls and escape invalidation.
+
 - Analyze supported finite filter callbacks for unsafe uses and proven predicates,
   preserving original retained values and respecting return coercions.
 - Preserve nested provenance through returned closures and immutable captures.

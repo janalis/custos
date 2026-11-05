@@ -95,10 +95,15 @@ func TestInitialIndexPreservesPreviouslyOpenedFlowBuffers(t *testing.T) {
 			mainURI := "file://" + filepath.Join(dir, "main.php")
 			s.open(didOpenParams{TextDocument: textDocumentItem{URI: mainURI, LanguageID: "php", Version: 1, Text: "<?php invoke($_GET['command']);"}})
 			s.open(didOpenParams{TextDocument: textDocumentItem{URI: "file://" + path, LanguageID: "php", Version: 1, Text: tc.buffer}})
-			if s.index != nil {
+			s.mu.Lock()
+			published := s.index != nil
+			s.mu.Unlock()
+			if published {
 				t.Fatal("test opened buffers after initial index publication")
 			}
 			s.buildIndex()
+			s.mu.Lock()
+			defer s.mu.Unlock()
 			if s.indexing || s.index == nil || s.flow == nil {
 				t.Fatal("initial index and flow snapshot were not published")
 			}

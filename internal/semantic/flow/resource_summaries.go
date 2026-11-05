@@ -9,6 +9,7 @@ import (
 // Fresh identities are instantiated at each caller; pure pass-throughs keep the
 // caller's resource identity and operation state.
 type resourceReturn struct {
+	token     int
 	fresh     bool
 	parameter int
 	operation string

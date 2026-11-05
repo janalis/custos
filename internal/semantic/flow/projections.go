@@ -56,6 +56,8 @@ func substituteValue(template Value, args []Value, known bool, depth int, fuel *
 		}
 	}
 	v.Safe |= template.Safe
+	v.literal = template.literal
+	v.record = template.record
 	if template.elements != nil && depth > 0 && len(template.elements.items) <= *fuel {
 		*fuel -= len(template.elements.items)
 		if len(template.elements.items) == 0 {

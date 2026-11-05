@@ -43,6 +43,10 @@ func (e *Env) observeParameters(at syntax.Node, f *frame, r *scopeResult) {
 
 func (e *Env) observeIntrospection(at syntax.Node, name string, args *syntax.ArgList, f *frame, r *scopeResult) {
 	switch name {
+	case "func_get_args", "func_get_arg", "func_num_args", "get_defined_vars", "debug_backtrace", "debug_print_backtrace", "gettrace", "gettraceasstring":
+		r.argumentSensitive = true
+	}
+	switch name {
 	case "compact", "get_defined_vars", "func_get_args", "func_get_arg":
 	default:
 		return

@@ -47,6 +47,11 @@ Reported:
 
 - A known callback invoked by a complete finite filter can carry unsafe header uses through a wrapper. Callback arguments follow the filter's value-only, key-only or combined mode. Unknown targets, incomplete argument packs and unsupported callback bindings establish no such proof.
 
+A complete finite reduction can carry unsafe header uses from its callbacks
+through a wrapper. The accumulator follows insertion order and starts with the
+explicit initial value, or null when omitted. Unknown membership, callback
+targets, references and unsupported bindings establish no reduction proof.
+
 ## Exceptions (no report)
 
 - Constant values, validated finite choices, established CR/LF rejection and unknown flows are excluded.
