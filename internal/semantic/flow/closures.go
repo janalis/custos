@@ -133,9 +133,10 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 	}
 	result := Value{Complete: true}
 	if arrow, ok := expr.(*syntax.ArrowFunction); ok {
-		result = r.values.at(arrow.Expr)
+		result = e.constrainCallbackReturn(expr, scalarSnapshot(r.values.at(arrow.Expr)))
 	} else {
 		for i, value := range r.returns {
+			value = e.constrainCallbackReturn(expr, scalarSnapshot(value))
 			if i == 0 {
 				result = scalarSnapshot(value)
 			} else {
@@ -143,8 +144,7 @@ func (e *Env) invokeClosure(at syntax.Node, expr syntax.Expr, captured map[strin
 			}
 		}
 	}
-	result = completedReturn(expr, r, result)
-	result = e.constrainCallbackReturn(expr, scalarSnapshot(result))
+	result = e.completedReturn(expr, r, result)
 	var sinks []Sink
 	for _, called := range r.calls {
 		sinks = appendSinks(sinks, e.nativeSinks(called))

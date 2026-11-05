@@ -85,8 +85,7 @@ func (e *Env) filteredCallback(at syntax.Node, list *syntax.ArgList, values []Va
 				return Value{}, false
 			}
 		}
-		scalar, certain := knownScalar(predicate)
-		truth := scalar.truth()
+		truth, certain := predicateTruth(predicate)
 		if !predicate.Complete {
 			certain = false
 		}

@@ -240,6 +240,17 @@ open documents.
   invocation frames and bounded syntax-free return templates. Callback effects do not establish caller operation
   facts or execution-order proofs. Unknown inputs and unsupported bindings use
   conservative aggregate provenance.
+- Named and returned callbacks can publish bounded syntax-free primitive return
+  expressions, literal defaults and immutable captured parameter slots. Resolved
+  pure wrapper calls compose these contracts; evaluation checks discarded local
+  assignments too. Invocation binding uses call-site strictness, while return
+  conversion uses definition strictness. Recursion, uncertain conversions and
+  exhausted work limits retain unknown results. Scalar evaluation refines
+  provenance separately; exact record forwarding additionally proves caller
+  resource identities and preserves field aliases.
+- Callback truth outcomes are separate from literal equality. Each normal return,
+  including implicit null, is converted before joining truth outcomes. Agreeing
+  falsy returns can remove entries without treating different literals as equal.
 - Finite `array_filter` inputs reuse callback binding and sink contracts in
   value, key or combined mode. Retained entries keep their original provenance;
   predicate results never act as transformations. Unknown truth keeps possible

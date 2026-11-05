@@ -55,7 +55,13 @@ func startServer(t *testing.T) *client {
 			cl.out <- m
 		}
 	}()
-	t.Cleanup(func() { cw.Close() })
+	t.Cleanup(func() {
+		cw.Close()
+		// Drain queued replies and wait for Serve to close its output before the
+		// test restores shared rule settings used by configuration requests.
+		for range cl.out {
+		}
+	})
 	return cl
 }
 

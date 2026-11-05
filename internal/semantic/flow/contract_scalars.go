@@ -26,6 +26,9 @@ func scalarSnapshot(value Value) Value {
 			value.literal = &literal
 		}
 	}
+	if value.literal != nil && value.Complete && !value.replaced && value.Invalidated == 0 {
+		value.truth = scalarTruth(*value.literal)
+	}
 	return value
 }
 

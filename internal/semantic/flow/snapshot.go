@@ -23,6 +23,8 @@ type Sink struct {
 
 // Summary is a compact, syntax-free callable return and sink contract.
 type Summary struct {
+	pure              *pureContract
+	defaults          []Value
 	forward           *forwardReturn
 	argumentSensitive bool
 	returned          *returnedCallable
@@ -391,6 +393,7 @@ func (e *Env) summarize(n syntax.Node) {
 	body := syntax.VariableScopeBody(n)
 	sum.Generator = r.generator
 	for i, v := range r.returns {
+		v = e.constrainCallbackReturn(n, scalarSnapshot(v))
 		if i == 0 {
 			sum.Return = scalarSnapshot(v)
 		} else {
@@ -420,9 +423,12 @@ func (e *Env) summarize(n syntax.Node) {
 			sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, scalars: left.scalars}
 		}
 	}
-	sum.Return = completedReturn(n, r, sum.Return)
+	sum.Return = e.completedReturn(n, r, sum.Return)
 	sum.forward = e.summarizeForward(n, r, sum.Return)
-	sum.Return = e.constrainCallbackReturn(n, scalarSnapshot(sum.Return))
+	if sum.Fixed {
+		sum.pure = e.compilePure(n, r, nil, 0)
+		sum.defaults = literalDefaults(n)
+	}
 	sum.resource = e.summarizeResource(n, r, sum)
 	sum.Return = summarizeRecord(n, r, sum)
 	sum.effects = summarizeResourceEffects(n, r, sum)

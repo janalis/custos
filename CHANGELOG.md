@@ -9,6 +9,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Evaluate bounded scalar return expressions for named and returned callbacks,
+  including literal defaults, immutable captures and proven pure wrapper chains.
+- Join agreeing callback truth outcomes across distinct normal returns after
+  return coercions, preserving exact literal distinctions and callback sinks.
+- Preserve unchanged resource records through proven pure wrapper chains.
+
 - Preserve proven scalar bindings through named and returned callback contracts,
   respecting argument strictness and the return definition's strictness.
 - Track implicit null results separately from explicit returns and preserve

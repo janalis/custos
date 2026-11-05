@@ -84,6 +84,11 @@ establish no such forwarding proof.
 
 No automatic fix: the correct operation order or reopening policy is unknown.
 
+Preserve field aliases when a complete unchanged stream record passes through
+resolved pure wrappers. Do not infer the same identity through mutation,
+references, opaque calls or conversions whose effects are uncertain. Unsupported
+or recursive wrapper paths do not establish a close proof.
+
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.

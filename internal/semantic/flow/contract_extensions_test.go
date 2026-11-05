@@ -17,7 +17,7 @@ func TestExtendedPredicateContracts(t *testing.T) {
 		{`function drop($v){}$xs=array_filter([$_GET['x']],'drop');probe($xs);`, true},
 		{`function drop($v){return;}$xs=array_filter([$_GET['x']],'drop');probe($xs);`, true},
 		{`function drop($v):void{}$xs=array_filter([$_GET['x']],'drop');probe($xs);`, true},
-		{`function drop($v){if($v){return false;}}$xs=array_filter([$_GET['x']],'drop');probe($xs);`, false},
+		{`function drop($v){if($v){return false;}}$xs=array_filter([$_GET['x']],'drop');probe($xs);`, true},
 		{`function factory(){return function($v){};}$xs=array_filter([$_GET['x']],factory());probe($xs);`, true},
 		{`$xs=array_filter([$_GET['x']],function($v){});probe($xs);`, true},
 		{`$sum=array_reduce([1,-1],fn($c,$v)=>$c+$v,0);$xs=array_filter([$_GET['x']],fn()=>$sum);probe($xs);`, true},

@@ -39,7 +39,7 @@ func TestForwardContractEditInvalidatesCallers(t *testing.T) {
 	first := NewSnapshot(Extract(file, ix, phpversion.Max, nil, Options{}))
 	use := syntax.Parse("caller.php", []byte(caller), syntax.Options{Version: phpversion.Max})
 	_, published := Summarize(use, resourceTypes(use, ix), first, Options{})
-	edited := syntax.Parse("definitions.php", []byte(`<?php function zero(int $v){return $v+0;}`), syntax.Options{Version: phpversion.Max})
+	edited := syntax.Parse("definitions.php", []byte(`<?php function zero(int $v){return $v+1;}`), syntax.Options{Version: phpversion.Max})
 	next := first.WithFile(Extract(edited, ix, phpversion.Max, nil, Options{}))
 	if published.Current(first, next) {
 		t.Fatal("forward contract edit did not invalidate dependent")

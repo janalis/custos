@@ -8,7 +8,7 @@ func nullResult() Value { return Value{Complete: true, literal: &nullScalar, pla
 
 // Only reaching the lexical end adds an implicit null. Explicit returns share
 // the normal exit for effects, but do not imply that the end is reachable.
-func completedReturn(scope syntax.Node, r *scopeResult, value Value) Value {
+func (e *Env) completedReturn(scope syntax.Node, r *scopeResult, value Value) Value {
 	if _, arrow := scope.(*syntax.ArrowFunction); arrow {
 		return value
 	}
@@ -16,10 +16,10 @@ func completedReturn(scope syntax.Node, r *scopeResult, value Value) Value {
 		return value
 	}
 	if len(r.returns) == 0 {
-		return nullResult()
+		return e.constrainCallbackReturn(scope, scalarSnapshot(nullResult()))
 	}
 	if r.fallsThrough {
-		return merge(value, nullResult())
+		return merge(value, e.constrainCallbackReturn(scope, scalarSnapshot(nullResult())))
 	}
 	return value
 }

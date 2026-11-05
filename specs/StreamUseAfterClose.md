@@ -77,6 +77,11 @@ establish no such forwarding proof.
 
 No automatic fix: the correct operation order or reopening policy is unknown.
 
+Preserve field aliases when a complete unchanged stream record passes through
+resolved pure wrappers. Do not infer the same identity through mutation,
+references, opaque calls or conversions whose effects are uncertain. Unsupported
+or recursive wrapper paths do not establish a close proof.
+
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

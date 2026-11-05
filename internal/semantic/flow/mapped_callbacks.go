@@ -135,7 +135,7 @@ func (e *Env) mappedCallback(at syntax.Node, args *syntax.ArgList, values []Valu
 // Element projections retain immutable value structure, never resource identity,
 // callable frames, alias state or guards from the enclosing evaluation.
 func elementValue(v Value) Value {
-	out := Value{storedIdentity: v.storedIdentity, record: v.record, literal: v.literal, Complete: v.Complete, Sources: v.Sources, Safe: v.Safe, elements: v.elements, plain: v.plain, deep: v.deep, scalars: v.scalars}
+	out := Value{truth: v.truth, storedIdentity: v.storedIdentity, record: v.record, literal: v.literal, Complete: v.Complete, Sources: v.Sources, Safe: v.Safe, elements: v.elements, plain: v.plain, deep: v.deep, scalars: v.scalars}
 	switch syntax.UnwrapParens(v.Expr).(type) {
 	case *syntax.Literal, *syntax.ConstFetch:
 		out.Expr = v.Expr

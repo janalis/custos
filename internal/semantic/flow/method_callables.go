@@ -107,12 +107,15 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 		return Value{}, nil, false
 	}
 	list, values, _ = userArguments(list, target.params, values, summary.Quiet && !summary.argumentSensitive)
-	args, bound := e.bindTo(list, target.params, values)
+	args, seen, bound := e.bindValues(list, target.params, values, false)
 	if !bound {
 		return Value{}, nil, false
 	}
+	if len(summary.defaults) > 0 {
+		args = callbackDefaults(args, seen, summary.defaults)
+	}
 	result := substitute(summary.Return, args, true)
-	result.returned = bindReturned(summary.returned, args)
+	result.returned = e.bindReturned(at, summary.returned, args)
 	var sinks []Sink
 	for _, sink := range summary.Sinks {
 		sink.Argument = substitute(sink.Argument, args, true)
@@ -127,7 +130,9 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 		result.Identity = identity
 	}
 	var records map[uint32]State
-	if forwarded, projected, ok := e.forwardedReturn(at, summary.forward, args, f, r); ok {
+	if refined, projected, ok := e.pureReturn(at, summary.pure, args, nil, result, f, r); ok {
+		result, records = refined, projected
+	} else if forwarded, projected, ok := e.forwardedReturn(at, summary.forward, args, f, r); ok {
 		result, records = forwarded, projected
 	} else {
 		result, records = e.instantiateRecord(at, result, args, f, r)

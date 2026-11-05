@@ -56,6 +56,14 @@ uncertain conversions and arithmetic establish no constant result.
 
 No automatic fix: header-specific validation must preserve application meaning.
 
+Supported finite predicates may discard an entry when every normal return is
+falsy, including different falsy values and implicit null. Apply declared return
+conversions before comparing truth outcomes; mixed truth stays uncertain.
+Preserve unsafe callback uses even when no entries remain. A known scalar result
+may come from warning-free primitive arithmetic, literal defaults, unchanged
+scalar captures or resolved pure wrappers. Keep separate factory invocations
+independent and reject uncertain calls, conversions, references and mutable state.
+
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

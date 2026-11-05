@@ -839,11 +839,12 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	}
 	// Shape completeness describes an array value, not a scalar coercion or
 	// predicate computed from that array. Only value-preserving forms retain it.
-	if v.literal != nil {
+	if v.literal != nil || v.truth != 0 {
 		switch x.(type) {
 		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.ArrayDimFetch, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 		default:
 			v.literal = nil
+			v.truth = 0
 		}
 	}
 	switch x.(type) {
@@ -1286,13 +1287,20 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	var invocationStates map[uint32]State
 	if s, ok := e.contract(e.summaryName(n)); ok {
 		r.argumentSensitive = r.argumentSensitive || s.argumentSensitive
+		if boundOK && len(s.defaults) > 0 {
+			bound, boundOK = e.defaultArguments(n, values, s.defaults)
+		}
 		v = Value{Complete: s.Return.Complete, Expr: n.(syntax.Expr), Safe: s.Return.Safe}
 		v = substitute(s.Return, bound, boundOK)
 		v.Expr = n.(syntax.Expr)
 		v.Safe |= s.Return.Safe
 		forwarded := false
 		if boundOK && s.Fixed && e.preciseSummaryTarget(n, closedFollowed) {
-			if result, states, ok := e.forwardedReturn(n, s.forward, bound, f, r); ok {
+			result, states, ok := e.pureReturn(n, s.pure, bound, nil, v, f, r)
+			if !ok {
+				result, states, ok = e.forwardedReturn(n, s.forward, bound, f, r)
+			}
+			if ok {
 				v = result
 				v.Expr = n.(syntax.Expr)
 				invocationStates = states
@@ -1304,7 +1312,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 			v.elements = nil
 		}
 		if boundOK {
-			v.returned = bindReturned(s.returned, bound)
+			v.returned = e.bindReturned(n, s.returned, bound)
 		}
 		v.scalars = s.Return.scalars && len(v.Sources) > 0
 		if !forwarded && boundOK && v.Complete && s.Quiet && e.preciseSummaryTarget(n, closedFollowed) {

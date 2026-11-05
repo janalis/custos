@@ -12,6 +12,8 @@ import (
 // Returned closures publish only symbolic values, parameter metadata and sinks.
 // Factory argument snapshots are supplied by each caller, never published.
 type returnedCallable struct {
+	pure              *pureContract
+	outerParams       []pureParam
 	forward           *forwardReturn
 	argumentSensitive bool
 	params            []index.Param
@@ -27,7 +29,7 @@ type callableValue struct {
 
 func compactCallableValue(value Value) Value {
 	value = scalarSnapshot(value)
-	return Value{record: value.record, Complete: value.Complete, Sources: value.Sources, Safe: value.Safe, scalars: value.scalars, literal: value.literal}
+	return Value{truth: value.truth, record: value.record, Complete: value.Complete, Sources: value.Sources, Safe: value.Safe, scalars: value.scalars, literal: value.literal}
 }
 
 func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *returnedCallable {
@@ -41,6 +43,7 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 		return nil
 	}
 	contract := &returnedCallable{}
+	contract.outerParams, _ = e.pureParameters(syntax.EnclosingVariableScope(expr))
 	seeds := map[string]Value{}
 	for name, capture := range captures {
 		if !capture.Complete || !capture.plain || !capture.deep || capture.replaced || capture.Invalidated != 0 {
@@ -89,9 +92,10 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 	}
 	result := Value{Complete: true}
 	if arrow, ok := expr.(*syntax.ArrowFunction); ok {
-		result = body.values.at(arrow.Expr)
+		result = e.constrainCallbackReturn(expr, scalarSnapshot(body.values.at(arrow.Expr)))
 	} else {
 		for i, value := range body.returns {
+			value = e.constrainCallbackReturn(expr, scalarSnapshot(value))
 			if i == 0 {
 				result = scalarSnapshot(value)
 			} else {
@@ -102,9 +106,11 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 	if !result.Complete || result.targets != nil || result.returned != nil {
 		return nil
 	}
-	result = completedReturn(expr, body, result)
+	result = e.completedReturn(expr, body, result)
 	contract.forward = e.summarizeForward(expr, body, result)
-	result = e.constrainCallbackReturn(expr, scalarSnapshot(result))
+	if len(contract.outerParams) == outer {
+		contract.pure = e.compilePure(expr, body, pureCaptures(expr, captures, outer), outer)
+	}
 	if body.runs {
 		result = eraseRecordResources(result)
 	} else {
@@ -120,12 +126,18 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 	return contract
 }
 
-func bindReturned(contract *returnedCallable, args []Value) *callableValue {
+func (e *Env) bindReturned(at syntax.Node, contract *returnedCallable, args []Value) *callableValue {
 	if contract == nil {
 		return nil
 	}
 	outer := make([]Value, len(args))
 	for i, value := range args {
+		if i < len(contract.outerParams) {
+			p := contract.outerParams[i]
+			if scalar, known := knownScalar(value); !known || !(p.nullable && scalar.k == 'n') {
+				value = e.constrainType(p.typ, value, !syntax.StrictTypes(e.file) || e.internalScalarCallback(at))
+			}
+		}
 		outer[i] = compactReturnedValue(value)
 	}
 	return &callableValue{contract: contract, outer: outer}
@@ -152,7 +164,10 @@ func (e *Env) invokeReturned(at syntax.Node, target *callableValue, list *syntax
 	}
 	args := append(append([]Value(nil), target.outer...), bound...)
 	result := substitute(contract.result, args, true)
-	forwarded, states, ok := e.forwardedReturn(at, contract.forward, bound, f, r)
+	forwarded, states, ok := e.pureReturn(at, contract.pure, bound, target.outer, result, f, r)
+	if !ok {
+		forwarded, states, ok = e.forwardedReturn(at, contract.forward, bound, f, r)
+	}
 	if ok {
 		result = forwarded
 	} else {
@@ -244,6 +259,7 @@ func (e *Env) constrainType(result types.Type, value Value, weak bool) Value {
 					value.Expr = scalarExpression(converted)
 					literal := converted
 					value.literal = &literal
+					value.truth = scalarTruth(converted)
 					value.interval, value.origins = nil, nil
 					value.Identity, value.storedIdentity = 0, 0
 					value.record = nil
@@ -252,10 +268,13 @@ func (e *Env) constrainType(result types.Type, value Value, weak bool) Value {
 				}
 			}
 			value.literal = nil
+			value.truth = 0
 			value.Expr, value.interval, value.origins = nil, nil, nil
 			value.elements = nil
 			value.Complete, value.NonFalse, value.NonNull, value.LengthKnown = false, false, false, false
 		}
+	} else {
+		value.truth = 0
 	}
 	return value
 }

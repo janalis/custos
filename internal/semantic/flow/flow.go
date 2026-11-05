@@ -138,6 +138,7 @@ type Value struct {
 	// deep marks one that, when it is an array, holds no object either, at
 	// any depth: what is done with its elements runs none.
 	plain, deep bool
+	truth       uint8
 }
 
 // Origin is one expression that may have produced the value read, with the
@@ -1280,6 +1281,9 @@ func merge(a, b Value) Value {
 		sb, ub, cb = allContexts, ua, ca
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
+	if ta, tb := truthOutcomes(a), truthOutcomes(b); ta != 0 && tb != 0 {
+		v.truth = ta | tb
+	}
 	v.interval = joinInts(a, b)
 	if sameScalar(a.literal, b.literal) {
 		v.literal = a.literal
@@ -1392,7 +1396,7 @@ func before(a, b Source) bool {
 // equal reports two values that hold the same facts. Element sets are
 // compared by identity, which merge keeps when nothing changes.
 func equal(v, w Value) bool {
-	if v.storedIdentity != w.storedIdentity || !sameRecord(v.record, w.record) || !sameScalar(v.literal, w.literal) || !sameReturned(v.returned, w.returned) || !sameCallableTargets(v.targets, w.targets) || !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.replaced != w.replaced || v.plain != w.plain || v.deep != w.deep {
+	if v.truth != w.truth || v.storedIdentity != w.storedIdentity || !sameRecord(v.record, w.record) || !sameScalar(v.literal, w.literal) || !sameReturned(v.returned, w.returned) || !sameCallableTargets(v.targets, w.targets) || !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.replaced != w.replaced || v.plain != w.plain || v.deep != w.deep {
 		return false
 	}
 	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || !sameOrigins(v.origins, w.origins) || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
