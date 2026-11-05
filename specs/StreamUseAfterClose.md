@@ -36,6 +36,8 @@ establish this transfer.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 - E3. A close whose stream argument comes from an unpacked list (`fclose(...$handles)`) may close the stream or not: the use is not reported as following a close.
 
+Named function and closed method factories preserve fresh resource identity independently at each caller. Pure parameter pass-through functions preserve the supplied resource identity and its current operation state. Reference returns, opaque mutations and uncertain producers establish no resource-return contract.
+
 ## Report
 
 - Range: the complete violating call or expression identified by D1; for a declaration-state violation, the offending property access or assignment. Highlight the final unsafe use for source-to-use findings.

@@ -31,51 +31,59 @@ func (e *Env) closedContracts(at syntax.Node) ([]closedContract, bool) {
 	if len(classes) < 2 || len(classes) > maxClosedTargets || len(classes) != len(typeOf.Atoms()) {
 		return nil, false
 	}
-	if !e.sinkLexicalContext(at) {
-		return nil, false
-	}
 	var out []closedContract
 	for _, class := range classes {
-		// Both positive and missing metadata are dependency reads. Removing a
-		// class or changing its modifiers must invalidate composed summaries.
-		e.contract(sinkClassKey(class))
-		decls := e.types.Index.ClassDecls(class, e.types.PHP)
-		if len(decls) != 1 || decls[0].Kind != syntax.KindClass {
+		target, known := e.closedMethod(at, class, name.Value, false)
+		if !known {
 			return nil, false
 		}
-		method := e.types.Index.FindMethod(class, name.Value, e.types.PHP)
-		if method == nil || method.Magic || method.Builtin || !e.visible(at, method) || !decls[0].Final && !method.Final && method.Visibility != index.Private {
-			return nil, false
-		}
-		owner := class
-		found := false
-		for range MaxDepth * 4 {
-			meta, known := e.contract(sinkClassKey(owner))
-			decls := e.types.Index.ClassDecls(owner, e.types.PHP)
-			if !known || meta.dispatch == nil || len(decls) != 1 || decls[0].Kind == syntax.KindTrait {
-				return nil, false
-			}
-			if strings.EqualFold(strings.TrimPrefix(owner, `\`), strings.TrimPrefix(method.Class, `\`)) {
-				if meta.dispatch.Methods[strings.ToLower(method.Name)].Count != 1 {
-					return nil, false
-				}
-				found = true
-				break
-			}
-			if owner = decls[0].Parent; owner == "" {
-				return nil, false
-			}
-		}
-		if !found {
-			return nil, false
-		}
-		summary, known := e.contract(strings.ToLower(method.Class + "::" + method.Name))
-		if !known || !summary.Fixed || summary.Generator {
-			return nil, false
-		}
-		out = append(out, closedContract{method, summary})
+		out = append(out, target)
 	}
 	return out, true
+}
+
+// Resolve non-overridable methods using native receiver classes and record the
+// entire declaration/visibility dependency chain, without PHPDoc narrowing.
+func (e *Env) closedMethod(at syntax.Node, class, name string, static bool) (closedContract, bool) {
+	if !e.sinkLexicalContext(at) {
+		return closedContract{}, false
+	}
+	e.contract(sinkClassKey(class))
+	decls := e.types.Index.ClassDecls(class, e.types.PHP)
+	if len(decls) != 1 || decls[0].Kind != syntax.KindClass {
+		return closedContract{}, false
+	}
+	method := e.types.Index.FindMethod(class, name, e.types.PHP)
+	if method == nil || method.Magic || method.Builtin || !e.visible(at, method) || static && !method.Static || !decls[0].Final && !method.Final && method.Visibility != index.Private {
+		return closedContract{}, false
+	}
+	owner := class
+	found := false
+	for range MaxDepth * 4 {
+		meta, known := e.contract(sinkClassKey(owner))
+		decls := e.types.Index.ClassDecls(owner, e.types.PHP)
+		if !known || meta.dispatch == nil || len(decls) != 1 || decls[0].Kind == syntax.KindTrait {
+			return closedContract{}, false
+		}
+		if strings.EqualFold(strings.TrimPrefix(owner, `\`), strings.TrimPrefix(method.Class, `\`)) {
+			if meta.dispatch.Methods[strings.ToLower(method.Name)].Count != 1 {
+				return closedContract{}, false
+			}
+			found = true
+			break
+		}
+		if owner = decls[0].Parent; owner == "" {
+			return closedContract{}, false
+		}
+	}
+	if !found {
+		return closedContract{}, false
+	}
+	summary, known := e.contract(strings.ToLower(method.Class + "::" + method.Name))
+	if !known || !summary.Fixed || summary.Generator {
+		return closedContract{}, false
+	}
+	return closedContract{method, summary}, true
 }
 
 func (e *Env) closedReturn(at syntax.Node, values []Value, followed uint8) (Value, bool) {

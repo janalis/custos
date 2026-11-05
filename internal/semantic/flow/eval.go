@@ -730,9 +730,15 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			}
 		}
 		e.captureClosure(n, f, r)
+		if _, known := r.closures[n]; known {
+			v.targets = oneCallableTarget(n)
+		}
 	case *syntax.ArrowFunction: // Capture now; execute the body only on invocation.
 		e.observeArrow(n, f, r)
 		e.captureClosure(n, f, r)
+		if _, known := r.closures[n]; known {
+			v.targets = oneCallableTarget(n)
+		}
 	case *syntax.Yield, *syntax.YieldFrom:
 		e.suspend(x, f, r, depth)
 		// What the consumer sends back is not known.
@@ -819,6 +825,13 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v.plain, v.deep = className(n), className(n)
 	default:
 		v.plain, v.deep = false, false
+	}
+	if v.targets != nil {
+		switch x.(type) {
+		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.Closure, *syntax.ArrowFunction, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		default:
+			v.targets = nil
+		}
 	}
 	// Only an expression that hands its operand on unchanged yields the
 	// uploads table, one of its entries or an array of numbers.
@@ -1096,8 +1109,12 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	if args != nil && len(args.Args) == 1 {
 		if _, callable := args.Args[0].(*syntax.VariadicPlaceholder); callable {
 			// `f(...)` only makes a closure: nothing is called.
-			e.captureCallable(n, r)
-			return Value{Complete: true, Expr: n.(syntax.Expr), plain: true, deep: true}
+			e.captureCallable(n, rv, f, r)
+			value := Value{Complete: true, Expr: n.(syntax.Expr), plain: true, deep: true}
+			if _, known := r.callables[value.Expr]; known || r.boundMethods[value.Expr] != nil {
+				value.targets = oneCallableTarget(value.Expr)
+			}
+			return value
 		}
 	}
 	followed := followTyped
@@ -1144,6 +1161,22 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			}
 		}
 	}
+	return e.finishCall(n, args, &evaluatedCall{receiver: receiver, receiverValue: rv, followed: followed, closedFollowed: closedFollowed, values: values, written: written}, f, r)
+}
+
+type evaluatedCall struct {
+	prepared                 bool
+	receiver                 syntax.Expr
+	receiverValue            Value
+	followed, closedFollowed uint8
+	values                   []Value
+	written                  []*syntax.Arg
+}
+
+// finishCall applies the same contracts to written and resolved callable calls;
+// prepared argument values are never evaluated a second time.
+func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCall, f *frame, r *scopeResult) Value {
+	receiver, rv, followed, closedFollowed, values, written := input.receiver, input.receiverValue, input.followed, input.closedFollowed, input.values, input.written
 	f.unmatchAll(r)
 	leaving(f, r)
 	name, builtin, result, documented := e.callee(n)
@@ -1212,6 +1245,12 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		v.Expr = n.(syntax.Expr)
 		v.Safe |= s.Return.Safe
 		v.scalars = s.Return.scalars && len(v.Sources) > 0
+		if boundOK && v.Complete {
+			if identity, states, known := e.instantiateResource(n, s.resource, bound, f, r); known {
+				v.Identity = identity
+				invoked, invocationStates = true, states
+			}
+		}
 		if s.Generator {
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
@@ -1434,7 +1473,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 	}
 	e.invalidateReferences(n, args, f, r)
-	if args != nil {
+	if args != nil && !input.prepared {
 		e.accepted(n, args, builtin, followed, f)
 	}
 	if invoked {

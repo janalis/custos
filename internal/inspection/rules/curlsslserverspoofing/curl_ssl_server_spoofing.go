@@ -23,11 +23,29 @@ const (
 func (curlSslServerSpoofing) ID() string { return "CurlSslServerSpoofing" }
 func (curlSslServerSpoofing) Semantic()  {}
 func (curlSslServerSpoofing) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KConstFetch}
+	return []syntax.NodeKind{syntax.KConstFetch, syntax.KFuncCall}
 }
 
 func (curlSslServerSpoofing) Check(ctx *analysis.Context, n syntax.Node) {
-	k := n.(*syntax.ConstFetch) // the parser always gives it a name token
+	var k *syntax.ConstFetch
+	var site syntax.Node
+	var value syntax.Expr
+	if call, ok := n.(*syntax.FuncCall); ok {
+		if !ctx.IsGlobalFunctionCall(call, "curl_setopt") {
+			return
+		}
+		args, known := ctx.Types().Native().BuiltinArguments(call)
+		if !known || len(args) != 3 {
+			return
+		}
+		k, known = syntax.UnwrapParens(args[1]).(*syntax.ConstFetch)
+		if !known || curlArgumentCall(k) == call {
+			return
+		}
+		site, value = call, args[2]
+	} else {
+		k = n.(*syntax.ConstFetch)
+	}
 	var host bool
 	switch astquery.LastNamePart(k.Name.Value) {
 	case "CURLOPT_SSL_VERIFYHOST":
@@ -36,7 +54,9 @@ func (curlSslServerSpoofing) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return // E5
 	}
-	site, value := curlSettingSite(ctx, k)
+	if site == nil {
+		site, value = curlSettingSite(ctx, k)
+	}
 	if site == nil || value == nil {
 		return
 	}

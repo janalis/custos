@@ -30,7 +30,7 @@ func TestKnownCallableTargets(t *testing.T) {
 		{`function raw($x){yield $x;} $f=raw(...);probe($f($_GET['x']));`, false, false},
 		{`if($c){function raw($x){return $x;}}$f=raw(...);probe($f($_GET['x']));`, false, false},
 		{`function raw($x){return $x;}$f=raw(...);$alias=&$f;mutate($alias);probe($f($_GET['x']));`, false, false},
-		{`$f=htmlspecialchars(...);probe($f($_GET['x']));`, false, false},
+		{`$f=htmlspecialchars(...);probe($f($_GET['x']));`, true, false},
 		{`$f=missing(...);probe($f($_GET['x']));`, false, false},
 	} {
 		e, f := summarized(t, tc.source)
@@ -59,12 +59,12 @@ func TestCallableCreationVersionsAndSinks(t *testing.T) {
 	}
 	r := &scopeResult{}
 	e.types.PHP = phpversion.PHP80
-	e.captureCallable(call, r)
+	e.captureCallable(call, Value{}, &frame{}, r)
 	if len(r.callables) != 0 {
 		t.Fatal("first-class target on old PHP")
 	}
 	e.types.PHP = phpversion.Max
-	e.captureCallable(&syntax.StaticCall{}, r)
+	e.captureCallable(&syntax.StaticCall{}, Value{}, &frame{}, r)
 	if len(r.callables) != 0 {
 		t.Fatal("unsupported first-class target")
 	}

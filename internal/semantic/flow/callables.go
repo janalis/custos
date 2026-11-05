@@ -7,13 +7,23 @@ import (
 	phpversion "custos/internal/php/version"
 )
 
-func (e *Env) captureCallable(at syntax.Node, r *scopeResult) {
+func (e *Env) captureCallable(at syntax.Node, receiver Value, f *frame, r *scopeResult) {
+	if e.types.PHP < phpversion.PHP81 {
+		return
+	}
 	call, ok := at.(*syntax.FuncCall)
-	if !ok || e.types.PHP < phpversion.PHP81 {
+	if !ok {
+		target, known := e.captureMethod(at, receiver, f)
+		if known {
+			if r.boundMethods == nil {
+				r.boundMethods = map[syntax.Expr]*boundMethod{}
+			}
+			r.boundMethods[at.(syntax.Expr)] = target
+		}
 		return
 	}
 	function := e.types.ResolveFunction(call)
-	if function == nil || function.Builtin || function.ByRef || !function.Avail.In(e.types.PHP) {
+	if function == nil || function.ByRef || !function.Avail.In(e.types.PHP) {
 		return
 	}
 	if r.callables == nil {
@@ -66,9 +76,22 @@ func (e *Env) invokeCallable(at syntax.Node, values []Value, f *frame, r *scopeR
 	if !callee.Complete || callee.replaced || callee.Invalidated != 0 {
 		return Value{}, nil, false
 	}
-	expr := syntax.UnwrapParens(callee.Expr)
+	return e.invokeCallableSet(at, callee, list, values, f, r)
+}
+
+func (e *Env) invokeCallableTarget(at syntax.Node, expr syntax.Expr, list *syntax.ArgList, values []Value, f *frame, r *scopeResult) (Value, map[uint32]State, bool) {
+	expr = syntax.UnwrapParens(expr)
 	if captured, known := r.closures[expr]; known {
 		return e.invokeClosure(at, expr, captured, list, values, f, r)
+	}
+	if method := r.boundMethods[expr]; method != nil {
+		return e.invokeBoundMethod(at, method, list, values, f, r)
+	}
+	if array, ok := expr.(*syntax.Array); ok {
+		if target, known := e.arrayMethodCallable(at, array, f, r); known {
+			return e.invokeBoundMethod(at, target, list, values, f, r)
+		}
+		return Value{}, nil, false
 	}
 	name := r.callables[expr]
 	if name == "" {
@@ -77,8 +100,11 @@ func (e *Env) invokeCallable(at syntax.Node, values []Value, f *frame, r *scopeR
 		}
 	}
 	function := e.types.Index.Function(name, e.types.PHP)
-	if function == nil || function.Builtin || function.ByRef {
+	if function == nil || function.ByRef {
 		return Value{}, nil, false
+	}
+	if function.Builtin {
+		return e.invokeNativeCallable(at, list, values, function.FQN, f, r)
 	}
 	summary, known := e.contract(strings.ToLower(function.FQN))
 	if !known || !summary.Fixed || summary.Generator || !summary.Return.Complete {
@@ -98,5 +124,9 @@ func (e *Env) invokeCallable(at syntax.Node, values []Value, f *frame, r *scopeR
 		r.closureSinks = map[syntax.Node][]Sink{}
 	}
 	r.closureSinks[at] = appendSinks(r.closureSinks[at], sinks)
-	return result, nil, true
+	identity, states, known := e.instantiateResource(at, summary.resource, args, f, r)
+	if known {
+		result.Identity = identity
+	}
+	return result, states, true
 }

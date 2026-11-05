@@ -9,6 +9,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Native and closed project-method callables reuse return and sink contracts;
+  bounded complete callable alternatives retain joined provenance.
+- Builtin argument binding follows proven unmodified local literal packs.
+- Named resource factories and pure resource pass-through functions preserve
+  caller resource identities across syntax-free project summaries.
+
 - First-class project-function callables and known project callbacks carry
   return and sink provenance through direct calls and callback helpers.
 - Local closures bind supplied optional arguments, supported primitive defaults

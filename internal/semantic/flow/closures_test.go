@@ -34,7 +34,7 @@ func TestLocalClosureInvocation(t *testing.T) {
 		{"generator", `$f=function($x){yield $x;};probe($f($_GET['x']));`, false, false},
 		{"unresolved body", `$f=fn($x)=>unknown($x);probe($f($_GET['x']));`, false, false},
 		{"reassigned", `$f=fn($x)=>$x; $f=unknown();probe($f($_GET['x']));`, false, false},
-		{"branch ambiguity", `$f=$c?fn($x)=>$x:fn($x)=>'safe';probe($f($_GET['x']));`, false, false},
+		{"branch ambiguity", `$f=$c?fn($x)=>$x:fn($x)=>'safe';probe($f($_GET['x']));`, true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := summarized(t, tc.source)

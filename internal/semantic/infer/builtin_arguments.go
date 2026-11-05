@@ -60,7 +60,7 @@ func (e *Env) BuiltinArguments(call *syntax.FuncCall) ([]syntax.Expr, bool) {
 				return nil, false
 			}
 			unpacked = true
-			pack, ok := syntax.UnwrapParens(arg.Value).(*syntax.Array)
+			pack, ok := e.Native().localArgumentPack(arg.Value, 8)
 			if !ok || len(pack.Items) > maxWrittenArgs {
 				return nil, false
 			}
