@@ -7,7 +7,8 @@ import (
 	"custos/internal/semantic/index"
 )
 
-// A native union of final classes is a closed set even in an open project.
+// Native receiver unions have closed targets when every method is immutable
+// through inheritance, even in an open project.
 // Limit fanout independently of class hierarchy and summary recursion budgets.
 const maxClosedTargets = 8
 
@@ -39,11 +40,11 @@ func (e *Env) closedContracts(at syntax.Node) ([]closedContract, bool) {
 		// class or changing its modifiers must invalidate composed summaries.
 		e.contract(sinkClassKey(class))
 		decls := e.types.Index.ClassDecls(class, e.types.PHP)
-		if len(decls) != 1 || !decls[0].Final || decls[0].Kind != syntax.KindClass {
+		if len(decls) != 1 || decls[0].Kind != syntax.KindClass {
 			return nil, false
 		}
 		method := e.types.Index.FindMethod(class, name.Value, e.types.PHP)
-		if method == nil || method.Magic || method.Builtin || !e.visible(at, method) {
+		if method == nil || method.Magic || method.Builtin || !e.visible(at, method) || !decls[0].Final && !method.Final && method.Visibility != index.Private {
 			return nil, false
 		}
 		owner := class

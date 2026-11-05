@@ -155,9 +155,12 @@ expressions in parameter order. It validates the entire call, including PHP
 version rules, duplicate bindings and bounded literal argument packs; unknown
 or variadic bindings establish no value or omission proof. Use this when a rule
 needs runtime argument roles rather than their written positions.
-`types.Type.ArrayCardinality` supplies lower and upper bounds only for sealed,
-array-only types. A quick-fix needing runtime cardinality uses native inference
-and requires equal bounds; documented shapes alone cannot authorize the edit.
+`types.Type.ArrayCardinality` supplies lower and upper bounds from sealed,
+array-only types and explicit finite bounds independent of key identities.
+Key-changing operations derive new bounds; mutation drops them. Normal
+`count()` and `sizeof()` calls can use those bounds, while recursive counts
+require separate evidence. A quick-fix needing runtime cardinality uses native
+inference and requires equal bounds; documented shapes alone cannot authorize the edit.
 
 A written name is not enough to identify a builtin. Use the analysis context's
 resolved global-function queries so namespace functions and imports retain
@@ -199,12 +202,22 @@ open documents.
   never validates file paths or network destinations.
 - A method wrapper needs a final receiver class, a final method or an
   accessible private method, with one unconditional declaration. Overridable
-  methods stay conservative. A native receiver union of at most eight final
-  classes may instead join return contracts and possible sinks when every
-  target, declaration chain and argument binding is known. PHPDoc-only unions,
+  methods stay conservative. A native receiver union of at most eight
+  classes may instead join return contracts and possible sinks when each target
+  is non-overridable (a final class, a final method or an accessible private
+  method) and every target, declaration chain and argument binding is known. PHPDoc-only unions,
   escaped receivers, missing targets, generators and reference bindings do not
   establish that proof. Each class-metadata and callable contract participates
   in the cross-file dependency graph.
+- Locally created closures and arrows use bounded invocation frames with
+  argument values and by-value capture snapshots. Caller-specific bindings never
+  replace the ordinary symbolic scope cache or enter project snapshots. Reference
+  captures/parameters, defaults, variadics, generators, static state, escaped values
+  and ambiguous callees remain conservative. Invocation work is charged to the
+  caller's budget and incomplete status propagates to it.
+- `Flow().ReferenceResult` also projects a single reference output from a proven
+  final or private method. Nullable, escaped and PHPDoc-only receivers do not
+  establish that replacement proof; multiple reference arguments remain unknown.
 - Catch paths are pruned only for blocks proven non-throwing. Calls, uncertain
   reads or writes, callbacks and object destruction keep exception paths;
   `finally` blocks follow the applicable exits. `declare(ticks=…)` disables

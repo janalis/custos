@@ -327,3 +327,18 @@ func mergedShape(args []types.Type, merge bool) (types.Type, bool) {
 	}
 	return types.Array.WithShape(keys, true), true
 }
+
+// preserveArrayCount carries counts separately from transformed key contracts.
+func preserveArrayCount(result, input types.Type, removes bool) types.Type {
+	low, high, known := input.ArrayCardinality()
+	if !known {
+		return result
+	}
+	if removes {
+		low = 0
+		if result.IsNonEmptyArray() {
+			low = 1
+		}
+	}
+	return result.WithArrayCardinality(low, high)
+}

@@ -24,6 +24,19 @@ carry the same request provenance as direct reads. A function binding a global
 can read request data written by another function of that file before its first
 call; propagation follows longer chains within the shared analysis budget. A function of another file that binds the same global makes each call of project code drop what file-level code proved of the variable; the request data such a function writes is not followed across files.
 
+A locally created closure or arrow function may carry request provenance through
+its return value and unsafe uses when its target, arguments and by-value captures
+are known. Captures take their values when the callable is created. Reference
+captures or parameters, optional or variadic parameters, retained static state,
+generators and escaped or ambiguous targets do not establish that proof.
+
+A union of native receiver classes may carry wrapper provenance when each called
+method cannot be overridden, including final methods on extensible classes. Every
+possible target and argument binding must be known. A proven final or private
+method with one unaliased reference argument may also replace the request data
+held by that argument. A nullable or escaped receiver, PHPDoc-only receiver claim,
+unknown effects or multiple reference arguments establish no replacement proof.
+
 Literal keys and computed request names use PHP string decoding for the parsed
 source version. Escape sequences PHP preserves remain distinct from actual
 control characters before PHP numeric-key normalization is applied.

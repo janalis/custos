@@ -738,6 +738,10 @@ func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bo
 }
 
 func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr) *scopeResult {
+	return e.followSeeded(scope, distrust, distrustAll, target, nil)
+}
+
+func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr, seeds map[string]Value) *scopeResult {
 	size := e.expressions(scope)
 	r := &scopeResult{originTypes: e.types, values: make(map[syntax.Expr]Value, size), before: make(map[syntax.Node]map[uint32]State, size), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
@@ -794,6 +798,12 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	for i, p := range syntax.VariableScopeParams(scope) {
 		if p.Var != nil {
 			initial.setVar(p.Var.Name, Value{Complete: true, Identity: p.Var.Span().Start + 1, Sources: []Source{{Kind: "parameter", Parameter: i}}, plain: e.typed(p, false), deep: e.typed(p, true)})
+		}
+	}
+	if seeds != nil {
+		initial.definite = true
+		for name, value := range seeds {
+			initial.setVar(name, value)
 		}
 	}
 	e.bindings(scope, r, &initial)

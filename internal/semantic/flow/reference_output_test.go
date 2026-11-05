@@ -112,3 +112,58 @@ func BenchmarkReferenceResult(b *testing.B) {
 		e.ReferenceResult(call, arg)
 	}
 }
+
+func TestMethodReferenceResult(t *testing.T) {
+	for _, tc := range []struct {
+		source       string
+		known, taint bool
+	}{
+		{`final class C{function fill(&$to){$to=[];}} function f(C $c){$c->fill($_GET);}`, true, false},
+		{`class C{final function fill(&$to,$from){$to=$from;}} function f(C $c){$c->fill(from:$_POST,to:$_GET);}`, true, true},
+		{`class C{private function fill(&$to){$to=[];} function f(){$this->fill($_GET);}}`, true, false},
+		{`final class C{static function fill(&$to){$to=[];}} C::fill($_GET);`, true, false},
+		{`class C{function fill(&$to){$to=[];}} function f(C $c){$c->fill($_GET);}`, false, false},
+		{`class C{private static function fill(&$to){$to=[];} static function f(){static::fill($_GET);}}`, false, false},
+		{`final class C{static function fill(&$to){$to=[];}} function f($class){$class::fill($_GET);}`, false, false},
+
+		{`final class C{function fill(&$to){$to=[];}} function f(?C $c){$c?->fill($_GET);}`, false, false},
+		{`final class C{function fill(&$to){$to=[];}} /** @param C $c */ function f($c){$c->fill($_GET);}`, false, false},
+		{`final class C{function fill(&$to){$to=[];}} function f(C $c){escape($c);$c->fill($_GET);}`, false, false},
+		{`final class C{function fill(&$to){$to=[];other();}} function f(C $c){$c->fill($_GET);}`, false, false},
+	} {
+		e, f := summarized(t, tc.source)
+		var call syntax.Node
+		var list *syntax.ArgList
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			switch c := n.(type) {
+			case *syntax.MethodCall:
+				call, list = c, c.Args
+			case *syntax.StaticCall:
+				call, list = c, c.Args
+			}
+			return true
+		})
+		target := list.Args[len(list.Args)-1].(*syntax.Arg)
+		value, known := e.ReferenceResult(call, target)
+		if known != tc.known || known && tainted(value) != tc.taint {
+			t.Fatalf("%s: known=%v value=%+v", tc.source, known, value)
+		}
+	}
+}
+
+func BenchmarkMethodReferenceResult(b *testing.B) {
+	e, f := summarized(b, `final class C{function fill(&$to){$to=[];}} function f(C $c){$c->fill($_GET);}`)
+	var call *syntax.MethodCall
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if n, ok := n.(*syntax.MethodCall); ok {
+			call = n
+		}
+		return true
+	})
+	arg := call.Args.Args[0].(*syntax.Arg)
+	e.ReferenceResult(call, arg)
+	b.ReportAllocs()
+	for b.Loop() {
+		e.ReferenceResult(call, arg)
+	}
+}

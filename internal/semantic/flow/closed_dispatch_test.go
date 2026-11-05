@@ -267,3 +267,39 @@ func closedFileEnvironment(t testing.TB, path, src string, snapshot *Snapshot) (
 	ix.Add(index.Extract(file))
 	return New(file, infer.NewEnv(file, names.New(file), ix, phpversion.Max, infer.Options{}), snapshot, Options{}), file
 }
+
+func TestClosedDispatchFinalMethods(t *testing.T) {
+	for _, classes := range []string{
+		`class A{final function render($x){return $x;}} class B{final function render($x){return $x;}}`,
+		`class Base{final function render($x){return $x;}} class A extends Base{} class B extends Base{}`,
+		`class A{final function render($x){return $x;}} final class B{function render($x){return $x;}}`,
+	} {
+		e, f := closedEnvironment(t, classes+`function f(A|B $o){probe($o->render($_GET['x']));}`)
+		x := argument(callsNamed(f, "probe")[0])
+		if !e.Value(x).Complete || !e.Tainted(x, HTML) {
+			t.Fatalf("%s: %+v", classes, e.Value(x))
+		}
+	}
+}
+
+func BenchmarkFinalMethodDispatch(b *testing.B) {
+	e, f := closedEnvironment(b, `class A{final function render($x){return $x;}} class B{final function render($x){return $x;}} function f(A|B $o){probe($o->render($_GET['x']));}`)
+	x := argument(callsNamed(f, "probe")[0])
+	e.Value(x)
+	b.ReportAllocs()
+	for b.Loop() {
+		e.Value(x)
+	}
+}
+
+func TestClosedDispatchRejectsUncertainClassDeclarations(t *testing.T) {
+	for _, classes := range []string{
+		`interface A{function render($x);} interface B{function render($x);}`,
+		`final class A{function render($x){return $x;}} final class A{function render($x){return 'safe';}} final class B{function render($x){return $x;}}`,
+	} {
+		e, f := closedEnvironment(t, classes+`function f(A|B $o){probe($o->render($_GET['x']));}`)
+		if e.Value(argument(callsNamed(f, "probe")[0])).Complete {
+			t.Fatalf("uncertain class declaration accepted: %s", classes)
+		}
+	}
+}

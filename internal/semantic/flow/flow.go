@@ -670,11 +670,12 @@ type Options struct{ Assertions bool }
 
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
-	arrowNames map[*syntax.ArrowFunction]captureNames
-	options    Options
-	file       *syntax.File
-	types      *infer.Env
-	snapshot   *Snapshot
+	invocationDepth int
+	arrowNames      map[*syntax.ArrowFunction]captureNames
+	options         Options
+	file            *syntax.File
+	types           *infer.Env
+	snapshot        *Snapshot
 	// consulted records the contracts read while summaries are extracted.
 	consulted map[string]bool
 	// answers holds what those contracts gave, and summarizing the state of
@@ -713,6 +714,8 @@ type Env struct {
 }
 
 type scopeResult struct {
+	closures          map[syntax.Expr]map[string]Value
+	closureSinks      map[syntax.Node][]Sink
 	parameterReads    map[string]uint8
 	parameterObserved map[string]uint8
 	closedReceivers   map[syntax.Node]bool

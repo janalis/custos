@@ -728,6 +728,9 @@ func (e *Env) commands(body syntax.Node, r *scopeResult) []Sink {
 // Sinks expands known project wrapper sink contracts at this call site.
 // The argument sources and escaping contexts come from this call's flow.
 func (e *Env) Sinks(at syntax.Node) []Sink {
+	if sinks, known := e.scope(syntax.EnclosingVariableScope(at)).closureSinks[at]; known {
+		return sinks
+	}
 	name := e.sinkSummaryName(at)
 	summary, ok := e.contract(name)
 	if !ok {

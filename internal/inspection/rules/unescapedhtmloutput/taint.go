@@ -289,6 +289,23 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, 
 			if x.ByRef {
 				add(write{target: x.Expr, replace: true})
 			}
+		case *syntax.MethodCall, *syntax.StaticCall:
+			callee, known := semanticquery.ResolveCallee(ctx, x)
+			var args *syntax.ArgList
+			switch call := x.(type) {
+			case *syntax.MethodCall:
+				args = call.Args
+			case *syntax.StaticCall:
+				args = call.Args
+			}
+			if known && !callee.Builtin && args != nil {
+				position = x.Span().End
+				for _, reference := range semanticquery.ReferenceArguments(args, callee.Params, true) {
+					value, known := ctx.Flow().ReferenceResult(x, reference.Argument)
+					replace := known && (escapingApplies && value.Safe.Covers(context) || !requestSource(value))
+					add(write{target: reference.Argument.Value, replace: replace, refill: !replace})
+				}
+			}
 		case *syntax.FuncCall:
 			targets := referenceArguments(ctx, x)
 			fed := len(targets) > 0 && fedByRequest(ctx, x, targets, context, escapingApplies)

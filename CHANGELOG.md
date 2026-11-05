@@ -9,6 +9,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Local closure and arrow calls carry captured values, return provenance and
+  possible sinks through bounded invocation analysis.
+- Receiver unions can follow proven final methods on extensible classes;
+  reference-output queries also support proven method targets.
+- Fixed-signature builtin return inference uses shared argument binding for
+  positional, named and literal-unpacked calls.
+- Array transformations retain entry-count bounds independently of keys,
+  refining normal `count()` and `sizeof()` results without assuming recursive counts.
+
 - Parameter-use proofs observe captures and scope-introspection reads at their
   evaluation points, including shadowed arrow parameters and selected arguments.
 - Builtin argument binding supports positional, named and literal unpacked

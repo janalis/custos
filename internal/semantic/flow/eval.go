@@ -729,8 +729,10 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				}
 			}
 		}
+		e.captureClosure(n, f, r)
 	case *syntax.ArrowFunction: // Capture now; execute the body only on invocation.
 		e.observeArrow(n, f, r)
+		e.captureClosure(n, f, r)
 	case *syntax.Yield, *syntax.YieldFrom:
 		e.suspend(x, f, r, depth)
 		// What the consumer sends back is not known.
@@ -1211,7 +1213,10 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
 	} else if !builtin {
-		if returned, known := e.closedReturn(n, values, closedFollowed); known {
+		if returned, known := e.invokeClosure(n, values, r); known {
+			v = returned
+			v.Expr = n.(syntax.Expr)
+		} else if returned, known := e.closedReturn(n, values, closedFollowed); known {
 			v = returned
 			v.Expr = n.(syntax.Expr)
 		} else {
