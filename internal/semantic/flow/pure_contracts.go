@@ -43,6 +43,10 @@ const (
 	pureHigher
 	pureFind
 	pureGuardReduce
+	pureInline
+	pureFold
+	pureSlice
+	pureFilteredKeys
 	pureLimit = 64
 )
 
@@ -54,6 +58,7 @@ type pureExpr struct {
 	projects      bool
 	appendKey     bool
 	stopGuard     bool
+	destruct      []pureField
 	slot          int
 	op            syntax.TokenKind
 	literal       *constantScalar
@@ -96,14 +101,16 @@ type pureBinding struct {
 }
 
 type pureCompiler struct {
-	env      *Env
-	vars     []pureBinding
-	extra    map[string]*pureExpr
-	work     int
-	name     string
-	calls    []string
-	defaults bool
-	nextSlot int
+	env             *Env
+	vars            []pureBinding
+	extra           map[string]*pureExpr
+	work            int
+	name            string
+	calls           []string
+	defaults        bool
+	nextSlot        int
+	inlineCallbacks bool
+	inlineDepth     int
 }
 
 // Small scopes keep bindings on the compiler's stack. Larger scopes retain
@@ -220,6 +227,10 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 		}
 	}
 	switch n := expr.(type) {
+	case *syntax.ArrowFunction:
+		if c.inlineCallbacks {
+			return c.inlineArrow(n)
+		}
 	case *syntax.Match:
 		return c.match(n)
 	case *syntax.Empty:

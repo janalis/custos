@@ -162,6 +162,36 @@ A proven break returns the accumulated prefix without evaluating that iteration'
 update key or value or later iterations. Unknown guards, other break levels,
 references and escaping loop variables establish no exact result.
 
+### Additional immutable transform forms
+
+Direct noncapturing arrow callbacks can compose with supported mapping and
+filtering wrappers. They use only their own parameters and supported pure
+expressions. Lexical captures, receiver state, references and arbitrary stored
+callables establish no such proof. Selected fields retain their own provenance.
+
+A reduction with a fixed named pure callback and an explicit primitive initializer
+visits a complete immutable array in insertion order. The callback receives the
+current carry followed by the next value. An empty input retains the initializer.
+Unknown carries, references and array, object or resource accumulators establish
+no exact reduction result.
+
+Immutable array slices preserve string keys and selected value provenance.
+Numeric keys are reindexed unless key preservation is explicitly true. Proven
+integer bounds include negative offsets and lengths; an omitted or null length
+selects the remaining entries. Unknown arguments, uncertain membership and
+warning-producing conversions establish no slice result.
+
+Strict filtered key extraction compares proven scalar or immutable array values.
+Every entry's membership must be proven before a complete ordered numeric list
+of matching original keys is known. Key types are preserved; loose comparisons,
+unknown membership, references and observable lifetimes establish no such result.
+
+Canonical accumulator and builder loops can destructure one level of positional
+or literal-keyed fields into distinct plain variables. Every requested field must
+be present, even if unused in an update or followed by a break guard. Missing or
+optional fields, nested patterns, reference bindings and escaping loop variables
+establish no exact loop result. Selected fields retain individual provenance.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered

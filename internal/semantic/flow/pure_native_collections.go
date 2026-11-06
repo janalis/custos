@@ -8,8 +8,7 @@ import (
 	"custos/internal/semantic/index"
 )
 
-// Only the default array_keys form is modeled; explicit filter arguments can
-// coerce or compare values. Bind against complete runtime-role metadata first.
+// Bind against complete runtime-role metadata before selecting an audited form.
 func (c *pureCompiler) collectionNative(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {
 	size := 1
 	if name == "array_keys" || name == "substr" {
@@ -18,11 +17,8 @@ func (c *pureCompiler) collectionNative(node *syntax.FuncCall, name string, para
 	if len(params) != size {
 		return nil
 	}
-	// The stubs include an overload with a required filter. This audited
-	// form takes only the array; the binder rejects every extra supplied role.
 	if name == "array_keys" {
-		params = params[:1]
-		size = 1
+		return c.filteredKeys(node, params)
 	}
 	roles := make([]pureParam, size)
 	for i, param := range params {
@@ -49,8 +45,6 @@ func (c *pureCompiler) collectionNative(node *syntax.FuncCall, name string, para
 	}
 	kind, selector := pureOrderedArray, 0
 	switch name {
-	case "array_keys":
-		selector = 1
 	case "array_key_first":
 		selector = 2
 	case "array_key_last":

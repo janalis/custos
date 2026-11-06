@@ -166,6 +166,12 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 }
 
 func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {
+	if name == "array_reduce" {
+		return c.fold(node, params)
+	}
+	if name == "array_slice" {
+		return c.slice(node, params)
+	}
 	if name == "array_map" || name == "array_filter" {
 		return c.higher(node, name, params)
 	}
@@ -306,6 +312,12 @@ func (c *pureCompiler) spreadArguments(node syntax.Node, params []pureParam, dec
 }
 
 func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
+	if expr.kind == pureInline {
+		return Value{}, false
+	}
+	if expr.kind == pureFold {
+		return e.evalPureFold(expr, slots, r, depth)
+	}
 	if expr.kind == pureFind {
 		return e.evalPureFind(expr, slots, r, depth)
 	}
@@ -345,6 +357,12 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	left, ok := e.evalPure(expr.left, slots, r, depth-1)
 	if !ok {
 		return Value{}, false
+	}
+	if expr.kind == pureSlice {
+		return e.evalPureSlice(expr, left, slots, r, depth)
+	}
+	if expr.kind == pureFilteredKeys {
+		return e.evalFilteredKeys(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureCast {
 		return evalPureCast(expr, left)

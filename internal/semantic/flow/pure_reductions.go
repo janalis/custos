@@ -2,6 +2,7 @@ package flow
 
 import (
 	"maps"
+	"slices"
 	"strconv"
 
 	"custos/internal/php/syntax"
@@ -27,9 +28,12 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		final.work = 0
 		final.calls = nil
 	}
-	item, ok := loop.Value.(*syntax.Variable)
-	if !ok || item.NameExpr != nil || item.Name == name || external(item.Name) || item.Name == "GLOBALS" || item.Name == "this" {
+	fields, destructured := c.loopFields(loop.Value, name)
+	if fields == nil {
 		return nil
+	}
+	overlaps := func(value string) bool {
+		return slices.ContainsFunc(fields, func(field pureField) bool { return field.name == value })
 	}
 	body := loop.Body
 	var skip syntax.Expr
@@ -106,7 +110,7 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	keyName := ""
 	if loop.Key != nil {
 		key, ok := loop.Key.(*syntax.Variable)
-		if !ok || key.NameExpr != nil || key.Name == name || key.Name == item.Name || external(key.Name) || key.Name == "GLOBALS" || key.Name == "this" {
+		if !ok || key.NameExpr != nil || key.Name == name || overlaps(key.Name) || external(key.Name) || key.Name == "GLOBALS" || key.Name == "this" {
 			return nil
 		}
 		keyName = key.Name
@@ -121,7 +125,7 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 			return nil
 		}
 		variable, ok := assign.Var.(*syntax.Variable)
-		if !ok || variable.NameExpr != nil || variable.Name == name || variable.Name == item.Name || variable.Name == keyName {
+		if !ok || variable.NameExpr != nil || variable.Name == name || overlaps(variable.Name) || variable.Name == keyName {
 			return nil
 		}
 		if _, ok := tail[1].(*syntax.Foreach); !ok {
@@ -131,7 +135,13 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	input := c.expression(loop.Expr)
 	slot := c.nextSlot
 	c.bind(name, &pureExpr{kind: pureSlot, slot: slot, cost: 1, depth: 1})
-	c.bind(item.Name, &pureExpr{kind: pureSlot, slot: slot + 1, cost: 1, depth: 1})
+	for i, field := range fields {
+		at := slot + 1
+		if destructured {
+			at = slot + 3 + i
+		}
+		c.bind(field.name, &pureExpr{kind: pureSlot, slot: at, cost: 1, depth: 1})
+	}
 	if keyName != "" {
 		c.bind(keyName, &pureExpr{kind: pureSlot, slot: slot + 2, cost: 1, depth: 1})
 	}
@@ -170,6 +180,9 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	if result != nil {
 		result.slot = slot
 		result.stopGuard = stop
+		if destructured {
+			result.destruct = fields
+		}
 		if build {
 			result.kind = pureBuild
 		}
@@ -210,7 +223,9 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	}
 	// A loop binding can be undefined for an empty input, or can overwrite an
 	// original parameter. Only the carry and unchanged entry bindings survive.
-	final.bind(item.Name, nil)
+	for _, field := range fields {
+		final.bind(field.name, nil)
+	}
 	if keyName != "" {
 		final.bind(keyName, nil)
 	}
@@ -244,8 +259,11 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 		return Value{}, false
 	}
 	width := 2
+	if len(expr.destruct) != 0 {
+		width = 3 + len(expr.destruct)
+	}
 	if expr.op == syntax.TDoubleArrow {
-		width = 3
+		width = max(width, 3)
 	}
 	r.copies += max(len(slots), expr.slot+width)
 	if r.copies > MaxCopied {
@@ -255,10 +273,13 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 	copy(bound, slots)
 	for _, key := range input.elements.order {
 		item := input.elements.items[key]
-		if _, scalar := knownScalar(item); !scalar && !((expr.kind == pureBuild || expr.kind == pureFilterBuild) && pureReadOnlyInputs([]Value{item}, nil)) {
+		if _, scalar := knownScalar(item); !scalar && !((expr.kind == pureBuild || expr.kind == pureFilterBuild || len(expr.destruct) != 0) && pureReadOnlyInputs([]Value{item}, nil)) {
 			return Value{}, false
 		}
 		bound[expr.slot], bound[expr.slot+1] = carry, item
+		if len(expr.destruct) != 0 && !bindPureFields(expr.destruct, item, bound, expr.slot, r) {
+			return Value{}, false
+		}
 		if expr.op == syntax.TDoubleArrow {
 			keyValue := constantScalar{k: 's', s: key}
 			if number, err := strconv.ParseInt(key, 10, 64); err == nil && strconv.FormatInt(number, 10) == key {

@@ -25,7 +25,10 @@ func (c *pureCompiler) higher(node *syntax.FuncCall, name string, params []index
 	for i, param := range declared {
 		roles[i].name = param.Name
 	}
+	previousInline := c.inlineCallbacks
+	c.inlineCallbacks = true
 	args := c.arguments(node, roles, declared)
+	c.inlineCallbacks = previousInline
 	if args == nil || args[0] == nil || args[1] == nil {
 		return nil
 	}
@@ -60,60 +63,29 @@ func (c *pureCompiler) higher(node *syntax.FuncCall, name string, params []index
 		}
 		second, arity = args[2], 2
 	}
-	if callback.kind != pureLiteral || callback.literal.k != 's' {
-		return nil
-	}
-	key := strings.ToLower(strings.TrimPrefix(callback.literal.s, `\`))
-	function := c.env.types.Index.Function(key, c.env.types.PHP)
-	if function == nil || function.ByRef || !function.Avail.In(c.env.types.PHP) {
-		return nil
-	}
 	var invoke *pureExpr
-	if function.Builtin {
-		if name != "array_map" || second != nil || key != "strlen" && key != "trim" {
+	if callback.kind == pureInline {
+		invoke = c.callbackInvoke(callback.call, arity)
+	} else if callback.kind == pureLiteral && callback.literal.k == 's' {
+		key := callbackName(callback.literal.s)
+		function := c.env.types.Index.Function(key, c.env.types.PHP)
+		if function == nil || function.ByRef || !function.Avail.In(c.env.types.PHP) {
 			return nil
 		}
-		invoke = &pureExpr{kind: pureLength, left: &pureSlots[0], projects: true, cost: 2, depth: 2}
-		if key == "trim" {
-			invoke.kind = pureTrim
-		}
-	} else {
-		if len(c.env.types.Index.FunctionDecls(key, c.env.types.PHP)) != 1 {
-			return nil
-		}
-		summary, known := c.env.contract(key)
-		if !known || !summary.Fixed || summary.Generator || summary.pure == nil {
-			return nil
-		}
-		if c.env.types.PHP.Below(phpversion.PHP70) && function.Return != "" {
-			return nil
-		}
-		callee := summary.pure
-		if callee.outer != 0 || len(callee.params) < arity || len(callee.params) != len(function.Params) || !callee.result.Equal(types.FromDoc(function.Return, nil)) || key == c.name || slices.Contains(callee.calls, c.name) {
-			return nil
-		}
-		invoke = &pureExpr{kind: pureCall, call: callee, weakArguments: true, projects: true, cost: callee.expr.cost + 1, depth: callee.expr.depth + 1}
-		for i, param := range callee.params {
-			declared := function.Params[i]
-			if c.env.types.PHP.Below(phpversion.PHP70) && declared.Type != "" && declared.Type != "array" {
+		if function.Builtin {
+			if name != "array_map" || second != nil || key != "strlen" && key != "trim" {
 				return nil
 			}
-			if declared.ByRef || declared.Variadic || declared.Name != param.name || !param.typ.Equal(types.FromDoc(declared.Type, nil)) || param.optional != declared.Optional {
-				return nil
+			invoke = &pureExpr{kind: pureLength, left: &pureSlots[0], projects: true, cost: 2, depth: 2}
+			if key == "trim" {
+				invoke.kind = pureTrim
 			}
-			value := &pureSlots[i]
-			if i >= arity {
-				if !param.optional || param.initial == nil {
-					return nil
-				}
-				value = param.initial
-			}
-			invoke.args = append(invoke.args, value)
-			invoke.cost += value.cost
-			invoke.depth = max(invoke.depth, value.depth+1)
+		} else {
+			invoke = c.namedCallback(key, arity)
 		}
-		c.calls = append(c.calls, key)
-		c.calls = append(c.calls, callee.calls...)
+	}
+	if invoke == nil {
+		return nil
 	}
 	result := pureNode(pureHigher, input, invoke, second)
 	if result == nil {
@@ -178,3 +150,60 @@ func (e *Env) evalPureHigher(expr *pureExpr, input Value, slots []Value, r *scop
 	result.elements, result.plain, result.deep = set, true, true
 	return result, true
 }
+
+func (c *pureCompiler) namedCallback(key string, arity int) *pureExpr {
+	function := c.env.types.Index.Function(key, c.env.types.PHP)
+	if function == nil || function.Builtin || function.ByRef || !function.Avail.In(c.env.types.PHP) {
+		return nil
+	}
+	if len(c.env.types.Index.FunctionDecls(key, c.env.types.PHP)) != 1 {
+		return nil
+	}
+	summary, known := c.env.contract(key)
+	if !known || !summary.Fixed || summary.Generator || summary.pure == nil {
+		return nil
+	}
+	if c.env.types.PHP.Below(phpversion.PHP70) && function.Return != "" {
+		return nil
+	}
+	callee := summary.pure
+	if callee.outer != 0 || len(callee.params) < arity || len(callee.params) != len(function.Params) || !callee.result.Equal(types.FromDoc(function.Return, nil)) || key == c.name || slices.Contains(callee.calls, c.name) {
+		return nil
+	}
+
+	for i, param := range callee.params {
+		declared := function.Params[i]
+		if c.env.types.PHP.Below(phpversion.PHP70) && declared.Type != "" && declared.Type != "array" {
+			return nil
+		}
+		if declared.ByRef || declared.Variadic || declared.Name != param.name || !param.typ.Equal(types.FromDoc(declared.Type, nil)) || param.optional != declared.Optional {
+			return nil
+		}
+	}
+	invoke := c.callbackInvoke(callee, arity)
+	c.calls = append(c.calls, key)
+	return invoke
+}
+
+func (c *pureCompiler) callbackInvoke(callee *pureContract, arity int) *pureExpr {
+	if len(callee.params) < arity || callee.outer != 0 || slices.Contains(callee.calls, c.name) {
+		return nil
+	}
+	invoke := &pureExpr{kind: pureCall, call: callee, weakArguments: true, projects: true, cost: callee.expr.cost + 1, depth: callee.expr.depth + 1}
+	for i, param := range callee.params {
+		value := &pureSlots[i]
+		if i >= arity {
+			if !param.optional || param.initial == nil {
+				return nil
+			}
+			value = param.initial
+		}
+		invoke.args = append(invoke.args, value)
+		invoke.cost += value.cost
+		invoke.depth = max(invoke.depth, value.depth+1)
+	}
+	c.calls = append(c.calls, callee.calls...)
+	return invoke
+}
+
+func callbackName(name string) string { return strings.ToLower(strings.TrimPrefix(name, `\`)) }

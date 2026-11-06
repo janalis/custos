@@ -290,6 +290,14 @@ open documents.
   and strict membership queries. Uncertain earlier query comparisons remain
   unknown. Callback effects and exhausted
   comparisons establish no caller facts.
+- Direct noncapturing arrow callbacks compile with fresh parameter bindings and
+  shared expansion limits; they publish neither closure identities nor effects.
+  Native scalar folds compose fixed project callbacks over ordered immutable
+  inputs. Array slices normalize proven bounds without overflowing and preserve
+  only selected values; strict filtered keys require every membership outcome.
+  One-level foreach destructuring binds fresh field slots and validates every
+  requested read before guards, including fields unused by an update. Field
+  bindings never escape into a later stage or final expression.
 - Callback truth outcomes are separate from literal equality. Each normal return,
   including implicit null, is converted before joining truth outcomes. Agreeing
   falsy returns can remove entries without treating different literals as equal.

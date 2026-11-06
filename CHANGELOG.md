@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Compose noncapturing arrow callbacks and scalar reductions in pure wrappers;
+  evaluate immutable slices, strict filtered keys and one-level foreach
+  destructuring while retaining field provenance and required-read checks.
+
 - Extend pure callbacks with filter modes, two-array positional mapping and
   audited string builtins; evaluate strict array queries and break-guarded loops
   while preserving provenance, evaluation order and conservative limits.
