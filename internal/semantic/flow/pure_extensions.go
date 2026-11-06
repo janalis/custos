@@ -178,6 +178,10 @@ func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index
 	if name == "str_replace" || name == "str_repeat" {
 		return c.byteTransform(node, name, params)
 	}
+	switch name {
+	case "array_fill", "array_fill_keys", "array_flip", "array_chunk", "array_sum":
+		return c.arrayConstruction(node, name, params)
+	}
 	if name == "array_reverse" {
 		return c.reverse(node, params)
 	}
@@ -390,6 +394,9 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	left, ok := e.evalPure(expr.left, slots, r, depth-1)
 	if !ok {
 		return Value{}, false
+	}
+	if expr.kind >= pureFill && expr.kind <= pureSum {
+		return e.evalArrayConstruction(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureInteger {
 		return e.evalPureInteger(expr, left, slots, r, depth)

@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Evaluate bounded immutable array fills, keyed fills, flips and chunks in pure
+  wrappers; compute checked integer-only array sums while preserving key order,
+  element provenance and required argument evaluation.
+
 - Compose indexed column projections, key/value array combinations and two-array
   key-preserving replacements in pure wrappers; support one-level local
   destructuring and fresh per-entry preparation in canonical foreach updates,

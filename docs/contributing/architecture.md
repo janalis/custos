@@ -248,6 +248,12 @@ open documents.
   foreach updates can prepare one fresh per-entry local; required reads still
   run when unused, and that local is hidden after the loop and between stages.
   Shared expression, copy, shape and execution limits bound all these forms.
+- Audited pure array fills, keyed fills, flips and chunks reserve combined work,
+  copies and shape widths before constructing immutable records. Key-producing
+  scalar values must be source-free integers/strings; chunking retains individual
+  entry provenance. Integer-only sums check every intermediate addition and
+  retain numeric provenance. Missing reads, coercions, aliases, observable
+  lifetimes and exhausted depth/source bounds establish no exact result.
 - Named and returned callbacks can publish bounded syntax-free primitive return
   expressions, literal defaults and immutable captured parameter slots. Resolved
   pure wrapper calls compose these contracts; evaluation checks discarded local

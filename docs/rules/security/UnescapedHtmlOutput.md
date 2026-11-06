@@ -210,6 +210,39 @@ strings normalize as array keys. Duplicate indices retain the last selected valu
 at the first insertion position. Missing or optional fields, null modes, implicit
 key conversions, objects and observable lifetimes establish no such projection.
 
+Bounded array fills accept a nonnegative proven integer start, a positive proven
+integer count and one immutable value. The generated final key must fit an
+integer; start and count must have no source provenance. Requested numeric keys
+are retained, and each repeated entry keeps the value's provenance. Negative
+starts, zero or negative counts and implicit conversions establish no result.
+
+Keyed fills accept a complete ordered immutable array of source-free proven
+integer/string keys and one immutable value. Canonical numeric strings normalize
+as array keys; duplicates retain their first insertion position. Each emitted
+entry keeps the value's provenance. Even empty key arrays require the value
+argument to evaluate without unsupported reads or lifetimes.
+
+Flipping a complete ordered immutable array requires all values to be source-free
+proven integers or strings. Output values are the original proven keys. Duplicate
+values retain the last original key at the first insertion position. Unsupported
+or source-bearing values establish no flipped result rather than being skipped.
+
+Chunking complete ordered immutable arrays requires a positive source-free proven
+integer size and an omitted or proven boolean key-preservation flag. Each chunk
+retains the provenance of its own elements. Default mode reindexes every chunk;
+key-preserving mode retains original keys. Empty input still requires all supplied
+arguments to evaluate. Combined outer and inner construction limits apply.
+
+Summing a complete ordered immutable array is exact only when every value is a
+proven integer and every intermediate addition fits an integer. Empty input
+returns zero. Participating values retain provenance under the existing numeric
+safety rules. Overflow, floats, numeric strings, booleans, nulls, objects and
+uncertain membership establish no exact sum.
+
+These array operations reject references, observable lifetimes and exhausted
+construction limits. They establish no general key-provenance or numeric-coercion
+extension.
+
 Combining two complete nonempty immutable arrays pairs values by iteration
 position, regardless of their original keys. The lengths must match. Key values
 must be proven integers or strings without source provenance. Duplicate keys

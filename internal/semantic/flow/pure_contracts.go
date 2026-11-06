@@ -59,6 +59,11 @@ const (
 	pureCombine
 	pureArrayReplace
 	pureDestructure
+	pureFill
+	pureFillKeys
+	pureFlip
+	pureChunk
+	pureSum
 	pureLimit = 64
 )
 
