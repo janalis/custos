@@ -194,6 +194,34 @@ even if unused by the guard or return. After a proven match, later rows' fields
 and conditions do not run. Unknown earlier conditions and loop bindings used by
 the fallback establish no exact result; selected fields retain their provenance.
 
+### Checked integer and byte operations
+
+Pure wrappers can evaluate exact integer-result division and integer remainder
+from proven integer operands. Zero denominators, fractional quotients, division
+overflow and implicit scalar conversions establish no result. Signed remainders
+retain the dividend's sign. Integer bitwise operations, complement and bounded
+shifts preserve signed values; overflowing left shifts and invalid shift counts
+establish no result. Numeric outputs retain operand provenance without validating
+URL or path destinations.
+
+Scalar string replacement accepts proven strings and a nonempty search, retaining
+subject provenance and replacement origins when inserted. String repetition
+accepts a nonnegative proven integer count, retaining emitted input origins.
+Arrays, implicit conversions, output count references and unbounded expansion
+establish no result. Neither operation establishes a general escaping guarantee.
+
+Immutable array reversal changes iteration order while retaining each value's
+provenance. String keys remain intact; numeric keys are reindexed unless key
+preservation is explicitly true. Unknown membership, aliases, references and
+observable lifetimes establish no reversal result.
+
+Canonical integer switches have a default and one pure return in every arm.
+Every visited case expression and the selector must be proven integers. Case
+tests run in written order until the first match; only its return expression
+runs. Default selection follows all failed tests even when written earlier.
+Mixed-type comparisons, fallthrough and unknown earlier tests establish no exact
+result. Selected return values retain their own provenance.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered

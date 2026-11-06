@@ -51,6 +51,11 @@ const (
 	pureSplit
 	pureColumn
 	pureMerge
+	pureInteger
+	pureReplace
+	pureRepeat
+	pureReverse
+	pureSwitch
 	pureLimit = 64
 )
 
@@ -283,6 +288,9 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 			return pureConstant(value)
 		}
 	case *syntax.Unary:
+		if n.Op.Kind == syntax.TTilde {
+			return c.integer(n.Op.Kind, n.Expr, nil)
+		}
 		if n.Op.Kind == syntax.TBoolCast || n.Op.Kind == syntax.TIntCast || n.Op.Kind == syntax.TStringCast {
 			return c.cast(n)
 		}
@@ -294,6 +302,10 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 			}
 		}
 	case *syntax.Binary:
+		switch n.Op.Kind {
+		case syntax.TDiv, syntax.TMod, syntax.TAmpersand, syntax.TBar, syntax.TCaret, syntax.TSl, syntax.TSr:
+			return c.integer(n.Op.Kind, n.Left, n.Right)
+		}
 		switch n.Op.Kind {
 		case syntax.TBooleanAnd, syntax.TAnd, syntax.TBooleanOr, syntax.TOr, syntax.TCoalesce:
 			if n.Op.Kind == syntax.TCoalesce && c.env.types.PHP.Below(phpversion.PHP70) {

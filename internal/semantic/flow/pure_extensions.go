@@ -35,6 +35,11 @@ func (c *pureCompiler) statements(stmts []syntax.Stmt, depth int) *pureExpr {
 		return pureConstant(constantScalar{k: 'n'})
 	}
 	switch n := stmts[0].(type) {
+	case *syntax.Switch:
+		if len(stmts) != 1 {
+			return nil
+		}
+		return c.integerSwitch(n)
 	case *syntax.Foreach:
 		return c.find(n, stmts[1:])
 	case *syntax.Return:
@@ -166,6 +171,12 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 }
 
 func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {
+	if name == "str_replace" || name == "str_repeat" {
+		return c.byteTransform(node, name, params)
+	}
+	if name == "array_reverse" {
+		return c.reverse(node, params)
+	}
 	if name == "implode" || name == "explode" {
 		return c.stringTransform(node, name, params)
 	}
@@ -339,6 +350,9 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	if expr.kind == pureReduce || expr.kind == pureBuild || expr.kind == pureFilterBuild || expr.kind == pureGuardReduce {
 		return e.evalPureReduction(expr, slots, r, depth)
 	}
+	if expr.kind == pureSwitch {
+		return e.evalIntegerSwitch(expr, slots, r, depth)
+	}
 	if expr.kind == pureMatch {
 		return e.evalPureMatch(expr, slots, r, depth)
 	}
@@ -366,6 +380,15 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	left, ok := e.evalPure(expr.left, slots, r, depth-1)
 	if !ok {
 		return Value{}, false
+	}
+	if expr.kind == pureInteger {
+		return e.evalPureInteger(expr, left, slots, r, depth)
+	}
+	if expr.kind == pureReplace || expr.kind == pureRepeat {
+		return e.evalByteTransform(expr, left, slots, r, depth)
+	}
+	if expr.kind == pureReverse {
+		return e.evalPureReverse(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureJoin || expr.kind == pureSplit {
 		return e.evalStringTransform(expr, left, slots, r, depth)

@@ -305,6 +305,13 @@ open documents.
   Direct noncapturing ordinary closures share the inline callback compiler and
   dependency/parameter/expansion checks. Destructured first-match searches use
   required-field reads before each visited condition, then stop at the match.
+- Checked integer division/remainder and bitwise instructions reject implicit
+  coercions and unsafe bounds while retaining numeric source provenance.
+  Byte replacement/repetition validate expansion before allocation and publish
+  no escaping facts. Reversal preserves per-entry provenance and key rules.
+  Terminal integer switches use proven integer tests and one pure return per
+  arm, selecting default only after all tests fail and never merging unused
+  selector or return origins into the selected result.
 - Callback truth outcomes are separate from literal equality. Each normal return,
   including implicit null, is converted before joining truth outcomes. Agreeing
   falsy returns can remove entries without treating different literals as equal.

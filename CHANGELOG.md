@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Evaluate checked integer division, remainder, bitwise operations and shifts in
+  pure wrappers; compose bounded byte replacement/repetition, immutable array
+  reversal and integer switch returns while preserving provenance and order.
+
 - Compose audited string joins/splits, column projections, two-array merges and
   noncapturing closure callbacks in pure wrappers; support destructured
   first-match searches while preserving winning-value and field provenance.
