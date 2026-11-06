@@ -570,7 +570,7 @@ func ran(cond syntax.Expr, f *frame, truth bool) {
 		return
 	}
 	for name, vCell := range f.vars {
-		v := *vCell
+		v := vCell.Value
 		if v.unless == by {
 			nonFalse, nonNull := v.unlessFalse, v.unlessNull
 			v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = nil, false, false, false, false

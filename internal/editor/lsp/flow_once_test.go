@@ -20,13 +20,13 @@ func TestIndexBuildComposesFlowOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := whiteBox(t, root, io.Discard, unescapedhtmloutput.New())
-	old := buildFlow
-	defer func() { buildFlow = old }()
+	old := project.BuildFlowOrdered
+	defer s.setFlowBuilder(nil)
 	builds := 0
-	buildFlow = func(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *project.FlowBuild {
+	s.setFlowBuilder(func(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *project.FlowBuild {
 		builds++
 		return old(ctx, files, srcs, opt, ix, options, order)
-	}
+	})
 	if !s.beginIndexing() {
 		t.Fatal("index not requested")
 	}
@@ -52,13 +52,13 @@ func TestFlowOrderSavedBetweenBuilds(t *testing.T) {
 	t.Setenv("CUSTOS_CACHE_DIR", t.TempDir())
 	s := whiteBox(t, root, io.Discard, unescapedhtmloutput.New())
 	s.cfg.FlowOrder = true
-	old := buildFlow
-	defer func() { buildFlow = old }()
+	old := project.BuildFlowOrdered
+	defer s.setFlowBuilder(nil)
 	var orders []map[string]int
-	buildFlow = func(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *project.FlowBuild {
+	s.setFlowBuilder(func(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *project.FlowBuild {
 		orders = append(orders, order)
 		return old(ctx, files, srcs, opt, ix, options, order)
-	}
+	})
 	if !s.beginIndexing() {
 		t.Fatal("index not requested")
 	}

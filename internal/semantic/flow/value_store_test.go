@@ -91,3 +91,21 @@ func BenchmarkExpressionValueStore(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkFlowAllocationHints(b *testing.B) {
+	e, file := environment(b, `class R{function f($x){if($x){return $this->g($x);}return 1;}function g($v){return $v;}}`, nil)
+	var scope syntax.Node
+	syntax.InspectFile(file, func(node syntax.Node) bool {
+		if method, ok := node.(*syntax.Method); ok && method.Name.Value == "f" {
+			scope = method
+		}
+		return true
+	})
+	b.ReportAllocs()
+	for b.Loop() {
+		values, before := e.expressionSizes(scope)
+		if values == 0 || before == 0 {
+			b.Fatal("missing runtime nodes")
+		}
+	}
+}

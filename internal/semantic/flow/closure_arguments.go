@@ -7,7 +7,7 @@ func (e *Env) closureDefault(expr syntax.Expr, owner *scopeResult) (Value, bool)
 	if !primitiveDefault(expr, 8, &fuel) {
 		return Value{}, false
 	}
-	r := &scopeResult{complete: true, values: newValueStore(256 - fuel), before: map[syntax.Node]map[uint32]State{}}
+	r := &scopeResult{sharing: e.sharingArena(), complete: true, values: newValueStore(256 - fuel), before: map[syntax.NodeIdentity]map[uint32]State{}}
 	f := frame{definite: true}
 	f.resetVars()
 	value := e.eval(expr, &f, r, 0)

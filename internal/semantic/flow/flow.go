@@ -474,9 +474,9 @@ type frame struct {
 	// name (`$r = &$$n`): a write through a reference kept somewhere may
 	// reach any variable.
 	wild bool
-	// cellsShared stays set after detaching a map: its unchanged payloads
-	// may still be retained by another frame. Before any sharing, cells can
-	// be updated privately without allocating a replacement.
+	// cellsShared stays set after detaching a map: unchanged cells may still
+	// belong to another frame. A replacement tagged with the current map's
+	// sharing marker is private and can be updated without another allocation.
 	cellsShared bool
 	// related lists what holds between the left operand of a short-circuit
 	// operation and the variable its right operand assigns in place (see
@@ -497,14 +497,11 @@ func (f *frame) setVar(name string, v Value) {
 		}
 	}
 	f.ownVars()
-	if !f.cellsShared {
-		if cell := f.vars[name]; cell != nil {
-			*cell = v
-			return
-		}
+	if cell := f.vars[name]; cell != nil && (!f.cellsShared || cell.owner != nil && cell.owner == f.varsShared) {
+		cell.Value = v
+		return
 	}
-	cell := new(Value)
-	*cell = v
+	cell := &bindingCell{Value: v, owner: f.varsShared}
 	f.vars[name] = cell
 }
 
@@ -518,14 +515,14 @@ func (f *frame) unsetVar(name string) {
 
 func (f *frame) ownVars() {
 	if f.varsShared != nil && *f.varsShared {
-		f.vars, f.varsShared = maps.Clone(f.vars), new(bool)
+		f.vars, f.varsShared = maps.Clone(f.vars), f.shareFlag()
 		f.cellsShared = true
 	}
 }
 
 // resetVars gives the frame new, empty variables.
 func (f *frame) resetVars() {
-	f.vars, f.varsShared = bindings{}, new(bool)
+	f.vars, f.varsShared = bindings{}, f.shareFlag()
 	f.cellsShared = false
 }
 
@@ -746,6 +743,7 @@ type Options struct{ Assertions bool }
 
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
+	sharing         *sharingFlags
 	recordSites     map[recordSite]uint32
 	declarations    declarationCache
 	classKeys       map[string]string
@@ -795,6 +793,8 @@ type Env struct {
 }
 
 type scopeResult struct {
+	sharing *sharingFlags
+
 	resourceInputs     map[uint32]bool
 	fallsThrough       bool
 	argumentSensitive  bool
@@ -818,7 +818,7 @@ type scopeResult struct {
 	// reads names the contracts the result was computed from, with those of
 	// the results and facts it read; nil when Summarize did not compute it.
 	reads     map[string]bool
-	before    map[syntax.Node]map[uint32]State
+	before    map[syntax.NodeIdentity]map[uint32]State
 	calls     []Call
 	returns   []Value
 	callIndex map[syntax.Node]int
@@ -1232,7 +1232,7 @@ func (e *Env) StateBefore(at syntax.Node, receiver syntax.Expr, operations ...st
 	if !r.complete || !v.Complete || v.Identity == 0 {
 		return State{}, false
 	}
-	s, ok := r.before[at][v.Identity]
+	s, ok := r.before[syntax.Identity(at)][v.Identity]
 	if !ok {
 		return State{}, false
 	}
@@ -1280,7 +1280,7 @@ func (e *Env) GlobalStateBefore(at syntax.Node, domain string) (State, bool) {
 	if !r.complete {
 		return State{}, false
 	}
-	state, ok := r.before[at][id]
+	state, ok := r.before[syntax.Identity(at)][id]
 	return state, ok
 }
 
@@ -1435,7 +1435,7 @@ func equal(v, w Value) bool {
 // apart: their variables are copied on the first change of either.
 func clone(f *frame) frame {
 	if f.varsShared == nil {
-		f.varsShared = new(bool)
+		f.varsShared = f.shareFlag()
 	}
 	*f.varsShared = true
 	f.cellsShared = true
@@ -1570,7 +1570,7 @@ func (f *frame) unsettle(r *scopeResult, written Value) {
 	f.related = nil
 	r.operations += len(f.vars)
 	for name, oldCell := range f.vars {
-		old := *oldCell
+		old := oldCell.Value
 		f.setVar(name, unsettled(old, written, f.owner))
 	}
 }
@@ -1637,7 +1637,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 		changed = true
 	}
 	for k, vCell := range f.vars {
-		v := *vCell
+		v := vCell.Value
 		w, ok := b.vars.lookup(k)
 		if ok {
 			shared++
@@ -1667,7 +1667,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 	if shared < len(b.vars) {
 		work += len(b.vars)
 		for k, vCell := range b.vars {
-			v := *vCell
+			v := vCell.Value
 			if _, ok := f.vars[k]; ok {
 				continue
 			}

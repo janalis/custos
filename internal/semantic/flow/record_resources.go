@@ -255,7 +255,7 @@ func invalidateCallbackRecords(values []Value, f *frame, r *scopeResult) {
 		collectRecordIdentities(value.elements, ids)
 	}
 	for _, valueCell := range f.vars {
-		value := *valueCell
+		value := valueCell.Value
 		collectRecordIdentities(value.elements, ids)
 	}
 	for _, captures := range r.closures {

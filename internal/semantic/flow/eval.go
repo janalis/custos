@@ -172,7 +172,8 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 }
 
 func remember(r *scopeResult, n syntax.Node, f frame) {
-	if old, ok := r.before[n]; ok {
+	key := syntax.Identity(n)
+	if old, ok := r.before[key]; ok {
 		for id, s := range old {
 			if common, ok := agree(s, f.states[id]); ok {
 				old[id] = common
@@ -191,7 +192,7 @@ func remember(r *scopeResult, n syntax.Node, f frame) {
 				m[id] = s
 			}
 		}
-		r.before[n] = m
+		r.before[key] = m
 	}
 }
 
@@ -358,7 +359,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			skipped := clone(f)
 			e.refine(n.Left, &skipped, !deciding)
 			for name, refinedCell := range skipped.vars {
-				refined := *refinedCell
+				refined := refinedCell.Value
 				// Only what the outcome excludes is kept: a value pinned
 				// or cleared by the test is another value to later reads.
 				if held := f.vars.value(name); refined.Expr != held.Expr || len(refined.Sources) != len(held.Sources) {
@@ -1706,7 +1707,7 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 	}
 	if all {
 		for _, valueCell := range f.vars {
-			value := *valueCell
+			value := valueCell.Value
 			collectRecordIdentities(value.elements, identities)
 		}
 	}
@@ -1714,7 +1715,7 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 		delete(f.states, id)
 	}
 	for name, valueCell := range f.vars {
-		value := *valueCell
+		value := valueCell.Value
 		if value.Identity != 0 && (all || identities[value.Identity]) {
 			value.Invalidated = at.Span().Start + 1
 			f.setVar(name, value)
@@ -2917,7 +2918,7 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 		f.related = nil
 		r.operations += len(f.vars)
 		for name, oldCell := range f.vars {
-			old := *oldCell
+			old := oldCell.Value
 			v := unsettled(old, e.held(name, r), r)
 			v.Invalidated, v.replaced = stamp, true
 			f.setVar(name, v)

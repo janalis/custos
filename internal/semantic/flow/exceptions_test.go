@@ -66,7 +66,7 @@ func TestExceptionEdgesRequirePotentialThrow(t *testing.T) {
 				}
 				handler = handler.Parent()
 			}
-			_, reached := e.scope(syntax.EnclosingVariableScope(call)).before[handler]
+			_, reached := e.scope(syntax.EnclosingVariableScope(call)).before[syntax.Identity(handler)]
 			if reached != tc.reached {
 				t.Fatalf("catch reached=%v want %v", reached, tc.reached)
 			}
@@ -106,7 +106,7 @@ func TestExceptionProofWorkBudget(t *testing.T) {
 		}
 		handler = handler.Parent()
 	}
-	_, found := e.scope(syntax.EnclosingVariableScope(call)).before[handler]
+	_, found := e.scope(syntax.EnclosingVariableScope(call)).before[syntax.Identity(handler)]
 	if !found {
 		t.Fatal("proof budget exhaustion pruned catch")
 	}

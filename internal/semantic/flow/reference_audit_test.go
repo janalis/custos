@@ -103,7 +103,7 @@ func TestConstructorEscapesInvalidateResourceAndSessionHistory(t *testing.T) {
 
 func TestMalformedReferenceArgumentsDoNotInventWrites(t *testing.T) {
 	e, _ := environment(t, "", nil)
-	f := frame{vars: bindings{"x": {Complete: true}}}
+	f := frame{vars: bindings{"x": {Value: Value{Complete: true}}}}
 	list := &syntax.ArgList{Args: []syntax.Expr{&syntax.Literal{Raw: "1"}, &syntax.Arg{Value: &syntax.Literal{Raw: "2"}}}}
 	e.invalidateReferences(&syntax.FuncCall{}, list, &f, &scopeResult{})
 	if !f.vars.value("x").Complete {

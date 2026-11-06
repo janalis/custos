@@ -299,8 +299,8 @@ func TestMalformedOrDynamicCallsDiscardContracts(t *testing.T) {
 }
 
 func TestFrameJoinsRequireAgreement(t *testing.T) {
-	a := frame{vars: bindings{"x": {Complete: true, Sources: []Source{{Kind: "a"}}}}, states: map[uint32]State{1: {Operation: "open"}}}
-	b := frame{vars: bindings{"x": {Complete: true, Sources: []Source{{Kind: "b"}}}}, states: map[uint32]State{1: {Operation: "close"}}}
+	a := frame{vars: bindings{"x": {Value: Value{Complete: true, Sources: []Source{{Kind: "a"}}}}}, states: map[uint32]State{1: {Operation: "open"}}}
+	b := frame{vars: bindings{"x": {Value: Value{Complete: true, Sources: []Source{{Kind: "b"}}}}}, states: map[uint32]State{1: {Operation: "close"}}}
 	joined := clone(&a)
 	if changed, _ := joined.absorb(b); !changed {
 		t.Fatal("different origins agreed")

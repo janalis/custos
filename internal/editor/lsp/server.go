@@ -50,11 +50,13 @@ type document struct {
 
 // Server is the custos language server.
 type Server struct {
-	c      *conn
-	mu     sync.Mutex
-	docs   map[string]*document
-	engine *analysis.Engine
-	cfg    *config.Config
+	flowBuilder flowBuilder
+	flowUpdater flowUpdater
+	c           *conn
+	mu          sync.Mutex
+	docs        map[string]*document
+	engine      *analysis.Engine
+	cfg         *config.Config
 	// baseline hides the project's known findings, nil without one.
 	baseline *baseline.Baseline
 	initOpts json.RawMessage

@@ -9,6 +9,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Reduce edit allocations with compact node identity keys, branch-owned variable
+  cells, shared bookkeeping markers and bounded expression buffer metadata.
+
 - Refine bounded pure PHP 8 match expressions, quiet record queries, closed static
   helper calls and initialized scalar foreach reductions from proven inputs.
 - Reuse stable local summary components during recursive replay and avoid

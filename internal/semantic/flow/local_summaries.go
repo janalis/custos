@@ -76,6 +76,7 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 		worker := New(e.file, e.types, e.snapshot, e.options)
 		worker.consulted = map[string]bool{}
 		worker.recordSites = e.recordSites
+		worker.sharing = e.sharing
 		worker.localBodies = e.localBodies
 		worker.declarations, worker.classKeys, worker.kindOf = e.declarations, e.classKeys, e.kindOf
 		if e.globalsReady {
@@ -98,6 +99,7 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 			}
 		}
 		e.declarations, e.classKeys, e.kindOf = worker.declarations, worker.classKeys, worker.kindOf
+		e.sharing = worker.sharing
 		stable := true
 		for node := range state.state {
 			if !needed[node] {

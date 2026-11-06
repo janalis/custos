@@ -756,22 +756,28 @@ func (e *Env) typed(p *syntax.Param, deep bool) bool {
 
 // expressionSizes estimates the two map capacities separately. Lexical names,
 // declaration headers and plain assignment targets are not evaluated values.
+// Control wrappers lower to their tests and bodies rather than transfer nodes.
 // These are allocation hints only: both maps grow for any additional entries.
 func (e *Env) expressionSizes(scope syntax.Node) (values, before int) {
 	count := func(x syntax.Node) bool {
 		switch x.(type) {
+		case *syntax.Block, *syntax.Namespace, *syntax.Function, *syntax.Method, *syntax.ClassLike,
+			*syntax.If, *syntax.ElseIf, *syntax.Else, *syntax.While, *syntax.DoWhile, *syntax.For,
+			*syntax.Try, *syntax.Finally, *syntax.Switch, *syntax.Case, *syntax.Label, *syntax.Goto, *syntax.Break, *syntax.Continue:
 		case syntax.Expr:
-			before++
 			switch n := x.(type) {
-			case *syntax.Name, *syntax.Identifier:
+			case *syntax.Name, *syntax.Identifier, *syntax.ArgList, *syntax.VariadicPlaceholder:
 			case *syntax.Variable:
 				assignment, target := n.Parent().(*syntax.Assign)
 				if !target || assignment.Var != n || assignment.Op.Kind != syntax.TEqual || n.NameExpr != nil {
 					values++
+					before++
 				}
 			default:
 				values++
+				before++
 			}
+
 		case syntax.Stmt:
 			before++
 		}
@@ -795,7 +801,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 
 func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr, seeds map[string]Value, states map[uint32]State, resources map[uint32]bool) *scopeResult {
 	values, before := e.expressionSizes(scope)
-	r := &scopeResult{resourceInputs: resources, originTypes: e.types, values: newValueStore(values), before: make(map[syntax.Node]map[uint32]State, before), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
+	r := &scopeResult{sharing: e.sharingArena(), resourceInputs: resources, originTypes: e.types, values: newValueStore(values), before: make(map[syntax.NodeIdentity]map[uint32]State, before), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
 	r.reads = e.begin()
 	defer e.end(r.reads)

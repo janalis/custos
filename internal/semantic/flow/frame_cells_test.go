@@ -106,3 +106,55 @@ func TestMissingFrameReadRemainsACopy(t *testing.T) {
 		t.Fatal("missing read exposed global storage")
 	}
 }
+
+func TestDetachedCellsSurviveFurtherSharing(t *testing.T) {
+	original := frame{owner: &scopeResult{}}
+	original.resetVars()
+	original.setVar("x", Value{Complete: true, Identity: 1})
+	branch := clone(&original)
+	branch.setVar("x", Value{Complete: true, Identity: 2})
+	branch.setVar("x", Value{Complete: true, Identity: 3})
+	retained := clone(&branch)
+	branch.setVar("x", Value{Complete: true, Identity: 4})
+	branch.setVar("x", Value{Complete: true, Identity: 5})
+	if original.vars.value("x").Identity != 1 || retained.vars.value("x").Identity != 3 || branch.vars.value("x").Identity != 5 {
+		t.Fatal("private updates changed a retained map")
+	}
+}
+
+func TestSharingMarkersAreNotRecycled(t *testing.T) {
+	f := frame{owner: &scopeResult{}}
+	markers := make([]*bool, 400)
+	seen := map[*bool]bool{}
+	for i := range markers {
+		marker := f.shareFlag()
+		if *marker || seen[marker] {
+			t.Fatal("a sharing marker was recycled")
+		}
+		seen[marker] = true
+		*marker = true
+		markers[i] = marker
+	}
+	for _, marker := range markers {
+		if !*marker {
+			t.Fatal("an old marker changed after chunk growth")
+		}
+	}
+}
+
+func BenchmarkDetachedFrameUpdates(b *testing.B) {
+	f := frame{owner: &scopeResult{}}
+	f.resetVars()
+	f.setVar("x", Value{Complete: true})
+	branch := clone(&f)
+	branch.setVar("x", Value{Complete: true, Identity: 1})
+	b.ReportAllocs()
+	var id uint32
+	for b.Loop() {
+		id++
+		branch.setVar("x", Value{Complete: true, Identity: id})
+	}
+	if f.vars.value("x").Identity != 0 {
+		b.Fatal("original changed")
+	}
+}
