@@ -41,6 +41,19 @@ order. Pure methods may delegate through the current instance to a visible
 closed helper that does not read or write receiver state. Unknown receivers,
 object lifetimes, reference bindings and loose comparisons establish no proof.
 
+Pure string prefix, suffix and containment predicates compare proven byte strings
+with PHP 8 empty-needle behavior. Normal counting may use the resolved native
+COUNT_NORMAL constant; a shadowing declaration establishes no native constant
+proof. Strict membership is false for an empty proven array and true for a proven
+matching scalar entry even when other primitive entries are unknown. Unknown
+entries cannot prove absence from a nonempty array.
+Immutable array spreads preserve insertion order, numeric reindexing and, from
+PHP 8.1, string-key overwrites. Earlier supported spread versions accept only
+numeric keys. An empty local array accumulator with one append of a pure value
+per foreach iteration and a final return preserves each projected element's
+provenance. References, unknown collection membership and observable lifetimes
+establish no such collection result.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered

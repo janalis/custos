@@ -39,7 +39,12 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	if !ok || update.ByRef || update.Op.Kind != syntax.TEqual && update.Op.Kind != syntax.TPlusEqual && update.Op.Kind != syntax.TConcatEqual {
 		return nil
 	}
-	target, ok := update.Var.(*syntax.Variable)
+	build := false
+	targetExpr := update.Var
+	if dim, appendOnly := targetExpr.(*syntax.ArrayDimFetch); appendOnly && dim.Dim == nil && !dim.Curly && update.Op.Kind == syntax.TEqual && initial.kind == pureArray && len(initial.args) == 0 {
+		targetExpr, build = dim.Var, true
+	}
+	target, ok := targetExpr.(*syntax.Variable)
 	if !ok || target.NameExpr != nil || target.Name != name {
 		return nil
 	}
@@ -71,6 +76,9 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	result := pureNode(pureReduce, input, initial, value)
 	if result != nil {
 		result.slot = slot
+		if build {
+			result.kind = pureBuild
+		}
 		if keyName != "" {
 			result.op = syntax.TDoubleArrow
 		}
@@ -85,7 +93,7 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 		return Value{}, false
 	}
 	carry, ok := e.evalPure(expr.right, slots, r, depth-1)
-	if _, scalar := knownScalar(carry); !ok || !scalar {
+	if _, scalar := knownScalar(carry); !ok || !scalar && !(expr.kind == pureBuild && purePlainRecord(carry)) {
 		return Value{}, false
 	}
 	width := 2
@@ -100,7 +108,7 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 	copy(bound, slots)
 	for _, key := range input.elements.order {
 		item := input.elements.items[key]
-		if _, scalar := knownScalar(item); !scalar {
+		if _, scalar := knownScalar(item); !scalar && !(expr.kind == pureBuild && pureReadOnlyInputs([]Value{item}, nil)) {
 			return Value{}, false
 		}
 		bound[expr.slot], bound[expr.slot+1] = carry, item
@@ -112,6 +120,13 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 			bound[expr.slot+2] = scalarValue(keyValue)
 		}
 
+		if expr.kind == pureBuild {
+			entry, valid := e.evalPure(expr.other, bound, r, depth-1)
+			if !valid || !pureReadOnlyInputs([]Value{entry}, nil) || !appendPureEntry(&carry, entry, r) {
+				return Value{}, false
+			}
+			continue
+		}
 		carry, ok = e.evalPure(expr.other, bound, r, depth-1)
 		if _, scalar := knownScalar(carry); !ok || !scalar {
 			return Value{}, false

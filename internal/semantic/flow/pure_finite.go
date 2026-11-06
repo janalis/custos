@@ -67,19 +67,26 @@ func (e *Env) evalFiniteNative(expr *pureExpr, left Value, slots []Value, r *sco
 	needle, scalar := knownScalar(left)
 	strict, ok := e.evalPure(expr.other, slots, r, depth-1)
 	flag, known := knownScalar(strict)
-	if !scalar || !ok || !known || flag.k != 'b' || !flag.b || !purePlainRecord(right) || len(right.elements.order) != len(right.elements.items) {
+	if !pureReadOnlyInputs([]Value{left}, nil) || !ok || !known || flag.k != 'b' || !flag.b || !purePlainRecord(right) || len(right.elements.order) != len(right.elements.items) {
 		return Value{}, false
 	}
-	found := false
+	found, uncertain := false, !scalar && len(right.elements.items) != 0
 	for _, key := range right.elements.order {
 		entry := right.elements.items[key]
 		r.operations++
 		value, known := knownScalar(entry)
-		if !known || r.operations > MaxTransfers {
+		if r.operations > MaxTransfers {
 			return Value{}, false
+		}
+		if !known || !scalar {
+			uncertain = true
+			continue
 		}
 		equal, _ := constantBinary(syntax.TIsIdentical, needle, value)
 		found = found || equal.b
+	}
+	if uncertain && !found {
+		return Value{}, false
 	}
 	return scalarValue(constantScalar{k: 'b', b: found}), true
 }

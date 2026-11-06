@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Refine pure strict membership from decisive entries, resolve native count mode
+  constants, evaluate byte-string predicates and preserve immutable elements
+  through bounded array spreads and append-only foreach summaries.
+
 - Refine pure record presence and coalescing, finite array counts and strict
   membership, keyed scalar reductions and closed instance helper composition.
 - Add optional raw edit timing, parse and analysis phases, CPU and GC telemetry

@@ -30,6 +30,9 @@ const (
 	pureNonNull
 	pureCount
 	pureMember
+	pureStringPredicate
+	pureSpreadArray
+	pureBuild
 	pureLimit = 64
 )
 
@@ -235,7 +238,13 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 			}
 			return c.extra[n.Name]
 		}
-	case *syntax.Literal, *syntax.ConstFetch:
+	case *syntax.ConstFetch:
+		fuel := 256
+		if value, known := constantValue(expr, MaxDepth, &fuel); known {
+			return pureConstant(value)
+		}
+		return c.nativeConstant(n)
+	case *syntax.Literal:
 		fuel := 256
 		if value, known := constantValue(expr, MaxDepth, &fuel); known {
 			return pureConstant(value)

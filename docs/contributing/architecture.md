@@ -255,6 +255,13 @@ open documents.
   field provenance, with canonical PHP integer-key normalization and no
   warning-producing key conversions; structural refinement rejects observable object/resource
   inputs. Compiled wrapper spreads reuse the runtime argument-role binder.
+- Pure summaries also resolve the audited native `COUNT_NORMAL` constant and
+  PHP 8 byte-string prefix, suffix and containment predicates. Strict membership
+  can use an empty array or a decisive matching scalar entry, while unknown
+  entries establish no absence proof. Bounded immutable array spreads follow
+  version-specific key rules. Empty array accumulators with one append-only
+  foreach update preserve insertion order and individual element provenance;
+  aliases and observable object or resource lifetimes remain unsupported.
 - Callback truth outcomes are separate from literal equality. Each normal return,
   including implicit null, is converted before joining truth outcomes. Agreeing
   falsy returns can remove entries without treating different literals as equal.

@@ -1286,6 +1286,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		first = values[0]
 	}
 	invoked := false
+	immutablePure := false
 	var invocationStates map[uint32]State
 	if s, ok := e.contract(e.summaryName(n)); ok {
 		r.argumentSensitive = r.argumentSensitive || s.argumentSensitive
@@ -1299,6 +1300,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		forwarded := false
 		if boundOK && s.Fixed && e.preciseSummaryTarget(n, closedFollowed) {
 			result, states, ok := e.pureReturn(n, s.pure, bound, nil, v, f, r)
+			immutablePure = ok && result.plain && result.deep && pureReadOnlyInputs([]Value{result}, nil)
 			if !ok {
 				result, states, ok = e.forwardedReturn(n, s.forward, bound, f, r)
 			}
@@ -1584,7 +1586,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	kind := e.kinds(result, documented)
 	v.plain = builtin && kind&(kindKnown|kindObject|kindOpaque) == kindKnown
 	v.deep = v.plain && (kind&kindArray == 0 || e.sealed(n, name, args, r))
-	if builtin && e.keyed(n, name, args) {
+	if immutablePure || builtin && e.keyed(n, name, args) {
 		v.plain, v.deep = true, true
 	}
 	if builtin && name == "array_map" {

@@ -106,6 +106,11 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 	if len(array.Items) > pureLimit || array.Short && c.env.types.PHP.Below(phpversion.PHP54) {
 		return nil
 	}
+	for _, item := range array.Items {
+		if item != nil && item.Unpack {
+			return c.spreadArray(array)
+		}
+	}
 	expr := &pureExpr{kind: pureArray, cost: 1, depth: 1}
 	next := int64(0)
 	seen := map[string]bool{}
@@ -153,6 +158,9 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 }
 
 func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {
+	if name == "str_starts_with" || name == "str_ends_with" || name == "str_contains" {
+		return c.stringPredicate(node, name, params)
+	}
 	if name == "count" || name == "in_array" {
 		return c.finiteNative(node, name, params)
 	}
@@ -282,7 +290,10 @@ func (c *pureCompiler) spreadArguments(node syntax.Node, params []pureParam, dec
 }
 
 func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
-	if expr.kind == pureReduce {
+	if expr.kind == pureSpreadArray {
+		return e.evalSpreadArray(expr, slots, r, depth)
+	}
+	if expr.kind == pureReduce || expr.kind == pureBuild {
 		return e.evalPureReduction(expr, slots, r, depth)
 	}
 	if expr.kind == pureMatch {
@@ -355,6 +366,9 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 			return left, true
 		}
 		return e.evalPure(expr.right, slots, r, depth-1)
+	}
+	if expr.kind == pureStringPredicate {
+		return e.evalStringPredicate(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureCount || expr.kind == pureMember {
 		return e.evalFiniteNative(expr, left, slots, r, depth)
