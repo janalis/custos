@@ -647,19 +647,10 @@ func (s *Snapshot) alone(path, key string) bool {
 	return declaring == 0
 }
 
-// nativeSinks recognizes resolved native sinks and binds named arguments.
+// nativeSinks selects resolved native sinks before binding their arguments.
 func (e *Env) nativeSinks(c Call) []Sink {
 	name, builtin := e.callName(c.Node)
 	if !builtin {
-		return nil
-	}
-	args, known := e.bind(c.Node, c.Arguments)
-	if !known {
-		// A reference argument, which a command fills with its output,
-		// leaves the first parameter what it was given.
-		args, known = e.leading(c)
-	}
-	if !known || len(args) == 0 {
 		return nil
 	}
 	context := Context(0)
@@ -681,16 +672,30 @@ func (e *Env) nativeSinks(c Call) []Sink {
 		case "curl_init":
 			context = URL
 		case "curl_setopt":
-			if len(args) > 2 {
-				if constant, ok := args[1].Expr.(*syntax.ConstFetch); ok && strings.EqualFold(strings.TrimPrefix(constant.Name.Value, `\`), "CURLOPT_URL") {
-					context = URL
-					position = 2
-				}
-			}
+			context = URL
+			position = 2
 		}
 	}
 	if context == 0 {
 		return nil
+	}
+	args, known := e.bind(c.Node, c.Arguments)
+	if !known {
+		// A reference argument, which a command fills with its output,
+		// leaves the first parameter what it was given.
+		args, known = e.leading(c)
+	}
+	if !known || len(args) == 0 {
+		return nil
+	}
+	if position == 2 {
+		if len(args) <= 2 {
+			return nil
+		}
+		constant, ok := args[1].Expr.(*syntax.ConstFetch)
+		if !ok || !strings.EqualFold(strings.TrimPrefix(constant.Name.Value, `\`), "CURLOPT_URL") {
+			return nil
+		}
 	}
 	if call, function := c.Node.(*syntax.FuncCall); function && name == "proc_open" && e.vector(call, args[0]) {
 		// An array is an argument vector: no shell reads it.

@@ -9,6 +9,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Avoid binding arguments for native calls that cannot be command, path, SQL,
+  header or URL sinks when computing callable summaries.
+
 - Remove runtime division from flow expression-store access while retaining
   lazy payload allocation sizes, and avoid duplicate scope walks when resolving values.
 
