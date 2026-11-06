@@ -289,13 +289,14 @@ func (g *graph) entryPrefix(at int, f frame, r *scopeResult, target syntax.Expr)
 				return
 			}
 		}
-		if len(b.next) == 1 {
-			at = b.next[0]
+		next := g.successors(at)
+		if len(next) == 1 {
+			at = int(next[0])
 			continue
 		}
 		condition, ok := b.node.(syntax.Expr)
 		truth, known := entryTruth(condition, r)
-		if !ok || !known || len(b.next) != 2 {
+		if !ok || !known || len(next) != 2 {
 			return
 		}
 		branch := 1
@@ -303,7 +304,7 @@ func (g *graph) entryPrefix(at int, f frame, r *scopeResult, target syntax.Expr)
 			branch = 0
 		}
 		g.env.refine(condition, &f, truth)
-		at = b.next[branch]
+		at = int(next[branch])
 	}
 }
 

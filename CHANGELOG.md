@@ -9,6 +9,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Store common control-flow successors within their blocks, avoiding separate
+  edge allocations while retaining arbitrary exception fanout and block limits.
+
 - Avoid binding arguments for native calls that cannot be command, path, SQL,
   header or URL sinks when computing callable summaries.
 

@@ -13,12 +13,17 @@ import (
 	"custos/internal/semantic/types"
 )
 
+// Compact successor indices can represent every permitted block ID.
+const _ uint16 = MaxBlocks - 1
+
 type (
 	block struct {
 		node        syntax.Node
 		nodes       []syntax.Node
-		next        []int
+		more        int
 		exceptional int
+		next        [2]uint16
+		nextCount   int8
 		shared      bool
 		head        bool
 		choice      int8
@@ -34,6 +39,7 @@ type (
 	}
 	graph struct {
 		blocks   []block
+		fanouts  [][]uint16
 		complete bool
 		proofs   map[int]*exceptionProof
 		// full marks a graph that reached MaxBlocks.
@@ -80,8 +86,40 @@ func (g *graph) add(n syntax.Node, next ...int) int {
 		g.complete, g.full = false, true
 		return 0
 	}
-	g.blocks = append(g.blocks, block{node: n, next: next, exceptional: -1})
-	return len(g.blocks) - 1
+	g.blocks = append(g.blocks, block{node: n, exceptional: -1})
+	at := len(g.blocks) - 1
+	g.link(at, next...)
+	return at
+}
+
+// link stores the usual one or two successors within the block. Exception
+// dispatch can have any number of successors and uses a separate list.
+func (g *graph) link(at int, next ...int) {
+	b := &g.blocks[at]
+	if len(next) <= len(b.next) {
+		b.nextCount = int8(len(next))
+		for i, target := range next {
+			b.next[i] = uint16(target)
+		}
+		return
+	}
+	b.nextCount = -1
+	b.more = len(g.fanouts)
+	targets := make([]uint16, len(next))
+	for i, target := range next {
+		targets[i] = uint16(target)
+	}
+	g.fanouts = append(g.fanouts, targets)
+}
+
+// Successors are read only after construction; the block buffer can no longer
+// grow or change the inline entries while a caller reads them.
+func (g *graph) successors(at int) []uint16 {
+	b := &g.blocks[at]
+	if b.nextCount < 0 {
+		return g.fanouts[b.more]
+	}
+	return b.next[:b.nextCount]
 }
 
 // test adds the block of a condition, or of what a loop iterates: its
@@ -147,7 +185,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		test := g.test(n.Cond, x)
 		g.blocks[test].head = true
 		lx := x.inside(next, test)
-		g.blocks[test].next = repeats(n.Cond, g.stmt(n.Body, test, lx), next)
+		g.link(test, repeats(n.Cond, g.stmt(n.Body, test, lx), next)...)
 		return test
 	case *syntax.DoWhile:
 		g.blocks[next].shared = true
@@ -155,7 +193,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		g.blocks[test].head = true
 		lx := x.inside(next, test)
 		body := g.stmt(n.Body, test, lx)
-		g.blocks[test].next = repeats(n.Cond, body, next)
+		g.link(test, repeats(n.Cond, body, next)...)
 		// The body runs again: what is written before the loop is not part
 		// of its first block.
 		g.blocks[body].shared = true
@@ -186,7 +224,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		for i := len(earlier) - 1; i >= 0; i-- {
 			cond = g.atom(earlier[i], cond, x)
 		}
-		g.blocks[test].next = []int{cond}
+		g.link(test, cond)
 		start := test
 		for i := len(n.Init) - 1; i >= 0; i-- {
 			start = g.atom(n.Init[i], start, x)
@@ -197,7 +235,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		test := g.test(n, x)
 		g.blocks[test].head = true
 		lx := x.inside(next, test)
-		g.blocks[test].next = []int{g.stmt(n.Body, test, lx), next}
+		g.link(test, g.stmt(n.Body, test, lx), next)
 		return test
 	case *syntax.Return:
 		return g.atom(n, x.ret, x)
@@ -277,7 +315,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		g.labels[n.Name.Value] = at
 		g.first = n.Span().Start + 1
 		for _, jump := range g.jumps[n.Name.Value] {
-			g.blocks[jump.block].next = []int{g.through(jump.finals, at)}
+			g.link(jump.block, g.through(jump.finals, at))
 		}
 		delete(g.jumps, n.Name.Value)
 		return at
@@ -795,7 +833,7 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 	for i := range g.blocks {
 		b := &g.blocks[i]
 		hasExceptional = hasExceptional || b.exceptional > 0
-		if condition, ok := b.node.(syntax.Expr); ok && len(b.next) == 2 {
+		if condition, ok := b.node.(syntax.Expr); ok && len(g.successors(i)) == 2 {
 			if truth, known := constantTruth(condition); known {
 				b.choice = 2
 				if truth {
@@ -940,15 +978,16 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 				r.copies += work
 			}
 		}
+		next := g.successors(i)
 		condition, conditional := b.node.(syntax.Expr)
-		conditional = conditional && len(b.next) == 2
+		conditional = conditional && len(next) == 2
 		loop, iterating := b.node.(*syntax.Foreach)
-		for j, target := range b.next {
+		for j, target := range next {
 			if b.choice != 0 && int(b.choice)-1 != j {
 				continue
 			}
 			// The last successor takes the working frame itself.
-			last := b.choice != 0 || j == len(b.next)-1
+			last := b.choice != 0 || j == len(next)-1
 			branch := out
 			if (conditional || iterating) && !last {
 				r.copies += len(out.vars) + len(out.states)
@@ -961,7 +1000,7 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 				// The body starts with an element in the targets.
 				e.each(loop, &branch, r)
 			}
-			propagate(target, branch, conditional || iterating || last)
+			propagate(int(target), branch, conditional || iterating || last)
 		}
 		if throwing {
 			propagate(b.exceptional, exceptional, true)
@@ -1016,8 +1055,8 @@ func (g *graph) once(sweep bool, keep ...int) []bool {
 		}
 	}
 	for j, b := range g.blocks {
-		for _, t := range b.next {
-			back(j, t)
+		for _, t := range g.successors(j) {
+			back(j, int(t))
 		}
 		if b.exceptional >= 0 {
 			back(j, b.exceptional)
