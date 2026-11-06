@@ -46,7 +46,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 				refineIndirectClose(syntax.UnwrapParens(assignment.Value), f)
 			}
 			if variable, ok := n.(*syntax.Variable); ok {
-				value := f.vars[variable.Name]
+				value := f.vars.value(variable.Name)
 				if value.Complete && !value.replaced && value.Invalidated == 0 {
 					refineIndirectClose(value.Expr, f)
 				}
@@ -167,7 +167,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 					text, known := literalText(pattern.Value)
 					variable, vok := subject.Value.(*syntax.Variable)
 					if known && vok && (text == `/[\r\n]/` || text == `/[\n\r]/`) {
-						v := f.vars[variable.Name]
+						v := f.vars.value(variable.Name)
 						v.Safe |= Header
 						v.headerMask = 3
 						f.setVar(variable.Name, v)
@@ -183,7 +183,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 					length, known := literalText(n.Right)
 					if ok && known {
 						if number, err := strconv.ParseInt(length, 10, 64); err == nil {
-							v := f.vars[variable.Name]
+							v := f.vars.value(variable.Name)
 							v.Length = number
 							v.LengthKnown = true
 							f.setVar(variable.Name, v)
@@ -204,7 +204,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		name, builtin := e.callName(n)
 		if truth && builtin && name == "begintransaction" {
 			if variable, ok := n.Var.(*syntax.Variable); ok {
-				value := f.vars[variable.Name]
+				value := f.vars.value(variable.Name)
 				if state, ok := f.states[value.Identity]; ok {
 					state.Successful = true
 					f.states[value.Identity] = state
@@ -226,7 +226,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		if truth && (name == "flock" || name == "fclose") {
 			first := args[0]
 			if variable, ok := first.Value.(*syntax.Variable); ok {
-				value := f.vars[variable.Name]
+				value := f.vars.value(variable.Name)
 				if state, ok := f.states[value.Identity]; ok {
 					state.Successful = true
 					state.closeChecked = name == "fclose" && state.Operation == "fclose" && state.Span == n.Span()
@@ -272,7 +272,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 				exclude(variable, f, false, true)
 			}
 		}
-		if held, tracked := f.vars[variable.Name]; truth && tracked {
+		if held, tracked := f.vars.lookup(variable.Name); truth && tracked {
 			switch name {
 			case "is_string", "is_array", "is_int", "is_integer", "is_long", "is_float", "is_double", "is_numeric", "is_resource", "is_bool", "is_null", "is_scalar":
 				// None of these is an object, and only an array holds any.
@@ -280,7 +280,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 				f.setVar(variable.Name, held)
 			}
 		}
-		v := f.vars[variable.Name]
+		v := f.vars.value(variable.Name)
 		if truth && (name == "ctype_digit" || name == "is_int" || name == "is_integer") {
 			// Digits alone, or a number, are safe in every text context.
 			v.Safe |= everyContext
@@ -380,7 +380,7 @@ func exclude(x syntax.Expr, f *frame, nonFalse, nonNull bool) {
 		return
 	}
 	// A variable the frame does not track has no value to qualify.
-	if v, tracked := f.vars[variable.Name]; tracked {
+	if v, tracked := f.vars.lookup(variable.Name); tracked {
 		f.excluding(variable.Name, v, nonFalse, nonNull)
 	}
 }
@@ -393,7 +393,7 @@ func excludeValue(x syntax.Expr, f *frame, nonFalse, nonNull bool) {
 	if variable == nil {
 		return
 	}
-	if v, tracked := f.vars[variable.Name]; tracked {
+	if v, tracked := f.vars.lookup(variable.Name); tracked {
 		v.NonFalse = v.NonFalse || nonFalse
 		v.NonNull = v.NonNull || nonNull
 		v.origins = v.origins.excluding(nonFalse, nonNull, f.owner)
@@ -502,7 +502,7 @@ func untest(x syntax.Expr, f *frame, identity bool) {
 				c, _ := compares(by.Left)
 				return identity && c.right != nil
 			}
-			if v, tracked := f.vars[n.Name]; tracked && v.tested != nil && !strict(v.tested) {
+			if v, tracked := f.vars.lookup(n.Name); tracked && v.tested != nil && !strict(v.tested) {
 				v.tested = nil
 				f.setVar(n.Name, v)
 			}
@@ -530,7 +530,7 @@ func (e *Env) witness(n *syntax.Binary, f *frame) {
 		return
 	}
 	for _, operand := range [2]syntax.Expr{c.left, c.right} {
-		if v, tracked := f.vars[plainVariable(operand)]; tracked {
+		if v, tracked := f.vars.lookup(plainVariable(operand)); tracked {
 			v.tested = n
 			f.setVar(plainVariable(operand), v)
 		}
@@ -547,9 +547,9 @@ func ran(cond syntax.Expr, f *frame, truth bool) {
 	if !ok {
 		return
 	}
-	by := f.vars[plainVariable(c.left)].tested
+	by := f.vars.value(plainVariable(c.left)).tested
 	if by == nil {
-		by = f.vars[plainVariable(c.right)].tested
+		by = f.vars.value(plainVariable(c.right)).tested
 	}
 	if by == nil {
 		return
@@ -559,7 +559,7 @@ func ran(cond syntax.Expr, f *frame, truth bool) {
 		return
 	}
 	for _, operand := range [2]syntax.Expr{left.left, left.right} {
-		if name := plainVariable(operand); name != "" && f.vars[name].tested != by {
+		if name := plainVariable(operand); name != "" && f.vars.value(name).tested != by {
 			return
 		}
 	}
@@ -569,7 +569,8 @@ func ran(cond syntax.Expr, f *frame, truth bool) {
 	if (truth == (left.negated == c.negated)) != and {
 		return
 	}
-	for name, v := range f.vars {
+	for name, vCell := range f.vars {
+		v := *vCell
 		if v.unless == by {
 			nonFalse, nonNull := v.unlessFalse, v.unlessNull
 			v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = nil, false, false, false, false
@@ -704,17 +705,17 @@ func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
 	produced := syntax.UnwrapParens(stored.Value)
 	alone := frame{owner: f.owner}
 	alone.resetVars()
-	alone.vars[name] = Value{Complete: true, Expr: produced}
+	alone.setVar(name, Value{Complete: true, Expr: produced})
 	e.refine(cond, &alone, truth)
-	fact := alone.vars[name]
-	v, tracked := f.vars[name]
+	fact := alone.vars.value(name)
+	v, tracked := f.vars.lookup(name)
 	if !(fact.NonFalse || fact.NonNull) || !tracked {
 		return
 	}
 	if v.unless == operation && (fact.NonFalse && v.skippedFalse || fact.NonNull && v.skippedNull) {
 		// The value the skipped operand left in place passed the same test.
 		f.excluding(name, v, fact.NonFalse && v.skippedFalse, fact.NonNull && v.skippedNull)
-		v = f.vars[name]
+		v = f.vars.value(name)
 	}
 	v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = operation, fact.NonFalse, fact.NonNull, false, false
 	f.setVar(name, v)
@@ -775,7 +776,7 @@ func assignedInPlace(cond syntax.Expr) *syntax.Assign {
 // producer it had then. A test that assigns, or reads a value of unknown
 // origin, is not followed, nor is a flag that merely copies another one.
 func (e *Env) stored(flag *syntax.Variable, f *frame) syntax.Expr {
-	test := syntax.UnwrapParens(f.vars[flag.Name].Expr)
+	test := syntax.UnwrapParens(f.vars.value(flag.Name).Expr)
 	switch test.(type) {
 	case *syntax.Binary, *syntax.Unary, *syntax.FuncCall, *syntax.Isset, *syntax.Empty, *syntax.Instanceof:
 	default:
@@ -788,7 +789,7 @@ func (e *Env) stored(flag *syntax.Variable, f *frame) syntax.Expr {
 		case *syntax.Assign, *syntax.IncDec, *syntax.Closure, *syntax.ArrowFunction:
 			current = false
 		case *syntax.Variable:
-			then, now := r.values.at(x), f.vars[x.Name]
+			then, now := r.values.at(x), f.vars.value(x.Name)
 			current = current && x.NameExpr == nil && now.Expr != nil && then.Expr == now.Expr && then.Invalidated == now.Invalidated
 		}
 		return current
@@ -855,7 +856,7 @@ func refineIndirectClose(expr syntax.Expr, f *frame) {
 	for range MaxDepth {
 		switch node := syntax.UnwrapParens(expr).(type) {
 		case *syntax.Variable:
-			value := f.vars[node.Name]
+			value := f.vars.value(node.Name)
 			if node.NameExpr != nil || !value.Complete || value.replaced || value.Invalidated != 0 {
 				return
 			}

@@ -923,7 +923,7 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 				r.copies += work
 			}
 		}
-		if held := out.vars[b.pin]; b.pin != "" && tainted(held) {
+		if held := out.vars.value(b.pin); b.pin != "" && tainted(held) {
 			// The request data was just compared equal to a fixed text.
 			out.write(r, b.pin, Value{Complete: true, matched: true, plain: true, deep: true})
 		} else if strings.Contains(b.pin, "\x00") {

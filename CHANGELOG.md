@@ -9,6 +9,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Share unchanged flow variable values across copied branch maps, reducing
+  allocation during analysis while preserving isolated writes and value-copy reads.
+
 - Reduce pure callback contract compilation allocations by sharing immutable
   parameter-slot instructions, keeping small variable-binding sets on the stack
   and copying invocation slots only for declared scalar coercions.

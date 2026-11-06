@@ -70,7 +70,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 					r.globalNames = map[string]bool{}
 				}
 				r.globalNames[name] = true
-				f.setVar(name, unsettled(f.vars[name], e.held(name, r), r))
+				f.setVar(name, unsettled(f.vars.value(name), e.held(name, r), r))
 			}
 		}
 	case *syntax.Unset:
@@ -151,7 +151,7 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 		spread(n.Value, item, f, r)
 		if name := plainVariable(n.Value); name != "" && iterated.upload == uploadTable {
 			// Each element of the table is one uploaded file.
-			entry := f.vars[name]
+			entry := f.vars.value(name)
 			entry.upload = uploadEntry
 			f.setVar(name, entry)
 		}
@@ -159,13 +159,13 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 	if name := plainVariable(n.Key); name != "" && iterated.plain {
 		// A key of an array is a number or text: neither false nor null, and
 		// no object. Anything else that is iterated chooses its keys.
-		key := f.vars[name]
+		key := f.vars.value(name)
 		key.NonFalse, key.NonNull, key.plain, key.deep = true, true, true, true
 		f.setVar(name, key)
 	}
 	if name := plainVariable(n.Value); name != "" && iterated.deep && !n.ByRef {
 		// An array that holds no object yields none.
-		item := f.vars[name]
+		item := f.vars.value(name)
 		item.plain, item.deep = true, true
 		f.setVar(name, item)
 	}
@@ -234,12 +234,12 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			v = e.request(n.Name, n, f)
 		} else {
 			var tracked bool
-			if v, tracked = f.vars[n.Name]; !tracked {
+			if v, tracked = f.vars.lookup(n.Name); !tracked {
 				// A variable nothing assigned is null, and the globals table
 				// is an array. The session table is whatever the application
 				// put there.
 				v.plain, v.deep = n.Name == "GLOBALS" || f.definite && importable(n.Name), f.definite && importable(n.Name)
-				if spread := f.vars[imported]; importable(n.Name) && tainted(spread) {
+				if spread := f.vars.value(imported); importable(n.Name) && tainted(spread) {
 					// An import of request data may have created the variable.
 					v = Value{Sources: spread.Sources, Safe: spread.Safe}
 				}
@@ -357,10 +357,11 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			deciding := n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd
 			skipped := clone(f)
 			e.refine(n.Left, &skipped, !deciding)
-			for name, refined := range skipped.vars {
+			for name, refinedCell := range skipped.vars {
+				refined := *refinedCell
 				// Only what the outcome excludes is kept: a value pinned
 				// or cleared by the test is another value to later reads.
-				if held := f.vars[name]; refined.Expr != held.Expr || len(refined.Sources) != len(held.Sources) {
+				if held := f.vars.value(name); refined.Expr != held.Expr || len(refined.Sources) != len(held.Sources) {
 					skipped.setVar(name, held)
 				}
 			}
@@ -375,7 +376,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			if stored := assignedInPlace(n.Right); stored != nil {
 				// A value the same assignment produced earlier may arrive on
 				// the path that skips it: its test then says nothing of it.
-				reached := skipped.vars[stored.Var.(*syntax.Variable).Name]
+				reached := skipped.vars.value(stored.Var.(*syntax.Variable).Name)
 				produced := Value{Expr: syntax.UnwrapParens(stored.Value)}
 				if reached.Expr == produced.Expr || reached.Expr == nil && reached.origins != nil && (reached.origins.full || reached.origins.holds(&Value{Expr: produced.Expr, NonFalse: true, NonNull: true})) {
 					if r.stale == nil {
@@ -390,7 +391,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				// Nor is one that passed this test on an earlier turn, where
 				// the left operand skips it since (see relation).
 				name := stored.Var.(*syntax.Variable).Name
-				kept, tracked := skipped.vars[name]
+				kept, tracked := skipped.vars.lookup(name)
 				held := skipped.relates(n)
 				notFalse, notNull := kept.NonFalse || !tracked && skipped.definite || held&relatedFalse != 0, kept.NonNull || held&relatedNull != 0
 				ran, left := uint8(0), uint8(0)
@@ -410,7 +411,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				skipped.relate(n, left)
 				f.relate(n, ran)
 				*f = rejoin(skipped, *f, r)
-				if joined := f.vars[name]; notFalse || notNull {
+				if joined := f.vars.value(name); notFalse || notNull {
 					joined.unless, joined.unlessFalse, joined.unlessNull = n, false, false
 					joined.skippedFalse, joined.skippedNull = notFalse, notNull
 					f.setVar(name, joined)
@@ -619,7 +620,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			if variable.NameExpr == nil && !external(variable.Name) {
 				own, tracked := Value{}, false
 				if slot, constant := arrayKey(n.Dim); constant && levels == 1 {
-					own, tracked = f.vars[variable.Name].elements.lookup(slot)
+					own, tracked = f.vars.value(variable.Name).elements.lookup(slot)
 				}
 				switch {
 				case tracked:
@@ -633,7 +634,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 					v.upload = uploadEntry
 				case variable.Name == "GLOBALS" && levels == 1 && known && (r.global || r.globalNames[key]):
 					// The entry is the variable of that name.
-					held := f.vars[key]
+					held := f.vars.value(key)
 					v = Value{Complete: held.Complete, Sources: held.Sources, Safe: held.Safe, Expr: x}
 				}
 			}
@@ -1018,7 +1019,7 @@ func taken(target syntax.Expr, f *frame) {
 			continue
 		}
 		if name := plainVariable(item.Value); name != "" {
-			slot := f.vars[name]
+			slot := f.vars.value(name)
 			slot.plain, slot.deep = true, true
 			f.setVar(name, slot)
 		} else {
@@ -1100,7 +1101,7 @@ func conditional(x syntax.Expr) bool {
 
 // request constructs the same provenance for every spelling of a request table.
 func (e *Env) request(name string, at syntax.Expr, f *frame) Value {
-	held, written := f.vars[name]
+	held, written := f.vars.lookup(name)
 	v := Value{
 		Complete: true, Expr: at, plain: true, deep: !written || held.deep,
 		Sources: []Source{{Kind: name, Path: e.file.Path, Span: at.Span(), Parameter: -1}},
@@ -1704,14 +1705,16 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 		})
 	}
 	if all {
-		for _, value := range f.vars {
+		for _, valueCell := range f.vars {
+			value := *valueCell
 			collectRecordIdentities(value.elements, identities)
 		}
 	}
 	for id := range identities {
 		delete(f.states, id)
 	}
-	for name, value := range f.vars {
+	for name, valueCell := range f.vars {
+		value := *valueCell
 		if value.Identity != 0 && (all || identities[value.Identity]) {
 			value.Invalidated = at.Span().Start + 1
 			f.setVar(name, value)
@@ -1814,7 +1817,7 @@ func kill(target syntax.Expr, f *frame, r *scopeResult) {
 		case "GLOBALS":
 			global(n, Value{}, false, f, r)
 		default:
-			f.write(r, name, unsettled(f.vars[name], Value{}, r))
+			f.write(r, name, unsettled(f.vars.value(name), Value{}, r))
 			// The slot may be a reference to a variable (`$a = [&$v]`).
 			f.through(r, Value{})
 		}
@@ -1844,14 +1847,14 @@ func global(target *syntax.ArrayDimFetch, v Value, definite bool, f *frame, r *s
 		} else {
 			r.operations += len(r.globalNames)
 			for bound := range r.globalNames {
-				f.write(r, bound, unsettled(f.vars[bound], v, r))
+				f.write(r, bound, unsettled(f.vars.value(bound), v, r))
 			}
 		}
 	case !r.global && !r.globalNames[name]:
 	case definite:
 		f.write(r, name, v)
 	default:
-		f.write(r, name, unsettled(f.vars[name], v, r))
+		f.write(r, name, unsettled(f.vars.value(name), v, r))
 	}
 }
 
@@ -1865,7 +1868,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 		e.release(n, target.Name, f, r)
 		if direct, ok := syntax.UnwrapParens(n.Value).(*syntax.Variable); ok && direct.NameExpr == nil {
 			f.bind(target.Name, direct.Name, n.Span().Start)
-			f.setVar(target.Name, f.vars[direct.Name])
+			f.setVar(target.Name, f.vars.value(direct.Name))
 			return
 		}
 		f.alias(target.Name, aliasAny)
@@ -1886,7 +1889,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 	case *syntax.ArrayDimFetch:
 		if name := rootVariable(slot); name != "" {
 			f.alias(name, aliasAny)
-			f.setVar(name, unsettled(f.vars[name], v, r))
+			f.setVar(name, unsettled(f.vars.value(name), v, r))
 		}
 	}
 }
@@ -1921,7 +1924,7 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 		_, whole := fetch.Var.(*syntax.Variable)
 		global(fetch, v, whole && n.Op.Kind == syntax.TEqual, f, r)
 	default:
-		old, tracked := f.vars[name]
+		old, tracked := f.vars.lookup(name)
 		// A table of the request, or a variable nothing assigned, is no object.
 		held := old.plain || external(name) || !tracked && f.definite && importable(name)
 		if !held {
@@ -1971,7 +1974,7 @@ func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet 
 		return r.values.at(n).elements
 	case *syntax.Variable:
 		if n.NameExpr == nil && !external(n.Name) {
-			return f.vars[n.Name].elements
+			return f.vars.value(n.Name).elements
 		}
 	case *syntax.Unary:
 		if n.Op.Kind == syntax.TArrayCast {
@@ -2277,7 +2280,7 @@ func spread(target syntax.Expr, v Value, f *frame, r *scopeResult) {
 	}
 	if name := rootVariable(target); name != "" {
 		// The names bound with the target read what it was given.
-		f.write(r, name, unsettled(f.vars[name], v, r))
+		f.write(r, name, unsettled(f.vars.value(name), v, r))
 		return
 	}
 	for _, item := range targetItems(target) {
@@ -2355,7 +2358,7 @@ func leaving(f *frame, r *scopeResult) {
 
 // holds checks what is assumed of one static variable.
 func (r *scopeResult) holds(f *frame, name string) {
-	v, tracked := f.vars[name]
+	v, tracked := f.vars.lookup(name)
 	if _, shared := f.aliased[name]; shared || tracked && !v.NonFalse && !v.entry {
 		if r.broken == nil {
 			r.broken = map[string]bool{}
@@ -2395,7 +2398,7 @@ func reenter(at syntax.Node, f *frame, r *scopeResult) {
 		f.related = nil
 	}
 	for name, known := range r.statics {
-		v, tracked := f.vars[name]
+		v, tracked := f.vars.lookup(name)
 		if !tracked || known.state == staticKept {
 			continue
 		}
@@ -2913,7 +2916,8 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 	if r.global && e.globalsTable() {
 		f.related = nil
 		r.operations += len(f.vars)
-		for name, old := range f.vars {
+		for name, oldCell := range f.vars {
+			old := *oldCell
 			v := unsettled(old, e.held(name, r), r)
 			v.Invalidated, v.replaced = stamp, true
 			f.setVar(name, v)
@@ -2939,7 +2943,7 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 		if !shared {
 			written = e.held(name, r)
 		}
-		v := unsettled(f.vars[name], written, r)
+		v := unsettled(f.vars.value(name), written, r)
 		v.Invalidated, v.replaced = stamp, true
 		f.setVar(name, v)
 	}
@@ -2965,9 +2969,9 @@ func (e *Env) held(name string, r *scopeResult) Value {
 func (e *Env) holderWrites(scope syntax.Node, name string) Value {
 	r := e.scope(scope)
 	written := Value{Complete: true}
-	left, captured := r.exit[received(name)]
+	left, captured := r.exit.lookup(received(name))
 	if !captured {
-		left = r.exit[name]
+		left = r.exit.value(name)
 	}
 	for _, v := range []Value{left, r.globalWrites[name]} {
 		if retained(v) {
@@ -3115,7 +3119,7 @@ func nested(target syntax.Expr) bool {
 // another value: what it held may be an object, or hold one, which nothing
 // else refers to.
 func (e *Env) release(at syntax.Node, name string, f *frame, r *scopeResult) {
-	held, tracked := f.vars[name]
+	held, tracked := f.vars.lookup(name)
 	if tracked && !held.deep || !tracked && !external(name) && !(f.definite && importable(name)) {
 		e.implicit(at, f, r)
 	}

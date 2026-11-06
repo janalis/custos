@@ -145,7 +145,7 @@ func (e *Env) closedSinks(at syntax.Node) []Sink {
 // union; this exception is used only after closedContracts verifies every type.
 func closedBinding(receiver syntax.Expr, f *frame) bool {
 	name := plainVariable(receiver)
-	value, tracked := f.vars[name]
+	value, tracked := f.vars.lookup(name)
 	_, aliased := f.aliased[name]
 	return tracked && !aliased && value.Complete && !value.replaced && value.Invalidated == 0
 }

@@ -36,7 +36,7 @@ func TestFrameRepeatedFactsRemainIsolated(t *testing.T) {
 	branch := clone(&original)
 	branch.setVar("value", value)
 	branch.setVar("value", Value{Complete: true, Sources: []Source{{Kind: "request", Parameter: -1}}})
-	if original.vars["value"].Safe != HTML || tainted(original.vars["value"]) || !tainted(branch.vars["value"]) {
+	if original.vars.value("value").Safe != HTML || tainted(original.vars.value("value")) || !tainted(branch.vars.value("value")) {
 		t.Fatal("a repeated fact broke branch isolation")
 	}
 	original.setVar("other", value)
@@ -54,7 +54,7 @@ func BenchmarkSharedFrameRepeatedFact(b *testing.B) {
 	for b.Loop() {
 		branch := clone(&f)
 		branch.setVar("value", value)
-		if !branch.vars["value"].Complete {
+		if !branch.vars.value("value").Complete {
 			b.Fatal("lost fact")
 		}
 	}

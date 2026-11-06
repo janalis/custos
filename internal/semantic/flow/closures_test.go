@@ -98,7 +98,7 @@ func TestClosureRepeatedCaptureAndCache(t *testing.T) {
 func TestClosureCaptureRecoveryAndBounds(t *testing.T) {
 	e, _ := environment(t, ``, nil)
 	r := &scopeResult{}
-	f := frame{vars: map[string]Value{"x": {Complete: true, replaced: true}}}
+	f := frame{vars: bindings{"x": {Complete: true, replaced: true}}}
 	capture := &syntax.Closure{Uses: []*syntax.ClosureUse{{Var: &syntax.Variable{Name: "x"}}}}
 	e.captureClosure(capture, &f, r)
 	if r.closures[capture]["x"].Complete {

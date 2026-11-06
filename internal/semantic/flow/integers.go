@@ -182,7 +182,7 @@ func (e *Env) refineInts(n *syntax.Binary, f *frame, truth bool) {
 	if !ok || !known || variable.NameExpr != nil {
 		return
 	}
-	v := f.vars[variable.Name]
+	v := f.vars.value(variable.Name)
 	lo, hi, known := integerBounds(v)
 	if !known {
 		return
@@ -334,7 +334,7 @@ func entrySafe(node syntax.Node, target syntax.Expr, contains bool, f frame) boo
 			safe = first
 		case *syntax.Assign:
 			name := plainVariable(n.Var)
-			old, held := f.vars[name]
+			old, held := f.vars.lookup(name)
 			safe = name != "" && !n.ByRef && f.aliased[name] == 0 && (held && old.plain && old.deep || !held && f.definite)
 		case *syntax.IncDec:
 			safe = plainVariable(n.Var) != "" && f.aliased[plainVariable(n.Var)] == 0

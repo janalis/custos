@@ -103,10 +103,10 @@ func TestConstructorEscapesInvalidateResourceAndSessionHistory(t *testing.T) {
 
 func TestMalformedReferenceArgumentsDoNotInventWrites(t *testing.T) {
 	e, _ := environment(t, "", nil)
-	f := frame{vars: map[string]Value{"x": {Complete: true}}}
+	f := frame{vars: bindings{"x": {Complete: true}}}
 	list := &syntax.ArgList{Args: []syntax.Expr{&syntax.Literal{Raw: "1"}, &syntax.Arg{Value: &syntax.Literal{Raw: "2"}}}}
 	e.invalidateReferences(&syntax.FuncCall{}, list, &f, &scopeResult{})
-	if !f.vars["x"].Complete {
+	if !f.vars.value("x").Complete {
 		t.Fatal("malformed independent arguments invalidated unrelated variable")
 	}
 }

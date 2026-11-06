@@ -411,11 +411,11 @@ func (e *Env) summarize(n syntax.Node) {
 		if p.ByRef && p.Var != nil && r.complete {
 			// The argument holds what the name wrote to it while it
 			// stood for it.
-			left := r.exit[received(p.Var.Name)]
+			left := r.exit.value(received(p.Var.Name))
 			if p.Variadic {
 				// The arguments keep what they held, and may hold
 				// what was written to an element of the array.
-				left = merge(left, r.exit[p.Var.Name])
+				left = merge(left, r.exit.value(p.Var.Name))
 			}
 			if sum.ByRef == nil {
 				sum.ByRef = map[int]Value{}

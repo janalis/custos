@@ -90,7 +90,7 @@ func (e *Env) ReferenceResult(call syntax.Node, target *syntax.Arg) (Value, bool
 	v := e.left(call, at, list, positions, r.values.at(target.Value), nil, r)
 	if body := e.localBody(name); body != nil {
 		p := syntax.VariableScopeParams(body)[positions[at]]
-		v.Expr = e.scope(body).exit[received(p.Var.Name)].Expr
+		v.Expr = e.scope(body).exit.value(received(p.Var.Name)).Expr
 	}
 	return v, true
 }
@@ -219,13 +219,13 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 			// A declared reference parameter replaces the value. An unresolved
 			// callee may not write at all: request data stays possible.
 			// The write reaches the names aliased with the argument too.
-			next := unsettled(f.vars[variable.Name], Value{}, r)
+			next := unsettled(f.vars.value(variable.Name), Value{}, r)
 			if known {
 				next = Value{}
 				name, builtin, _, _ := e.callee(at)
 				switch {
 				case !builtin:
-					next = e.left(at, i, list, positions, f.vars[variable.Name], f, r)
+					next = e.left(at, i, list, positions, f.vars.value(variable.Name), f, r)
 				case name == "settype" && scalarType(list):
 				case name == "mysqli_stmt_bind_result" || name == "bind_result" || name == "bindcolumn":
 					// The variable will receive what the database returns.
@@ -234,17 +234,17 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 					// the statement runs; it never writes it.
 					continue
 				default:
-					next = e.updated(name, i, list, positions, params, f.vars[variable.Name], r)
+					next = e.updated(name, i, list, positions, params, f.vars.value(variable.Name), r)
 				}
 				if builtin && p >= 0 {
 					// A PHP function leaves what it declares for the parameter:
 					// an array it filled, or the one it was given, reordered.
 					kind := e.kinds(params[p].Type, params[p].DocType)
 					next.plain = kind&(kindKnown|kindObject|kindOpaque) == kindKnown
-					next.deep = next.plain && (kind&kindArray == 0 || e.sealed(at, name, list, r) && (params[p].Optional || params[p].Variadic || f.vars[variable.Name].deep))
+					next.deep = next.plain && (kind&kindArray == 0 || e.sealed(at, name, list, r) && (params[p].Optional || params[p].Variadic || f.vars.value(variable.Name).deep))
 				}
 			}
-			if old := f.vars[variable.Name]; target != syntax.UnwrapParens(a.Value) {
+			if old := f.vars.value(variable.Name); target != syntax.UnwrapParens(a.Value) {
 				// Only the element can be bound: the callee may change or
 				// create it, with what it writes, but the variable stays the
 				// array it was, with the request data its other elements hold.
@@ -324,7 +324,7 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 		at := positions[at]
 		if at >= 0 && at < len(params) && params[at].Var != nil {
 			result := e.scope(body)
-			written := result.exit[received(params[at].Var.Name)]
+			written := result.exit.value(received(params[at].Var.Name))
 			next.origins = result.producers(written)
 		}
 	}
@@ -400,7 +400,7 @@ func (e *Env) follows(receiver syntax.Expr, f *frame) uint8 {
 	if name == "" || name == "this" {
 		return followTyped
 	}
-	held := f.vars[name]
+	held := f.vars.value(name)
 	if _, shared := f.aliased[name]; shared || held.Identity == 0 && (held.Expr == nil || held.Invalidated != 0) {
 		return followLoose
 	}
@@ -1214,7 +1214,7 @@ func (e *Env) provable(call syntax.Node, list *syntax.ArgList, f *frame) bool {
 			continue
 		}
 		if variable := guarded(arg.Value); variable != nil {
-			if held, tracked := f.vars[variable.Name]; tracked && !held.NonNull {
+			if held, tracked := f.vars.lookup(variable.Name); tracked && !held.NonNull {
 				return true
 			}
 		}
@@ -1350,7 +1350,7 @@ func distinctReferenceLocals(list *syntax.ArgList, params []index.Param, positio
 			continue
 		}
 		name := plainVariable(arg.Value)
-		value := f.vars[name]
+		value := f.vars.value(name)
 		_, shared := f.aliased[name]
 		_, static := r.statics[name]
 		if !value.Complete || value.replaced || value.Invalidated != 0 || name == "" || external(name) || name == "GLOBALS" || names[name] || shared || static || r.globalNames[name] {

@@ -456,7 +456,7 @@ type Call struct {
 
 type frame struct {
 	owner  *scopeResult
-	vars   map[string]Value
+	vars   bindings
 	states map[uint32]State
 	// aliased names are bound to storage that code outside the tracked
 	// bindings can write: aliasHeld for storage only a callee can reach,
@@ -474,6 +474,10 @@ type frame struct {
 	// name (`$r = &$$n`): a write through a reference kept somewhere may
 	// reach any variable.
 	wild bool
+	// cellsShared stays set after detaching a map: its unchanged payloads
+	// may still be retained by another frame. Before any sharing, cells can
+	// be updated privately without allocating a replacement.
+	cellsShared bool
 	// related lists what holds between the left operand of a short-circuit
 	// operation and the variable its right operand assigns in place (see
 	// relation). The list is never modified once a frame holds it.
@@ -485,15 +489,23 @@ type frame struct {
 	varsShared *bool
 }
 
-// setVar binds name to v.
+// setVar updates an owned cell or replaces one a snapshot may still hold.
 func (f *frame) setVar(name string, v Value) {
-	if f.varsShared != nil && *f.varsShared {
-		if held, known := f.vars[name]; known && equal(held, v) {
+	if f.cellsShared || f.varsShared != nil && *f.varsShared {
+		if held, known := f.vars.lookup(name); known && equal(held, v) {
 			return
 		}
 	}
 	f.ownVars()
-	f.vars[name] = v
+	if !f.cellsShared {
+		if cell := f.vars[name]; cell != nil {
+			*cell = v
+			return
+		}
+	}
+	cell := new(Value)
+	*cell = v
+	f.vars[name] = cell
 }
 
 // unsetVar removes the binding of name.
@@ -507,12 +519,14 @@ func (f *frame) unsetVar(name string) {
 func (f *frame) ownVars() {
 	if f.varsShared != nil && *f.varsShared {
 		f.vars, f.varsShared = maps.Clone(f.vars), new(bool)
+		f.cellsShared = true
 	}
 }
 
 // resetVars gives the frame new, empty variables.
 func (f *frame) resetVars() {
-	f.vars, f.varsShared = map[string]Value{}, new(bool)
+	f.vars, f.varsShared = bindings{}, new(bool)
+	f.cellsShared = false
 }
 
 // relation tells, for a short-circuit operation whose right operand assigns
@@ -559,7 +573,7 @@ func (f *frame) relate(by *syntax.Binary, bits uint8) {
 // the variable is not false, or not null, on its own. A variable nothing
 // assigned is null.
 func (f *frame) settled(by *syntax.Binary) uint8 {
-	v, tracked := f.vars[assignedInPlace(by.Right).Var.(*syntax.Variable).Name]
+	v, tracked := f.vars.lookup(assignedInPlace(by.Right).Var.(*syntax.Variable).Name)
 	return excluded(v, !tracked && f.definite)
 }
 
@@ -645,7 +659,7 @@ const imported = ""
 // importing joins request data an import may have spread over the scope.
 func (f *frame) importing(v Value) {
 	if tainted(v) {
-		f.setVar(imported, unsettled(f.vars[imported], v, f.owner))
+		f.setVar(imported, unsettled(f.vars.value(imported), v, f.owner))
 	}
 }
 
@@ -709,7 +723,7 @@ func (f *frame) unmatchAll(r *scopeResult) {
 func (f *frame) matched(element string) bool {
 	table, _, _ := strings.Cut(element, "\x00")
 	_, shared := f.aliased[table]
-	return element != "" && !shared && f.vars[element].NonFalse
+	return element != "" && !shared && f.vars.value(element).NonFalse
 }
 
 // unmatch discards the matches recorded for the elements of a request table
@@ -835,7 +849,7 @@ type scopeResult struct {
 	holders map[string]Value
 	// exit is the request data each variable may hold when the scope ends,
 	// and globalWrites what the scope stores in literal globals table entries.
-	exit         map[string]Value
+	exit         bindings
 	globalWrites map[string]Value
 	// globalNames are the names the scope binds with `global`.
 	globalNames map[string]bool
@@ -1420,7 +1434,8 @@ func clone(f *frame) frame {
 		f.varsShared = new(bool)
 	}
 	*f.varsShared = true
-	n := frame{owner: f.owner, vars: f.vars, varsShared: f.varsShared, states: maps.Clone(f.states), definite: f.definite, wild: f.wild, related: f.related}
+	f.cellsShared = true
+	n := frame{cellsShared: true, owner: f.owner, vars: f.vars, varsShared: f.varsShared, states: maps.Clone(f.states), definite: f.definite, wild: f.wild, related: f.related}
 	if len(f.aliased) > 0 {
 		n.aliased = make(map[string]uint32, len(f.aliased))
 		for k, group := range f.aliased {
@@ -1504,7 +1519,7 @@ func (f *frame) write(r *scopeResult, name string, v Value) {
 			switch {
 			case other == name || g != group:
 			case group == aliasAny:
-				f.setVar(other, unsettled(f.vars[other], v, f.owner))
+				f.setVar(other, unsettled(f.vars.value(other), v, f.owner))
 			default:
 				f.setVar(other, v)
 			}
@@ -1532,7 +1547,7 @@ func (f *frame) through(r *scopeResult, v Value) {
 	r.operations += len(f.aliased)
 	for other, g := range f.aliased {
 		if g == aliasAny {
-			f.setVar(other, unsettled(f.vars[other], v, f.owner))
+			f.setVar(other, unsettled(f.vars.value(other), v, f.owner))
 		}
 	}
 }
@@ -1550,7 +1565,8 @@ func (f *frame) forget(r *scopeResult) {
 func (f *frame) unsettle(r *scopeResult, written Value) {
 	f.related = nil
 	r.operations += len(f.vars)
-	for name, old := range f.vars {
+	for name, oldCell := range f.vars {
+		old := *oldCell
 		f.setVar(name, unsettled(old, written, f.owner))
 	}
 }
@@ -1616,8 +1632,9 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 	if len(f.related)+len(b.related) > 0 && f.correlated(b) {
 		changed = true
 	}
-	for k, v := range f.vars {
-		w, ok := b.vars[k]
+	for k, vCell := range f.vars {
+		v := *vCell
+		w, ok := b.vars.lookup(k)
 		if ok {
 			shared++
 		}
@@ -1645,7 +1662,8 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 	}
 	if shared < len(b.vars) {
 		work += len(b.vars)
-		for k, v := range b.vars {
+		for k, vCell := range b.vars {
+			v := *vCell
 			if _, ok := f.vars[k]; ok {
 				continue
 			}

@@ -50,7 +50,7 @@ func (e *Env) captureClosure(expr syntax.Expr, f *frame, r *scopeResult) {
 		captured = map[string]Value{}
 	}
 	for _, name := range names {
-		value := f.vars[name]
+		value := f.vars.value(name)
 		if value.replaced {
 			value.Complete = false
 		}

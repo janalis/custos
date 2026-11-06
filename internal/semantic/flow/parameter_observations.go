@@ -34,7 +34,7 @@ func (e *Env) observeParameters(at syntax.Node, f *frame, r *scopeResult) {
 		if param.Var != nil {
 			value := Value{}
 			if f != nil {
-				value = f.vars[param.Var.Name]
+				value = f.vars.value(param.Var.Name)
 			}
 			observeParameter(param.Var.Name, value, scope, r)
 		}
@@ -65,7 +65,7 @@ func (e *Env) observeIntrospection(at syntax.Node, name string, args *syntax.Arg
 					params := syntax.VariableScopeParams(syntax.EnclosingVariableScope(at))
 					if position >= 0 && position < int64(len(params)) && params[position].Var != nil {
 						param := params[position]
-						observeParameter(param.Var.Name, f.vars[param.Var.Name], syntax.EnclosingVariableScope(at), r)
+						observeParameter(param.Var.Name, f.vars.value(param.Var.Name), syntax.EnclosingVariableScope(at), r)
 					}
 					return
 				}
@@ -84,7 +84,7 @@ func (e *Env) observeIntrospection(at syntax.Node, name string, args *syntax.Arg
 				e.observeParameters(at, f, r)
 				return
 			}
-			observeParameter(text, f.vars[text], syntax.EnclosingVariableScope(at), r)
+			observeParameter(text, f.vars.value(text), syntax.EnclosingVariableScope(at), r)
 		}
 		return
 	}
@@ -110,7 +110,7 @@ func (e *Env) observeArrow(arrow *syntax.ArrowFunction, f *frame, r *scopeResult
 		return
 	}
 	for _, name := range captures.names {
-		observeParameter(name, f.vars[name], syntax.EnclosingVariableScope(arrow), r)
+		observeParameter(name, f.vars.value(name), syntax.EnclosingVariableScope(arrow), r)
 	}
 }
 

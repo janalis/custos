@@ -298,8 +298,11 @@ trigger a map copy. Predicate literals are retained only when declared parameter
 conversion cannot change their scalar kind.
 
 Expression values use small, lazily allocated blocks behind per-scope indices;
-queries still return value copies. Branch bindings retain copy-on-write maps,
-and recording an unchanged fact keeps the existing map shared. Class identity
+queries still return value copies. Branch bindings retain copy-on-write maps
+whose immutable value cells remain shared when a map is cloned. Writes replace
+shared cells; cells still private to one frame can be updated in place.
+Lookups return value copies. Recording an unchanged fact keeps the
+existing map shared. Class identity
 keys may be cached, but each contract use must still record its dependency.
 Summarization reuses its declaration inventory for local producer queries.
 Resolved member declaration metadata is cached per call site, index identity

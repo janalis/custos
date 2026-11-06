@@ -200,7 +200,7 @@ func pendingParameter(at syntax.Node, value Value, f *frame) bool {
 			continue
 		}
 		_, aliased := f.aliased[param.Var.Name]
-		if !aliased && value.Identity == param.Var.Span().Start+1 && f.vars[param.Var.Name].Identity == value.Identity {
+		if !aliased && value.Identity == param.Var.Span().Start+1 && f.vars.value(param.Var.Name).Identity == value.Identity {
 			return true
 		}
 	}
