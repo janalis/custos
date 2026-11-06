@@ -57,7 +57,7 @@ func TestPureQueryRefusals(t *testing.T) {
 		`final class K{private static function go($x){return $x+1;}}function f($v){return K::go($v);}probe(f(1));`,
 		`class K{static function go($x){return $x+1;}static function f($v){return static::go($v);}}probe(K::f(1));`,
 		`function f($xs){$s=0;foreach($xs as &$x){$s=$s+$x;}return $s;}probe(f([1]));`,
-		`function f($xs){$s=0;foreach($xs as $k=>$x){$s=$s+$x;}return $s;}probe(f([1]));`,
+
 		`function f($xs){$s=0;foreach($xs as $x){$s=$s+$x;opaque();}return $s;}probe(f([1]));`,
 		`function f($xs){$s=0;foreach($xs as $x){$s=$s+$x;}return $s;}probe(f([new stdClass]));`,
 		`function f($xs){$s=0;foreach($xs as $x){$s=$s+$x;}return $s;}probe(f([[]]));`,

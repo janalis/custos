@@ -19,7 +19,7 @@ func TestPureQueryCompilationLimits(t *testing.T) {
 		`function f($xs){$s=0;foreach($xs as $x){$s=$s+$x;}return 1;}`,
 		`function f($xs){$s=0;foreach($xs as $s){$s=$s+1;}return $s;}`,
 		`function f($xs){$s=0;foreach($xs as $x){return $s;}return $s;}`,
-		`function f($xs){$s=0;foreach($xs as $x){$s+=1;}return $s;}`,
+
 		`function f($xs){$s=0;foreach($xs as $x){$x=1;}return $s;}`,
 		`function f($xs){$s=opaque();foreach($xs as $x){$s=$s+$x;}return $s;}`,
 		`function f($xs){$s=0;foreach($xs as $x){$s=opaque();}return $s;}`,

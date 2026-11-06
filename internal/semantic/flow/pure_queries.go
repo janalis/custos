@@ -24,11 +24,10 @@ func (c *pureCompiler) isset(node *syntax.Isset) *pureExpr {
 	var result *pureExpr
 	for _, variable := range node.Vars {
 		value := quietPure(c.expression(variable))
-		test := pureNode(pureBinary, value, pureConstant(constantScalar{k: 'n'}), nil)
+		test := pureNode(pureNonNull, value, pureConstant(constantScalar{k: 'n'}), nil)
 		if test == nil {
 			return nil
 		}
-		test.op = syntax.TIsNotIdentical
 		if result == nil {
 			result = test
 		} else {
@@ -128,4 +127,24 @@ func (e *Env) evalPureMatch(expr *pureExpr, slots []Value, r *scopeResult, depth
 		return Value{}, false
 	}
 	return e.evalPure(expr.other, slots, r, depth-1)
+}
+
+func (c *pureCompiler) instanceCall(node *syntax.MethodCall) *pureExpr {
+	id, fixed := node.Name.(*syntax.Identifier)
+	if !fixed || node.NullSafe || plainVariable(node.Var) != "this" {
+		return nil
+	}
+	scope := syntax.EnclosingVariableScope(node)
+	method, ok := scope.(*syntax.Method)
+	if !ok || method.Modifiers.Has(syntax.TStatic) {
+		return nil
+	}
+	// In a non-static method, the lexical class supplies the native this
+	// upper bound. Closed dispatch still requires an immutable method target.
+	class := c.env.types.ClassFQN(syntax.EnclosingClass(node))
+	target, known := c.env.closedMethod(node, class, id.Value, false)
+	if !known || target.method.Static || target.method.ByRef || target.summary.pure == nil {
+		return nil
+	}
+	return c.projectCall(node, target.method.Class+"::"+target.method.Name, target.summary.pure, target.method.Params)
 }

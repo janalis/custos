@@ -33,6 +33,13 @@ late static dispatch. An initialized scalar accumulator, one pure assignment per
 foreach iteration and a final accumulator return may be evaluated over a proven
 finite scalar array in insertion order. References, mutation and unknown elements
 establish no reduction result.
+A proven present array is non-null for isset and coalescing, with its field
+provenance retained. Finite plain arrays support normal counting and strict
+scalar membership tests. Scalar reductions may use explicit local keys and
+addition or concatenation assignment, retaining exact key types and insertion
+order. Pure methods may delegate through the current instance to a visible
+closed helper that does not read or write receiver state. Unknown receivers,
+object lifetimes, reference bindings and loose comparisons establish no proof.
 
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar

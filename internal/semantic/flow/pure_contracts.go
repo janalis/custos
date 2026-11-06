@@ -27,6 +27,9 @@ const (
 	pureQuietIndex
 	pureExists
 	pureReduce
+	pureNonNull
+	pureCount
+	pureMember
 	pureLimit = 64
 )
 
@@ -206,6 +209,8 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 		return c.match(n)
 	case *syntax.Isset:
 		return c.isset(n)
+	case *syntax.MethodCall:
+		return c.instanceCall(n)
 	case *syntax.StaticCall:
 		return c.staticCall(n)
 	case *syntax.Ternary:

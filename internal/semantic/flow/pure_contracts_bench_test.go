@@ -4,6 +4,11 @@ import "testing"
 
 func BenchmarkPureContracts(b *testing.B) {
 	for name, source := range map[string]string{
+		"presence":  `function f($r){return isset($r['x']);}probe(f(['x'=>[]]));`,
+		"count":     `function f($r){return count($r);}probe(f([1,2]));`,
+		"member":    `function f($x){return in_array($x,['a','b'],true);}probe(f('b'));`,
+		"keyed":     `function f($xs){$s=0;foreach($xs as $k=>$v){$s+=$k;}return $s;}probe(f([2=>1,3=>1]));`,
+		"instance":  `final class K{function leaf($x){return $x+1;}function wrap($x){return $this->leaf($x);}}$k=new K;$cb=$k->wrap(...);probe($cb(2));`,
 		"match":     `function f($v){return match($v){1=>2,default=>3};}probe(f(1));`,
 		"quiet":     `function f($r){return $r['x']??'fallback';}probe(f([]));`,
 		"static":    `final class K{static function add($v){return $v+1;}}function f($v){return K::add($v);}probe(f(2));`,

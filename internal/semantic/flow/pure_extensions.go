@@ -23,7 +23,7 @@ func pureNode(kind uint8, left, right, other *pureExpr) *pureExpr {
 	if cost > pureLimit || depth > MaxDepth {
 		return nil
 	}
-	return &pureExpr{kind: kind, left: left, right: right, other: other, projects: kind == pureIndex || kind == pureExists || left.projects || right.projects || other != nil && other.projects, cost: cost, depth: depth}
+	return &pureExpr{kind: kind, left: left, right: right, other: other, projects: kind == pureIndex || kind == pureExists || kind == pureNonNull || left.projects || right.projects || other != nil && other.projects, cost: cost, depth: depth}
 }
 
 func (c *pureCompiler) statements(stmts []syntax.Stmt, depth int) *pureExpr {
@@ -153,6 +153,9 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 }
 
 func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {
+	if name == "count" || name == "in_array" {
+		return c.finiteNative(node, name, params)
+	}
 	if name == "array_key_exists" {
 		return c.keyExists(node, params)
 	}
@@ -340,6 +343,22 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 		}
 		return value, held && value.Complete && !value.replaced && value.Invalidated == 0
 	}
+	if expr.kind == pureNonNull || expr.kind == pureShort && expr.op == syntax.TCoalesce {
+		nonnull, known := pureNonNullValue(left)
+		if !known {
+			return Value{}, false
+		}
+		if expr.kind == pureNonNull {
+			return scalarValue(constantScalar{k: 'b', b: nonnull}), true
+		}
+		if nonnull {
+			return left, true
+		}
+		return e.evalPure(expr.right, slots, r, depth-1)
+	}
+	if expr.kind == pureCount || expr.kind == pureMember {
+		return e.evalFiniteNative(expr, left, slots, r, depth)
+	}
 	scalar, known := knownScalar(left)
 	if !known {
 		return Value{}, false
@@ -352,12 +371,7 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 		}
 		return e.evalPure(branch, slots, r, depth-1)
 	case pureShort:
-		if expr.op == syntax.TCoalesce {
-			if scalar.k != 'n' {
-				return left, true
-			}
-			return e.evalPure(expr.right, slots, r, depth-1)
-		}
+
 		and := expr.op == syntax.TBooleanAnd || expr.op == syntax.TAnd
 		if scalar.truth() != and {
 			return scalarValue(constantScalar{k: 'b', b: !and}), true

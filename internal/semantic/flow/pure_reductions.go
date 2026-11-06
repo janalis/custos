@@ -1,11 +1,15 @@
 package flow
 
-import "custos/internal/php/syntax"
+import (
+	"strconv"
+
+	"custos/internal/php/syntax"
+)
 
 // Recognize only an initialized carry, a single assignment, and its final
 // return. No loop-local state or control flow escapes this contract.
 func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Foreach, tail []syntax.Stmt) *pureExpr {
-	if loop.ByRef || loop.Key != nil || len(tail) != 1 {
+	if loop.ByRef || len(tail) != 1 {
 		return nil
 	}
 	ret, ok := tail[0].(*syntax.Return)
@@ -32,20 +36,44 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		return nil
 	}
 	update, ok := stmt.Expr.(*syntax.Assign)
-	if !ok || update.ByRef || update.Op.Kind != syntax.TEqual {
+	if !ok || update.ByRef || update.Op.Kind != syntax.TEqual && update.Op.Kind != syntax.TPlusEqual && update.Op.Kind != syntax.TConcatEqual {
 		return nil
 	}
 	target, ok := update.Var.(*syntax.Variable)
 	if !ok || target.NameExpr != nil || target.Name != name {
 		return nil
 	}
+	keyName := ""
+	if loop.Key != nil {
+		key, ok := loop.Key.(*syntax.Variable)
+		if !ok || key.NameExpr != nil || key.Name == name || key.Name == item.Name || external(key.Name) || key.Name == "GLOBALS" || key.Name == "this" {
+			return nil
+		}
+		keyName = key.Name
+	}
 	input := c.expression(loop.Expr)
 	slot := c.nextSlot
 	c.bind(name, &pureExpr{kind: pureSlot, slot: slot, cost: 1, depth: 1})
 	c.bind(item.Name, &pureExpr{kind: pureSlot, slot: slot + 1, cost: 1, depth: 1})
-	result := pureNode(pureReduce, input, initial, c.expression(update.Value))
+	if keyName != "" {
+		c.bind(keyName, &pureExpr{kind: pureSlot, slot: slot + 2, cost: 1, depth: 1})
+	}
+	value := c.expression(update.Value)
+	if update.Op.Kind != syntax.TEqual {
+		value = pureNode(pureBinary, &pureExpr{kind: pureSlot, slot: slot, cost: 1, depth: 1}, value, nil)
+		if value != nil {
+			value.op = syntax.TPlus
+			if update.Op.Kind == syntax.TConcatEqual {
+				value.op = syntax.TDot
+			}
+		}
+	}
+	result := pureNode(pureReduce, input, initial, value)
 	if result != nil {
 		result.slot = slot
+		if keyName != "" {
+			result.op = syntax.TDoubleArrow
+		}
 		result.projects = true
 	}
 	return result
@@ -60,11 +88,15 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 	if _, scalar := knownScalar(carry); !ok || !scalar {
 		return Value{}, false
 	}
-	r.copies += max(len(slots), expr.slot+2)
+	width := 2
+	if expr.op == syntax.TDoubleArrow {
+		width = 3
+	}
+	r.copies += max(len(slots), expr.slot+width)
 	if r.copies > MaxCopied {
 		return Value{}, false
 	}
-	bound := make([]Value, max(len(slots), expr.slot+2))
+	bound := make([]Value, max(len(slots), expr.slot+width))
 	copy(bound, slots)
 	for _, key := range input.elements.order {
 		item := input.elements.items[key]
@@ -72,6 +104,14 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 			return Value{}, false
 		}
 		bound[expr.slot], bound[expr.slot+1] = carry, item
+		if expr.op == syntax.TDoubleArrow {
+			keyValue := constantScalar{k: 's', s: key}
+			if number, err := strconv.ParseInt(key, 10, 64); err == nil && strconv.FormatInt(number, 10) == key {
+				keyValue = constantScalar{k: 'i', i: number}
+			}
+			bound[expr.slot+2] = scalarValue(keyValue)
+		}
+
 		carry, ok = e.evalPure(expr.other, bound, r, depth-1)
 		if _, scalar := knownScalar(carry); !ok || !scalar {
 			return Value{}, false

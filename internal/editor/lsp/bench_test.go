@@ -80,11 +80,36 @@ func TestEditLatency(t *testing.T) {
 		t.Fatal(err)
 	}
 	var wall, cpu []time.Duration
+	trace := os.Getenv("CUSTOS_PERF_TRACE") == "1"
+	type editSample struct {
+		wall, cpu, parse, analyze, parseCPU, analyzeCPU time.Duration
+		collections                                     uint32
+		pause                                           uint64
+	}
+	var samples []editSample
 	for i := 0; i < 40; i++ {
+		var before, after runtime.MemStats
+		if trace {
+			runtime.ReadMemStats(&before)
+		}
 		start, startCPU := time.Now(), testbudget.CPU()
 		f := syntax.ParseBest(path, src, syntax.Options{Version: phpversion.PHP84})
+		var parsed time.Time
+		var parsedCPU time.Duration
+		if trace {
+			parsed = time.Now()
+			parsedCPU = testbudget.CPU()
+		}
 		e.Analyze(f)
-		wall, cpu = append(wall, time.Since(start)), append(cpu, testbudget.CPU()-startCPU)
+		ended, endedCPU := time.Now(), testbudget.CPU()
+		wall, cpu = append(wall, ended.Sub(start)), append(cpu, endedCPU-startCPU)
+		if trace {
+			runtime.ReadMemStats(&after)
+			samples = append(samples, editSample{ended.Sub(start), endedCPU - startCPU, parsed.Sub(start), ended.Sub(parsed), parsedCPU - startCPU, endedCPU - parsedCPU, after.NumGC - before.NumGC, after.PauseTotalNs - before.PauseTotalNs})
+		}
+	}
+	for i, sample := range samples {
+		t.Logf("edit=%d wall=%v cpu=%v parse=%v analyze=%v parseCPU=%v analyzeCPU=%v gc=%d pause_ns=%d", i, sample.wall, sample.cpu, sample.parse, sample.analyze, sample.parseCPU, sample.analyzeCPU, sample.collections, sample.pause)
 	}
 	p50, p95 := percentiles(wall)
 	c50, c95 := percentiles(cpu)
