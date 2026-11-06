@@ -64,6 +64,11 @@ const (
 	pureFlip
 	pureChunk
 	pureSum
+	pureCase
+	pureTrimChars
+	pureStrPad
+	pureArrayPad
+	pureRange
 	pureLimit = 64
 )
 

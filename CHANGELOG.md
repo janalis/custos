@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Evaluate array padding, integer ranges, ASCII case changes (PHP 8.2+),
+  trims with a character list and text padding in pure wrappers, keeping
+  element and input provenance.
+
 - Evaluate bounded immutable array fills, keyed fills, flips and chunks in pure
   wrappers; compute checked integer-only array sums while preserving key order,
   element provenance and required argument evaluation.

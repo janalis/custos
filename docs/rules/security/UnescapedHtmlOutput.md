@@ -243,6 +243,20 @@ These array operations reject references, observable lifetimes and exhausted
 construction limits. They establish no general key-provenance or numeric-coercion
 extension.
 
+Padding a complete ordered immutable array to a source-free proven integer size
+leaves it unchanged, keys included, when the size does not exceed its length.
+Otherwise numeric keys are renumbered in order, string keys are kept, pads come
+first for a negative size and last for a positive one, and each pad entry keeps
+the pad value's provenance. Integer ranges need source-free proven bounds and an
+omitted step, or a proven step from one up to the distance between the bounds.
+
+From PHP 8.2, ASCII case changes of proven text keep its provenance. Trimming
+with the default set or a proven character list without range syntax keeps the
+input's provenance only. Padding proven text to a source-free proven length with
+a nonempty proven pad and a proven left, right or both mode adds the pad's
+provenance only when padding is inserted. Unproven lengths, modes, empty pads and
+oversized results establish no exact value.
+
 Combining two complete nonempty immutable arrays pairs values by iteration
 position, regardless of their original keys. The lengths must match. Key values
 must be proven integers or strings without source provenance. Duplicate keys

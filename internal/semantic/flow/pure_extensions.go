@@ -181,6 +181,14 @@ func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index
 	switch name {
 	case "array_fill", "array_fill_keys", "array_flip", "array_chunk", "array_sum":
 		return c.arrayConstruction(node, name, params)
+	case "array_pad", "range":
+		return c.padding(node, name, params)
+	case "strtolower", "strtoupper", "ucfirst", "lcfirst", "ltrim", "rtrim", "str_pad":
+		return c.textShape(node, name, params)
+	case "trim":
+		if node.Args != nil && len(node.Args.Args) == 2 {
+			return c.textShape(node, name, params)
+		}
 	}
 	if name == "array_reverse" {
 		return c.reverse(node, params)
@@ -400,6 +408,12 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	}
 	if expr.kind == pureInteger {
 		return e.evalPureInteger(expr, left, slots, r, depth)
+	}
+	if expr.kind >= pureCase && expr.kind <= pureStrPad {
+		return e.evalTextShape(expr, left, slots, r, depth)
+	}
+	if expr.kind == pureArrayPad || expr.kind == pureRange {
+		return e.evalPadding(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureReplace || expr.kind == pureRepeat {
 		return e.evalByteTransform(expr, left, slots, r, depth)

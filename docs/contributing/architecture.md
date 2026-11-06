@@ -258,6 +258,12 @@ open documents.
   entry provenance. Integer-only sums check every intermediate addition and
   retain numeric provenance. Missing reads, coercions, aliases, observable
   lifetimes and exhausted depth/source bounds establish no exact result.
+- Pure array padding and integer ranges share that construction budget; ranges
+  accept only steps that every supported PHP version handles alike. Text case
+  changes are compiled only from PHP 8.2 (locale-independent), trims read their
+  character list as a byte set without ranges, and text padding bounds its
+  output bytes. Stub metadata repeating an optional parameter is accepted only
+  for that exact duplicate.
 - Named and returned callbacks can publish bounded syntax-free primitive return
   expressions, literal defaults and immutable captured parameter slots. Resolved
   pure wrapper calls compose these contracts; evaluation checks discarded local

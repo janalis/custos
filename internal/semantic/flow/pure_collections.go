@@ -22,8 +22,8 @@ func (c *pureCompiler) nativeConstant(node *syntax.ConstFetch) *pureExpr {
 		if declaration == nil {
 			continue
 		}
-		value, accepted := map[string]string{"COUNT_NORMAL": "0", "ARRAY_FILTER_USE_BOTH": "1", "ARRAY_FILTER_USE_KEY": "2"}[candidate]
-		if !accepted || candidate != "COUNT_NORMAL" && c.env.types.PHP.Below(phpversion.PHP56) || !declaration.Builtin || !declaration.Avail.In(c.env.types.PHP) || strings.TrimSpace(declaration.Value) != value {
+		value, accepted := map[string]string{"COUNT_NORMAL": "0", "ARRAY_FILTER_USE_BOTH": "1", "ARRAY_FILTER_USE_KEY": "2", "STR_PAD_LEFT": "0", "STR_PAD_RIGHT": "1", "STR_PAD_BOTH": "2"}[candidate]
+		if !accepted || strings.HasPrefix(candidate, "ARRAY_FILTER_") && c.env.types.PHP.Below(phpversion.PHP56) || !declaration.Builtin || !declaration.Avail.In(c.env.types.PHP) || strings.TrimSpace(declaration.Value) != value {
 			return nil
 		}
 		number, _ := strconv.ParseInt(value, 10, 64)

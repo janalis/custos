@@ -66,7 +66,7 @@ func TestExpandedPureProvenance(t *testing.T) {
 func TestExpandedPureRefusals(t *testing.T) {
 	for _, source := range []string{
 		`function f($v){return strlen($v);}probe(f(42));`,
-		`function f($v){return trim($v,'x');}probe(f('x'));`,
+		`function f($v){return trim($v,'a..z');}probe(f('x'));`,
 		`function f($v){return strlen(nope:$v);}probe(f('x'));`,
 		`function f($v){return strlen(...[$v]);}probe(f('x'));`,
 		`function f($v){return $v[2];}probe(f(['safe']));`,
