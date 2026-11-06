@@ -4,6 +4,10 @@ import "testing"
 
 func BenchmarkPureContracts(b *testing.B) {
 	for name, source := range map[string]string{
+		"match":     `function f($v){return match($v){1=>2,default=>3};}probe(f(1));`,
+		"quiet":     `function f($r){return $r['x']??'fallback';}probe(f([]));`,
+		"static":    `final class K{static function add($v){return $v+1;}}function f($v){return K::add($v);}probe(f(2));`,
+		"foreach":   `function f($xs){$s=0;foreach($xs as $x){$s=$s+$x;}return $s;}probe(f([1,2,3]));`,
 		"reduction": `function add($c,$v){return $c+$v;}probe(array_reduce([1,-1,2,-2],'add',0));`,
 		"wrapper":   `function pass($x){return $x;}function wrap($x){$y=$x;return pass($y);}$r=['h'=>tmpfile()];$a=wrap($r);fclose($a['h']);probe($r['h']);`,
 		"capture":   `function factory(int $v){return fn($x)=>$v+$x;}$cb=factory(2);probe($cb(3));`,

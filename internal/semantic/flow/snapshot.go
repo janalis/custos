@@ -378,13 +378,14 @@ func summaryInventory(file *syntax.File, types *infer.Env, snapshot *Snapshot, o
 // callable of the file under its key, and whether its summary is begun
 // (summaryBegun) or made (summaryMade).
 type summarizing struct {
-	base     *Snapshot
-	cached   map[string]Summary
-	borrowed map[syntax.Node]*scopeResult
-	out      *File
-	declared map[string][]syntax.Node
-	names    map[syntax.Node]string
-	state    map[syntax.Node]uint8
+	base         *Snapshot
+	cached       map[string]Summary
+	borrowed     map[syntax.Node]*scopeResult
+	dependencies map[syntax.Node]map[string]bool
+	out          *File
+	declared     map[string][]syntax.Node
+	names        map[syntax.Node]string
+	state        map[syntax.Node]uint8
 }
 
 const (
@@ -399,15 +400,12 @@ func (e *Env) summarize(n syntax.Node) {
 		return
 	}
 	s.state[n] = summaryBegun
-	if prior := s.borrowed[n]; prior != nil && prior.finished && prior.reads != nil {
+	if s.dependencies != nil {
+		reads := e.begin()
+		defer func() { e.end(reads); s.dependencies[n] = reads }()
+	}
+	if prior := s.borrowed[n]; prior != nil && prior.finished {
 		e.scopes[n] = prior
-		for key := range prior.reads {
-			summary, known, own := e.serveCached(key)
-			if e.answers == nil {
-				e.answers = map[string]answer{}
-			}
-			e.answers[key] = answer{summary: summary, ok: known, own: own, held: !own}
-		}
 	}
 	r := e.scope(n)
 	sum := Summary{Return: Value{Complete: r.complete}, argumentSensitive: r.argumentSensitive}
@@ -594,6 +592,11 @@ func addReads(into, from map[string]bool) {
 // and the answer while the summaries of the file are being computed.
 func (e *Env) contract(name string) (Summary, bool) {
 	if e.consulted == nil || name == "" {
+		if e.local != nil && name != "" {
+			if summary, known, own := e.localContract(strings.ToLower(name)); own {
+				return summary, known
+			}
+		}
 		return e.snapshot.lookup(name)
 	}
 	e.consulted[name] = true
@@ -602,11 +605,19 @@ func (e *Env) contract(name string) (Summary, bool) {
 		e.reading[len(e.reading)-1][key] = true
 	}
 	summary, ok, own := e.serve(key)
-	if e.local != nil {
-		summary, ok, own = e.localContract(key)
-	}
 	if !own {
 		summary, ok = e.snapshot.lookup(key)
+	}
+	if state := e.summarizing; state != nil && state.dependencies != nil {
+		// Local workers publish into one immutable view. Stable own and external
+		// answers cannot change; retain only local recursion holes for replay.
+		if !own && len(state.declared[key]) == 1 && state.base.alone(e.file.Path, key) {
+			if e.answers == nil {
+				e.answers = map[string]answer{}
+			}
+			e.answers[key] = answer{held: true}
+		}
+		return summary, ok
 	}
 	read, again := e.answers[key]
 	if !again {
@@ -630,15 +641,6 @@ type answer struct {
 	summary   Summary
 	ok        bool
 	own, held bool
-}
-
-func (e *Env) serveCached(key string) (Summary, bool, bool) {
-	s := e.summarizing
-	if cached, known := s.cached[key]; known && s.base.alone(e.file.Path, key) {
-		return cached, true, true
-	}
-	summary, known := e.snapshot.lookup(key)
-	return summary, known, false
 }
 
 // serve returns the summary of the file being summarized for a key the

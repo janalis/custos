@@ -34,6 +34,10 @@ func NewLocal(file *syntax.File, types *infer.Env, snapshot *Snapshot, options O
 	mask := &File{Path: file.Path, options: e.options, Summaries: placeholders}
 	e.snapshot = inventory.base.WithFile(mask)
 	e.summarizing = nil
+	// Every local lookup completes its stable dependency closure before answering.
+	// This query view never changes; rebasing replaces it wholesale. Only workers
+	// need read tracking for discovery and tentative recursive scope results.
+	e.consulted = nil
 	e.local = &localSummaries{guard: guard, base: inventory.base, inventory: inventory, order: order, cache: cache}
 	return e
 }
@@ -79,11 +83,14 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 			worker.global, worker.globalTaint, worker.globalReads = e.global, e.globalTaint, e.globalReads
 		}
 		out := &File{Path: e.file.Path, options: e.options, Summaries: maps.Clone(local.inventory.out.Summaries)}
-		state := &summarizing{base: local.base, cached: local.cache, borrowed: e.scopes, out: out, declared: local.inventory.declared, names: local.inventory.names, state: map[syntax.Node]uint8{}}
+		state := &summarizing{base: local.base, cached: local.cache, borrowed: e.scopes, out: out, declared: local.inventory.declared, names: local.inventory.names, state: map[syntax.Node]uint8{}, dependencies: map[syntax.Node]map[string]bool{}}
 		worker.summarizing = state
 		var first syntax.Node
 		for _, node := range local.order {
 			if needed[node] {
+				if _, cached := local.cache[state.names[node]]; cached {
+					continue
+				}
 				if first == nil {
 					first = node
 				}
@@ -105,13 +112,25 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 			}
 			if recursive {
 				for _, node := range local.order {
-					if needed[node] {
+					if _, cached := local.cache[state.names[node]]; needed[node] && !cached {
 						recursive = node != first
 						break
 					}
 				}
 			}
 			if recursive {
+				unstable := unstableLocal(state, worker.answers, e.file.Path)
+				for node := range state.state {
+					name := state.names[node]
+					if !unstable[name] {
+						local.cache[name] = out.Summaries[name]
+					}
+				}
+				for scope, result := range worker.scopes {
+					if _, exists := e.scopes[scope]; !exists && result.reads != nil && !readsAny(result.reads, unstable) {
+						e.scopes[scope] = result
+					}
+				}
 				continue
 			}
 		}
@@ -120,12 +139,15 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 		for name, summary := range out.Summaries {
 			local.cache[name] = summary
 		}
-		differ := changedAnswers(worker.answers, func(name string) (Summary, bool) {
-			if summary, known := local.cache[name]; known && local.base.alone(e.file.Path, name) {
-				return summary, true
+		// Own answers are immutable once served, and the external snapshot is
+		// unchanged throughout this worker. Only a held local recursion hole
+		// can differ when the completed cache is published.
+		differ := map[string]bool{}
+		for name, read := range worker.answers {
+			if read.held && len(state.declared[name]) == 1 && local.base.alone(e.file.Path, name) {
+				differ[name] = true
 			}
-			return e.snapshot.lookup(name)
-		})
+		}
 		for scope, result := range worker.scopes {
 			if _, exists := e.scopes[scope]; !exists && result.reads != nil && !readsAny(result.reads, differ) {
 				e.scopes[scope] = result
@@ -139,4 +161,26 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 	local.failed[local.inventory.declared[key][0]] = true
 	local.cache[key] = Summary{}
 	return Summary{}
+}
+
+// A recursive hole can change only contracts that transitively read it. Other
+// completed components and their body facts are stable across canonical replay.
+func unstableLocal(state *summarizing, answers map[string]answer, path string) map[string]bool {
+	bad := map[string]bool{}
+	for name, read := range answers {
+		if read.held && len(state.declared[name]) == 1 && state.base.alone(path, name) {
+			bad[name] = true
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for node, reads := range state.dependencies {
+			name := state.names[node]
+			if !bad[name] && readsAny(reads, bad) {
+				bad[name] = true
+				changed = true
+			}
+		}
+	}
+	return bad
 }

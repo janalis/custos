@@ -12,7 +12,7 @@ import (
 )
 
 func pureNode(kind uint8, left, right, other *pureExpr) *pureExpr {
-	if left == nil || right == nil || kind == pureChoice && other == nil {
+	if left == nil || right == nil || (kind == pureChoice || kind == pureReduce) && other == nil {
 		return nil
 	}
 	cost, depth := 1+left.cost+right.cost, 1+max(left.depth, right.depth)
@@ -23,7 +23,7 @@ func pureNode(kind uint8, left, right, other *pureExpr) *pureExpr {
 	if cost > pureLimit || depth > MaxDepth {
 		return nil
 	}
-	return &pureExpr{kind: kind, left: left, right: right, other: other, projects: kind == pureIndex || left.projects || right.projects || other != nil && other.projects, cost: cost, depth: depth}
+	return &pureExpr{kind: kind, left: left, right: right, other: other, projects: kind == pureIndex || kind == pureExists || left.projects || right.projects || other != nil && other.projects, cost: cost, depth: depth}
 }
 
 func (c *pureCompiler) statements(stmts []syntax.Stmt, depth int) *pureExpr {
@@ -54,6 +54,11 @@ func (c *pureCompiler) statements(stmts []syntax.Stmt, depth int) *pureExpr {
 			return nil
 		}
 		c.bind(variable.Name, value)
+		if len(stmts) > 1 {
+			if loop, ok := stmts[1].(*syntax.Foreach); ok {
+				return c.reduction(variable.Name, value, loop, stmts[2:])
+			}
+		}
 		return pureNode(pureSequence, value, c.statements(stmts[1:], depth-1), nil)
 	case *syntax.If:
 		condition := c.expression(n.Cond)
@@ -148,6 +153,9 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 }
 
 func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {
+	if name == "array_key_exists" {
+		return c.keyExists(node, params)
+	}
 	if name != "strlen" && name != "trim" || node.Args == nil || len(node.Args.Args) != 1 || len(params) == 0 {
 		return nil
 	}
@@ -168,9 +176,19 @@ func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index
 
 // Ordinary calls keep their compact compiler binding; spreads use the same
 // runtime role binder as value analysis, with scalar indices for symbolic terms.
-func (c *pureCompiler) arguments(node *syntax.FuncCall, params []pureParam, declared []index.Param) []*pureExpr {
-	if node.Args != nil {
-		for _, item := range node.Args.Args {
+func (c *pureCompiler) arguments(node syntax.Node, params []pureParam, declared []index.Param) []*pureExpr {
+	// Every composed call requires the published contract and declaration to agree.
+	// An editor can replace declaration metadata before an old snapshot expires.
+	if len(declared) != len(params) {
+		return nil
+	}
+	for i, param := range declared {
+		if param.ByRef || param.Variadic || param.Name != params[i].name {
+			return nil
+		}
+	}
+	if arguments(node) != nil {
+		for _, item := range arguments(node).Args {
 			if arg, ok := item.(*syntax.Arg); ok && arg.Unpack {
 				return c.spreadArguments(node, params, declared)
 			}
@@ -179,8 +197,8 @@ func (c *pureCompiler) arguments(node *syntax.FuncCall, params []pureParam, decl
 	args := make([]*pureExpr, len(params))
 	position := 0
 	named := false
-	if node.Args != nil {
-		for _, item := range node.Args.Args {
+	if arguments(node) != nil {
+		for _, item := range arguments(node).Args {
 			arg, ok := item.(*syntax.Arg)
 			if !ok || arg.ByRef {
 				return nil
@@ -215,25 +233,15 @@ func (c *pureCompiler) arguments(node *syntax.FuncCall, params []pureParam, decl
 	return args
 }
 
-func (c *pureCompiler) spreadArguments(node *syntax.FuncCall, params []pureParam, declared []index.Param) []*pureExpr {
-	// The symbolic marker channel assumes one non-reference cell per parameter.
-	// An editor can replace declaration metadata before an old snapshot expires.
-	if len(declared) != len(params) {
-		return nil
-	}
-	for i, param := range declared {
-		if param.ByRef || param.Variadic || param.Name != params[i].name {
-			return nil
-		}
-	}
+func (c *pureCompiler) spreadArguments(node syntax.Node, params []pureParam, declared []index.Param) []*pureExpr {
 	var terms []*pureExpr
 	marker := func(term *pureExpr) Value {
 		index := len(terms)
 		terms = append(terms, term)
 		return scalarValue(constantScalar{k: 'i', i: int64(index)})
 	}
-	values := make([]Value, len(node.Args.Args))
-	for i, item := range node.Args.Args {
+	values := make([]Value, len(arguments(node).Args))
+	for i, item := range arguments(node).Args {
 		arg, ok := item.(*syntax.Arg)
 		if !ok || arg.ByRef {
 			return nil
@@ -257,7 +265,7 @@ func (c *pureCompiler) spreadArguments(node *syntax.FuncCall, params []pureParam
 		}
 		values[i] = Value{Complete: true, elements: set, plain: true, deep: true}
 	}
-	bound, seen, known := c.env.bindValues(node.Args, declared, values, false)
+	bound, seen, known := c.env.bindValues(arguments(node), declared, values, false)
 	if !known {
 		return nil
 	}
@@ -271,6 +279,12 @@ func (c *pureCompiler) spreadArguments(node *syntax.FuncCall, params []pureParam
 }
 
 func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
+	if expr.kind == pureReduce {
+		return e.evalPureReduction(expr, slots, r, depth)
+	}
+	if expr.kind == pureMatch {
+		return e.evalPureMatch(expr, slots, r, depth)
+	}
 	if expr.kind == pureArray {
 		set := &elementSet{whole: true, items: map[string]Value{}, width: len(expr.args) / 2}
 		value := Value{Complete: true, plain: true, deep: true}
@@ -299,20 +313,31 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	if expr.kind == pureSequence {
 		return e.evalPure(expr.right, slots, r, depth-1)
 	}
-	if expr.kind == pureIndex {
-		if !left.Complete || !left.plain || !left.deep || left.elements == nil || !left.elements.whole || left.elements.optional || left.elements.hasResources {
-			return Value{}, false
-		}
+	if expr.kind == pureIndex || expr.kind == pureQuietIndex || expr.kind == pureExists {
+		// PHP evaluates offset expressions even on a quiet missing path.
 		keyValue, known := e.evalPure(expr.right, slots, r, depth-1)
 		key, scalar := knownScalar(keyValue)
 		if !known || !scalar || key.k != 'i' && key.k != 's' {
 			return Value{}, false
 		}
+		if scalar, known := knownScalar(left); expr.kind == pureQuietIndex && known && scalar.k == 'n' {
+			return left, true
+		}
+		if !left.Complete || !left.plain || !left.deep || left.elements == nil || !left.elements.whole || left.elements.optional || left.elements.hasResources {
+			return Value{}, false
+		}
+
 		text := key.s
 		if key.k == 'i' {
 			text = strconv.FormatInt(key.i, 10)
 		}
 		value, held := left.elements.lookup(text)
+		if expr.kind == pureExists {
+			return scalarValue(constantScalar{k: 'b', b: held}), true
+		}
+		if !held && expr.kind == pureQuietIndex {
+			return scalarValue(constantScalar{k: 'n'}), true
+		}
 		return value, held && value.Complete && !value.replaced && value.Invalidated == 0
 	}
 	scalar, known := knownScalar(left)

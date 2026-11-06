@@ -6,6 +6,7 @@ import (
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
 	"custos/internal/semantic/types"
 )
 
@@ -22,6 +23,10 @@ const (
 	pureIndex
 	pureLength
 	pureTrim
+	pureMatch
+	pureQuietIndex
+	pureExists
+	pureReduce
 	pureLimit = 64
 )
 
@@ -80,6 +85,7 @@ type pureCompiler struct {
 	name     string
 	calls    []string
 	defaults bool
+	nextSlot int
 }
 
 // Small scopes keep bindings on the compiler's stack. Larger scopes retain
@@ -140,17 +146,20 @@ func (e *Env) compilePure(scope syntax.Node, r *scopeResult, captures map[string
 	if !r.complete || r.generator || byReference(scope) || r.argumentSensitive {
 		return nil
 	}
-	params, known := e.pureParameters(scope)
-	if !known {
+	source := syntax.VariableScopeParams(scope)
+	if len(source) > 64 {
 		return nil
 	}
 	var locals [8]pureBinding
-	c := pureCompiler{env: e, vars: locals[:0]}
+	c := pureCompiler{env: e, vars: locals[:0], nextSlot: outer + len(source)}
 	for name, value := range captures {
 		c.bind(name, value)
 	}
-	for i, param := range params {
-		c.bind(param.name, &pureSlots[outer+i])
+	for i, param := range source {
+		if param.Var == nil || param.ByRef || param.Variadic {
+			return nil
+		}
+		c.bind(param.Var.Name, &pureSlots[outer+i])
 	}
 	if e.summarizing != nil {
 		c.name = e.summarizing.names[scope]
@@ -166,6 +175,12 @@ func (e *Env) compilePure(scope syntax.Node, r *scopeResult, captures map[string
 		result = c.expression(body.(syntax.Expr))
 	}
 	if result == nil || result.cost > pureLimit || result.depth > MaxDepth || c.work > pureLimit {
+		return nil
+	}
+	// Parameter types and default programs are needed only for a supported body.
+	// Most declarations cannot form a pure contract. Avoid building unused defaults.
+	params, known := e.pureParameters(scope)
+	if !known {
 		return nil
 	}
 	return &pureContract{params: params, expr: result, calls: c.calls, result: types.FromNode(returnDeclaration(scope), nil), weakReturn: !syntax.StrictTypes(e.file), outer: outer}
@@ -187,6 +202,12 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 		}
 	}
 	switch n := expr.(type) {
+	case *syntax.Match:
+		return c.match(n)
+	case *syntax.Isset:
+		return c.isset(n)
+	case *syntax.StaticCall:
+		return c.staticCall(n)
 	case *syntax.Ternary:
 		condition := c.expression(n.Cond)
 		yes := condition
@@ -228,7 +249,11 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 			if n.Op.Kind == syntax.TCoalesce && c.env.types.PHP.Below(phpversion.PHP70) {
 				return nil
 			}
-			expr := pureNode(pureShort, c.expression(n.Left), c.expression(n.Right), nil)
+			left := c.expression(n.Left)
+			if n.Op.Kind == syntax.TCoalesce {
+				left = quietPure(left)
+			}
+			expr := pureNode(pureShort, left, c.expression(n.Right), nil)
 			if expr != nil {
 				expr.op = n.Op.Kind
 			}
@@ -261,7 +286,10 @@ func (c *pureCompiler) call(node *syntax.FuncCall) *pureExpr {
 	if !known || !summary.Fixed || summary.Generator || summary.pure == nil {
 		return nil
 	}
-	callee := summary.pure
+	return c.projectCall(node, name, summary.pure, params)
+}
+
+func (c *pureCompiler) projectCall(node syntax.Node, name string, callee *pureContract, params []index.Param) *pureExpr {
 	key := strings.ToLower(name)
 	if c.name != "" && (key == c.name || slices.Contains(callee.calls, c.name)) {
 		return nil

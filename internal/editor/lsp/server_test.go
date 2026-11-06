@@ -14,6 +14,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/catalogue"
 	"custos/internal/php/syntax"
+	"custos/internal/testing/testbudget"
 )
 
 // testRule flags every `;` empty statement, with a fix deleting it. It uses
@@ -83,7 +84,7 @@ func (cl *client) call(id int, method string, params any) *message {
 
 func (cl *client) wait(method string) *message {
 	cl.t.Helper()
-	timeout := time.After(5 * time.Second)
+	timeout := time.After(testbudget.Of(5 * time.Second))
 	for {
 		select {
 		case m, ok := <-cl.out:

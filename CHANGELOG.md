@@ -9,6 +9,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Refine bounded pure PHP 8 match expressions, quiet record queries, closed static
+  helper calls and initialized scalar foreach reductions from proven inputs.
+- Reuse stable local summary components during recursive replay and avoid
+  redundant dependency comparisons within an immutable query snapshot.
+
 - Follow bounded pure callback branches, native string length and trimming,
   immutable array defaults and field projections, and sealed wrapper argument packs.
 - Compute local callable contracts on demand during file queries while preserving

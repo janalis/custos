@@ -48,6 +48,15 @@ key conversions establish no pure contract.
 Sealed array packs in pure wrapper calls follow PHP argument ordering, names and
 version requirements. Unknown bindings, mutation, reference entries and observable
 object or resource lifetimes establish no structural refinement.
+Pure PHP 8 match expressions compare proven scalars strictly and select the first
+matching arm or the default; an unmatched expression establishes no result.
+Quiet offset queries distinguish a missing entry from a present null entry:
+coalescing and isset treat both alike, while array_key_exists tests presence.
+Pure wrappers may compose visible static methods with a closed target, excluding
+late static dispatch. An initialized scalar accumulator, one pure assignment per
+foreach iteration and a final accumulator return may be evaluated over a proven
+finite scalar array in insertion order. References, mutation and unknown elements
+establish no reduction result.
 
 - Report request-derived data reaching a response-header value without a dominating CR/LF rejection or safe construction summary.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.

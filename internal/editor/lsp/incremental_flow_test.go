@@ -263,7 +263,11 @@ func TestFlowUpdateAfterPause(t *testing.T) {
 	updated := make(chan string, 4)
 	updateFlow = func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
 		for path := range changed {
-			updated <- filepath.Base(path)
+			// Other white-box servers can still have a deferred update. Only
+			// this workspace belongs to the pause being measured here.
+			if filepath.Dir(path) == root {
+				updated <- filepath.Base(path)
+			}
 		}
 		return b.Update(changed, ix)
 	}

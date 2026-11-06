@@ -193,3 +193,41 @@ func TestLocalDeferredGuardAndRebase(t *testing.T) {
 		t.Fatal("rebase dropped the deferred build guard")
 	}
 }
+
+func TestLocalStableComponentsSurviveRecursiveReplay(t *testing.T) {
+	source := `function leaf(){return 1;}function a($x){return b($x)+leaf();}function b($x){return a($x);}probe(b(1));`
+	e, file := environment(t, source, nil)
+	local := NewLocal(file, e.types, nil, Options{}, nil)
+	local.contract("b")
+	if _, cached := local.local.cache["leaf"]; !cached {
+		t.Fatal("stable leaf was lost")
+	}
+	if _, failed := local.local.failed[functionNamed(file, "b")]; failed {
+		t.Fatal("canonical replay failed")
+	}
+	other := NewLocal(file, e.types, nil, Options{}, nil)
+	other.contract("a")
+	other.contract("leaf")
+	if !reflect.DeepEqual(local.local.cache, other.local.cache) {
+		t.Fatal("stable reuse changed recursive answers")
+	}
+}
+
+func TestLocalBorrowedScopeRecordsStableDependencies(t *testing.T) {
+	e, file := environment(t, `function leaf(){return 1;}function wrap(){return leaf();}probe(wrap());`, nil)
+	local := NewLocal(file, e.types, nil, Options{}, nil)
+	// A demand worker completes both scopes. Rebuilding the wrapper must be able
+	// to borrow its scope while retaining the leaf dependency for recursive checks.
+	local.contract("wrap")
+	leaf := local.local.cache["leaf"]
+	delete(local.local.cache, "wrap")
+	local.contract("wrap")
+	if !reflect.DeepEqual(local.local.cache["leaf"], leaf) {
+		t.Fatal("stable dependency changed")
+	}
+	// Snapshot-only dependencies are retained as well.
+	scope := local.scopes[functionNamed(file, "wrap")]
+	scope.reads["external"] = true
+	delete(local.local.cache, "wrap")
+	local.contract("wrap")
+}
