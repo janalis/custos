@@ -22,7 +22,6 @@ func TestPureTransformRefusals(t *testing.T) {
 		`function f($xs){return array_map(fn($x)=>opaque(),$xs)[0];}probe(f([1]));`,
 		`function f($xs){return array_map(fn($x)=>f([$x]),$xs)[0];}probe(f([1]));`,
 		`function f($xs){$cb=fn($x)=>$x+1;return array_map($cb,$xs)[0];}probe(f([1]));`,
-		`function f($xs){return array_map(function($x){return $x+1;},$xs)[0];}probe(f([1]));`,
 		`function f($xs){return count(array_map(fn()=>1,$xs));}probe(f([1]));`,
 		`function f($xs){return array_map(fn($x,$y)=>$x+$y,$xs)[0];}probe(f([1]));`,
 		`function f($xs){return array_map(fn($x)=>new stdClass,$xs)[0];}probe(f([1]));`,

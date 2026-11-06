@@ -47,6 +47,10 @@ const (
 	pureFold
 	pureSlice
 	pureFilteredKeys
+	pureJoin
+	pureSplit
+	pureColumn
+	pureMerge
 	pureLimit = 64
 )
 
@@ -227,6 +231,10 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 		}
 	}
 	switch n := expr.(type) {
+	case *syntax.Closure:
+		if c.inlineCallbacks {
+			return c.inlineClosure(n)
+		}
 	case *syntax.ArrowFunction:
 		if c.inlineCallbacks {
 			return c.inlineArrow(n)

@@ -1,6 +1,10 @@
 package flow
 
-import "custos/internal/php/syntax"
+import (
+	"slices"
+
+	"custos/internal/php/syntax"
+)
 
 func singlePureStatement(stmt syntax.Stmt) syntax.Stmt {
 	if block, ok := stmt.(*syntax.Block); ok {
@@ -28,31 +32,43 @@ func (c *pureCompiler) find(loop *syntax.Foreach, tail []syntax.Stmt) *pureExpr 
 	if !ok {
 		return nil
 	}
-	item := plainVariable(loop.Value)
-	key := ""
-	if item == "" || external(item) || item == "GLOBALS" || item == "this" {
+	fields, destructured := c.loopFields(loop.Value, "")
+	if fields == nil {
 		return nil
 	}
+	key := ""
 	if loop.Key != nil {
 		key = plainVariable(loop.Key)
-		if key == "" || key == item || external(key) || key == "GLOBALS" || key == "this" {
+		if key == "" || external(key) || key == "GLOBALS" || key == "this" || slices.ContainsFunc(fields, func(field pureField) bool { return field.name == key }) {
 			return nil
 		}
 	}
 	input := c.expression(loop.Expr)
 	// Remove loop bindings before compiling fallback: empty inputs have none.
-	originalItem, originalKey := c.binding(item), c.binding(key)
-	c.bind(item, nil)
+	originals := make([]*pureExpr, len(fields))
+	for i, field := range fields {
+		originals[i] = c.binding(field.name)
+		c.bind(field.name, nil)
+	}
+	originalKey := c.binding(key)
 	if key != "" {
 		c.bind(key, nil)
 	}
 	otherwise := c.expression(fallback.Expr)
-	c.bind(item, originalItem)
+	for i, field := range fields {
+		c.bind(field.name, originals[i])
+	}
 	if key != "" {
 		c.bind(key, originalKey)
 	}
 	slot := c.nextSlot
-	c.bind(item, &pureExpr{kind: pureSlot, slot: slot, cost: 1, depth: 1})
+	for i, field := range fields {
+		at := slot
+		if destructured {
+			at = slot + 3 + i
+		}
+		c.bind(field.name, &pureExpr{kind: pureSlot, slot: at, cost: 1, depth: 1})
+	}
 	if key != "" {
 		c.bind(key, &pureExpr{kind: pureSlot, slot: slot + 1, cost: 1, depth: 1})
 	}
@@ -69,6 +85,9 @@ func (c *pureCompiler) find(loop *syntax.Foreach, tail []syntax.Stmt) *pureExpr 
 		return nil
 	}
 	result.slot = slot
+	if destructured {
+		result.destruct = fields
+	}
 	result.projects = true
 	if key != "" {
 		result.op = syntax.TDoubleArrow
@@ -90,14 +109,21 @@ func (e *Env) evalPureFind(expr *pureExpr, slots []Value, r *scopeResult, depth 
 	if !ok || !purePlainRecord(input) || len(input.elements.order) != len(input.elements.items) {
 		return Value{}, false
 	}
-	r.copies += max(len(slots), expr.slot+2)
+	width := 2
+	if len(expr.destruct) != 0 {
+		width = 3 + len(expr.destruct)
+	}
+	r.copies += max(len(slots), expr.slot+width)
 	if r.copies > MaxCopied {
 		return Value{}, false
 	}
-	bound := make([]Value, max(len(slots), expr.slot+2))
+	bound := make([]Value, max(len(slots), expr.slot+width))
 	copy(bound, slots)
 	for _, key := range input.elements.order {
 		bound[expr.slot] = input.elements.items[key]
+		if len(expr.destruct) != 0 && !bindPureFields(expr.destruct, input.elements.items[key], bound, expr.slot, r) {
+			return Value{}, false
+		}
 		if expr.op == syntax.TDoubleArrow {
 			bound[expr.slot+1] = scalarValue(pureKeyScalar(key))
 		}

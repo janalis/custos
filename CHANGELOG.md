@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Compose audited string joins/splits, column projections, two-array merges and
+  noncapturing closure callbacks in pure wrappers; support destructured
+  first-match searches while preserving winning-value and field provenance.
+
 - Compose noncapturing arrow callbacks and scalar reductions in pure wrappers;
   evaluate immutable slices, strict filtered keys and one-level foreach
   destructuring while retaining field provenance and required-read checks.

@@ -166,6 +166,15 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 }
 
 func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {
+	if name == "implode" || name == "explode" {
+		return c.stringTransform(node, name, params)
+	}
+	if name == "array_column" {
+		return c.column(node, params)
+	}
+	if name == "array_merge" {
+		return c.arrayMerge(node, params)
+	}
 	if name == "array_reduce" {
 		return c.fold(node, params)
 	}
@@ -357,6 +366,12 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	left, ok := e.evalPure(expr.left, slots, r, depth-1)
 	if !ok {
 		return Value{}, false
+	}
+	if expr.kind == pureJoin || expr.kind == pureSplit {
+		return e.evalStringTransform(expr, left, slots, r, depth)
+	}
+	if expr.kind == pureColumn || expr.kind == pureMerge {
+		return e.evalArrayTransform(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureSlice {
 		return e.evalPureSlice(expr, left, slots, r, depth)

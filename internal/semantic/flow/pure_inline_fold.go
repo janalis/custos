@@ -12,14 +12,71 @@ func (c *pureCompiler) inlineArrow(node *syntax.ArrowFunction) *pureExpr {
 	if c.inlineDepth >= MaxDepth || c.env.types.PHP.Below(phpversion.PHP74) || node.ByRef || len(node.Attrs) != 0 {
 		return nil
 	}
+	return c.inlineProgram(node)
+}
+
+func (c *pureCompiler) inlineClosure(node *syntax.Closure) *pureExpr {
+	if c.env.types.PHP.Below(phpversion.PHP53) || node.ByRef || node.Static && c.env.types.PHP.Below(phpversion.PHP54) || len(node.Params) > pureLimit || len(node.Uses) != 0 || len(node.Attrs) != 0 {
+		return nil
+	}
+	if c.env.types.PHP.Below(phpversion.PHP70) && node.ReturnType != nil {
+		return nil
+	}
+	if c.env.types.PHP.Below(phpversion.PHP70) {
+		for _, p := range node.Params {
+			if p == nil {
+				return nil
+			}
+			if p.Type != nil {
+				t := types.FromNode(p.Type, nil)
+				if !t.Equal(types.Array) {
+					return nil
+				}
+			}
+		}
+	}
+	if c.env.generator(node) || c.env.inlineStatics(node) {
+		return nil
+	}
+	return c.inlineProgram(node)
+}
+
+// Static declarations are scope properties even when their statements are
+// unreachable. Retain syntax only, without running static-initializer analysis.
+type inlineStaticScopesKey struct{}
+
+func (e *Env) inlineStatics(scope syntax.Node) bool {
+	scopes := e.file.Memo(inlineStaticScopesKey{}, func() any {
+		result := map[syntax.Node]bool{}
+		for _, token := range e.file.Tokens {
+			if token.Kind == syntax.TStatic {
+				syntax.InspectFile(e.file, func(n syntax.Node) bool {
+					if _, ok := n.(*syntax.StaticStmt); ok {
+						result[syntax.EnclosingVariableScope(n)] = true
+					}
+					return true
+				})
+				break
+			}
+		}
+		return result
+	}).(map[syntax.Node]bool)
+	return scopes[scope]
+}
+
+func (c *pureCompiler) inlineProgram(scope syntax.Node) *pureExpr {
+	source := syntax.VariableScopeParams(scope)
+	if c.inlineDepth >= MaxDepth || len(source) > pureLimit {
+		return nil
+	}
 	seen := map[string]bool{}
-	for _, param := range node.Params {
-		if param.Var == nil || param.Var.Name == "" || param.Var.NameExpr != nil || external(param.Var.Name) || param.Var.Name == "this" || param.Var.Name == "GLOBALS" || seen[param.Var.Name] {
+	for _, param := range source {
+		if param == nil || param.Var == nil || param.Var.Name == "" || param.Var.NameExpr != nil || external(param.Var.Name) || param.Var.Name == "this" || param.Var.Name == "GLOBALS" || seen[param.Var.Name] {
 			return nil
 		}
 		seen[param.Var.Name] = true
 	}
-	params, ok := c.env.pureParameters(node)
+	params, ok := c.env.pureParameters(scope)
 	if !ok {
 		return nil
 	}
@@ -27,12 +84,21 @@ func (c *pureCompiler) inlineArrow(node *syntax.ArrowFunction) *pureExpr {
 	for i, param := range params {
 		child.bind(param.name, &pureSlots[i])
 	}
-	body := child.expression(node.Expr)
+	var body *pureExpr
+	if block, ok := syntax.VariableScopeBody(scope).(*syntax.Block); ok {
+		body = child.statements(block.Stmts, MaxDepth)
+	} else {
+		expression, ok := syntax.VariableScopeBody(scope).(syntax.Expr)
+		if !ok {
+			return nil
+		}
+		body = child.expression(expression)
+	}
 	c.work += child.work
 	if body == nil || body.cost > pureLimit || body.depth > MaxDepth || c.work > pureLimit {
 		return nil
 	}
-	contract := &pureContract{params: params, expr: body, calls: child.calls, result: types.FromNode(node.ReturnType, nil), weakReturn: !syntax.StrictTypes(c.env.file)}
+	contract := &pureContract{params: params, expr: body, calls: child.calls, result: types.FromNode(returnDeclaration(scope), nil), weakReturn: !syntax.StrictTypes(c.env.file)}
 	return &pureExpr{kind: pureInline, call: contract, cost: 1, depth: 1}
 }
 

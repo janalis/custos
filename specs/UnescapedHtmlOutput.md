@@ -163,6 +163,37 @@ be present, even if unused in an update or followed by a break guard. Missing or
 optional fields, nested patterns, reference bindings and escaping loop variables
 establish no exact loop result. Selected fields retain individual provenance.
 
+### Additional composition and first-match forms
+
+Canonical two-argument string joins and splits can compose in pure wrappers.
+Joins accept proven string pieces and separators; only emitted pieces and inserted
+separators contribute provenance. Splits require a nonempty proven byte separator
+and preserve empty and trailing fields, with input provenance retained on each
+field. Implicit conversions, legacy join argument order and extra split limits
+establish no result. These operations establish no general escaping guarantee.
+
+Column projection accepts a proven integer or string field key over complete
+immutable rows when every requested field is present. Results are numerically
+reindexed and retain selected field provenance. Missing fields, index-key modes,
+objects and observable lifetimes establish no such projection.
+
+Merging two complete immutable arrays reindexes numeric entries in combined
+iteration order. String-key collisions keep the last value at the first insertion
+position. Only winning values contribute provenance; both input expressions must
+still evaluate. Uncertain membership, aliases, references and observable lifetimes
+establish no merged result.
+
+Direct noncapturing anonymous function callbacks can use supported pure local
+assignments and conditional returns in mapping and filtering wrappers. Captures,
+receiver state, references, static locals, generators and arbitrary stored callables establish
+no such proof. Required argument and return conversions remain part of evaluation.
+
+First-match foreach searches can destructure one level of positional or
+literal-keyed fields. Every requested field of each visited row must be present,
+even if unused by the guard or return. After a proven match, later rows' fields
+and conditions do not run. Unknown earlier conditions and loop bindings used by
+the fallback establish no exact result; selected fields retain their provenance.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered

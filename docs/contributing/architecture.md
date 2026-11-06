@@ -298,6 +298,13 @@ open documents.
   One-level foreach destructuring binds fresh field slots and validates every
   requested read before guards, including fields unused by an update. Field
   bindings never escape into a later stage or final expression.
+- Audited native string joins/splits retain only emitted source provenance and
+  enforce byte, cardinality and origin bounds without publishing escaping facts.
+  Column projections require every requested field; two-input merges rebuild
+  provenance from winning entries after numeric reindexing and string overwrites.
+  Direct noncapturing ordinary closures share the inline callback compiler and
+  dependency/parameter/expansion checks. Destructured first-match searches use
+  required-field reads before each visited condition, then stop at the match.
 - Callback truth outcomes are separate from literal equality. Each normal return,
   including implicit null, is converted before joining truth outcomes. Agreeing
   falsy returns can remove entries without treating different literals as equal.
