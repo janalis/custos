@@ -74,6 +74,7 @@ func (e *Env) inferNullsafe(x syntax.Expr) types.Type {
 		t = e.infer(x)
 	}
 	e.chains[x] = nullsafeFact{evaluated: t, skipped: true, halted: halted}
+	e.remember(undo{kind: undoChain, expr: x})
 	if halted {
 		return types.Null
 	}

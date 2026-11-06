@@ -84,6 +84,7 @@ func (e *Env) genBindings(cls string, args []types.Type) map[string]tplBindings 
 		e.generics = map[string]map[string]tplBindings{}
 	}
 	e.generics[key] = out
+	e.remember(undo{kind: undoGeneric, text: key})
 	return out
 }
 

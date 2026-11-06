@@ -14,13 +14,23 @@ func (e *Env) TypeOf(x syntax.Expr) types.Type {
 		return t
 	}
 	if e.busy[x] {
-		e.noteGap(gapRecursion, x.Span())
-		return types.Unknown // recursion (e.g. $a = $a + 1)
+		t, _ := e.recursion(x) // e.g. $a = $a + 1
+		return t
 	}
 	e.busy[x] = true
+	e.typing++
+	journal, hits := len(e.journal), len(e.hits)
 	t := e.inferNullsafe(x)
+	if e.heads[x] {
+		t = e.fixpoint(x, t, journal, hits)
+	}
 	delete(e.busy, x)
+	e.typing--
 	e.cache[x] = t
+	e.remember(undo{kind: undoCache, expr: x})
+	if e.typing == 0 {
+		e.journal = e.journal[:0]
+	}
 	return t
 }
 

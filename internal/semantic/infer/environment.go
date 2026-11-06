@@ -16,6 +16,16 @@ type Options struct{ Assertions bool }
 
 // Env infers expression types within one file. Not safe for concurrent use.
 type Env struct {
+	// Recursive inference (see fixpoint.go): active type queries, the cache
+	// entries they wrote, recursion reads awaiting their cycle, the heads
+	// found, the types assumed while re-inferring and the re-inference budget.
+	typing     int
+	fixing     int
+	fixpoints  int
+	journal    []undo
+	hits       []recursionHit
+	heads      map[syntax.Expr]bool
+	assumed    map[syntax.Expr]types.Type
 	classNames map[*syntax.ClassLike]string
 	gaps       map[inferenceGapKind]syntax.Span
 	gapOwner   *Env

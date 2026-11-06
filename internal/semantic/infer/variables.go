@@ -229,6 +229,7 @@ func (e *Env) setBase(v *syntax.Variable, t types.Type) {
 		e.bases = map[*syntax.Variable]types.Type{}
 	}
 	e.bases[v] = t
+	e.remember(undo{kind: undoBase, v: v})
 }
 
 // baseType is TypeOf, except that a variable read gives its type before

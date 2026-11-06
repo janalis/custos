@@ -445,6 +445,14 @@ Analysis gaps are reported as status reasons instead of findings:
   flow) crashed; `io-error` from `diagnostic.Status`; `project.AnalyzeBuffer`
   and LSP guarded analysis: `internal-failure`.
 
+A type that reads itself (a loop-carried variable narrowed back to a class)
+is first inferred with the recursive read unknown. When that type is known, it
+is assumed for the recursive read and inferred again; the same type back is a
+fixpoint covering every value the cycle produces, and no gap is reported.
+Otherwise every cached result derived from the assumption is retracted and the
+first behavior, with its `inference-recursion` gap, stands. Re-inference is
+bounded per environment and never nests.
+
 The LSP discards results from an older document version, a reopened document
 or a replaced engine before publishing diagnostics or status. Lazy fixes are
 tied to the analysis that produced them and are rechecked before returning

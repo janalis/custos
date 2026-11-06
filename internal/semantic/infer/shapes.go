@@ -781,6 +781,7 @@ func (e *Env) isBuiltinCall(c *syntax.FuncCall) bool {
 		e.builtinCalls = map[*syntax.FuncCall]bool{}
 	}
 	e.builtinCalls[c] = b
+	e.remember(undo{kind: undoBuiltin, call: c})
 	return b
 }
 

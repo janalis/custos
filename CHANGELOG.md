@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Infer loop-carried types that read themselves, such as a variable narrowed
+  back to a class on each iteration, when the cycle reaches a fixpoint; such
+  files no longer report `inference-recursion`.
+
 - Evaluate array padding, integer ranges, ASCII case changes (PHP 8.2+),
   trims with a character list and text padding in pure wrappers, keeping
   element and input provenance.

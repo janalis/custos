@@ -282,6 +282,7 @@ func (e *Env) propFromBody(p *index.Property, c *index.Class) types.Type {
 	t := e.computeProp(p, c)
 	delete(e.propBusy, p.Span)
 	e.props[p.Span] = t
+	e.remember(undo{kind: undoProp, span: p.Span})
 	return t
 }
 
