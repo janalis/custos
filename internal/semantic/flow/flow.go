@@ -927,8 +927,9 @@ func (e *Env) Resolve(x syntax.Expr) (syntax.Expr, bool) {
 	if x == nil {
 		return nil, false
 	}
-	v := e.Value(x)
-	return v.Expr, e.scope(syntax.EnclosingVariableScope(x)).complete && v.Expr != nil
+	r := e.scope(syntax.EnclosingVariableScope(x))
+	v := r.values.at(x)
+	return v.Expr, r.complete && v.Expr != nil
 }
 
 // Excludes proves that a checked variable cannot equal false or null here.

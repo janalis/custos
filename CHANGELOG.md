@@ -9,6 +9,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Remove runtime division from flow expression-store access while retaining
+  lazy payload allocation sizes, and avoid duplicate scope walks when resolving values.
+
 - Share unchanged flow variable values across copied branch maps, reducing
   allocation during analysis while preserving isolated writes and value-copy reads.
 
