@@ -39,6 +39,10 @@ const (
 	pureTypeTest
 	pureSubstring
 	pureEmpty
+	pureCast
+	pureHigher
+	pureFind
+	pureGuardReduce
 	pureLimit = 64
 )
 
@@ -259,6 +263,9 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 			return pureConstant(value)
 		}
 	case *syntax.Unary:
+		if n.Op.Kind == syntax.TBoolCast || n.Op.Kind == syntax.TIntCast || n.Op.Kind == syntax.TStringCast {
+			return c.cast(n)
+		}
 		switch n.Op.Kind {
 		case syntax.TExclaim, syntax.TPlus, syntax.TMinus:
 			child := c.expression(n.Expr)

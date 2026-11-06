@@ -35,6 +35,8 @@ func (c *pureCompiler) statements(stmts []syntax.Stmt, depth int) *pureExpr {
 		return pureConstant(constantScalar{k: 'n'})
 	}
 	switch n := stmts[0].(type) {
+	case *syntax.Foreach:
+		return c.find(n, stmts[1:])
 	case *syntax.Return:
 		if n.Expr == nil {
 			return pureConstant(constantScalar{k: 'n'})
@@ -164,6 +166,9 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 }
 
 func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {
+	if name == "array_map" || name == "array_filter" {
+		return c.higher(node, name, params)
+	}
 	switch name {
 	case "array_values", "array_keys", "array_key_first", "array_key_last", "is_string", "is_int", "is_array", "substr":
 		return c.collectionNative(node, name, params)
@@ -301,13 +306,16 @@ func (c *pureCompiler) spreadArguments(node syntax.Node, params []pureParam, dec
 }
 
 func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
+	if expr.kind == pureFind {
+		return e.evalPureFind(expr, slots, r, depth)
+	}
 	if expr.kind == pureLet {
 		return e.evalPureLet(expr, slots, r, depth)
 	}
 	if expr.kind == pureSpreadArray {
 		return e.evalSpreadArray(expr, slots, r, depth)
 	}
-	if expr.kind == pureReduce || expr.kind == pureBuild || expr.kind == pureFilterBuild {
+	if expr.kind == pureReduce || expr.kind == pureBuild || expr.kind == pureFilterBuild || expr.kind == pureGuardReduce {
 		return e.evalPureReduction(expr, slots, r, depth)
 	}
 	if expr.kind == pureMatch {
@@ -337,6 +345,12 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	left, ok := e.evalPure(expr.left, slots, r, depth-1)
 	if !ok {
 		return Value{}, false
+	}
+	if expr.kind == pureCast {
+		return evalPureCast(expr, left)
+	}
+	if expr.kind == pureHigher {
+		return e.evalPureHigher(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureSequence {
 		return e.evalPure(expr.right, slots, r, depth-1)
@@ -403,9 +417,12 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 			return Value{}, false
 		}
 		if expr.kind == pureLength {
-			return scalarValue(constantScalar{k: 'i', i: int64(len(scalar.s))}), true
+			value := scalarValue(constantScalar{k: 'i', i: int64(len(scalar.s))})
+			value.Sources = left.Sources
+			value.Safe = everyContext
+			return value, true
 		}
-		return scalarValue(constantScalar{k: 's', s: strings.Trim(scalar.s, " \n\r\t\v\x00")}), true
+		return pureSliceValue(left, strings.Trim(scalar.s, " \n\r\t\v\x00")), true
 	}
 	return Value{}, false
 }

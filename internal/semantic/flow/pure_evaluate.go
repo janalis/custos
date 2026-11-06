@@ -27,6 +27,14 @@ func (e *Env) pureBind(contract *pureContract, args []Value, weak bool) ([]Value
 		if scalar, known := knownScalar(value); known {
 			if !param.typ.IsUnknown() && !param.typ.Has("mixed") && !(param.nullable && scalar.k == 'n') {
 				value = e.constrainType(param.typ, scalarValue(scalar), weak)
+				value.Sources = args[i].Sources
+				value.Safe = args[i].Safe
+				if converted, known := knownScalar(value); known && converted.k != scalar.k {
+					value.Safe = 0
+					if converted.k == 'i' || converted.k == 'f' || converted.k == 'b' || converted.k == 's' {
+						value.Safe = everyContext
+					}
+				}
 				if !copied {
 					bound = append([]Value(nil), args...)
 					copied = true
@@ -91,6 +99,17 @@ func (e *Env) evalPure(expr *pureExpr, slots []Value, r *scopeResult, depth int)
 		truth, known := pureTruthValue(left)
 		return scalarValue(constantScalar{k: 'b', b: !truth}), known
 	}
+	if expr.kind == pureBinary && (expr.op == syntax.TIsIdentical || expr.op == syntax.TIsNotIdentical) && left.elements != nil {
+		right, ok := e.evalPure(expr.right, slots, r, depth-1)
+		if !ok {
+			return Value{}, false
+		}
+		equal, known := pureStrictRecord(left, right, r, MaxDepth)
+		if expr.op == syntax.TIsNotIdentical {
+			equal = !equal
+		}
+		return scalarValue(constantScalar{k: 'b', b: equal}), known
+	}
 	if expr.kind == pureBinary && expr.op == syntax.TPlus && left.elements != nil {
 		right, ok := e.evalPure(expr.right, slots, r, depth-1)
 		if !ok {
@@ -102,6 +121,7 @@ func (e *Env) evalPure(expr *pureExpr, slots []Value, r *scopeResult, depth int)
 	if !known {
 		return Value{}, false
 	}
+	sources := left.Sources
 	var result constantScalar
 	if expr.kind == pureUnary {
 		switch expr.op {
@@ -139,8 +159,22 @@ func (e *Env) evalPure(expr *pureExpr, slots []Value, r *scopeResult, depth int)
 		if !known {
 			return Value{}, false
 		}
+		if expr.op == syntax.TPlus || expr.op == syntax.TMinus || expr.op == syntax.TMul || expr.op == syntax.TDot {
+			var complete bool
+			sources, complete = union(left.Sources, right.Sources)
+			if !complete {
+				return Value{}, false
+			}
+		}
 	}
-	return scalarValue(result), true
+	value := scalarValue(result)
+	if expr.kind == pureUnary || expr.op == syntax.TPlus || expr.op == syntax.TMinus || expr.op == syntax.TMul || expr.op == syntax.TDot {
+		value.Sources = sources
+		if result.k == 'i' || result.k == 'f' {
+			value.Safe = everyContext
+		}
+	}
+	return value, true
 }
 
 // Check discarded assignments too: evaluating an unused expression can warn or

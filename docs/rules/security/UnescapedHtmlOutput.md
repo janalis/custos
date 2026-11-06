@@ -117,6 +117,27 @@ establish no post-loop value. Unknown keys, incomplete membership, aliases,
 references and observable object or resource lifetimes establish no structural
 refinement.
 
+One-input mapping and default-mode filtering wrappers may compose a literal
+named project callback whose pure declaration and parameter binding are proven.
+Mapped values retain transformed provenance; filtered entries retain their
+original values and keys. Unknown predicate results establish no complete filter
+membership. Callback operations establish no caller resource-state facts.
+A canonical foreach search may return the first proven match or a pure fallback;
+later tests and return expressions do not run after a match. A single continue
+guard may skip an existing accumulator update without evaluating its key or value.
+Unknown executed conditions, unsupported exits and loop-local fallback reads
+establish no result.
+Explicit boolean, string and integer casts accept only proven warning-free
+primitive conversions, with plain arrays additionally allowed for boolean casts.
+Floats, ambiguous numeric strings and object or resource conversions remain
+unsupported. Derived scalar values retain their provenance, and numeric safety
+does not validate URL or path destinations.
+Strict array identity and nonidentity preserve key types, insertion order and
+nested primitive values. A proven structural or value mismatch can establish
+nonidentity despite other unknown primitive payloads; otherwise unknown entries
+prevent an equality proof. Aliases, reference entries and observable lifetimes
+establish no structural comparison result.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered

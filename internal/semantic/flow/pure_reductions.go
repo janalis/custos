@@ -32,6 +32,31 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		return nil
 	}
 	body := loop.Body
+	var skip syntax.Expr
+	if block, ok := body.(*syntax.Block); ok && len(block.Stmts) == 2 {
+		branch, ok := block.Stmts[0].(*syntax.If)
+		if !ok || branch.Else != nil || len(branch.ElseIfs) != 0 {
+			return nil
+		}
+		continued, ok := singlePureStatement(branch.Body).(*syntax.Continue)
+		if !ok {
+			return nil
+		}
+		if continued.Num != nil {
+			if literal, ok := syntax.UnwrapParens(continued.Num).(*syntax.Literal); !ok || literal.LitKind != syntax.LitInt {
+				return nil
+			}
+			fuel := 256
+			level, known := constantValue(continued.Num, MaxDepth, &fuel)
+			if !known || level.k != 'i' || level.i != 1 {
+				return nil
+			}
+		}
+		if _, ok := block.Stmts[1].(*syntax.ExprStmt); !ok {
+			return nil
+		}
+		skip, body = branch.Cond, block.Stmts[1]
+	}
 	if block, ok := body.(*syntax.Block); ok {
 		if len(block.Stmts) != 1 {
 			return nil
@@ -105,6 +130,13 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		c.bind(keyName, &pureExpr{kind: pureSlot, slot: slot + 2, cost: 1, depth: 1})
 	}
 	var guard *pureExpr
+	if skip != nil {
+		guard = c.expression(skip)
+		if guard == nil {
+			return nil
+		}
+		guard = &pureExpr{kind: pureUnary, op: syntax.TExclaim, left: guard, projects: true, cost: guard.cost + 1, depth: guard.depth + 1}
+	}
 	if condition != nil {
 		guard = c.expression(condition)
 		if guard == nil {
@@ -135,7 +167,11 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 			result.kind = pureBuild
 		}
 		if guard != nil {
-			result.kind = pureFilterBuild
+			if build {
+				result.kind = pureFilterBuild
+			} else {
+				result.kind = pureGuardReduce
+			}
 			result.args = []*pureExpr{guard}
 			result.cost += guard.cost
 			result.depth = max(result.depth, guard.depth+1)
@@ -224,7 +260,7 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 			bound[expr.slot+2] = scalarValue(keyValue)
 		}
 
-		if expr.kind == pureFilterBuild {
+		if expr.kind == pureFilterBuild || expr.kind == pureGuardReduce {
 			selected, valid := e.evalPure(expr.args[0], bound, r, depth-1)
 			truth, known := pureTruthValue(selected)
 			if !valid || !known {

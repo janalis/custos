@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Compose pure mapping/filtering callbacks, first-match searches and continue
+  guards, evaluate audited casts and strict array identity, and retain derived
+  scalar provenance through callback coercions and arithmetic.
+
 - Refine immutable array truth and quiet empty queries, computed keys, keyed
   foreach builders, left-biased array unions and two-stage loop pipelines while
   preserving insertion order, field provenance and shared evaluation budgets.
