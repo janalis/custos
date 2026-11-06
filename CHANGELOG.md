@@ -197,6 +197,17 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Cross-file flow summaries follow dependencies on cold runs too, so long
   acyclic call chains no longer consume a round per file. Recursive groups
   remain bounded, and `--flow-order` remains an optional scheduling hint.
+- Resolve `$this->method()` inside a trait method to the trait's own or used
+  declaration, keeping the result open because the using class may override it.
+- Long fluent call chains no longer exhaust the flow expression-depth budget,
+  and evaluating them stays linear in the chain length.
+
+### Fixed
+
+- Calls through an interface, an abstract method or an overridable method no
+  longer yield a complete value from the declared body: the result keeps the
+  sources that body may return but no longer proves facts an override could
+  contradict.
 
 ## [0.1.8] - 2026-11-04
 

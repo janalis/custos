@@ -874,6 +874,9 @@ type scopeResult struct {
 	// receivers tells, for each method call on a variable, what the variable
 	// holds wherever the call is reached (see follows).
 	receivers map[syntax.Node]uint8
+	// escaped memoizes what each evaluated call let escape (see
+	// invalidateEscaped), so a fluent chain is not walked again per link.
+	escaped map[syntax.Node]escapeSet
 	// labelled is where the first `goto` label of the scope is written, plus
 	// one: a statement after it can be reached without running the ones
 	// written before it.

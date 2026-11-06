@@ -209,7 +209,11 @@ open documents.
   never validates file paths or network destinations.
 - A method wrapper needs a final receiver class, a final method or an
   accessible private method, with one unconditional declaration. Overridable
-  methods stay conservative. A native receiver union of at most eight
+  methods stay conservative: a call through an interface, an abstract method or
+  an overridable method keeps the sources the declared body may return, but its
+  result is never complete. In a trait method, `$this->m()` resolves to the
+  trait's own or used non-abstract declaration on the same open terms; closures
+  and other receivers holding `$this` do not. A native receiver union of at most eight
   classes may instead join return contracts and possible sinks when each target
   is non-overridable (a final class, a final method or an accessible private
   method) and every target, declaration chain and argument binding is known. PHPDoc-only unions,
@@ -362,6 +366,10 @@ open documents.
 - Ambiguous declarations, escaped resources, unsupported operations, recursion
   and exhausted budgets discard definite facts: an unknown result is never
   proof of a bug.
+- Expression depth counts nesting, not fluent links: a call or property fetch
+  used as the receiver of the next link is evaluated at the same depth (parsing
+  already bounds tree depth). Each evaluated call memoizes what its operands
+  let escape, so later links do not walk the chain again.
 
 Nested element facts have bounded depth and branching cost even when loops wrap an
 earlier array. Exhaustion discards field detail while retaining aggregate

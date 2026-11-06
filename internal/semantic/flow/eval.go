@@ -911,6 +911,17 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	return v
 }
 
+// chainDepth charges nothing for a fluent link: each `->m()` of a chain wraps
+// the one before it, so a long builder chain is deep without being nested
+// code. Parsing bounds the tree depth, and operations still bound the work.
+func chainDepth(receiver syntax.Expr) int {
+	switch receiver.(type) {
+	case *syntax.MethodCall, *syntax.PropertyFetch:
+		return 0
+	}
+	return 1
+}
+
 // plainVariable names a target that is a variable written as such.
 func plainVariable(x syntax.Expr) string {
 	if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok && v.NameExpr == nil {
@@ -1147,7 +1158,7 @@ func external(s string) bool {
 func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	var rv Value
 	if receiver != nil {
-		rv = e.eval(receiver, f, r, depth+1)
+		rv = e.eval(receiver, f, r, depth+chainDepth(receiver))
 	}
 	if args != nil && len(args.Args) == 1 {
 		if _, callable := args.Args[0].(*syntax.VariadicPlaceholder); callable {
@@ -1298,7 +1309,8 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		v.Expr = n.(syntax.Expr)
 		v.Safe |= s.Return.Safe
 		forwarded := false
-		if boundOK && s.Fixed && e.preciseSummaryTarget(n, closedFollowed) {
+		precise := e.preciseSummaryTarget(n, closedFollowed)
+		if boundOK && s.Fixed && precise {
 			result, states, ok := e.pureReturn(n, s.pure, bound, nil, v, f, r)
 			immutablePure = ok && result.plain && result.deep && pureReadOnlyInputs([]Value{result}, nil)
 			if !ok {
@@ -1312,14 +1324,19 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 				forwarded = true
 			}
 		}
-		if v.elements != nil && (!s.Fixed || !e.preciseSummaryTarget(n, closedFollowed)) {
+		if v.elements != nil && (!s.Fixed || !precise) {
 			v.elements = nil
+		}
+		// An overridable or bodiless target may not be the body that runs:
+		// its return keeps the sources it may yield but proves nothing more.
+		if !precise {
+			v.Complete = false
 		}
 		if boundOK {
 			v.returned = e.bindReturned(n, s.returned, bound)
 		}
 		v.scalars = s.Return.scalars && len(v.Sources) > 0
-		if !forwarded && boundOK && v.Complete && s.Quiet && e.preciseSummaryTarget(n, closedFollowed) {
+		if !forwarded && boundOK && v.Complete && s.Quiet && precise {
 			v, invocationStates = e.instantiateRecord(n, v, bound, f, r)
 			invoked = len(invocationStates) > 0
 		}
@@ -1329,7 +1346,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 				invoked, invocationStates = true, states
 			}
 		}
-		if boundOK && len(s.effects) > 0 && e.preciseSummaryTarget(n, closedFollowed) {
+		if boundOK && len(s.effects) > 0 && precise {
 			effects := e.resourceEffects(n, s.effects, bound, f, r)
 			if len(effects) > 0 {
 				if invocationStates == nil {
@@ -1675,6 +1692,13 @@ func (e *Env) callee(n syntax.Node) (string, bool, string, string) {
 }
 
 // invalidateEscaped separates operation histories across calls with unknown effects.
+// escapeSet is what one call let escape: the identities reachable from its
+// operands, and whether a nested scope may reach any local.
+type escapeSet struct {
+	identities []uint32
+	all        bool
+}
+
 func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *scopeResult) {
 	identities := map[uint32]bool{}
 	all := false
@@ -1704,9 +1728,29 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 					identities[v.Identity] = true
 				}
 			}
+			// An evaluated call already collected what its operands let
+			// escape: its subtree holds nothing more.
+			if memo, ok := r.escaped[child]; ok {
+				all = all || memo.all
+				for _, id := range memo.identities {
+					identities[id] = true
+				}
+				return false
+			}
 			return true
 		})
 	}
+	if r.escaped == nil {
+		r.escaped = map[syntax.Node]escapeSet{}
+	}
+	memo := escapeSet{all: all}
+	if len(identities) > 0 {
+		memo.identities = make([]uint32, 0, len(identities))
+		for id := range identities {
+			memo.identities = append(memo.identities, id)
+		}
+	}
+	r.escaped[at] = memo
 	if all {
 		for _, valueCell := range f.vars {
 			value := valueCell.Value

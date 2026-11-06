@@ -303,3 +303,31 @@ func TestClosedDispatchRejectsUncertainClassDeclarations(t *testing.T) {
 		}
 	}
 }
+
+// A summary describes the body that runs only for a non-overridable target.
+// Otherwise the result keeps the sources the declared body may yield but is
+// not a complete value.
+func TestOpenDispatchReturnsStayIncomplete(t *testing.T) {
+	for _, tc := range []struct {
+		src               string
+		complete, tainted bool
+	}{
+		{`interface R { function get(); } function f(R $r) { probe($r->get()); }`, false, false},
+		{`abstract class R { abstract function get(); } function f(R $r) { probe($r->get()); }`, false, false},
+		{`class R { function get() { return 'safe'; } } class S extends R { function get() { return $_GET['x']; } } function f(R $r) { probe($r->get()); }`, false, false},
+		{`class R { function get() { return $_GET['x']; } } function f(R $r) { probe($r->get()); }`, false, true},
+		{`class R { function get() { return 1; } function f() { probe($this->get()); } }`, false, false},
+		{`class R { static function get() { return 1; } function f() { probe(static::get()); } }`, false, false},
+		{`/** @param R $r */ function f($r) { probe($r->get()); } final class R { function get() { return 1; } }`, false, false},
+		{`final class R { function get() { return 'safe'; } } function f(R $r) { probe($r->get()); }`, true, false},
+		{`class R { final function get() { return 1; } } function f(R $r) { probe($r->get()); }`, true, false},
+		{`class R { private function get() { return 1; } function f() { probe($this->get()); } }`, true, false},
+		{`function get() { return 1; } probe(get());`, true, false},
+	} {
+		e, f := closedEnvironment(t, tc.src)
+		x := argument(callsNamed(f, "probe")[0])
+		if v := e.Value(x); v.Complete != tc.complete || e.Tainted(x, HTML) != tc.tainted {
+			t.Errorf("%s: complete=%v tainted=%v", tc.src, v.Complete, e.Tainted(x, HTML))
+		}
+	}
+}

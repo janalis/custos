@@ -146,6 +146,16 @@ func (e *Env) lookupDeclaration(at syntax.Node) ([]index.Param, string, bool) {
 			return nil, "", false
 		}
 		classes := e.types.TypeOf(n.Var).Classes()
+		if len(classes) == 0 {
+			if trait := e.traitReceiver(n); trait != "" {
+				// The using class may override the method: the declaration
+				// gives its parameters and a may-return, never a fixed body.
+				if m := e.types.Index.FindMethod(trait, id.Value, e.types.PHP); m != nil && !m.Magic && !m.Abstract {
+					return m.Params, strings.ToLower(m.Class + "::" + m.Name), true
+				}
+				return nil, "", false
+			}
+		}
 		if len(classes) != 1 {
 			return nil, "", false
 		}
@@ -170,6 +180,22 @@ func (e *Env) lookupDeclaration(at syntax.Node) ([]index.Param, string, bool) {
 		}
 	}
 	return nil, "", false
+}
+
+// traitReceiver names the trait whose instance method calls `$this->m()`
+// directly. `$this` has no class there, but the trait's own (or used)
+// non-abstract declarations are what the call reaches unless overridden.
+// Closures are excluded: they may be bound to another object.
+func (e *Env) traitReceiver(n *syntax.MethodCall) string {
+	if n.NullSafe || plainVariable(n.Var) != "this" {
+		return ""
+	}
+	// A method's `$this` has a class unless the method belongs to a trait.
+	method, ok := syntax.EnclosingVariableScope(n).(*syntax.Method)
+	if !ok || method.Modifiers.Has(syntax.TStatic) || syntax.EnclosingClass(method).ClassKind != syntax.KindTrait {
+		return ""
+	}
+	return e.types.ClassFQN(syntax.EnclosingClass(method))
 }
 
 // invalidateReferences discards values a callee may replace through reference

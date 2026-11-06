@@ -60,3 +60,47 @@ func TestIncompleteStatusIsBounded(t *testing.T) {
 		t.Fatalf("status cap: %d %+v", len(gaps), gaps[len(gaps)-1])
 	}
 }
+
+// A fluent builder chain is deep without being nested code: its links do not
+// exhaust the expression depth bound, while nesting the same calls does.
+func TestFluentChainDepth(t *testing.T) {
+	const links = MaxDepth * 8 * 3
+	builder := `final class B { function add($x) { return $this; } } `
+	var chain strings.Builder
+	chain.WriteString("$b")
+	for i := range links {
+		fmt.Fprintf(&chain, "->add(%d)", i)
+	}
+	nested := strings.Repeat("$b->add(", links) + "1" + strings.Repeat(")", links)
+	for _, tc := range []struct {
+		body   string
+		budget bool
+	}{
+		{chain.String() + ";", false},
+		{nested + ";", true},
+	} {
+		e, f := closedEnvironment(t, builder+`function example(B $b){`+tc.body+`}`)
+		e.Calls(f.Stmts[1])
+		if budget := len(e.Gaps()) > 0; budget != tc.budget {
+			t.Errorf("links=%d nested=%v: gaps %+v", links, tc.budget, e.Gaps())
+		}
+	}
+}
+
+func BenchmarkFluentChain(b *testing.B) {
+	for _, links := range []int{50, 100, 200} {
+		b.Run(fmt.Sprint(links), func(b *testing.B) {
+			var chain strings.Builder
+			chain.WriteString(`final class B { function add($x) { return $this; } } function example(B $b){ $b`)
+			for i := range links {
+				fmt.Fprintf(&chain, "->add(%d)", i)
+			}
+			chain.WriteString(";}")
+			e, f := closedEnvironment(b, chain.String())
+			b.ReportAllocs()
+			for b.Loop() {
+				New(f, e.types, e.snapshot, Options{}).Calls(f.Stmts[1])
+			}
+		})
+	}
+}
