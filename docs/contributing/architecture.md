@@ -276,14 +276,19 @@ open documents.
   two sequential canonical foreach stages compose with distinct carry slots and
   one shared work budget; loop-local bindings do not leak between stages or into
   final expressions. Uncertain keys, membership and lifetimes remain unknown.
-- Pure wrappers compose one-input native mapping/filtering with fixed named
-  project callbacks, shared role binding and internal callback coercion. Mapping
-  preserves transformed field provenance; filtering retains original entries.
+- Pure wrappers compose native mapping/filtering with fixed named project
+  callbacks, shared role binding and internal callback coercion. Two complete
+  equal-length mapping inputs pair by position and produce numeric keys; one
+  input preserves keys. Audited string-only `strlen` and default `trim` callbacks
+  compose without publishing effects. Filter modes bind value, key or value/key
+  roles while retaining original entries and their provenance.
   Canonical first-match searches stop evaluation at the first proven match, and
-  continue guards skip update keys and values. Audited explicit casts and typed
+  continue guards skip update keys and values; break guards stop the loop. Audited explicit casts and typed
   callback binding retain scalar sources with conversion-specific safety.
   Strict record identity compares ordered keys and nested values, with decisive
-  mismatches and shared recursion/work limits. Callback effects and exhausted
+  mismatches and shared recursion/work limits, also used by array-valued match
+  and strict membership queries. Uncertain earlier query comparisons remain
+  unknown. Callback effects and exhausted
   comparisons establish no caller facts.
 - Callback truth outcomes are separate from literal equality. Each normal return,
   including implicit null, is converted before joining truth outcomes. Agreeing

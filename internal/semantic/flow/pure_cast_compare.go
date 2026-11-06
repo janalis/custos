@@ -115,3 +115,20 @@ func strictRecordValues(left, right Value, r *scopeResult, depth int, exhausted 
 	}
 	return !uncertain, !uncertain
 }
+
+// Pure query comparisons share identity semantics and the caller's work budget.
+func pureQueryIdentity(left, right Value, r *scopeResult, depth int) (bool, bool) {
+	if left.elements != nil && right.elements != nil {
+		return pureStrictRecord(left, right, r, depth)
+	}
+	a, ak := knownScalar(left)
+	b, bk := knownScalar(right)
+	if ak && bk {
+		equal, _ := constantBinary(syntax.TIsIdentical, a, b)
+		return equal.b, true
+	}
+	if ak && purePlainRecord(right) || bk && purePlainRecord(left) {
+		return false, true
+	}
+	return false, false
+}

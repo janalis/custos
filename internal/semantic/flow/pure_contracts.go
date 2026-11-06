@@ -53,6 +53,7 @@ type pureExpr struct {
 	weakArguments bool
 	projects      bool
 	appendKey     bool
+	stopGuard     bool
 	slot          int
 	op            syntax.TokenKind
 	literal       *constantScalar

@@ -2,6 +2,7 @@ package flow
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -14,72 +15,125 @@ func (c *pureCompiler) higher(node *syntax.FuncCall, name string, params []index
 	if len(params) != 3 {
 		return nil
 	}
-	// Model only the first two runtime roles. Extra arrays or filter modes
-	// must be rejected by the shared binder, including named/unpacked forms.
-	roles := []pureParam{{name: params[0].Name}, {name: params[1].Name}}
-	args := c.arguments(node, roles, params[:2])
+	// The third map role is a single bounded positional array, not an
+	// unbounded variadic pack. Keep the original metadata immutable.
+	declared := slices.Clone(params)
+	if name == "array_map" {
+		declared[2].Variadic = false
+	}
+	roles := make([]pureParam, 3)
+	for i, param := range declared {
+		roles[i].name = param.Name
+	}
+	args := c.arguments(node, roles, declared)
 	if args == nil || args[0] == nil || args[1] == nil {
 		return nil
 	}
 	callback, input := args[0], args[1]
+	mode, arity := 0, 1
+	var second *pureExpr
 	if name == "array_filter" {
 		input, callback = args[0], args[1]
+		mode = 1 // value callback
+		if args[2] != nil {
+			if c.env.types.PHP.Below(phpversion.PHP56) || args[2].kind != pureLiteral || args[2].literal.k != 'i' {
+				return nil
+			}
+			switch args[2].literal.i {
+			case 0:
+			case 1:
+				mode, arity = 3, 2 // value, key
+			case 2:
+				mode = 2 // key
+			default:
+				return nil
+			}
+		}
+	} else if args[2] != nil {
+		// PHP does not accept named arguments for the variadic arrays role.
+		// Keep this initial two-input form strictly positional, including packs.
+		for _, item := range node.Args.Args {
+			arg, ok := item.(*syntax.Arg)
+			if !ok || arg.Name != nil || arg.Unpack {
+				return nil
+			}
+		}
+		second, arity = args[2], 2
 	}
 	if callback.kind != pureLiteral || callback.literal.k != 's' {
 		return nil
 	}
 	key := strings.ToLower(strings.TrimPrefix(callback.literal.s, `\`))
 	function := c.env.types.Index.Function(key, c.env.types.PHP)
-	if function == nil || function.Builtin || function.ByRef || !function.Avail.In(c.env.types.PHP) || len(c.env.types.Index.FunctionDecls(key, c.env.types.PHP)) != 1 {
+	if function == nil || function.ByRef || !function.Avail.In(c.env.types.PHP) {
 		return nil
 	}
-	summary, known := c.env.contract(key)
-	if !known || !summary.Fixed || summary.Generator || summary.pure == nil {
-		return nil
-	}
-	if c.env.types.PHP.Below(phpversion.PHP70) && function.Return != "" {
-		return nil
-	}
-	callee := summary.pure
-	if callee.outer != 0 || len(callee.params) == 0 || len(callee.params) != len(function.Params) || !callee.result.Equal(types.FromDoc(function.Return, nil)) || key == c.name || slices.Contains(callee.calls, c.name) {
-		return nil
-	}
-	invoke := &pureExpr{kind: pureCall, call: callee, weakArguments: true, projects: true, cost: callee.expr.cost + 1, depth: callee.expr.depth + 1}
-	for i, param := range callee.params {
-		declared := function.Params[i]
-		if c.env.types.PHP.Below(phpversion.PHP70) && declared.Type != "" && declared.Type != "array" {
+	var invoke *pureExpr
+	if function.Builtin {
+		if name != "array_map" || second != nil || key != "strlen" && key != "trim" {
 			return nil
 		}
-		if declared.ByRef || declared.Variadic || declared.Name != param.name || !param.typ.Equal(types.FromDoc(declared.Type, nil)) || param.optional != declared.Optional {
+		invoke = &pureExpr{kind: pureLength, left: &pureSlots[0], projects: true, cost: 2, depth: 2}
+		if key == "trim" {
+			invoke.kind = pureTrim
+		}
+	} else {
+		if len(c.env.types.Index.FunctionDecls(key, c.env.types.PHP)) != 1 {
 			return nil
 		}
-		value := &pureSlots[0]
-		if i != 0 {
-			if !param.optional || param.initial == nil {
+		summary, known := c.env.contract(key)
+		if !known || !summary.Fixed || summary.Generator || summary.pure == nil {
+			return nil
+		}
+		if c.env.types.PHP.Below(phpversion.PHP70) && function.Return != "" {
+			return nil
+		}
+		callee := summary.pure
+		if callee.outer != 0 || len(callee.params) < arity || len(callee.params) != len(function.Params) || !callee.result.Equal(types.FromDoc(function.Return, nil)) || key == c.name || slices.Contains(callee.calls, c.name) {
+			return nil
+		}
+		invoke = &pureExpr{kind: pureCall, call: callee, weakArguments: true, projects: true, cost: callee.expr.cost + 1, depth: callee.expr.depth + 1}
+		for i, param := range callee.params {
+			declared := function.Params[i]
+			if c.env.types.PHP.Below(phpversion.PHP70) && declared.Type != "" && declared.Type != "array" {
 				return nil
 			}
-			value = param.initial
+			if declared.ByRef || declared.Variadic || declared.Name != param.name || !param.typ.Equal(types.FromDoc(declared.Type, nil)) || param.optional != declared.Optional {
+				return nil
+			}
+			value := &pureSlots[i]
+			if i >= arity {
+				if !param.optional || param.initial == nil {
+					return nil
+				}
+				value = param.initial
+			}
+			invoke.args = append(invoke.args, value)
+			invoke.cost += value.cost
+			invoke.depth = max(invoke.depth, value.depth+1)
 		}
-		invoke.args = append(invoke.args, value)
-		invoke.cost += value.cost
-		invoke.depth = max(invoke.depth, value.depth+1)
+		c.calls = append(c.calls, key)
+		c.calls = append(c.calls, callee.calls...)
 	}
-	result := pureNode(pureHigher, input, invoke, nil)
+	result := pureNode(pureHigher, input, invoke, second)
 	if result == nil {
 		return nil
 	}
-	result.projects = true
-	if name == "array_filter" {
-		result.slot = 1
-	}
-	c.calls = append(c.calls, key)
-	c.calls = append(c.calls, callee.calls...)
+	result.projects, result.slot = true, mode
 	return result
 }
 
 func (e *Env) evalPureHigher(expr *pureExpr, input Value, slots []Value, r *scopeResult, depth int) (Value, bool) {
 	if !purePlainRecord(input) || len(input.elements.order) != len(input.elements.items) {
 		return Value{}, false
+	}
+	var second Value
+	if expr.other != nil {
+		var ok bool
+		second, ok = e.evalPure(expr.other, slots, r, depth-1)
+		if !ok || !purePlainRecord(second) || len(second.elements.order) != len(second.elements.items) || len(second.elements.order) != len(input.elements.order) {
+			return Value{}, false
+		}
 	}
 	size := len(input.elements.items)
 	r.copies += size
@@ -88,13 +142,23 @@ func (e *Env) evalPureHigher(expr *pureExpr, input Value, slots []Value, r *scop
 	}
 	set := &elementSet{whole: true, items: map[string]Value{}, width: size}
 	result := Value{Complete: true, plain: true, deep: true}
-	for _, key := range input.elements.order {
+	for i, key := range input.elements.order {
 		original := input.elements.items[key]
-		value, ok := e.evalPure(expr.right, []Value{original}, r, depth-1)
+		args := []Value{original}
+		if expr.slot == 2 {
+			args[0] = scalarValue(pureKeyScalar(key))
+		}
+		if expr.slot == 3 {
+			args = append(args, scalarValue(pureKeyScalar(key)))
+		}
+		if expr.other != nil {
+			args = append(args, second.elements.items[second.elements.order[i]])
+		}
+		value, ok := e.evalPure(expr.right, args, r, depth-1)
 		if !ok || !pureReadOnlyInputs([]Value{value}, nil) {
 			return Value{}, false
 		}
-		if expr.slot == 1 {
+		if expr.slot != 0 {
 			keep, known := pureTruthValue(value)
 			if !known {
 				return Value{}, false
@@ -103,6 +167,9 @@ func (e *Env) evalPureHigher(expr *pureExpr, input Value, slots []Value, r *scop
 				continue
 			}
 			value = original
+		}
+		if expr.other != nil {
+			key = strconv.Itoa(i)
 		}
 		set.put(key, scalarSnapshot(value))
 		set.order = append(set.order, key)

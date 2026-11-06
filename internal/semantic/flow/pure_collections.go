@@ -10,7 +10,7 @@ import (
 	"custos/internal/semantic/index"
 )
 
-// Only this audited, version-stable constant is needed by the count instruction.
+// Resolve only audited constants used by finite collection instructions.
 // Resolve imports and namespace declarations before accepting the native name.
 func (c *pureCompiler) nativeConstant(node *syntax.ConstFetch) *pureExpr {
 	name, fallback := c.env.types.Names.Const(node.Name.Value, node.Span().Start)
@@ -22,10 +22,12 @@ func (c *pureCompiler) nativeConstant(node *syntax.ConstFetch) *pureExpr {
 		if declaration == nil {
 			continue
 		}
-		if candidate != "COUNT_NORMAL" || !declaration.Builtin || !declaration.Avail.In(c.env.types.PHP) || strings.TrimSpace(declaration.Value) != "0" {
+		value, accepted := map[string]string{"COUNT_NORMAL": "0", "ARRAY_FILTER_USE_BOTH": "1", "ARRAY_FILTER_USE_KEY": "2"}[candidate]
+		if !accepted || candidate != "COUNT_NORMAL" && c.env.types.PHP.Below(phpversion.PHP56) || !declaration.Builtin || !declaration.Avail.In(c.env.types.PHP) || strings.TrimSpace(declaration.Value) != value {
 			return nil
 		}
-		return pureConstant(constantScalar{k: 'i'})
+		number, _ := strconv.ParseInt(value, 10, 64)
+		return pureConstant(constantScalar{k: 'i', i: number})
 	}
 	return nil
 }

@@ -33,21 +33,27 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	}
 	body := loop.Body
 	var skip syntax.Expr
+	stop := false
 	if block, ok := body.(*syntax.Block); ok && len(block.Stmts) == 2 {
 		branch, ok := block.Stmts[0].(*syntax.If)
 		if !ok || branch.Else != nil || len(branch.ElseIfs) != 0 {
 			return nil
 		}
-		continued, ok := singlePureStatement(branch.Body).(*syntax.Continue)
-		if !ok {
+		var levelExpr syntax.Expr
+		switch transfer := singlePureStatement(branch.Body).(type) {
+		case *syntax.Continue:
+			levelExpr = transfer.Num
+		case *syntax.Break:
+			levelExpr, stop = transfer.Num, true
+		default:
 			return nil
 		}
-		if continued.Num != nil {
-			if literal, ok := syntax.UnwrapParens(continued.Num).(*syntax.Literal); !ok || literal.LitKind != syntax.LitInt {
+		if levelExpr != nil {
+			if literal, ok := syntax.UnwrapParens(levelExpr).(*syntax.Literal); !ok || literal.LitKind != syntax.LitInt {
 				return nil
 			}
 			fuel := 256
-			level, known := constantValue(continued.Num, MaxDepth, &fuel)
+			level, known := constantValue(levelExpr, MaxDepth, &fuel)
 			if !known || level.k != 'i' || level.i != 1 {
 				return nil
 			}
@@ -163,6 +169,7 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	result := pureNode(pureReduce, input, initial, value)
 	if result != nil {
 		result.slot = slot
+		result.stopGuard = stop
 		if build {
 			result.kind = pureBuild
 		}
@@ -267,6 +274,9 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 				return Value{}, false
 			}
 			if !truth {
+				if expr.stopGuard {
+					break
+				}
 				continue
 			}
 		}

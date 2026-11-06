@@ -74,7 +74,7 @@ func (c *pureCompiler) match(node *syntax.Match) *pureExpr {
 	if subject == nil {
 		return nil
 	}
-	result := &pureExpr{kind: pureMatch, left: subject, cost: subject.cost + 1, depth: subject.depth + 1, projects: subject.projects}
+	result := &pureExpr{kind: pureMatch, left: subject, cost: subject.cost + 1, depth: subject.depth + 1, projects: true}
 	for _, arm := range node.Arms {
 		body := c.expression(arm.Body)
 		if body == nil {
@@ -108,18 +108,19 @@ func (c *pureCompiler) match(node *syntax.Match) *pureExpr {
 
 func (e *Env) evalPureMatch(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
 	value, ok := e.evalPure(expr.left, slots, r, depth-1)
-	subject, scalar := knownScalar(value)
-	if !ok || !scalar {
+	if !ok {
 		return Value{}, false
 	}
 	for i := 0; i < len(expr.args); i += 2 {
-		value, ok = e.evalPure(expr.args[i], slots, r, depth-1)
-		test, scalar := knownScalar(value)
-		if !ok || !scalar {
+		test, valid := e.evalPure(expr.args[i], slots, r, depth-1)
+		if !valid {
 			return Value{}, false
 		}
-		equal, _ := constantBinary(syntax.TIsIdentical, subject, test)
-		if equal.b {
+		equal, known := pureQueryIdentity(value, test, r, depth-1)
+		if !known {
+			return Value{}, false
+		}
+		if equal {
 			return e.evalPure(expr.args[i+1], slots, r, depth-1)
 		}
 	}

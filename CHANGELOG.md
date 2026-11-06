@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Extend pure callbacks with filter modes, two-array positional mapping and
+  audited string builtins; evaluate strict array queries and break-guarded loops
+  while preserving provenance, evaluation order and conservative limits.
+
 - Compose pure mapping/filtering callbacks, first-match searches and continue
   guards, evaluate audited casts and strict array identity, and retain derived
   scalar provenance through callback coercions and arithmetic.

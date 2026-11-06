@@ -70,6 +70,18 @@ func (e *Env) evalFiniteNative(expr *pureExpr, left Value, slots []Value, r *sco
 	if !pureReadOnlyInputs([]Value{left}, nil) || !ok || !known || flag.k != 'b' || !flag.b || !purePlainRecord(right) || len(right.elements.order) != len(right.elements.items) {
 		return Value{}, false
 	}
+	if left.elements != nil {
+		for _, key := range right.elements.order {
+			equal, known := pureQueryIdentity(left, right.elements.items[key], r, depth-1)
+			if !known {
+				return Value{}, false
+			}
+			if equal {
+				return scalarValue(constantScalar{k: 'b', b: true}), true
+			}
+		}
+		return scalarValue(constantScalar{k: 'b'}), true
+	}
 	found, uncertain := false, !scalar && len(right.elements.items) != 0
 	for _, key := range right.elements.order {
 		entry := right.elements.items[key]

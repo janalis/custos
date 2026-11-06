@@ -138,6 +138,30 @@ nonidentity despite other unknown primitive payloads; otherwise unknown entries
 prevent an equality proof. Aliases, reference entries and observable lifetimes
 establish no structural comparison result.
 
+### Additional bounded callback and query forms
+
+Filtering with a fixed pure named callback can use explicit default value mode,
+key mode or value-and-key mode. Callback arguments follow PHP's runtime order;
+kept values retain their original keys and provenance. Unknown modes or callback
+truth outcomes establish no complete result.
+
+Mapping two complete immutable arrays of equal length pairs values by iteration
+position and returns numeric keys. Each result retains only the provenance of
+fields actually used by the callback. Unequal lengths, references and unknown
+membership establish no result. Single-input mapping also supports literal
+native `strlen` and default `trim` callbacks when every executed argument is a
+proven string; trimming retains untrusted provenance.
+
+Array-valued match arms and strict membership searches compare ordered keys and
+nested primitive values. A proven first match selects the corresponding result;
+an unresolved earlier comparison establishes none. Argument expressions must
+still evaluate successfully, including the entire membership haystack.
+
+A canonical accumulator or builder can stop at a single leading break guard.
+A proven break returns the accumulated prefix without evaluating that iteration's
+update key or value or later iterations. Unknown guards, other break levels,
+references and escaping loop variables establish no exact result.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered
