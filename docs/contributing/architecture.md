@@ -262,6 +262,13 @@ open documents.
   version-specific key rules. Empty array accumulators with one append-only
   foreach update preserve insertion order and individual element provenance;
   aliases and observable object or resource lifetimes remain unsupported.
+- Supported accumulator loops can feed one final pure expression over the carry
+  and unchanged entry bindings; loop key/value variables establish no post-loop
+  binding. Append-only loops can filter by a proven per-entry pure condition.
+  Ordered native array queries preserve individual elements and exact key types;
+  primitive type predicates require scalar or immutable record evidence. Bounded
+  byte slices use PHP-version range behavior, retain input provenance and clear
+  escaping proofs. Unknown conditions and unsupported conversions stay unknown.
 - Callback truth outcomes are separate from literal equality. Each normal return,
   including implicit null, is converted before joining truth outcomes. Agreeing
   falsy returns can remove entries without treating different literals as equal.

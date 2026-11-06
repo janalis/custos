@@ -33,6 +33,11 @@ const (
 	pureStringPredicate
 	pureSpreadArray
 	pureBuild
+	pureFilterBuild
+	pureLet
+	pureOrderedArray
+	pureTypeTest
+	pureSubstring
 	pureLimit = 64
 )
 

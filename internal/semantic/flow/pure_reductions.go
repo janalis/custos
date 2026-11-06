@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"maps"
 	"strconv"
 
 	"custos/internal/php/syntax"
@@ -16,9 +17,14 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	if !ok {
 		return nil
 	}
-	returned, ok := ret.Expr.(*syntax.Variable)
-	if !ok || returned.NameExpr != nil || returned.Name != name {
-		return nil
+	returnedVariable, direct := ret.Expr.(*syntax.Variable)
+	direct = direct && returnedVariable.NameExpr == nil && returnedVariable.Name == name
+	final := *c
+	if !direct {
+		final.vars = append([]pureBinding(nil), c.vars...)
+		final.extra = maps.Clone(c.extra)
+		final.work = 0
+		final.calls = nil
 	}
 	item, ok := loop.Value.(*syntax.Variable)
 	if !ok || item.NameExpr != nil || item.Name == name || external(item.Name) || item.Name == "GLOBALS" || item.Name == "this" {
@@ -30,6 +36,19 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 			return nil
 		}
 		body = block.Stmts[0]
+	}
+	var condition syntax.Expr
+	if branch, filtered := body.(*syntax.If); filtered {
+		if branch.Else != nil || len(branch.ElseIfs) != 0 {
+			return nil
+		}
+		condition, body = branch.Cond, branch.Body
+		if block, ok := body.(*syntax.Block); ok {
+			if len(block.Stmts) != 1 {
+				return nil
+			}
+			body = block.Stmts[0]
+		}
 	}
 	stmt, ok := body.(*syntax.ExprStmt)
 	if !ok {
@@ -48,6 +67,9 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	if !ok || target.NameExpr != nil || target.Name != name {
 		return nil
 	}
+	if condition != nil && !build {
+		return nil
+	}
 	keyName := ""
 	if loop.Key != nil {
 		key, ok := loop.Key.(*syntax.Variable)
@@ -62,6 +84,13 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	c.bind(item.Name, &pureExpr{kind: pureSlot, slot: slot + 1, cost: 1, depth: 1})
 	if keyName != "" {
 		c.bind(keyName, &pureExpr{kind: pureSlot, slot: slot + 2, cost: 1, depth: 1})
+	}
+	var guard *pureExpr
+	if condition != nil {
+		guard = c.expression(condition)
+		if guard == nil {
+			return nil
+		}
 	}
 	value := c.expression(update.Value)
 	if update.Op.Kind != syntax.TEqual {
@@ -79,10 +108,42 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		if build {
 			result.kind = pureBuild
 		}
+		if guard != nil {
+			result.kind = pureFilterBuild
+			result.args = []*pureExpr{guard}
+			result.cost += guard.cost
+			result.depth = max(result.depth, guard.depth+1)
+			if result.cost > pureLimit || result.depth > MaxDepth {
+				return nil
+			}
+		}
 		if keyName != "" {
 			result.op = syntax.TDoubleArrow
 		}
 		result.projects = true
+	}
+	if result == nil {
+		return nil
+	}
+	if direct {
+		return result
+	}
+	// A loop binding can be undefined for an empty input, or can overwrite an
+	// original parameter. Only the carry and unchanged entry bindings survive.
+	final.bind(item.Name, nil)
+	if keyName != "" {
+		final.bind(keyName, nil)
+	}
+	final.bind(name, &pureExpr{kind: pureSlot, slot: slot, cost: 1, depth: 1})
+	returned := final.expression(ret.Expr)
+	c.work += final.work
+	c.calls = append(c.calls, final.calls...)
+	if c.work > pureLimit {
+		return nil
+	}
+	result = pureNode(pureLet, result, returned, nil)
+	if result != nil {
+		result.slot = slot
 	}
 	return result
 }
@@ -93,7 +154,7 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 		return Value{}, false
 	}
 	carry, ok := e.evalPure(expr.right, slots, r, depth-1)
-	if _, scalar := knownScalar(carry); !ok || !scalar && !(expr.kind == pureBuild && purePlainRecord(carry)) {
+	if _, scalar := knownScalar(carry); !ok || !scalar && !((expr.kind == pureBuild || expr.kind == pureFilterBuild) && purePlainRecord(carry)) {
 		return Value{}, false
 	}
 	width := 2
@@ -108,7 +169,7 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 	copy(bound, slots)
 	for _, key := range input.elements.order {
 		item := input.elements.items[key]
-		if _, scalar := knownScalar(item); !scalar && !(expr.kind == pureBuild && pureReadOnlyInputs([]Value{item}, nil)) {
+		if _, scalar := knownScalar(item); !scalar && !((expr.kind == pureBuild || expr.kind == pureFilterBuild) && pureReadOnlyInputs([]Value{item}, nil)) {
 			return Value{}, false
 		}
 		bound[expr.slot], bound[expr.slot+1] = carry, item
@@ -120,7 +181,17 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 			bound[expr.slot+2] = scalarValue(keyValue)
 		}
 
-		if expr.kind == pureBuild {
+		if expr.kind == pureFilterBuild {
+			selected, valid := e.evalPure(expr.args[0], bound, r, depth-1)
+			predicate, known := knownScalar(selected)
+			if !valid || !known {
+				return Value{}, false
+			}
+			if !predicate.truth() {
+				continue
+			}
+		}
+		if expr.kind == pureBuild || expr.kind == pureFilterBuild {
 			entry, valid := e.evalPure(expr.other, bound, r, depth-1)
 			if !valid || !pureReadOnlyInputs([]Value{entry}, nil) || !appendPureEntry(&carry, entry, r) {
 				return Value{}, false
@@ -133,4 +204,19 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 		}
 	}
 	return carry, true
+}
+
+func (e *Env) evalPureLet(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
+	value, ok := e.evalPure(expr.left, slots, r, depth-1)
+	if !ok {
+		return Value{}, false
+	}
+	r.copies += max(len(slots), expr.slot+1)
+	if r.copies > MaxCopied {
+		return Value{}, false
+	}
+	bound := make([]Value, max(len(slots), expr.slot+1))
+	copy(bound, slots)
+	bound[expr.slot] = value
+	return e.evalPure(expr.right, bound, r, depth-1)
 }

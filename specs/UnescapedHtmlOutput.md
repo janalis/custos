@@ -54,6 +54,23 @@ per foreach iteration and a final return preserves each projected element's
 provenance. References, unknown collection membership and observable lifetimes
 establish no such collection result.
 
+A supported accumulator loop may finish with a pure expression over its final
+accumulator and unchanged entry bindings. Loop key and value bindings do not
+establish a post-loop value, including when the input is empty. Append-only
+loops may select entries with one pure condition whose result is proven for
+every entry; unknown conditions establish no complete filtered membership.
+Default array_values queries reindex values in proven insertion order while
+retaining individual provenance. Default array_keys queries return proven keys
+in that order with exact integer or string types. Available native
+array_key_first and array_key_last queries return null for a proven empty array.
+Primitive is_string, is_int and is_array predicates require proven scalar values
+or immutable plain arrays; documentation-only types establish no predicate result.
+Byte substrings accept proven strings and integer offsets and lengths, including
+negative bounds. PHP 5 boundary failures and pre-PHP 8 invalid-range failures
+remain distinct from empty strings. Slices retain input provenance and establish
+no escaping guarantee. Implicit scalar conversions and object lifetimes remain
+unsupported.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered

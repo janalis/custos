@@ -158,6 +158,11 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 }
 
 func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {
+	switch name {
+	case "array_values", "array_keys", "array_key_first", "array_key_last", "is_string", "is_int", "is_array", "substr":
+		return c.collectionNative(node, name, params)
+	}
+
 	if name == "str_starts_with" || name == "str_ends_with" || name == "str_contains" {
 		return c.stringPredicate(node, name, params)
 	}
@@ -290,10 +295,13 @@ func (c *pureCompiler) spreadArguments(node syntax.Node, params []pureParam, dec
 }
 
 func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
+	if expr.kind == pureLet {
+		return e.evalPureLet(expr, slots, r, depth)
+	}
 	if expr.kind == pureSpreadArray {
 		return e.evalSpreadArray(expr, slots, r, depth)
 	}
-	if expr.kind == pureReduce || expr.kind == pureBuild {
+	if expr.kind == pureReduce || expr.kind == pureBuild || expr.kind == pureFilterBuild {
 		return e.evalPureReduction(expr, slots, r, depth)
 	}
 	if expr.kind == pureMatch {
@@ -366,6 +374,9 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 			return left, true
 		}
 		return e.evalPure(expr.right, slots, r, depth-1)
+	}
+	if expr.kind == pureOrderedArray || expr.kind == pureTypeTest || expr.kind == pureSubstring {
+		return e.evalCollectionNative(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureStringPredicate {
 		return e.evalStringPredicate(expr, left, slots, r, depth)

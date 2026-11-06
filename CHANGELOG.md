@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Extend pure summaries with post-loop expressions, conditional append filtering,
+  ordered array queries, primitive type predicates and version-aware byte slices
+  while preserving element provenance and conservative lifetime checks.
+
 - Refine pure strict membership from decisive entries, resolve native count mode
   constants, evaluate byte-string predicates and preserve immutable elements
   through bounded array spreads and append-only foreach summaries.

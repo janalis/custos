@@ -16,7 +16,6 @@ func TestPureQueryCompilationLimits(t *testing.T) {
 		`function f($v){return match($v){1=>opaque()};}`,
 		`function f($v){return match($v){default=>1,default=>2};}`,
 		`function f($xs){$s=0;foreach($xs as $x){$s=$s+$x;}opaque();}`,
-		`function f($xs){$s=0;foreach($xs as $x){$s=$s+$x;}return 1;}`,
 		`function f($xs){$s=0;foreach($xs as $s){$s=$s+1;}return $s;}`,
 		`function f($xs){$s=0;foreach($xs as $x){return $s;}return $s;}`,
 
