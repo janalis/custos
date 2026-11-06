@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Refine immutable array truth and quiet empty queries, computed keys, keyed
+  foreach builders, left-biased array unions and two-stage loop pipelines while
+  preserving insertion order, field provenance and shared evaluation budgets.
+
 - Extend pure summaries with post-loop expressions, conditional append filtering,
   ordered array queries, primitive type predicates and version-aware byte slices
   while preserving element provenance and conservative lifetime checks.

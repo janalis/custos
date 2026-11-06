@@ -23,7 +23,7 @@ func pureNode(kind uint8, left, right, other *pureExpr) *pureExpr {
 	if cost > pureLimit || depth > MaxDepth {
 		return nil
 	}
-	return &pureExpr{kind: kind, left: left, right: right, other: other, projects: kind == pureIndex || kind == pureExists || kind == pureNonNull || left.projects || right.projects || other != nil && other.projects, cost: cost, depth: depth}
+	return &pureExpr{kind: kind, left: left, right: right, other: other, projects: kind == pureChoice || kind == pureShort || kind == pureIndex || kind == pureExists || kind == pureNonNull || left.projects || right.projects || other != nil && other.projects, cost: cost, depth: depth}
 }
 
 func (c *pureCompiler) statements(stmts []syntax.Stmt, depth int) *pureExpr {
@@ -109,6 +109,12 @@ func (c *pureCompiler) array(array *syntax.Array) *pureExpr {
 	for _, item := range array.Items {
 		if item != nil && item.Unpack {
 			return c.spreadArray(array)
+		}
+		if item != nil && item.Key != nil {
+			fuel := 256
+			if _, known := constantValue(item.Key, MaxDepth, &fuel); !known {
+				return c.runtimeArray(array)
+			}
 		}
 	}
 	expr := &pureExpr{kind: pureArray, cost: 1, depth: 1}
@@ -384,26 +390,14 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	if expr.kind == pureCount || expr.kind == pureMember {
 		return e.evalFiniteNative(expr, left, slots, r, depth)
 	}
+	if expr.kind == pureChoice || expr.kind == pureShort || expr.kind == pureEmpty {
+		return e.evalPureTruth(expr, left, slots, r, depth)
+	}
 	scalar, known := knownScalar(left)
 	if !known {
 		return Value{}, false
 	}
 	switch expr.kind {
-	case pureChoice:
-		branch := expr.other
-		if scalar.truth() {
-			branch = expr.right
-		}
-		return e.evalPure(branch, slots, r, depth-1)
-	case pureShort:
-
-		and := expr.op == syntax.TBooleanAnd || expr.op == syntax.TAnd
-		if scalar.truth() != and {
-			return scalarValue(constantScalar{k: 'b', b: !and}), true
-		}
-		right, ok := e.evalPure(expr.right, slots, r, depth-1)
-		result, known := knownScalar(right)
-		return scalarValue(constantScalar{k: 'b', b: result.truth()}), ok && known
 	case pureLength, pureTrim:
 		if scalar.k != 's' || len(scalar.s) > 4096 {
 			return Value{}, false

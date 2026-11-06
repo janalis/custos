@@ -38,6 +38,7 @@ const (
 	pureOrderedArray
 	pureTypeTest
 	pureSubstring
+	pureEmpty
 	pureLimit = 64
 )
 
@@ -47,6 +48,7 @@ type pureExpr struct {
 	kind          uint8
 	weakArguments bool
 	projects      bool
+	appendKey     bool
 	slot          int
 	op            syntax.TokenKind
 	literal       *constantScalar
@@ -215,6 +217,8 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 	switch n := expr.(type) {
 	case *syntax.Match:
 		return c.match(n)
+	case *syntax.Empty:
+		return c.empty(n)
 	case *syntax.Isset:
 		return c.isset(n)
 	case *syntax.MethodCall:
@@ -259,7 +263,7 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 		case syntax.TExclaim, syntax.TPlus, syntax.TMinus:
 			child := c.expression(n.Expr)
 			if child != nil && child.cost < pureLimit && child.depth < MaxDepth {
-				return &pureExpr{kind: pureUnary, op: n.Op.Kind, left: child, projects: child.projects, cost: child.cost + 1, depth: child.depth + 1}
+				return &pureExpr{kind: pureUnary, op: n.Op.Kind, left: child, projects: n.Op.Kind == syntax.TExclaim || child.projects, cost: child.cost + 1, depth: child.depth + 1}
 			}
 		}
 	case *syntax.Binary:

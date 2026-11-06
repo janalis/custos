@@ -71,29 +71,42 @@ func (e *Env) evalStringPredicate(expr *pureExpr, left Value, slots []Value, r *
 }
 
 func (c *pureCompiler) spreadArray(array *syntax.Array) *pureExpr {
-	if c.env.types.PHP.Below(phpversion.PHP74) || len(array.Items) > pureLimit {
+	if c.env.types.PHP.Below(phpversion.PHP74) {
 		return nil
 	}
+	return c.runtimeArray(array)
+}
+
+// array checks cardinality and short-array syntax before either constructor.
+func (c *pureCompiler) runtimeArray(array *syntax.Array) *pureExpr {
 	expr := &pureExpr{kind: pureSpreadArray, cost: 1, depth: 1, projects: true, weakArguments: c.env.types.PHP.Below(phpversion.PHP81)}
 	for _, item := range array.Items {
-		if item == nil || item.ByRef {
+		if item == nil || item.ByRef || item.Unpack && c.env.types.PHP.Below(phpversion.PHP74) {
 			return nil
 		}
 		var key *pureExpr
 		if !item.Unpack {
 			key = pureConstant(constantScalar{k: 'n'})
+			key.appendKey = true
 			if item.Key != nil {
 				fuel := 256
 				scalar, known := constantValue(item.Key, MaxDepth, &fuel)
 				text, valid := arrayKey(item.Key)
-				if !known || !valid || scalar.k == 'f' {
-					return nil
+				if !known {
+					key = c.expression(item.Key)
+					if key == nil {
+						return nil
+					}
+				} else {
+					if !valid || scalar.k == 'f' {
+						return nil
+					}
+					// Exclude version-sensitive negative implicit indexing and overflow.
+					if number, err := strconv.ParseInt(text, 10, 64); err == nil && strconv.FormatInt(number, 10) == text && (number < 0 || number == 9223372036854775807) {
+						return nil
+					}
+					key = pureConstant(constantScalar{k: 's', s: text})
 				}
-				// Exclude version-sensitive negative implicit indexing and overflow.
-				if number, err := strconv.ParseInt(text, 10, 64); err == nil && strconv.FormatInt(number, 10) == text && (number < 0 || number == 9223372036854775807) {
-					return nil
-				}
-				key = pureConstant(constantScalar{k: 's', s: text})
 			}
 		}
 		value := c.expression(item.Value)
@@ -101,8 +114,12 @@ func (c *pureCompiler) spreadArray(array *syntax.Array) *pureExpr {
 			return nil
 		}
 		expr.args = append(expr.args, key, value)
-		expr.cost += 1 + value.cost
-		expr.depth = max(expr.depth, value.depth+1)
+		keyCost, keyDepth := 1, 1
+		if key != nil {
+			keyCost, keyDepth = key.cost, key.depth
+		}
+		expr.cost += keyCost + value.cost
+		expr.depth = max(expr.depth, max(value.depth, keyDepth)+1)
 	}
 	if expr.cost > pureLimit || expr.depth > MaxDepth {
 		return nil
@@ -137,13 +154,21 @@ func (e *Env) evalSpreadArray(expr *pureExpr, slots []Value, r *scopeResult, dep
 		if next > 9223372036854775807-pureLimit {
 			return Value{}, false
 		}
+		var keyValue Value
+		if expr.args[i] != nil {
+			value, ok := e.evalPure(expr.args[i], slots, r, depth-1)
+			if !ok {
+				return Value{}, false
+			}
+			keyValue = value
+		}
 		entry, ok := e.evalPure(expr.args[i+1], slots, r, depth-1)
 		if !ok || !pureReadOnlyInputs([]Value{entry}, nil) {
 			return Value{}, false
 		}
 		keys, values := []string{}, []Value{}
 		if expr.args[i] == nil {
-			if !purePlainRecord(entry) || len(entry.elements.order) != len(entry.elements.items) {
+			if !purePlainRecord(entry) || len(entry.elements.order) != len(entry.elements.items) || len(entry.elements.items) > pureLimit {
 				return Value{}, false
 			}
 			for _, key := range entry.elements.order {
@@ -159,13 +184,23 @@ func (e *Env) evalSpreadArray(expr *pureExpr, slots []Value, r *scopeResult, dep
 				values = append(values, entry.elements.items[key])
 			}
 		} else {
-			key := expr.args[i].literal
-			text := key.s
-			if key.k == 'n' {
+			key, scalar := knownScalar(keyValue)
+			text := ""
+			if scalar && key.k == 'n' && expr.args[i].appendKey {
 				text = strconv.FormatInt(next, 10)
 				next++
-			} else if number, err := strconv.ParseInt(text, 10, 64); err == nil && strconv.FormatInt(number, 10) == text {
-				next = max(next, number+1)
+			} else {
+				var valid bool
+				text, valid = pureRecordKey(keyValue)
+				if !valid {
+					return Value{}, false
+				}
+				if number, err := strconv.ParseInt(text, 10, 64); err == nil && strconv.FormatInt(number, 10) == text {
+					if number < 0 || number == 9223372036854775807 {
+						return Value{}, false
+					}
+					next = max(next, number+1)
+				}
 			}
 			keys, values = append(keys, text), append(values, entry)
 		}

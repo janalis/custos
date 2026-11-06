@@ -269,6 +269,13 @@ open documents.
   primitive type predicates require scalar or immutable record evidence. Bounded
   byte slices use PHP-version range behavior, retain input provenance and clear
   escaping proofs. Unknown conditions and unsupported conversions stay unknown.
+- Complete immutable arrays supply boolean truth and quiet empty-query results.
+  Computed integer/string keys and fresh keyed accumulators share canonical key
+  handling and preserve insertion order and field provenance. Array unions keep
+  left entries and numeric keys while still evaluating both operands. At most
+  two sequential canonical foreach stages compose with distinct carry slots and
+  one shared work budget; loop-local bindings do not leak between stages or into
+  final expressions. Uncertain keys, membership and lifetimes remain unknown.
 - Callback truth outcomes are separate from literal equality. Each normal return,
   including implicit null, is converted before joining truth outcomes. Agreeing
   falsy returns can remove entries without treating different literals as equal.

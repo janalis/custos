@@ -10,15 +10,16 @@ import (
 // Recognize only an initialized carry, a single assignment, and its final
 // return. No loop-local state or control flow escapes this contract.
 func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Foreach, tail []syntax.Stmt) *pureExpr {
-	if loop.ByRef || len(tail) != 1 {
+	if loop.ByRef || len(tail) != 1 && len(tail) != 3 {
 		return nil
 	}
-	ret, ok := tail[0].(*syntax.Return)
+	pipeline := len(tail) == 3
+	ret, ok := tail[len(tail)-1].(*syntax.Return)
 	if !ok {
 		return nil
 	}
 	returnedVariable, direct := ret.Expr.(*syntax.Variable)
-	direct = direct && returnedVariable.NameExpr == nil && returnedVariable.Name == name
+	direct = direct && !pipeline && returnedVariable.NameExpr == nil && returnedVariable.Name == name
 	final := *c
 	if !direct {
 		final.vars = append([]pureBinding(nil), c.vars...)
@@ -59,9 +60,10 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		return nil
 	}
 	build := false
+	var targetKey syntax.Expr
 	targetExpr := update.Var
-	if dim, appendOnly := targetExpr.(*syntax.ArrayDimFetch); appendOnly && dim.Dim == nil && !dim.Curly && update.Op.Kind == syntax.TEqual && initial.kind == pureArray && len(initial.args) == 0 {
-		targetExpr, build = dim.Var, true
+	if dim, appendOnly := targetExpr.(*syntax.ArrayDimFetch); appendOnly && !dim.Curly && update.Op.Kind == syntax.TEqual && initial.kind == pureArray && len(initial.args) == 0 {
+		targetExpr, build, targetKey = dim.Var, true, dim.Dim
 	}
 	target, ok := targetExpr.(*syntax.Variable)
 	if !ok || target.NameExpr != nil || target.Name != name {
@@ -78,6 +80,23 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		}
 		keyName = key.Name
 	}
+	if pipeline {
+		stmt, ok := tail[0].(*syntax.ExprStmt)
+		if !ok {
+			return nil
+		}
+		assign, ok := stmt.Expr.(*syntax.Assign)
+		if !ok || assign.ByRef || assign.Op.Kind != syntax.TEqual {
+			return nil
+		}
+		variable, ok := assign.Var.(*syntax.Variable)
+		if !ok || variable.NameExpr != nil || variable.Name == name || variable.Name == item.Name || variable.Name == keyName {
+			return nil
+		}
+		if _, ok := tail[1].(*syntax.Foreach); !ok {
+			return nil
+		}
+	}
 	input := c.expression(loop.Expr)
 	slot := c.nextSlot
 	c.bind(name, &pureExpr{kind: pureSlot, slot: slot, cost: 1, depth: 1})
@@ -89,6 +108,13 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	if condition != nil {
 		guard = c.expression(condition)
 		if guard == nil {
+			return nil
+		}
+	}
+	var keyExpr *pureExpr
+	if targetKey != nil {
+		keyExpr = c.expression(targetKey)
+		if keyExpr == nil {
 			return nil
 		}
 	}
@@ -117,6 +143,17 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 				return nil
 			}
 		}
+		if keyExpr != nil {
+			if len(result.args) == 0 {
+				result.args = []*pureExpr{nil}
+			}
+			result.args = append(result.args, keyExpr)
+			result.cost += keyExpr.cost
+			result.depth = max(result.depth, keyExpr.depth+1)
+			if result.cost > pureLimit || result.depth > MaxDepth {
+				return nil
+			}
+		}
 		if keyName != "" {
 			result.op = syntax.TDoubleArrow
 		}
@@ -135,7 +172,13 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		final.bind(keyName, nil)
 	}
 	final.bind(name, &pureExpr{kind: pureSlot, slot: slot, cost: 1, depth: 1})
-	returned := final.expression(ret.Expr)
+	var returned *pureExpr
+	if pipeline {
+		final.nextSlot = slot + 3
+		returned = final.statements(tail, MaxDepth)
+	} else {
+		returned = final.expression(ret.Expr)
+	}
 	c.work += final.work
 	c.calls = append(c.calls, final.calls...)
 	if c.work > pureLimit {
@@ -183,17 +226,33 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 
 		if expr.kind == pureFilterBuild {
 			selected, valid := e.evalPure(expr.args[0], bound, r, depth-1)
-			predicate, known := knownScalar(selected)
+			truth, known := pureTruthValue(selected)
 			if !valid || !known {
 				return Value{}, false
 			}
-			if !predicate.truth() {
+			if !truth {
 				continue
 			}
 		}
 		if expr.kind == pureBuild || expr.kind == pureFilterBuild {
+			key, keyed := "", len(expr.args) > 1
+			if keyed {
+				value, ok := e.evalPure(expr.args[1], bound, r, depth-1)
+				var known bool
+				key, known = pureRecordKey(value)
+				if !ok || !known {
+					return Value{}, false
+				}
+			}
 			entry, valid := e.evalPure(expr.other, bound, r, depth-1)
-			if !valid || !pureReadOnlyInputs([]Value{entry}, nil) || !appendPureEntry(&carry, entry, r) {
+			if !valid || !pureReadOnlyInputs([]Value{entry}, nil) {
+				return Value{}, false
+			}
+			if keyed {
+				if !putPureKey(&carry, key, entry, r) {
+					return Value{}, false
+				}
+			} else if !appendPureEntry(&carry, entry, r) {
 				return Value{}, false
 			}
 			continue

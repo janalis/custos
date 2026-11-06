@@ -87,6 +87,17 @@ func (e *Env) evalPure(expr *pureExpr, slots []Value, r *scopeResult, depth int)
 	if !known {
 		return Value{}, false
 	}
+	if expr.kind == pureUnary && expr.op == syntax.TExclaim {
+		truth, known := pureTruthValue(left)
+		return scalarValue(constantScalar{k: 'b', b: !truth}), known
+	}
+	if expr.kind == pureBinary && expr.op == syntax.TPlus && left.elements != nil {
+		right, ok := e.evalPure(expr.right, slots, r, depth-1)
+		if !ok {
+			return Value{}, false
+		}
+		return pureArrayUnion(left, right, r)
+	}
 	a, known := knownScalar(left)
 	if !known {
 		return Value{}, false
@@ -94,8 +105,6 @@ func (e *Env) evalPure(expr *pureExpr, slots []Value, r *scopeResult, depth int)
 	var result constantScalar
 	if expr.kind == pureUnary {
 		switch expr.op {
-		case syntax.TExclaim:
-			result = constantScalar{k: 'b', b: !a.truth()}
 		case syntax.TPlus:
 			if a.k != 'i' && a.k != 'f' {
 				return Value{}, false

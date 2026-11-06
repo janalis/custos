@@ -49,7 +49,6 @@ func TestPureCollectionsRefusals(t *testing.T) {
 		`function f($xs){return [...$xs][0];}probe(f([new stdClass]));`,
 		`function f($xs){return [...$xs,-1=>'a'][0];}probe(f([]));`,
 		`function f($xs){$out=[];foreach($xs as &$x){$out[]=$x;}return $out;}probe(f([1])[0]);`,
-		`function f($xs){$out=[];foreach($xs as $x){$out[1]=$x;}return $out;}probe(f([1])[1]);`,
 		`function f($xs){$out=[];foreach($xs as $x){$out[]=$x;}return $out;}probe(f([tmpfile()])[0]);`,
 	} {
 		e, file := summarized(t, source)

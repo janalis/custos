@@ -71,6 +71,23 @@ remain distinct from empty strings. Slices retain input provenance and establish
 no escaping guarantee. Implicit scalar conversions and object lifetimes remain
 unsupported.
 
+Complete immutable arrays establish empty or nonempty truth in pure boolean
+conditions. Quiet empty queries distinguish missing or null offsets without
+skipping required key expressions. Computed array keys require proven integer
+or string values, preserve canonical numeric-string distinctions and retain
+PHP insertion and overwrite order. Uncertain key conversions or implicit-index
+boundaries establish no field result.
+Fresh keyed foreach accumulators preserve each selected field's provenance,
+including when a later write replaces the value at an existing key. Immutable
+array unions retain left entries on collisions, preserve numeric keys and append
+new right keys in order; both operand expressions must remain supported.
+At most two sequential supported accumulator loops may compose through unchanged
+entry inputs or the first result, with distinct initialized carries and one final
+pure return. Empty inputs retain their initializers, and loop-local bindings
+establish no post-loop value. Unknown keys, incomplete membership, aliases,
+references and observable object or resource lifetimes establish no structural
+refinement.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered

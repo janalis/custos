@@ -13,7 +13,6 @@ func TestPureCollectionsCompilerLimits(t *testing.T) {
 		`function f($x){return UNKNOWN_MODE;}`,
 		`function f($x){return [,...$x];}`,
 		`function f($x){return [&$x,...[]];}`,
-		`function f($x){return [$x=>1,...[]];}`,
 		`function f($x){return [1.5=>1,...[]];}`,
 		`function f($x){return [9223372036854775807=>1,...[]];}`,
 		`function f($x){return [opaque(),...[]];}`,
