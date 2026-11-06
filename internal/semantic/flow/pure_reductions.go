@@ -36,36 +36,61 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		return slices.ContainsFunc(fields, func(field pureField) bool { return field.name == value })
 	}
 	body := loop.Body
+	var prepare syntax.Expr
+	prepName := ""
 	var skip syntax.Expr
 	stop := false
 	if block, ok := body.(*syntax.Block); ok && len(block.Stmts) == 2 {
-		branch, ok := block.Stmts[0].(*syntax.If)
-		if !ok || branch.Else != nil || len(branch.ElseIfs) != 0 {
-			return nil
-		}
-		var levelExpr syntax.Expr
-		switch transfer := singlePureStatement(branch.Body).(type) {
-		case *syntax.Continue:
-			levelExpr = transfer.Num
-		case *syntax.Break:
-			levelExpr, stop = transfer.Num, true
-		default:
-			return nil
-		}
-		if levelExpr != nil {
-			if literal, ok := syntax.UnwrapParens(levelExpr).(*syntax.Literal); !ok || literal.LitKind != syntax.LitInt {
+		if stmt, local := block.Stmts[0].(*syntax.ExprStmt); local {
+			assign, valid := stmt.Expr.(*syntax.Assign)
+			if !valid || assign.ByRef || assign.Op.Kind != syntax.TEqual {
 				return nil
 			}
-			fuel := 256
-			level, known := constantValue(levelExpr, MaxDepth, &fuel)
-			if !known || level.k != 'i' || level.i != 1 {
+			prepName = plainVariable(assign.Var)
+			if prepName == "" || prepName == name || overlaps(prepName) || external(prepName) || prepName == "GLOBALS" || prepName == "this" {
 				return nil
 			}
+			for _, binding := range c.vars {
+				if binding.name == prepName {
+					return nil
+				}
+			}
+			if _, exists := c.extra[prepName]; exists {
+				return nil
+			}
+			prepare, body = assign.Value, block.Stmts[1]
+			if _, valid := body.(*syntax.ExprStmt); !valid {
+				return nil
+			}
+		} else {
+			branch, ok := block.Stmts[0].(*syntax.If)
+			if !ok || branch.Else != nil || len(branch.ElseIfs) != 0 {
+				return nil
+			}
+			var levelExpr syntax.Expr
+			switch transfer := singlePureStatement(branch.Body).(type) {
+			case *syntax.Continue:
+				levelExpr = transfer.Num
+			case *syntax.Break:
+				levelExpr, stop = transfer.Num, true
+			default:
+				return nil
+			}
+			if levelExpr != nil {
+				if literal, ok := syntax.UnwrapParens(levelExpr).(*syntax.Literal); !ok || literal.LitKind != syntax.LitInt {
+					return nil
+				}
+				fuel := 256
+				level, known := constantValue(levelExpr, MaxDepth, &fuel)
+				if !known || level.k != 'i' || level.i != 1 {
+					return nil
+				}
+			}
+			if _, ok := block.Stmts[1].(*syntax.ExprStmt); !ok {
+				return nil
+			}
+			skip, body = branch.Cond, block.Stmts[1]
 		}
-		if _, ok := block.Stmts[1].(*syntax.ExprStmt); !ok {
-			return nil
-		}
-		skip, body = branch.Cond, block.Stmts[1]
 	}
 	if block, ok := body.(*syntax.Block); ok {
 		if len(block.Stmts) != 1 {
@@ -115,6 +140,9 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 		}
 		keyName = key.Name
 	}
+	if prepName != "" && prepName == keyName {
+		return nil
+	}
 	if pipeline {
 		stmt, ok := tail[0].(*syntax.ExprStmt)
 		if !ok {
@@ -125,7 +153,7 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 			return nil
 		}
 		variable, ok := assign.Var.(*syntax.Variable)
-		if !ok || variable.NameExpr != nil || variable.Name == name || overlaps(variable.Name) || variable.Name == keyName {
+		if !ok || variable.NameExpr != nil || variable.Name == name || overlaps(variable.Name) || variable.Name == keyName || variable.Name == prepName {
 			return nil
 		}
 		if _, ok := tail[1].(*syntax.Foreach); !ok {
@@ -144,6 +172,18 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	}
 	if keyName != "" {
 		c.bind(keyName, &pureExpr{kind: pureSlot, slot: slot + 2, cost: 1, depth: 1})
+	}
+	var prepared *pureExpr
+	if prepare != nil {
+		prepared = c.expression(prepare)
+		if prepared == nil {
+			return nil
+		}
+		at := slot + 3
+		if destructured {
+			at += len(fields)
+		}
+		c.bind(prepName, &pureExpr{kind: pureSlot, slot: at, cost: 1, depth: 1})
 	}
 	var guard *pureExpr
 	if skip != nil {
@@ -179,6 +219,15 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	result := pureNode(pureReduce, input, initial, value)
 	if result != nil {
 		result.slot = slot
+		if prepared != nil {
+			result.prepared = true
+			result.args = []*pureExpr{prepared}
+			result.cost += prepared.cost
+			result.depth = max(result.depth, prepared.depth+1)
+			if result.cost > pureLimit || result.depth > MaxDepth {
+				return nil
+			}
+		}
 		result.stopGuard = stop
 		if destructured {
 			result.destruct = fields
@@ -229,6 +278,9 @@ func (c *pureCompiler) reduction(name string, initial *pureExpr, loop *syntax.Fo
 	if keyName != "" {
 		final.bind(keyName, nil)
 	}
+	if prepName != "" {
+		final.bind(prepName, nil)
+	}
 	final.bind(name, &pureExpr{kind: pureSlot, slot: slot, cost: 1, depth: 1})
 	var returned *pureExpr
 	if pipeline {
@@ -265,6 +317,9 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 	if expr.op == syntax.TDoubleArrow {
 		width = max(width, 3)
 	}
+	if expr.prepared {
+		width = 4 + len(expr.destruct)
+	}
 	r.copies += max(len(slots), expr.slot+width)
 	if r.copies > MaxCopied {
 		return Value{}, false
@@ -273,7 +328,7 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 	copy(bound, slots)
 	for _, key := range input.elements.order {
 		item := input.elements.items[key]
-		if _, scalar := knownScalar(item); !scalar && !((expr.kind == pureBuild || expr.kind == pureFilterBuild || len(expr.destruct) != 0) && pureReadOnlyInputs([]Value{item}, nil)) {
+		if _, scalar := knownScalar(item); !scalar && !((expr.kind == pureBuild || expr.kind == pureFilterBuild || len(expr.destruct) != 0 || expr.prepared) && pureReadOnlyInputs([]Value{item}, nil)) {
 			return Value{}, false
 		}
 		bound[expr.slot], bound[expr.slot+1] = carry, item
@@ -288,6 +343,13 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 			bound[expr.slot+2] = scalarValue(keyValue)
 		}
 
+		if expr.prepared {
+			value, valid := e.evalPure(expr.args[0], bound, r, depth-1)
+			if !valid || !pureReadOnlyInputs([]Value{value}, nil) {
+				return Value{}, false
+			}
+			bound[expr.slot+3+len(expr.destruct)] = value
+		}
 		if expr.kind == pureFilterBuild || expr.kind == pureGuardReduce {
 			selected, valid := e.evalPure(expr.args[0], bound, r, depth-1)
 			truth, known := pureTruthValue(selected)

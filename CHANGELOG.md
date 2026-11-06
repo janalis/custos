@@ -9,6 +9,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Compose indexed column projections, key/value array combinations and two-array
+  key-preserving replacements in pure wrappers; support one-level local
+  destructuring and fresh per-entry preparation in canonical foreach updates,
+  retaining winning-field provenance and required-read checks.
+
 - Evaluate checked integer division, remainder, bitwise operations and shifts in
   pure wrappers; compose bounded byte replacement/repetition, immutable array
   reversal and integer switch returns while preserving provenance and order.

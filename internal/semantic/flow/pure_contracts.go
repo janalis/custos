@@ -56,6 +56,9 @@ const (
 	pureRepeat
 	pureReverse
 	pureSwitch
+	pureCombine
+	pureArrayReplace
+	pureDestructure
 	pureLimit = 64
 )
 
@@ -67,6 +70,7 @@ type pureExpr struct {
 	projects      bool
 	appendKey     bool
 	stopGuard     bool
+	prepared      bool
 	destruct      []pureField
 	slot          int
 	op            syntax.TokenKind

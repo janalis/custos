@@ -52,6 +52,10 @@ func (c *pureCompiler) statements(stmts []syntax.Stmt, depth int) *pureExpr {
 		if !ok || assign.ByRef || assign.Op.Kind != syntax.TEqual {
 			return nil
 		}
+		switch assign.Var.(type) {
+		case *syntax.List, *syntax.Array:
+			return c.destructure(assign, stmts[1:], depth)
+		}
 		variable, ok := assign.Var.(*syntax.Variable)
 		if !ok || variable.NameExpr != nil || external(variable.Name) || variable.Name == "GLOBALS" || variable.Name == "this" {
 			return nil
@@ -182,6 +186,9 @@ func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index
 	}
 	if name == "array_column" {
 		return c.column(node, params)
+	}
+	if name == "array_combine" || name == "array_replace" {
+		return c.pairedArray(node, name, params)
 	}
 	if name == "array_merge" {
 		return c.arrayMerge(node, params)
@@ -341,6 +348,9 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	if expr.kind == pureFind {
 		return e.evalPureFind(expr, slots, r, depth)
 	}
+	if expr.kind == pureDestructure {
+		return e.evalDestructure(expr, slots, r, depth)
+	}
 	if expr.kind == pureLet {
 		return e.evalPureLet(expr, slots, r, depth)
 	}
@@ -393,7 +403,7 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	if expr.kind == pureJoin || expr.kind == pureSplit {
 		return e.evalStringTransform(expr, left, slots, r, depth)
 	}
-	if expr.kind == pureColumn || expr.kind == pureMerge {
+	if expr.kind == pureColumn || expr.kind == pureMerge || expr.kind == pureCombine || expr.kind == pureArrayReplace {
 		return e.evalArrayTransform(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureSlice {

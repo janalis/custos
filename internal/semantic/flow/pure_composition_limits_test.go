@@ -26,7 +26,6 @@ func TestPureCompositionRefusals(t *testing.T) {
 		`function f($x){return explode(',',$x,2)[0];}probe(f('a,b'));`,
 		`function f($x){return explode(',',$x)[0];}probe(f(1));`,
 		`function f($x){return explode(',',$x)[0];}probe(f($_GET['x']));`,
-		`function f($xs){return array_column($xs,'v','id')[0];}probe(f([['v'=>1,'id'=>0]]));`,
 		`function f($xs){return array_column($xs,null)[0];}probe(f([['v'=>1]]));`,
 		`function f($xs){return array_column($xs,true)[0];}probe(f([['v'=>1]]));`,
 		`function f($xs){return array_column($xs,'v')[0];}probe(f([['other'=>1]]));`,

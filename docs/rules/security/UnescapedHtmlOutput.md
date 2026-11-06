@@ -203,8 +203,40 @@ establish no result. These operations establish no general escaping guarantee.
 
 Column projection accepts a proven integer or string field key over complete
 immutable rows when every requested field is present. Results are numerically
-reindexed and retain selected field provenance. Missing fields, index-key modes,
-objects and observable lifetimes establish no such projection.
+reindexed and retain selected field provenance. With an explicit integer/string
+index-field name, every row must contain both requested fields. Extracted index
+values must be integers or strings without source provenance; canonical numeric
+strings normalize as array keys. Duplicate indices retain the last selected value
+at the first insertion position. Missing or optional fields, null modes, implicit
+key conversions, objects and observable lifetimes establish no such projection.
+
+Combining two complete nonempty immutable arrays pairs values by iteration
+position, regardless of their original keys. The lengths must match. Key values
+must be proven integers or strings without source provenance. Duplicate keys
+retain the last value at the first insertion position. Only winning values
+contribute provenance; uncertain shapes and implicit key conversions establish
+no result.
+
+Replacing entries in exactly two positional complete immutable arrays preserves
+numeric and string keys. Right-hand values replace collisions at their original
+insertion position; new keys follow right-hand iteration order. Only winning
+values contribute provenance, but both operands must evaluate. Named arguments,
+unpacked inputs, additional arrays, references and uncertain shapes establish
+no such replacement.
+
+One-level local destructuring into distinct plain variables snapshots its
+right-hand side once before assigning any target. Every requested field must be
+present even when unused. Positional list assignments follow their PHP version;
+short-array and keyed assignments require PHP 7.1. Fields retain their own
+provenance. Nested patterns, references, external targets and missing fields
+establish no exact result.
+
+A canonical accumulator or builder loop may prepare one fresh local value before
+its existing update. The preparation runs once per visited entry even when unused;
+failed required reads establish no result. The local cannot overlap existing or
+loop bindings and supplies no binding after the loop or between composed loop
+stages. Mixing preparation with filter, continue or break guards establishes no
+such proof. Selected field provenance is retained.
 
 Merging two complete immutable arrays reindexes numeric entries in combined
 iteration order. String-key collisions keep the last value at the first insertion

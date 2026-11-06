@@ -240,6 +240,14 @@ open documents.
   invocation frames and bounded syntax-free return templates. Callback effects do not establish caller operation
   facts or execution-order proofs. Unknown inputs and unsupported bindings use
   conservative aggregate provenance.
+- Pure array transforms can project indexed columns, combine nonempty equal-length
+  arrays and replace keys across two positional arrays. New index values require
+  proven source-free integer/string keys; collisions retain winning provenance
+  at the first insertion position. Local one-level destructuring snapshots its
+  input and validates every requested field before binding fresh slots. Canonical
+  foreach updates can prepare one fresh per-entry local; required reads still
+  run when unused, and that local is hidden after the loop and between stages.
+  Shared expression, copy, shape and execution limits bound all these forms.
 - Named and returned callbacks can publish bounded syntax-free primitive return
   expressions, literal defaults and immutable captured parameter slots. Resolved
   pure wrapper calls compose these contracts; evaluation checks discarded local
