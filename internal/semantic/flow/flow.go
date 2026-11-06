@@ -761,6 +761,7 @@ type Env struct {
 	// the summaries being computed, which serve the file's own.
 	answers     map[string]answer
 	summarizing *summarizing
+	local       *localSummaries
 	// reading holds, innermost last, the contracts each result being
 	// computed read meanwhile; globalReads and staticReads those the cached
 	// globals and static variable facts were computed from.
@@ -777,6 +778,7 @@ type Env struct {
 	globalTaint  map[string]Value
 	writers      map[globalWriter]bool
 	globalsKnown bool
+	globalsReady bool
 	// overridden caches, per receiver class and method, whether a class of
 	// the project replaces the method (see replaced).
 	overridden map[[2]string]bool
@@ -821,6 +823,7 @@ type scopeResult struct {
 	returns   []Value
 	callIndex map[syntax.Node]int
 	complete  bool
+	finished  bool
 	// cut is where dynamic code (include, eval) first made the scope
 	// incomplete, when nothing else had before and the control flow is
 	// otherwise complete: what is known of an expression evaluated before

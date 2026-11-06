@@ -133,6 +133,8 @@ func TestForwardRecordFallback(t *testing.T) {
 	body := `return $r;`
 	for _, source := range []string{
 		`function pass($r,$unused=[]){` + body + `}$r=['h'=>tmpfile()];$a=pass($r,1);fclose($a['h']);probe($r['h']);`,
+		`function pass($r,$unused=new stdClass){` + body + `}$r=['h'=>tmpfile()];$a=pass($r,1);fclose($a['h']);probe($r['h']);`,
+		`final class C{static function pass($r,$unused=new stdClass){` + body + `}}$cb=C::pass(...);$r=['h'=>tmpfile()];$a=$cb($r,1);fclose($a['h']);probe($r['h']);`,
 		`final class C{static function pass($r,$unused=[]){` + body + `}}$cb=C::pass(...);$r=['h'=>tmpfile()];$a=$cb($r,1);fclose($a['h']);probe($r['h']);`,
 	} {
 		e, f := summarized(t, source)

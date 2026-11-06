@@ -710,6 +710,7 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 		r = e.follow(scope, distrust, round == staticRounds)
 		addReads(r.reads, earlier.reads)
 	}
+	r.finished = true
 	return r
 }
 

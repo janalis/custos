@@ -18,7 +18,6 @@ func TestPureExpressionRefusals(t *testing.T) {
 		`function f($v){return $v+1;}probe(f(1,2));`,
 		`function f(int $v){return $v+1;}probe(f(1.5));`,
 		`function f($v){return f($v);}probe(f(0));`,
-		`function f($v){return $v;}function g($v){return f(...[$v]);}probe(g(0));`,
 		`function f($v){return $v;}function g($v){return f(nope:$v);}probe(g(0));`,
 		`function f($v){return $v;}function g($v){return f(v:$v,v:0);}probe(g(0));`,
 		`function f($v){return $v;}function g($v){return f(v:$v,0);}probe(g(0));`,
@@ -94,11 +93,11 @@ func TestPureVMWorkLimits(t *testing.T) {
 	if _, _, ok := e.pureReturn(nil, identity, []Value{scalarValue(constantScalar{k: 'i'})}, nil, Value{}, nil, r); ok {
 		t.Fatal("copy limit ignored")
 	}
-	if _, ok := e.runPure(&pureContract{steps: []*pureExpr{invalid}, expr: one}, nil, &scopeResult{}, MaxDepth); ok {
+	if _, ok := e.runPure(&pureContract{expr: &pureExpr{kind: pureSequence, left: invalid, right: one}}, nil, &scopeResult{}, MaxDepth); ok {
 		t.Fatal("discarded warning ignored")
 	}
 	// A record constructed inside a contract must not acquire a caller identity.
-	record := Value{Complete: true, elements: &elementSet{whole: true}}
+	record := Value{Complete: true, elements: &elementSet{whole: true, hasResources: true}}
 	if _, _, ok := e.pureReturn(nil, &pureContract{outer: 1, expr: slot}, nil, []Value{record}, Value{}, nil, &scopeResult{}); ok {
 		t.Fatal("unproven record accepted")
 	}

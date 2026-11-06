@@ -2,7 +2,7 @@ package flow
 
 import "custos/internal/php/syntax"
 
-func literalDefaults(scope syntax.Node) []Value {
+func (e *Env) literalDefaults(scope syntax.Node) []Value {
 	params := syntax.VariableScopeParams(scope)
 	lastRequired := -1
 	for i, p := range params {
@@ -15,12 +15,16 @@ func literalDefaults(scope syntax.Node) []Value {
 		if i <= lastRequired || p.Default == nil {
 			continue
 		}
-		fuel := 256
-		if value, known := constantValue(p.Default, MaxDepth, &fuel); known {
+		c := pureCompiler{env: e, defaults: true}
+		expr := c.expression(p.Default)
+		if expr == nil {
+			continue
+		}
+		if value, known := e.evalPure(expr, nil, &scopeResult{}, MaxDepth); known {
 			if defaults == nil {
 				defaults = make([]Value, len(params))
 			}
-			defaults[i] = scalarValue(value)
+			defaults[i] = value
 		}
 	}
 	return defaults

@@ -248,6 +248,13 @@ open documents.
   exhausted work limits retain unknown results. Scalar evaluation refines
   provenance separately; exact record forwarding additionally proves caller
   resource identities and preserves field aliases.
+- Pure callback contracts also encode bounded conditional returns, ternaries,
+  short-circuit boolean operations and null coalescing. Only the selected operand
+  is evaluated. Audited native `strlen` and default `trim` calls require proven
+  strings. Immutable literal-array defaults and known-key projections preserve
+  field provenance, with canonical PHP integer-key normalization and no
+  warning-producing key conversions; structural refinement rejects observable object/resource
+  inputs. Compiled wrapper spreads reuse the runtime argument-role binder.
 - Callback truth outcomes are separate from literal equality. Each normal return,
   including implicit null, is converted before joining truth outcomes. Agreeing
   falsy returns can remove entries without treating different literals as equal.
@@ -324,6 +331,20 @@ assertion can execute code, so a string — or any argument not syntactically
 known to be non-string — invalidates local proofs; native type predicates and
 strict comparisons stay usable. From PHP 8 a plain variable assertion may also
 supply a guard.
+
+File-query environments inventory local declarations without following bodies.
+They mask the indexed version of the buffer immediately and compute demanded
+contracts and their dependencies in isolated workers. Acyclic dependencies need
+one pass; recursive closures replay in declaration order when discovery did not
+already start at their first declaration. A bounded discovery budget ensures
+inspection query order cannot change their contracts. Stable contracts
+remain private to the environment, and only scopes whose recorded answers still
+match are reused. Workers share completed global facts, pure metadata caches and
+the file-local resource-identity registry; active scopes are never borrowed.
+Rebasing a query environment rebuilds its local cache. Project
+snapshot publication remains exhaustive through `Summarize`. Deferred worker
+failures run inside the context's shared flow-data guard, so they do not disable
+the inspection that happened to request the contract.
 
 ## Analysis status
 

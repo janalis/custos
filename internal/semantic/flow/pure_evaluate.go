@@ -48,6 +48,9 @@ func (e *Env) evalPure(expr *pureExpr, slots []Value, r *scopeResult, depth int)
 		return Value{}, false
 	}
 	r.operations++
+	if expr.kind >= pureChoice {
+		return e.evalPureExtended(expr, slots, r, depth)
+	}
 	switch expr.kind {
 	case pureSlot:
 		if expr.slot >= len(slots) {
@@ -134,16 +137,12 @@ func (e *Env) evalPure(expr *pureExpr, slots []Value, r *scopeResult, depth int)
 // Check discarded assignments too: evaluating an unused expression can warn or
 // execute a conversion, so a return expression alone cannot prove purity.
 func (e *Env) runPure(contract *pureContract, slots []Value, r *scopeResult, depth int) (Value, bool) {
-	for _, step := range contract.steps {
-		if _, known := e.evalPure(step, slots, r, depth); !known {
-			return Value{}, false
-		}
-	}
 	return e.evalPure(contract.expr, slots, r, depth)
 }
 
-// Scalar evaluation refines the existing provenance contract. Structural
-// forwarding additionally needs an unchanged caller record and resource proofs.
+// Scalar evaluation refines existing provenance; immutable field projections
+// can refine primitive provenance too. Resource records still need unchanged
+// caller records and allocation proofs.
 func (e *Env) pureReturn(at syntax.Node, contract *pureContract, args, outer []Value, base Value, f *frame, r *scopeResult) (Value, map[uint32]State, bool) {
 	if contract == nil || len(outer) != contract.outer {
 		return Value{}, nil, false
@@ -167,6 +166,19 @@ func (e *Env) pureReturn(at syntax.Node, contract *pureContract, args, outer []V
 	value = e.constrainType(contract.result, value, contract.weakReturn)
 	if !value.Complete {
 		return Value{}, nil, false
+	}
+	structural := contract.expr.projects || value.elements != nil && !value.elements.hasResources
+	if structural && !pureReadOnlyInputs(args, outer) {
+		return Value{}, nil, false
+	}
+	if contract.expr.projects {
+		value = scalarSnapshot(value)
+	}
+	if contract.expr.projects && value.plain && value.deep && value.Identity == 0 && value.storedIdentity == 0 && (value.elements == nil || !value.elements.hasResources) {
+		return value, nil, true
+	}
+	if value.elements != nil && value.elements.whole && !value.elements.optional && !value.elements.hasResources && value.plain && value.deep {
+		return value, nil, true
 	}
 	if scalar, known := knownScalar(value); known {
 		literal := scalar
@@ -201,4 +213,17 @@ func (e *Env) pureReturn(at syntax.Node, contract *pureContract, args, outer []V
 		states[id] = f.states[id]
 	}
 	return value, states, true
+}
+
+// Unused temporary objects or borrowed resources can have observable lifetime
+// effects. A structural refinement needs immutable primitive inputs throughout.
+func pureReadOnlyInputs(args, outer []Value) bool {
+	for _, values := range [][]Value{args, outer} {
+		for _, value := range values {
+			if !value.Complete || value.replaced || value.Invalidated != 0 || !value.plain || !value.deep || value.Identity != 0 || value.storedIdentity != 0 || value.elements != nil && value.elements.hasResources {
+				return false
+			}
+		}
+	}
+	return true
 }

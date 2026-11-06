@@ -43,6 +43,17 @@ Reported:
 
 ## Detection
 
+Bounded pure callbacks can select conditional returns, ternary arms and
+short-circuited boolean or null-coalescing operands from proven values. Skipped
+operands do not run. Byte-string length and default whitespace trimming may
+participate when their string inputs are proven. Immutable literal-array defaults
+and read-only known-key projections preserve individual field provenance.
+Literal-array keys retain PHP numeric-string distinctions; warning-producing
+key conversions establish no pure contract.
+Sealed array packs in pure wrapper calls follow PHP argument ordering, names and
+version requirements. Unknown bindings, mutation, reference entries and observable
+object or resource lifetimes establish no structural refinement.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered

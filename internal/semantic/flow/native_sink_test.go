@@ -18,6 +18,7 @@ func TestNativeSinkSelection(t *testing.T) {
 		{"other curl option", `curl_setopt(null, CURLOPT_TIMEOUT, 1);`, nil},
 		{"dynamic curl option", `curl_setopt(null, $_GET['option'], 'text');`, nil},
 		{"incomplete curl arguments", `curl_setopt(null);`, nil},
+		{"missing PDO query argument", `$db = new PDO('sqlite::memory:'); $db->query();`, nil},
 		{"PDO query", `$db = new PDO('sqlite::memory:'); $db->query('select 1');`, []Context{SQL}},
 		{"ordinary native method", `$date = new DateTime(); $date->format('Y');`, nil},
 	} {

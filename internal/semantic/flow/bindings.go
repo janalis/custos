@@ -118,6 +118,7 @@ func (e *Env) globals() map[string]bool {
 		names[w.name] = true
 	}
 	e.propagateGlobals(writers, len(names), MaxTransfers)
+	e.globalsReady = true
 	return e.global
 }
 

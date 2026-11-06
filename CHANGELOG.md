@@ -9,6 +9,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Follow bounded pure callback branches, native string length and trimming,
+  immutable array defaults and field projections, and sealed wrapper argument packs.
+- Compute local callable contracts on demand during file queries while preserving
+  exhaustive project snapshots, buffer shadowing and dependency invalidation.
+
 - Store common control-flow successors within their blocks, avoiding separate
   edge allocations while retaining arbitrary exception fanout and block limits.
 

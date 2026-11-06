@@ -71,3 +71,43 @@ func TestSharedDataFailureSkipsOnlyTheChecksNeedingIt(t *testing.T) {
 		t.Fatalf("failed %v", c.failed)
 	}
 }
+
+func TestDeferredFlowFailureKeepsSharedOwnership(t *testing.T) {
+	e, err := NewEngine([]Rule{flowProbeRule{}}, Config{EnableAll: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := syntax.Parse("flow.php", []byte(`<?php function broken(){return 1;}probe(broken());`), syntax.Options{})
+	context := NewTestContext(e, file)
+	env := context.Flow()
+	function := file.Stmts[0].(*syntax.Function)
+	ret := function.Body.Stmts[0].(*syntax.Return)
+	ret.Expr = (*syntax.Variable)(nil)
+	var call *syntax.FuncCall
+	syntax.Inspect(file.Stmts[1], func(node syntax.Node) bool {
+		if candidate, ok := node.(*syntax.FuncCall); ok {
+			if name, ok := candidate.Name.(*syntax.Name); ok && name.Value == "broken" {
+				call = candidate
+			}
+		}
+		return true
+	})
+	for i := range 2 {
+		func() {
+			defer func() {
+				failure, ok := recover().(envFailure)
+				if !ok || failure.what != "flow analysis" {
+					t.Fatalf("wrong failure owner: %+v", failure)
+				}
+			}()
+			if i == 0 {
+				env.Sinks(call)
+			} else {
+				context.Flow()
+			}
+		}()
+	}
+	if _, failed := context.failed["flow analysis"]; !failed {
+		t.Fatal("deferred flow failure was not retained")
+	}
+}

@@ -298,10 +298,34 @@ func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapsho
 // the environment then read what the snapshot with the file's summaries
 // reads (see Rebase).
 func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) (*Env, *File) {
+	e, order := summaryInventory(file, types, snapshot, options)
+	s := e.summarizing
+	out := s.out
+	for _, n := range order {
+		e.summarize(n)
+	}
+	e.summarizing = nil
+	out.consulted, e.consulted = e.consulted, nil
+	for key, read := range e.answers {
+		switch {
+		case read.held:
+			out.held = append(out.held, key)
+		case out.served == nil:
+			out.served = map[string]bool{key: true}
+		default:
+			out.served[key] = true
+		}
+	}
+	slices.Sort(out.held)
+	return e, out
+}
+
+// summaryInventory builds declaration metadata without following callable bodies.
+func summaryInventory(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) (*Env, []syntax.Node) {
 	e := New(file, types, snapshot, options)
 	e.consulted = map[string]bool{}
 	out := &File{options: e.options, Path: file.Path, Summaries: map[string]Summary{}}
-	s := &summarizing{out: out, declared: map[string][]syntax.Node{}, names: map[syntax.Node]string{}, state: map[syntax.Node]uint8{}}
+	s := &summarizing{out: out, base: e.snapshot, declared: map[string][]syntax.Node{}, names: map[syntax.Node]string{}, state: map[syntax.Node]uint8{}}
 	var order []syntax.Node
 	syntax.InspectFile(file, func(n syntax.Node) bool {
 		name := ""
@@ -347,29 +371,16 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 		}
 	}
 	e.summarizing = s
-	for _, n := range order {
-		e.summarize(n)
-	}
-	e.summarizing = nil
-	out.consulted, e.consulted = e.consulted, nil
-	for key, read := range e.answers {
-		switch {
-		case read.held:
-			out.held = append(out.held, key)
-		case out.served == nil:
-			out.served = map[string]bool{key: true}
-		default:
-			out.served[key] = true
-		}
-	}
-	slices.Sort(out.held)
-	return e, out
+	return e, order
 }
 
 // summarizing is the state of Summarize: the summaries made so far, each
 // callable of the file under its key, and whether its summary is begun
 // (summaryBegun) or made (summaryMade).
 type summarizing struct {
+	base     *Snapshot
+	cached   map[string]Summary
+	borrowed map[syntax.Node]*scopeResult
 	out      *File
 	declared map[string][]syntax.Node
 	names    map[syntax.Node]string
@@ -388,6 +399,16 @@ func (e *Env) summarize(n syntax.Node) {
 		return
 	}
 	s.state[n] = summaryBegun
+	if prior := s.borrowed[n]; prior != nil && prior.finished && prior.reads != nil {
+		e.scopes[n] = prior
+		for key := range prior.reads {
+			summary, known, own := e.serveCached(key)
+			if e.answers == nil {
+				e.answers = map[string]answer{}
+			}
+			e.answers[key] = answer{summary: summary, ok: known, own: own, held: !own}
+		}
+	}
 	r := e.scope(n)
 	sum := Summary{Return: Value{Complete: r.complete}, argumentSensitive: r.argumentSensitive}
 	body := syntax.VariableScopeBody(n)
@@ -427,7 +448,7 @@ func (e *Env) summarize(n syntax.Node) {
 	sum.forward = e.summarizeForward(n, r, sum.Return)
 	if sum.Fixed {
 		sum.pure = e.compilePure(n, r, nil, 0)
-		sum.defaults = literalDefaults(n)
+		sum.defaults = e.literalDefaults(n)
 	}
 	sum.resource = e.summarizeResource(n, r, sum)
 	sum.Return = summarizeRecord(n, r, sum)
@@ -494,13 +515,10 @@ func unconditional(n syntax.Node) bool {
 // read meanwhile gave one answer, the one s gives. Otherwise a new one keeps
 // the results computed from none of those that differ.
 func (e *Env) Rebase(s *Snapshot) *Env {
-	differ := map[string]bool{}
-	for key, read := range e.answers {
-		summary, ok := s.lookup(key)
-		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(read.summary, summary) {
-			differ[key] = true
-		}
+	if e.local != nil {
+		return NewLocal(e.file, e.types, s, e.options, e.local.guard)
 	}
+	differ := changedAnswers(e.answers, s.lookup)
 	if len(differ) == 0 && snapshotOptions(s) == e.options {
 		e.snapshot = s
 		return e
@@ -515,6 +533,17 @@ func (e *Env) Rebase(s *Snapshot) *Env {
 		}
 	}
 	return n
+}
+
+func changedAnswers(answers map[string]answer, lookup func(string) (Summary, bool)) map[string]bool {
+	differ := map[string]bool{}
+	for key, read := range answers {
+		summary, ok := lookup(key)
+		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(read.summary, summary) {
+			differ[key] = true
+		}
+	}
+	return differ
 }
 
 // begin starts recording the contracts a result computed while summaries
@@ -573,6 +602,9 @@ func (e *Env) contract(name string) (Summary, bool) {
 		e.reading[len(e.reading)-1][key] = true
 	}
 	summary, ok, own := e.serve(key)
+	if e.local != nil {
+		summary, ok, own = e.localContract(key)
+	}
 	if !own {
 		summary, ok = e.snapshot.lookup(key)
 	}
@@ -600,13 +632,22 @@ type answer struct {
 	own, held bool
 }
 
+func (e *Env) serveCached(key string) (Summary, bool, bool) {
+	s := e.summarizing
+	if cached, known := s.cached[key]; known && s.base.alone(e.file.Path, key) {
+		return cached, true, true
+	}
+	summary, known := e.snapshot.lookup(key)
+	return summary, known, false
+}
+
 // serve returns the summary of the file being summarized for a key the
 // snapshot with the file's summaries would answer from them: a class of the
 // file, or a callable of it declared once, summarized now unless its
 // summary is being made. own is false for any other key.
 func (e *Env) serve(key string) (summary Summary, ok, own bool) {
 	s := e.summarizing
-	if s == nil || !e.snapshot.alone(s.out.Path, key) {
+	if s == nil || !s.base.alone(s.out.Path, key) {
 		return Summary{}, false, false
 	}
 	if strings.HasPrefix(key, sinkClassKey("")) {
@@ -616,6 +657,9 @@ func (e *Env) serve(key string) (summary Summary, ok, own bool) {
 	if declared := s.declared[key]; len(declared) == 1 && s.state[declared[0]] != summaryBegun {
 		// The reader depends on the summary, which Rebase compares, not on
 		// what computing it read.
+		if cached, known := s.cached[key]; known {
+			return cached, true, true
+		}
 		reading := e.reading
 		e.reading = nil
 		e.summarize(declared[0])

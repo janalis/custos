@@ -14,6 +14,17 @@ Detect request-derived data reaching a response-header value without a dominatin
 
 ## Detection
 
+Bounded pure callbacks can select conditional returns, ternary arms and
+short-circuited boolean or null-coalescing operands from proven values. Skipped
+operands do not run. Byte-string length and default whitespace trimming may
+participate when their string inputs are proven. Immutable literal-array defaults
+and read-only known-key projections preserve individual field provenance.
+Literal-array keys retain PHP numeric-string distinctions; warning-producing
+key conversions establish no pure contract.
+Sealed array packs in pure wrapper calls follow PHP argument ordering, names and
+version requirements. Unknown bindings, mutation, reference entries and observable
+object or resource lifetimes establish no structural refinement.
+
 - D1. Report request-derived data reaching a response-header value without a dominating CR/LF rejection or safe construction summary.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.

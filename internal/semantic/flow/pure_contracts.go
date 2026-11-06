@@ -15,6 +15,13 @@ const (
 	pureUnary
 	pureBinary
 	pureCall
+	pureChoice
+	pureSequence
+	pureShort
+	pureArray
+	pureIndex
+	pureLength
+	pureTrim
 	pureLimit = 64
 )
 
@@ -23,10 +30,12 @@ const (
 type pureExpr struct {
 	kind          uint8
 	weakArguments bool
+	projects      bool
 	slot          int
 	op            syntax.TokenKind
 	literal       *constantScalar
 	left, right   *pureExpr
+	other         *pureExpr
 	call          *pureContract
 	args          []*pureExpr
 	cost, depth   int
@@ -35,14 +44,13 @@ type pureExpr struct {
 type pureParam struct {
 	name               string
 	typ                types.Type
-	initial            *constantScalar
+	initial            *pureExpr
 	optional, nullable bool
 }
 
 type pureContract struct {
 	params     []pureParam
 	expr       *pureExpr
-	steps      []*pureExpr
 	calls      []string
 	result     types.Type
 	weakReturn bool
@@ -65,12 +73,13 @@ type pureBinding struct {
 }
 
 type pureCompiler struct {
-	env   *Env
-	vars  []pureBinding
-	extra map[string]*pureExpr
-	work  int
-	name  string
-	calls []string
+	env      *Env
+	vars     []pureBinding
+	extra    map[string]*pureExpr
+	work     int
+	name     string
+	calls    []string
+	defaults bool
 }
 
 // Small scopes keep bindings on the compiler's stack. Larger scopes retain
@@ -115,14 +124,13 @@ func (e *Env) pureParameters(scope syntax.Node) ([]pureParam, bool) {
 		}
 		params[i] = pureParam{name: p.Var.Name, typ: types.FromNode(p.Type, nil), optional: p.Default != nil && i > lastRequired}
 		if p.Default != nil {
-			fuel := 256
-			value, known := constantValue(p.Default, MaxDepth, &fuel)
-			if !known {
+			c := pureCompiler{env: e, defaults: true}
+			value := c.expression(p.Default)
+			if value == nil {
 				return nil, false
 			}
-			literal := value
-			params[i].initial = &literal
-			params[i].nullable = value.k == 'n'
+			params[i].initial = value
+			params[i].nullable = value.kind == pureLiteral && value.literal.k == 'n'
 		}
 	}
 	return params, true
@@ -148,47 +156,19 @@ func (e *Env) compilePure(scope syntax.Node, r *scopeResult, captures map[string
 		c.name = e.summarizing.names[scope]
 	}
 	var result *pureExpr
-	var steps []*pureExpr
-	cost := 0
 	switch body := syntax.VariableScopeBody(scope).(type) {
 	case *syntax.Block:
-		for i, stmt := range body.Stmts {
-			switch n := stmt.(type) {
-			case *syntax.Return:
-				if i != len(body.Stmts)-1 || n.Expr == nil {
-					return nil
-				}
-				result = c.expression(n.Expr)
-			case *syntax.ExprStmt:
-				assign, ok := n.Expr.(*syntax.Assign)
-				if !ok || assign.ByRef || assign.Op.Kind != syntax.TEqual {
-					return nil
-				}
-				variable, ok := assign.Var.(*syntax.Variable)
-				if !ok || variable.NameExpr != nil || external(variable.Name) || variable.Name == "GLOBALS" || variable.Name == "this" {
-					return nil
-				}
-				value := c.expression(assign.Value)
-				if value == nil {
-					return nil
-				}
-				cost += value.cost
-				steps = append(steps, value)
-				c.bind(variable.Name, value)
-			default:
-				return nil
-			}
-		}
+		result = c.statements(body.Stmts, MaxDepth)
 	default:
 		if _, arrow := scope.(*syntax.ArrowFunction); !arrow {
 			return nil
 		}
 		result = c.expression(body.(syntax.Expr))
 	}
-	if result == nil || cost+result.cost > pureLimit {
+	if result == nil || result.cost > pureLimit || result.depth > MaxDepth || c.work > pureLimit {
 		return nil
 	}
-	return &pureContract{params: params, expr: result, steps: steps, calls: c.calls, result: types.FromNode(returnDeclaration(scope), nil), weakReturn: !syntax.StrictTypes(e.file), outer: outer}
+	return &pureContract{params: params, expr: result, calls: c.calls, result: types.FromNode(returnDeclaration(scope), nil), weakReturn: !syntax.StrictTypes(e.file), outer: outer}
 }
 
 func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
@@ -197,7 +177,29 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 		return nil
 	}
 	expr = syntax.UnwrapParens(expr)
+	if c.defaults {
+		fuel := 256
+		if scalar, ok := constantValue(expr, MaxDepth, &fuel); ok {
+			return pureConstant(scalar)
+		}
+		if _, ok := expr.(*syntax.Array); !ok {
+			return nil
+		}
+	}
 	switch n := expr.(type) {
+	case *syntax.Ternary:
+		condition := c.expression(n.Cond)
+		yes := condition
+		if n.Then != nil {
+			yes = c.expression(n.Then)
+		}
+		return pureNode(pureChoice, condition, yes, c.expression(n.Else))
+	case *syntax.Array:
+		return c.array(n)
+	case *syntax.ArrayDimFetch:
+		if n.Dim != nil && !n.Curly {
+			return pureNode(pureIndex, c.expression(n.Var), c.expression(n.Dim), nil)
+		}
 	case *syntax.Variable:
 		if n.NameExpr == nil {
 			for _, binding := range c.vars {
@@ -217,15 +219,26 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 		case syntax.TExclaim, syntax.TPlus, syntax.TMinus:
 			child := c.expression(n.Expr)
 			if child != nil && child.cost < pureLimit && child.depth < MaxDepth {
-				return &pureExpr{kind: pureUnary, op: n.Op.Kind, left: child, cost: child.cost + 1, depth: child.depth + 1}
+				return &pureExpr{kind: pureUnary, op: n.Op.Kind, left: child, projects: child.projects, cost: child.cost + 1, depth: child.depth + 1}
 			}
 		}
 	case *syntax.Binary:
 		switch n.Op.Kind {
+		case syntax.TBooleanAnd, syntax.TAnd, syntax.TBooleanOr, syntax.TOr, syntax.TCoalesce:
+			if n.Op.Kind == syntax.TCoalesce && c.env.types.PHP.Below(phpversion.PHP70) {
+				return nil
+			}
+			expr := pureNode(pureShort, c.expression(n.Left), c.expression(n.Right), nil)
+			if expr != nil {
+				expr.op = n.Op.Kind
+			}
+			return expr
+		}
+		switch n.Op.Kind {
 		case syntax.TPlus, syntax.TMinus, syntax.TMul, syntax.TDot, syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual, syntax.TLess, syntax.TGreater, syntax.TIsSmallerOrEqual, syntax.TIsGreaterOrEqual:
 			left, right := c.expression(n.Left), c.expression(n.Right)
 			if left != nil && right != nil && left.cost+right.cost < pureLimit && max(left.depth, right.depth) < MaxDepth {
-				return &pureExpr{kind: pureBinary, op: n.Op.Kind, left: left, right: right, cost: left.cost + right.cost + 1, depth: max(left.depth, right.depth) + 1}
+				return &pureExpr{kind: pureBinary, op: n.Op.Kind, left: left, right: right, projects: left.projects || right.projects, cost: left.cost + right.cost + 1, depth: max(left.depth, right.depth) + 1}
 			}
 		}
 	case *syntax.FuncCall:
@@ -237,7 +250,10 @@ func (c *pureCompiler) expression(expr syntax.Expr) *pureExpr {
 }
 
 func (c *pureCompiler) call(node *syntax.FuncCall) *pureExpr {
-	_, name, known := c.env.declaration(node)
+	params, name, known := c.env.declaration(node)
+	if native, builtin := c.env.callName(node); builtin {
+		return c.native(node, native, params)
+	}
 	if !known {
 		return nil
 	}
@@ -252,53 +268,17 @@ func (c *pureCompiler) call(node *syntax.FuncCall) *pureExpr {
 	}
 	c.calls = append(c.calls, key)
 	c.calls = append(c.calls, callee.calls...)
-	args := make([]*pureExpr, len(callee.params))
-	position := 0
-	named := false
-	if node.Args != nil {
-		for _, expr := range node.Args.Args {
-			arg, ok := expr.(*syntax.Arg)
-			if !ok || arg.ByRef || arg.Unpack {
-				return nil
-			}
-			index := position
-			if arg.Name != nil {
-				if c.env.types.PHP.Below(phpversion.PHP80) {
-					return nil
-				}
-				named, index = true, -1
-				for i, p := range callee.params {
-					if p.name == arg.Name.Value {
-						index = i
-						break
-					}
-				}
-			} else {
-				if named {
-					return nil
-				}
-				position++
-			}
-			if index < 0 || index >= len(args) || args[index] != nil {
-				return nil
-			}
-			args[index] = c.expression(arg.Value)
-			if args[index] == nil {
-				return nil
-			}
-		}
+	args := c.arguments(node, callee.params, params)
+	if args == nil {
+		return nil
 	}
 	cost, depth := callee.expr.cost+1, callee.expr.depth+1
-	for _, step := range callee.steps {
-		cost += step.cost
-		depth = max(depth, step.depth+1)
-	}
 	for i, param := range callee.params {
 		if args[i] == nil {
 			if !param.optional || param.initial == nil {
 				return nil
 			}
-			args[i] = pureConstant(*param.initial)
+			args[i] = param.initial
 		}
 		cost += args[i].cost
 		depth = max(depth, args[i].depth+1)
@@ -306,5 +286,5 @@ func (c *pureCompiler) call(node *syntax.FuncCall) *pureExpr {
 	if cost > pureLimit || depth > MaxDepth {
 		return nil
 	}
-	return &pureExpr{kind: pureCall, call: callee, args: args, cost: cost, depth: depth, weakArguments: !syntax.StrictTypes(c.env.file)}
+	return &pureExpr{kind: pureCall, call: callee, args: args, projects: callee.expr.projects, cost: cost, depth: depth, weakArguments: !syntax.StrictTypes(c.env.file)}
 }
