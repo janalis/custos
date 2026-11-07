@@ -106,8 +106,12 @@ body, unless it is in a test context (E6).
   `compact()` name list reads the named variables. Unknown names or a getter
   index conservatively observe every binding they might select at that
   evaluation point; this does not count as reading an original parameter
-  value already absent from all those bindings. Unknown values or unknown
-  scope effects prevent proof that the original parameter was unread.
+  value already absent from all those bindings. A value that is merely
+  unknown, such as the result of a call the analysis cannot see into, does
+  not by itself prevent the report: it cannot carry an original value that
+  nothing read. Unknown scope effects that may have replaced a binding, or
+  values too large to track, still prevent proof that the original
+  parameter was unread.
 - Report the target variable.
 
 ### D. `=+`, `=-`, `=!` formatting typo
@@ -345,6 +349,16 @@ function jumpRead($incoming) {
     $incoming = 'replacement';
 consume:
     echo $incoming;
+}
+```
+
+An overwrite by the result of an unknown call is still reported:
+
+```php
+<?php
+function reload($incoming) {
+    $incoming = fetch_replacement(); // parameter-overwrite report
+    return $incoming;
 }
 ```
 

@@ -26,7 +26,7 @@ func (e *Env) ParameterRead(scope syntax.Node, parameter int) (read, known bool)
 				continue
 			}
 			state := r.parameterReads[v.Name]
-			if !value.Complete || value.replaced {
+			if mayHideEntry(value) {
 				state |= 1
 			}
 			for _, source := range value.Sources {
@@ -39,4 +39,14 @@ func (e *Env) ParameterRead(scope syntax.Node, parameter int) (read, known bool)
 	}
 	state := r.parameterReads[params[parameter].Var.Name]
 	return state&2 != 0, state&2 != 0 || state&1 == 0
+}
+
+// mayHideEntry reports that a read value might still be a parameter's entry
+// value without listing it among its sources. Sources are may-sources that
+// survive unknown writes, joins and opaque calls, so an incomplete value that
+// lists every source it has (an unknown call result, for one) cannot carry an
+// entry value that was never read. Only a binding untracked code may have
+// replaced, or a source list cut at MaxSources, can hide one.
+func mayHideEntry(value Value) bool {
+	return value.replaced || !value.Complete && len(value.Sources) >= MaxSources
 }

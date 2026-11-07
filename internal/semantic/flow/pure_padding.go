@@ -103,9 +103,9 @@ func (e *Env) evalPureRange(expr *pureExpr, left, right Value, slots []Value, r 
 	if !sk || !ek {
 		return Value{}, false
 	}
-	// The span is compared without overflow: a span beyond the construction
-	// budget is rejected before any subtraction.
-	if start-end > pureLimit || end-start > pureLimit || start < -1<<62 || end < -1<<62 || start > 1<<62 || end > 1<<62 {
+	// Bounding both ends first keeps the subtractions below from overflowing;
+	// a span beyond the construction budget is then rejected.
+	if start < -1<<62 || end < -1<<62 || start > 1<<62 || end > 1<<62 || start-end > pureLimit || end-start > pureLimit {
 		return Value{}, false
 	}
 	span := end - start

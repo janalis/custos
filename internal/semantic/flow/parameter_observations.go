@@ -11,7 +11,7 @@ func observeParameter(name string, value Value, scope syntax.Node, r *scopeResul
 	if r.parameterObserved == nil {
 		r.parameterObserved = map[string]uint8{}
 	}
-	if !value.Complete || value.replaced {
+	if mayHideEntry(value) {
 		r.parameterObserved[name] |= 1
 	}
 	params := syntax.VariableScopeParams(scope)
@@ -31,12 +31,17 @@ func (e *Env) observeParameters(at syntax.Node, f *frame, r *scopeResult) {
 			r.gap("flow-budget", at.Span())
 			return
 		}
-		if param.Var != nil {
-			value := Value{}
-			if f != nil {
-				value = f.vars.value(param.Var.Name)
+		switch {
+		case param.Var == nil:
+		case f == nil:
+			// The original argument itself may be exposed: nothing proves it
+			// unread.
+			if r.parameterObserved == nil {
+				r.parameterObserved = map[string]uint8{}
 			}
-			observeParameter(param.Var.Name, value, scope, r)
+			r.parameterObserved[param.Var.Name] |= 1
+		default:
+			observeParameter(param.Var.Name, f.vars.value(param.Var.Name), scope, r)
 		}
 	}
 }

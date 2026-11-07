@@ -3,7 +3,6 @@ package flow
 import (
 	"maps"
 	"slices"
-	"strconv"
 
 	"custos/internal/php/syntax"
 )
@@ -336,11 +335,7 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 			return Value{}, false
 		}
 		if expr.op == syntax.TDoubleArrow {
-			keyValue := constantScalar{k: 's', s: key}
-			if number, err := strconv.ParseInt(key, 10, 64); err == nil && strconv.FormatInt(number, 10) == key {
-				keyValue = constantScalar{k: 'i', i: number}
-			}
-			bound[expr.slot+2] = scalarValue(keyValue)
+			bound[expr.slot+2] = scalarValue(pureKeyScalar(key))
 		}
 
 		if expr.prepared {
