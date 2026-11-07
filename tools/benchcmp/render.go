@@ -97,11 +97,14 @@ func ratio(r Row, rows []Row) string {
 	}
 	for _, x := range rows {
 		if x.ID == ref && x.Status == "ok" && x.Median > 0 {
-			q := r.Median / x.Median
-			if q < 10 {
+			switch q := r.Median / x.Median; {
+			case q < 0.1:
+				return fmt.Sprintf("%.2f×", q)
+			case q < 10:
 				return fmt.Sprintf("%.1f×", q)
+			default:
+				return fmt.Sprintf("%.0f×", q)
 			}
-			return fmt.Sprintf("%.0f×", q)
 		}
 	}
 	return "—"
