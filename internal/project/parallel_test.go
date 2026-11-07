@@ -150,3 +150,11 @@ func TestPrepareFixesReusesReadSources(t *testing.T) {
 		t.Fatalf("seen=%q outs=%+v", seen, outs)
 	}
 }
+
+func TestSummaryWorkers(t *testing.T) {
+	for cores, want := range map[int]int{1: 1, 4: 4, 8: 8, 12: 8, 16: 8, 32: 16} {
+		if got := summaryWorkers(cores); got != want {
+			t.Errorf("summaryWorkers(%d) = %d, want %d", cores, got, want)
+		}
+	}
+}
