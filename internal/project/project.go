@@ -96,7 +96,7 @@ func (p *Project) prepare() (*analysis.Engine, [][]byte) {
 	ix.Freeze()
 	engine = engine.WithIndex(ix)
 	if engine.NeedsFlow() {
-		options := p.Options.Analysis.Flow
+		options := WithVendorFlow(p.Options.Root, ix, p.Options.Parse, p.Options.Analysis.Flow)
 		var order map[string]int
 		if p.Options.FlowOrder {
 			order = cache.FlowOrder(php, options)

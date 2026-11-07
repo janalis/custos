@@ -37,6 +37,10 @@ func (e *Engine) NeedsFlow() bool {
 func (e *Engine) WithFlow(snapshot *flow.Snapshot) *Engine {
 	configured := *e
 	configured.flow = snapshot
+	// Local analysis answers dependency contracts as the snapshot does.
+	if snapshot != nil {
+		configured.cfg.Flow.Vendor = snapshot.Options().Vendor
+	}
 	return &configured
 }
 

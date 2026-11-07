@@ -294,7 +294,8 @@ func (s *Server) refreshFlow() {
 	if builder == nil {
 		builder = project.BuildFlowOrdered
 	}
-	build := builder(context.Background(), files, sources, opt, ix, cfg.Flow, order)
+	// Dependency contracts are summarized on demand against this index.
+	build := builder(context.Background(), files, sources, opt, ix, project.WithVendorFlow(cfg.Root, ix, opt, cfg.Flow), order)
 	if cfg.FlowOrder {
 		_ = cache.SaveFlowOrder(build.Order(), cfg.Flow)
 	}

@@ -35,6 +35,12 @@ classes and functions your code uses, whichever files a run checks. In
 `vendor/`, types from dependencies are unknown and rules that need them stay
 silent.
 
+When your code calls a function or method of a dependency, custos reads the
+one file under `vendor/` that declares it and summarizes it, once per run (or
+editor session), so request data passed through library wrappers is followed
+like data passed through your own. Each dependency file is summarized on its
+own; files over 512 KB and callables declared more than once are left out.
+
 The declarations of the files custos indexes without checking them are kept
 between runs, under `custos` in the user cache directory (for example
 `~/.cache/custos` on Linux, `~/Library/Caches/custos` on macOS), or in

@@ -377,6 +377,13 @@ open documents.
 - Ambiguous declarations, escaped resources, unsupported operations, recursion
   and exhausted budgets discard definite facts: an unknown result is never
   proof of a bug.
+- Dependency callables have no published summaries: a lookup that no
+  snapshot file declares goes to the options' `Vendor` provider, which
+  summarizes the single dependency file declaring the callable (or the class
+  whose metadata is asked) alone, without a snapshot or further provider, and
+  memoizes per file and per key. Results therefore never depend on which
+  lookup comes first. Snapshots built with different providers are
+  incompatible; `Engine.WithFlow` adopts the snapshot's provider.
 - Expression depth counts nesting, not fluent links: a call or property fetch
   used as the receiver of the next link is evaluated at the same depth (parsing
   already bounds tree depth). Each evaluated call memoizes what its operands

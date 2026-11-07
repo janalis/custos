@@ -654,7 +654,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 		for _, name := range s.OwnFiles {
 			srcs = append(srcs, s.Sources[name])
 		}
-		s.Engine = s.Engine.WithFlow(BuildFlowSnapshot(ctx, s.OwnFiles, srcs, opt, s.Index, s.Config.Flow))
+		s.Engine = s.Engine.WithFlow(BuildFlowSnapshot(ctx, s.OwnFiles, srcs, opt, s.Index, WithVendorFlow(s.Config.Root, s.Index, opt, s.Config.Flow)))
 	}
 	results := make([]diagnostic.FileResult, len(s.Files))
 	if err := Each(ctx, len(s.Files), func(i int) {

@@ -234,6 +234,9 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 	name = names.Fold(name)
 	if s.base == nil {
 		v, ok := s.summaries[name]
+		if !ok && s.shared[name] == 0 && s.options.Vendor != nil {
+			return s.options.Vendor.lookup(name)
+		}
 		return v, ok
 	}
 	// A name has a contract when exactly one file declares it, counting the
@@ -254,6 +257,8 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 	switch {
 	case inOwn && declaring == 0:
 		return fresh, true
+	case !inOwn && declaring == 0 && s.options.Vendor != nil:
+		return s.options.Vendor.lookup(name)
 	case inOwn || declaring != 1:
 		return Summary{}, false
 	case !inReplaced:
@@ -842,6 +847,9 @@ func (e *Env) Sinks(at syntax.Node) []Sink {
 	}
 	return out
 }
+
+// Options returns the analysis options the snapshot's summaries assume.
+func (s *Snapshot) Options() Options { return snapshotOptions(s) }
 
 func snapshotOptions(s *Snapshot) Options {
 	if s == nil {

@@ -5,6 +5,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Summarize dependency functions and methods on demand from the `vendor/` file
+  declaring them, so flow analysis follows request data through library
+  wrappers and reaches their sinks; far fewer calls report
+  `unresolved-dispatch`.
+
 - Preserve known PDO bindings and DOM child facts through redundant conditional operations.
 
 ### Changed

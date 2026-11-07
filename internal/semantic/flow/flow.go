@@ -739,7 +739,13 @@ func (f *frame) unmatch(r *scopeResult, table string) {
 }
 
 // Options controls runtime assumptions used for flow proofs.
-type Options struct{ Assertions bool }
+type Options struct {
+	Assertions bool
+	// Vendor, when set, answers contracts no file of a snapshot declares from
+	// dependency files (see Vendor). Snapshots built with different providers
+	// are not compatible.
+	Vendor *Vendor
+}
 
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
