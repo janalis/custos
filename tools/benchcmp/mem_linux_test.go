@@ -46,6 +46,19 @@ func TestWatch(t *testing.T) {
 	}
 }
 
+// Without samples (procfs unreadable, or a tool faster than the first
+// one), the peak is the kernel's maximum resident set of the tool.
+func TestWatchFallback(t *testing.T) {
+	saved := procRoot
+	t.Cleanup(func() { procRoot = saved })
+	procRoot = t.TempDir()
+	exe, _ := os.Executable()
+	s := execute([]string{exe}, t.TempDir(), fakeEnv("FAKE_SLEEP=50ms"), time.Minute)
+	if s.peak < 32<<20 {
+		t.Errorf("peak = %d, want the fake's 32 MB at least", s.peak)
+	}
+}
+
 func TestLinuxMachine(t *testing.T) {
 	saved := procRoot
 	t.Cleanup(func() { procRoot = saved })
