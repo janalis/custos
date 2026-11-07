@@ -30,6 +30,7 @@ Each time is the median of 3 runs.
 | Mid | analyzer | 1.0.0 | 12.3 s | 25× | 300 MB | 40 |
 | Slow | analyzer | 2.0.0 | 150 s | 300× | 2.0 GB | 300 |
 | Broken | analyzer | 1.0.0 | error: &lt;bad&gt; \| &#123;&#123;x&#125;&#125; more | — | — | — |
+| Quick | linter | 1.0.0 | 0.02 s | 0.04× | 20 MB | 9 |
 | Lint | linter | 1.0.0 | 1.00 s | 2.0× | 30 MB | 7 |
 | Fixer | fixer | 1.0.0 | 2.00 s | — | 50 MB | 3 |
 
