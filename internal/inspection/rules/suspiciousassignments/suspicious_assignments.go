@@ -235,9 +235,6 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 	if semanticquery.InTestContext(ctx, fn) { // E6
 		return
 	}
-	if saReadsArgsByPosition(ctx, body) { // divergence: func_get_arg(s) read the values
-		return
-	}
 	// D8 for every parameter in one walk (a walk per parameter was
 	// quadratic); only the first two accesses of each matter.
 	names := map[string]bool{}
@@ -252,7 +249,7 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 			firstTwo[v.Name] = append(firstTwo[v.Name], v)
 		}
 	})
-	for _, p := range params {
+	for parameter, p := range params {
 		if p.ByRef || p.Var == nil || p.Var.Name == "" {
 			continue
 		}
@@ -282,28 +279,11 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 			}
 			return true
 		})
-		if count == 1 {
+		read, known := ctx.Flow().ParameterRead(fn, parameter)
+		if count == 1 && known && !read {
 			ctx.ReportNode(first, "Parameter is overwritten before its value is used.")
 		}
 	}
-}
-
-// saReadsArgsByPosition reports whether body (nested functions excluded)
-// calls func_get_arg() or func_get_args(), which read the passed values.
-func saReadsArgsByPosition(ctx *analysis.Context, body syntax.Node) bool {
-	found := false
-	syntax.Inspect(body, func(x syntax.Node) bool {
-		switch c := x.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ClassLike:
-			return false
-		case *syntax.FuncCall:
-			if ctx.IsGlobalFunctionCall(c, "func_get_arg") || ctx.IsGlobalFunctionCall(c, "func_get_args") {
-				found = true
-			}
-		}
-		return !found
-	})
-	return found
 }
 
 // saFlowVars calls fn for the simple variable accesses under n in

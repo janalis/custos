@@ -390,6 +390,9 @@ func (c *csrCtx) kind(e syntax.Expr) (csrKind, int) {
 			return csrUnknown, 0
 		}
 	}
+	if minimum, maximum, known := c.ctx.Types().Native().TypeOf(e).ArrayCardinality(); known && minimum == maximum {
+		return csrList, minimum
+	}
 	return csrOpen, 0
 }
 
@@ -398,6 +401,7 @@ func (c *csrCtx) kind(e syntax.Expr) (csrKind, int) {
 // spec F0. See NOTES.md.
 func (c *csrCtx) fixable(calls []csrCall, cascade bool) bool {
 	same := true
+	empty := false
 	first := c.unboxed(calls[0])
 	for _, x := range calls {
 		if r := c.unboxed(x); !isStringLit(r) || c.ctx.Text(r) != c.ctx.Text(first) {
@@ -407,23 +411,34 @@ func (c *csrCtx) fixable(calls []csrCall, cascade bool) bool {
 	for i, x := range calls {
 		sk, sn := c.kind(x.args[0])
 		rk, rn := c.kind(x.args[1])
+		empty = empty || sk == csrList && sn == 0 || rk == csrList && rn == 0
 		switch {
 		case sk == csrUnknown || rk == csrUnknown:
 			return false
+		case sk == csrList && sn == 0:
+			// Dropping a scalar coercion could remove a strict-type error or
+			// a null-argument deprecation even when evaluating it is pure.
+			if rk == csrScalar && !isStringLit(x.args[1]) || !csrDiscardable(x.args[1]) {
+				return false
+			}
 		case same:
 		case sk == csrScalar:
 			if rk != csrScalar {
 				return false
 			}
 		case rk == csrScalar:
-			if sk == csrOpen || sn == 0 {
+			if sk == csrOpen {
+				return false
+			}
+		case sk == csrList && rk == csrList && rn == 0:
+			if !csrDiscardable(x.args[1]) {
 				return false
 			}
 		case i > 0 && (sk == csrOpen || rk == csrOpen || sn != rn):
 			return false
 		}
 	}
-	return c.orderSafe(calls, cascade)
+	return (!empty || c.emptySafe(calls)) && c.orderSafe(calls, cascade)
 }
 
 // orderSafe reports whether the merged call evaluates its operands in an
@@ -685,7 +700,18 @@ type csrModel struct {
 }
 
 func (c *csrCtx) model(x csrCall) csrModel {
-	return csrModel{search: exprVal(x.args[0]), replace: exprVal(x.args[1]), unboxed: c.unboxed(x), subject: c.ctx.Text(x.args[2])}
+	model := csrModel{search: exprVal(x.args[0]), replace: exprVal(x.args[1]), unboxed: c.unboxed(x), subject: c.ctx.Text(x.args[2])}
+	if kind, n := c.kind(x.args[0]); kind == csrList {
+		if n == 0 {
+			model.replace, model.unboxed = csrVal{}, nil
+		} else if rk, rn := c.kind(x.args[1]); rk == csrList && rn == 0 {
+			model.replace, model.unboxed = csrVal{elems: make([]string, n)}, nil
+			for i := range model.replace.elems {
+				model.replace.elems[i] = "''"
+			}
+		}
+	}
+	return model
 }
 
 func (c *csrCtx) elemTexts(arr *syntax.Array) []string {
@@ -730,6 +756,9 @@ func (c *csrCtx) count(v csrVal) int { return len(c.contribution(v)) }
 // merge implements F3: from's elements followed by to's.
 func (c *csrCtx) merge(to, from csrVal) csrVal {
 	fe := c.contribution(from)
+	if len(fe) == 0 {
+		return to
+	}
 	if arr, ok := to.expr.(*syntax.Array); ok {
 		if len(arr.Items) == 0 { // keep from's elements; see NOTES.md
 			return csrVal{elems: fe}
@@ -811,6 +840,11 @@ func (c *csrCtx) unboxed(x csrCall) syntax.Expr {
 // expand implements the F1 expansion of a replace argument.
 func (c *csrCtx) expand(m csrModel) csrVal {
 	n := c.count(m.search)
+	if m.search.expr != nil {
+		if kind, count := c.kind(m.search.expr); kind == csrList {
+			n = count
+		}
+	}
 	if n < 2 || m.replace.expr == nil { // one search, or already a list
 		return m.replace
 	}
@@ -874,4 +908,67 @@ func (c *csrCtx) wrap(elems []string) string {
 func (c *csrCtx) rebuild(p csrCall, m csrModel) string {
 	qual, _, _ := astquery.CallName(p.call)
 	return qual + "str_replace(" + c.render(m.search) + ", " + c.render(m.replace) + ", " + m.subject + ")"
+}
+
+// Only discard evaluations with no reads, conversions or runtime lookup.
+func csrDiscardable(e syntax.Expr) bool {
+	return csrPureValue(e, false)
+}
+
+func csrPureValue(e syntax.Expr, reads bool) bool {
+	switch n := syntax.UnwrapParens(e).(type) {
+	case *syntax.Literal:
+		return true
+	case *syntax.ConstFetch:
+		return syntax.IsNullConst(n) || strings.EqualFold(n.Name.Value, "true") || strings.EqualFold(n.Name.Value, "false")
+	case *syntax.Variable:
+		return reads && n.NameExpr == nil
+	case *syntax.Array:
+		for _, item := range n.Items {
+			if item == nil || item.ByRef || item.Unpack || !csrPureValue(item.Value, reads) {
+				return false
+			}
+			if item.Key != nil {
+				if _, known := syntax.LiteralArrayKey(item.Key); !known {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// Removing an intermediate empty operation must not move user conversions or
+// argument validation ahead of reads made by the following call.
+func (c *csrCtx) emptySafe(calls []csrCall) bool {
+	for _, call := range calls {
+		for _, arg := range call.args[:2] {
+			if !csrPureValue(arg, true) {
+				return false
+			}
+			t := c.ctx.Types().Native().TypeOf(arg)
+			if t.IsArrayLike() {
+				if _, maximum, known := t.ArrayCardinality(); known && maximum == 0 {
+					continue
+				}
+				if !t.Elem().OnlyOf("string", "int", "float", "bool", "true", "false", "null") {
+					return false
+				}
+			} else if !t.OnlyOf("string") {
+				return false
+			}
+		}
+	}
+	head := len(calls) - 1
+	if !c.ctx.Types().Native().TypeOf(calls[head].args[2]).OnlyOf("string") || !csrPureValue(calls[head].args[2], true) {
+		for _, call := range calls[:head] {
+			for _, arg := range call.args[:2] {
+				if !csrDiscardable(arg) {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }

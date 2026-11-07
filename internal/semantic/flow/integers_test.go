@@ -211,7 +211,9 @@ func TestImmutableIntegerRangeReuse(t *testing.T) {
 		t.Fatal("unary plus must retain the immutable interval")
 	}
 	before := *held.interval
-	state := frame{vars: map[string]Value{"n": held}}
+	state := frame{}
+	state.resetVars()
+	state.setVar("n", held)
 	var condition *syntax.Binary
 	for parent := x.Parent(); parent != nil; parent = parent.Parent() {
 		if guard, ok := parent.(*syntax.If); ok {
@@ -220,7 +222,7 @@ func TestImmutableIntegerRangeReuse(t *testing.T) {
 		}
 	}
 	e.refineInts(condition, &state, true)
-	if state.vars["n"].interval != held.interval || *held.interval != before {
+	if state.vars.value("n").interval != held.interval || *held.interval != before {
 		t.Fatal("unchanged refinement must retain immutable bounds")
 	}
 	literal := Value{Complete: true, Expr: condition.Right}

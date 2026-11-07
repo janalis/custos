@@ -78,8 +78,8 @@ result is again an element of an array literal (so `[$a, $b] = …`, the nested
   (`sort($v['k'])`). Plain reads (`echo $v['k']`) do not modify. Do not
   stop (later rules can only add `n` to `Dep(S)` again).
 - **D8** `P` is a call argument list and `$v` is directly an argument:
-  - **D8a** the call is an instance method call with `->` (not `::`, not
-    `?->`): take its object expression and strip parentheses, property
+  - **D8a** the call is an instance method call with `->` or `?->` (not
+    `::`): take its object expression and strip parentheses, property
     accesses (to their object) and array accesses (to their base). If that
     yields a variable `$o`, add `$o`'s name to `M` and stop **without** adding
     `n` to `Dep(S)` (the argument is considered absorbed by the object).
@@ -221,6 +221,17 @@ foreach ($rows as $row) {
 }
 ```
 
+A nullsafe call can absorb an iteration value into its receiver, so the
+receiver remains connected to the iteration:
+
+```php
+<?php
+foreach ($incomingRows as $row) {
+    $sink?->append($row);
+    $sink?->flush();
+}
+```
+
 ## Divergences
 
 - Throw: upstream searches for a `throw` strictly *inside* the statement, so a
@@ -233,8 +244,10 @@ foreach ($rows as $row) {
   on any element access, so a pure read such as `echo $cfg['title'];` makes
   every statement using `$cfg` connected and hides genuine findings. custos
   only counts element writes (D7).
-- D8a ignores nullsafe `?->` calls, as upstream does: an argument passed to
-  `$o?->add($v)` does not mark `$o` as modified. No fixture coverage.
+- **Nullsafe receiver mutation (custos diverges).** An argument passed to
+  `$o?->add($v)` marks `$o` as possibly modified, just as a regular instance
+  call does. The call can execute when the receiver is non-null; ignoring
+  that effect can incorrectly classify later uses as disconnected.
 - **Catch and inner-loop variables (custos diverges):** upstream treats them
   as plain reads, so a statement reading the variable after the inner loop
   or `try` (`report($line);` after `foreach ($batch as $line)`) is reported

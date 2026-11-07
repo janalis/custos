@@ -43,6 +43,303 @@ Reported:
 
 ## Detection
 
+Bounded pure callbacks can select conditional returns, ternary arms and
+short-circuited boolean or null-coalescing operands from proven values. Skipped
+operands do not run. Byte-string length and default whitespace trimming may
+participate when their string inputs are proven. Immutable literal-array defaults
+and read-only known-key projections preserve individual field provenance.
+Literal-array keys retain PHP numeric-string distinctions; warning-producing
+key conversions establish no pure contract.
+Sealed array packs in pure wrapper calls follow PHP argument ordering, names and
+version requirements. Unknown bindings, mutation, reference entries and observable
+object or resource lifetimes establish no structural refinement.
+Pure PHP 8 match expressions compare proven scalars strictly and select the first
+matching arm or the default; an unmatched expression establishes no result.
+Quiet offset queries distinguish a missing entry from a present null entry:
+coalescing and isset treat both alike, while array_key_exists tests presence.
+Pure wrappers may compose visible static methods with a closed target, excluding
+late static dispatch. An initialized scalar accumulator, one pure assignment per
+foreach iteration and a final accumulator return may be evaluated over a proven
+finite scalar array in insertion order. References, mutation and unknown elements
+establish no reduction result.
+A proven present array is non-null for isset and coalescing, with its field
+provenance retained. Finite plain arrays support normal counting and strict
+scalar membership tests. Scalar reductions may use explicit local keys and
+addition or concatenation assignment, retaining exact key types and insertion
+order. Pure methods may delegate through the current instance to a visible
+closed helper that does not read or write receiver state. Unknown receivers,
+object lifetimes, reference bindings and loose comparisons establish no proof.
+
+Pure string prefix, suffix and containment predicates compare proven byte strings
+with PHP 8 empty-needle behavior. Normal counting may use the resolved native
+COUNT_NORMAL constant; a shadowing declaration establishes no native constant
+proof. Strict membership is false for an empty proven array and true for a proven
+matching scalar entry even when other primitive entries are unknown. Unknown
+entries cannot prove absence from a nonempty array.
+Immutable array spreads preserve insertion order, numeric reindexing and, from
+PHP 8.1, string-key overwrites. Earlier supported spread versions accept only
+numeric keys. An empty local array accumulator with one append of a pure value
+per foreach iteration and a final return preserves each projected element's
+provenance. References, unknown collection membership and observable lifetimes
+establish no such collection result.
+
+A supported accumulator loop may finish with a pure expression over its final
+accumulator and unchanged entry bindings. Loop key and value bindings do not
+establish a post-loop value, including when the input is empty. Append-only
+loops may select entries with one pure condition whose result is proven for
+every entry; unknown conditions establish no complete filtered membership.
+Default array_values queries reindex values in proven insertion order while
+retaining individual provenance. Default array_keys queries return proven keys
+in that order with exact integer or string types. Available native
+array_key_first and array_key_last queries return null for a proven empty array.
+Primitive is_string, is_int and is_array predicates require proven scalar values
+or immutable plain arrays; documentation-only types establish no predicate result.
+Byte substrings accept proven strings and integer offsets and lengths, including
+negative bounds. PHP 5 boundary failures and pre-PHP 8 invalid-range failures
+remain distinct from empty strings. Slices retain input provenance and establish
+no escaping guarantee. Implicit scalar conversions and object lifetimes remain
+unsupported.
+
+Complete immutable arrays establish empty or nonempty truth in pure boolean
+conditions. Quiet empty queries distinguish missing or null offsets without
+skipping required key expressions. Computed array keys require proven integer
+or string values, preserve canonical numeric-string distinctions and retain
+PHP insertion and overwrite order. Uncertain key conversions or implicit-index
+boundaries establish no field result.
+Fresh keyed foreach accumulators preserve each selected field's provenance,
+including when a later write replaces the value at an existing key. Immutable
+array unions retain left entries on collisions, preserve numeric keys and append
+new right keys in order; both operand expressions must remain supported.
+At most two sequential supported accumulator loops may compose through unchanged
+entry inputs or the first result, with distinct initialized carries and one final
+pure return. Empty inputs retain their initializers, and loop-local bindings
+establish no post-loop value. Unknown keys, incomplete membership, aliases,
+references and observable object or resource lifetimes establish no structural
+refinement.
+
+One-input mapping and default-mode filtering wrappers may compose a literal
+named project callback whose pure declaration and parameter binding are proven.
+Mapped values retain transformed provenance; filtered entries retain their
+original values and keys. Unknown predicate results establish no complete filter
+membership. Callback operations establish no caller resource-state facts.
+A canonical foreach search may return the first proven match or a pure fallback;
+later tests and return expressions do not run after a match. A single continue
+guard may skip an existing accumulator update without evaluating its key or value.
+Unknown executed conditions, unsupported exits and loop-local fallback reads
+establish no result.
+Explicit boolean, string and integer casts accept only proven warning-free
+primitive conversions, with plain arrays additionally allowed for boolean casts.
+Floats, ambiguous numeric strings and object or resource conversions remain
+unsupported. Derived scalar values retain their provenance, and numeric safety
+does not validate URL or path destinations.
+Strict array identity and nonidentity preserve key types, insertion order and
+nested primitive values. A proven structural or value mismatch can establish
+nonidentity despite other unknown primitive payloads; otherwise unknown entries
+prevent an equality proof. Aliases, reference entries and observable lifetimes
+establish no structural comparison result.
+
+### Additional bounded callback and query forms
+
+Filtering with a fixed pure named callback can use explicit default value mode,
+key mode or value-and-key mode. Callback arguments follow PHP's runtime order;
+kept values retain their original keys and provenance. Unknown modes or callback
+truth outcomes establish no complete result.
+
+Mapping two complete immutable arrays of equal length pairs values by iteration
+position and returns numeric keys. Each result retains only the provenance of
+fields actually used by the callback. Unequal lengths, references and unknown
+membership establish no result. Single-input mapping also supports literal
+native `strlen` and default `trim` callbacks when every executed argument is a
+proven string; trimming retains untrusted provenance.
+
+Array-valued match arms and strict membership searches compare ordered keys and
+nested primitive values. A proven first match selects the corresponding result;
+an unresolved earlier comparison establishes none. Argument expressions must
+still evaluate successfully, including the entire membership haystack.
+
+A canonical accumulator or builder can stop at a single leading break guard.
+A proven break returns the accumulated prefix without evaluating that iteration's
+update key or value or later iterations. Unknown guards, other break levels,
+references and escaping loop variables establish no exact result.
+
+### Additional immutable transform forms
+
+Direct noncapturing arrow callbacks can compose with supported mapping and
+filtering wrappers. They use only their own parameters and supported pure
+expressions. Lexical captures, receiver state, references and arbitrary stored
+callables establish no such proof. Selected fields retain their own provenance.
+
+A reduction with a fixed named pure callback and an explicit primitive initializer
+visits a complete immutable array in insertion order. The callback receives the
+current carry followed by the next value. An empty input retains the initializer.
+Unknown carries, references and array, object or resource accumulators establish
+no exact reduction result.
+
+Immutable array slices preserve string keys and selected value provenance.
+Numeric keys are reindexed unless key preservation is explicitly true. Proven
+integer bounds include negative offsets and lengths; an omitted or null length
+selects the remaining entries. Unknown arguments, uncertain membership and
+warning-producing conversions establish no slice result.
+
+Strict filtered key extraction compares proven scalar or immutable array values.
+Every entry's membership must be proven before a complete ordered numeric list
+of matching original keys is known. Key types are preserved; loose comparisons,
+unknown membership, references and observable lifetimes establish no such result.
+
+Canonical accumulator and builder loops can destructure one level of positional
+or literal-keyed fields into distinct plain variables. Every requested field must
+be present, even if unused in an update or followed by a break guard. Missing or
+optional fields, nested patterns, reference bindings and escaping loop variables
+establish no exact loop result. Selected fields retain individual provenance.
+
+### Additional composition and first-match forms
+
+Canonical two-argument string joins and splits can compose in pure wrappers.
+Joins accept proven string pieces and separators; only emitted pieces and inserted
+separators contribute provenance. Splits require a nonempty proven byte separator
+and preserve empty and trailing fields, with input provenance retained on each
+field. Implicit conversions, legacy join argument order and extra split limits
+establish no result. These operations establish no general escaping guarantee.
+
+Column projection accepts a proven integer or string field key over complete
+immutable rows when every requested field is present. Results are numerically
+reindexed and retain selected field provenance. With an explicit integer/string
+index-field name, every row must contain both requested fields. Extracted index
+values must be integers or strings without source provenance; canonical numeric
+strings normalize as array keys. Duplicate indices retain the last selected value
+at the first insertion position. Missing or optional fields, null modes, implicit
+key conversions, objects and observable lifetimes establish no such projection.
+
+Bounded array fills accept a nonnegative proven integer start, a positive proven
+integer count and one immutable value. The generated final key must fit an
+integer; start and count must have no source provenance. Requested numeric keys
+are retained, and each repeated entry keeps the value's provenance. Negative
+starts, zero or negative counts and implicit conversions establish no result.
+
+Keyed fills accept a complete ordered immutable array of source-free proven
+integer/string keys and one immutable value. Canonical numeric strings normalize
+as array keys; duplicates retain their first insertion position. Each emitted
+entry keeps the value's provenance. Even empty key arrays require the value
+argument to evaluate without unsupported reads or lifetimes.
+
+Flipping a complete ordered immutable array requires all values to be source-free
+proven integers or strings. Output values are the original proven keys. Duplicate
+values retain the last original key at the first insertion position. Unsupported
+or source-bearing values establish no flipped result rather than being skipped.
+
+Chunking complete ordered immutable arrays requires a positive source-free proven
+integer size and an omitted or proven boolean key-preservation flag. Each chunk
+retains the provenance of its own elements. Default mode reindexes every chunk;
+key-preserving mode retains original keys. Empty input still requires all supplied
+arguments to evaluate. Combined outer and inner construction limits apply.
+
+Summing a complete ordered immutable array is exact only when every value is a
+proven integer and every intermediate addition fits an integer. Empty input
+returns zero. Participating values retain provenance under the existing numeric
+safety rules. Overflow, floats, numeric strings, booleans, nulls, objects and
+uncertain membership establish no exact sum.
+
+These array operations reject references, observable lifetimes and exhausted
+construction limits. They establish no general key-provenance or numeric-coercion
+extension.
+
+Padding a complete ordered immutable array to a source-free proven integer size
+leaves it unchanged, keys included, when the size does not exceed its length.
+Otherwise numeric keys are renumbered in order, string keys are kept, pads come
+first for a negative size and last for a positive one, and each pad entry keeps
+the pad value's provenance. Integer ranges need source-free proven bounds and an
+omitted step, or a proven step from one up to the distance between the bounds.
+
+From PHP 8.2, ASCII case changes of proven text keep its provenance. Trimming
+with the default set or a proven character list without range syntax keeps the
+input's provenance only. Padding proven text to a source-free proven length with
+a nonempty proven pad and a proven left, right or both mode adds the pad's
+provenance only when padding is inserted. Unproven lengths, modes, empty pads and
+oversized results establish no exact value.
+
+Removing duplicates from a complete ordered array of proven integers and
+strings compares their text forms and keeps the first key of each, with that
+entry's provenance; explicit comparison modes establish nothing. A search
+proven strict returns the first matching key, or false. The smallest or
+largest of proven integers, given as one nonempty array or as several
+arguments, is the first winning entry with its provenance. Integer products
+are exact only while every step fits an integer; an empty product is one.
+Reversing proven text keeps its provenance; counting a nonempty proven
+substring without offsets yields a number.
+
+Combining two complete nonempty immutable arrays pairs values by iteration
+position, regardless of their original keys. The lengths must match. Key values
+must be proven integers or strings without source provenance. Duplicate keys
+retain the last value at the first insertion position. Only winning values
+contribute provenance; uncertain shapes and implicit key conversions establish
+no result.
+
+Replacing entries in exactly two positional complete immutable arrays preserves
+numeric and string keys. Right-hand values replace collisions at their original
+insertion position; new keys follow right-hand iteration order. Only winning
+values contribute provenance, but both operands must evaluate. Named arguments,
+unpacked inputs, additional arrays, references and uncertain shapes establish
+no such replacement.
+
+One-level local destructuring into distinct plain variables snapshots its
+right-hand side once before assigning any target. Every requested field must be
+present even when unused. Positional list assignments follow their PHP version;
+short-array and keyed assignments require PHP 7.1. Fields retain their own
+provenance. Nested patterns, references, external targets and missing fields
+establish no exact result.
+
+A canonical accumulator or builder loop may prepare one fresh local value before
+its existing update. The preparation runs once per visited entry even when unused;
+failed required reads establish no result. The local cannot overlap existing or
+loop bindings and supplies no binding after the loop or between composed loop
+stages. Mixing preparation with filter, continue or break guards establishes no
+such proof. Selected field provenance is retained.
+
+Merging two complete immutable arrays reindexes numeric entries in combined
+iteration order. String-key collisions keep the last value at the first insertion
+position. Only winning values contribute provenance; both input expressions must
+still evaluate. Uncertain membership, aliases, references and observable lifetimes
+establish no merged result.
+
+Direct noncapturing anonymous function callbacks can use supported pure local
+assignments and conditional returns in mapping and filtering wrappers. Captures,
+receiver state, references, static locals, generators and arbitrary stored callables establish
+no such proof. Required argument and return conversions remain part of evaluation.
+
+First-match foreach searches can destructure one level of positional or
+literal-keyed fields. Every requested field of each visited row must be present,
+even if unused by the guard or return. After a proven match, later rows' fields
+and conditions do not run. Unknown earlier conditions and loop bindings used by
+the fallback establish no exact result; selected fields retain their provenance.
+
+### Checked integer and byte operations
+
+Pure wrappers can evaluate exact integer-result division and integer remainder
+from proven integer operands. Zero denominators, fractional quotients, division
+overflow and implicit scalar conversions establish no result. Signed remainders
+retain the dividend's sign. Integer bitwise operations, complement and bounded
+shifts preserve signed values; overflowing left shifts and invalid shift counts
+establish no result. Numeric outputs retain operand provenance without validating
+URL or path destinations.
+
+Scalar string replacement accepts proven strings and a nonempty search, retaining
+subject provenance and replacement origins when inserted. String repetition
+accepts a nonnegative proven integer count, retaining emitted input origins.
+Arrays, implicit conversions, output count references and unbounded expansion
+establish no result. Neither operation establishes a general escaping guarantee.
+
+Immutable array reversal changes iteration order while retaining each value's
+provenance. String keys remain intact; numeric keys are reindexed unless key
+preservation is explicitly true. Unknown membership, aliases, references and
+observable lifetimes establish no reversal result.
+
+Canonical integer switches have a default and one pure return in every arm.
+Every visited case expression and the selector must be proven integers. Case
+tests run in written order until the first match; only its return expression
+runs. Default selection follows all failed tests even when written earlier.
+Mixed-type comparisons, fallthrough and unknown earlier tests establish no exact
+result. Selected return values retain their own provenance.
+
 Bounded, pure constant conditions select only their executable flow successor.
 The same applies to ternary arms. User constants, calls and unsupported scalar
 coercions remain unknown; labels inside skipped branches can still be entered
@@ -52,6 +349,49 @@ Literal variable-variable and global-table spellings of request superglobals
 carry the same request provenance as direct reads. A function binding a global
 can read request data written by another function of that file before its first
 call; propagation follows longer chains within the shared analysis budget. A function of another file that binds the same global makes each call of project code drop what file-level code proved of the variable; the request data such a function writes is not followed across files.
+
+A locally created closure or arrow function may carry request provenance through
+its return value and unsafe uses when its target, arguments and by-value captures
+are known. Captures take their values when the callable is created. Supplied
+optional arguments are used directly; omitted defaults are followed only when
+they are supported primitive constants or arrays without observable evaluation.
+Bounded variadic packs retain individual positional and named entries. Reference
+captures or parameters, retained static state, generators and escaped or
+ambiguous targets do not establish that proof.
+
+A first-class reference to a known project function, or a known project function
+passed to `call_user_func` or `call_user_func_array`, may carry the same return
+and unsafe-use provenance as a direct call. The complete target and argument
+binding must be proven; conditional or ambiguous declarations, generators,
+reference bindings and unknown argument packs establish no such proof.
+
+A union of native receiver classes may carry wrapper provenance when each called
+method cannot be overridden, including final methods on extensible classes. Every
+possible target and argument binding must be known. A proven final or private
+method with one unaliased reference argument may also replace the request data
+held by that argument. A nullable or escaped receiver, PHPDoc-only receiver claim,
+unknown effects or overlapping reference arguments establish no replacement proof.
+Multiple reference outputs require distinct local variables without aliases,
+reference captures, static storage or global bindings.
+
+Complete finite array mappings may bind several input arrays in insertion order,
+with null for missing positions and numeric result keys when several arrays are
+supplied. A single input preserves its keys. Proven nested callback return fields
+retain their own provenance, including through bounded immutable wrapper
+contracts. Unknown input order, incomplete entries, unsupported callback bindings
+and alias mutations cannot establish a clean field.
+
+Proven sealed argument packs can supply finite mapping callbacks and arrays.
+With a null mapping callback, one array keeps its entries; several arrays form
+position-matched rows with null for missing entries. Returned closures may carry
+bounded nested field provenance through factories and immutable captures.
+
+Finite filters retain original values rather than their predicate results.
+Known callback bindings carry unsafe uses, including value-only, key-only and
+combined modes. Proven predicate truth can discard entries; unknown predicates
+keep their original possibilities without proving exact output membership.
+Declared parameter or return coercions cannot establish literal predicate truth from the
+unconverted value.
 
 Literal keys and computed request names use PHP string decoding for the parsed
 source version. Escape sequences PHP preserves remain distinct from actual
@@ -78,6 +418,10 @@ A catch contributes values only when its try body can throw. Bounded inert liter
 - No report when a request superglobal feeding the value (or `$GLOBALS`) is rewritten in the same scope, before the value reads it, by a write that may replace the request text (text copied from the table before the write keeps the request text; an assignment stores its value after computing it, so a read inside that value is earlier): a plain assignment of a value without request text to it or to one of its elements, `++`/`--`, `unset`, a `foreach` that iterates it by reference or assigns it the keys or elements of a value without request text, or an argument bound to a by-reference parameter whose output contract establishes a replacement. Named arguments bind by their exact parameter names. A project function that keeps its input, or replaces it on only some paths, does not establish a replacement. Unknown, unpacked, variadic and potentially aliased multiple-reference outputs remain conservative. So do callees that may mutate request globals indirectly: the parameter contract cannot account for another route to the actual argument. A call with more than 64 parameters or 256 written arguments establishes no replacement and marks the file's analysis as incomplete. For output that transforms the read again, an earlier escaping write alone does not remove request provenance: a later decoder can expose it again. For HTML text output, a bounded chain of native `trim`, `ltrim`, `rtrim`, `strtolower`, `strtoupper`, `ucfirst`, `lcfirst`, `ucwords`, `str_repeat`, `strrev` or `substr` calls on a direct request read preserves that earlier escaping write; argument binding uses the exact `string` parameter name. A single reaching callback result in the same file retains the callback-result treatment below. A write to an element with a literal key counts only when the value reads that same element, the whole superglobal, an element with a non-literal key, or the superglobal through a callee; a write to the whole superglobal or with a non-literal or nested key always counts. A reference bound to the superglobal or to one of its elements (`$entry = &$_GET['v']`, `$_GET['v'] = &$local`) replaces nothing by itself; the same kinds of write to the bound variable then count as writes to what it is bound to: the whole superglobal, the element a literal key names, or an element under an unknown key (a computed or nested one). These do not count, whatever their target: an assignment that stores a value still holding request text (`$_GET = $_POST`, `$_GET = array_merge($_GET, $_POST)`, `$_GET['v'] = trim($_GET['v'])`, `$entry = $_POST['v']` through a reference), a compound assignment (`$_GET += $_POST`), a resolved builtin that fills its by-reference argument while another argument holds request text (`parse_str($_SERVER['QUERY_STRING'], $_GET)`), a write to another literal element, writes in nested closures, writes after the output statement and outside any loop around it, reads such as `count($_GET)`, and builtins that take the array by reference only to read it or move its pointer (`extract`, `current`, `key`, `end`, `reset`, `next`, `prev`, `each`). The result of a resolved function that takes a callback (`array_map($escape, $_GET)`) is not known to hold request text, so assigning it counts as a rewrite. When literal text names a PHP function as that callback, its own output contract decides instead: `array_map('htmlspecialchars', $_GET)` rewrites, `array_map('trim', $_GET)` keeps the request text. The writes are read in the order they are written: one that stores request text into the whole superglobal fills every element again, one that stores it into an element with a literal key fills that element, and one that stores it under a computed or nested key, or through an entry of `$GLOBALS`, may fill any element, so `unset($_GET['v']); $_GET += $_POST;` leaves `$_GET['v']` reported, until a later replacement empties it again. Each slot of a destructuring target is a write of its own, and a `foreach` target assigned the keys or elements of request data is filled by it. A call or an object construction made after a replacement ends what the replacement established when its callee may store request text in a superglobal; a call inside the assigned value runs before the assignment and does not. A call written `f(...)` only makes a closure and stores nothing; a call given an array written with an element by reference (`f([&$_GET])`) may store anything, since the callee then holds the caller's variable. A resolved PHP function is taken not to store any (what it is given by reference is read as above) unless it runs code of the project: it is given a callback other than the name of a PHP function that only computes on text and numbers (a closed list of functions that raise no warning whatever text they are given: `strlen`, `trim`, `intval`, `strtoupper`, `strcmp`, `htmlspecialchars`, `md5` and the like, not `hexdec`, `abs` or `chr`); it calls a handler or callbacks registered earlier (`trigger_error`, `unserialize`, `gc_collect_cycles`, the session functions that start, write, reset, abort, destroy or collect a session, regenerate or create its id, or encode or decode it, `ob_flush`, `ob_clean`, `ob_end_flush`, `ob_end_clean`, `ob_get_flush`, `ob_get_clean`, `curl_exec`, `curl_multi_exec`, `xml_parse`, `xml_parse_into_struct`, `preg_replace_callback_array`); it loads a class by name (`class_exists` and its siblings unless their second argument is `false`, `spl_autoload`, `spl_autoload_call`, `class_alias`, `stream_wrapper_register`, `stream_filter_register`, `stream_filter_append`, `stream_filter_prepend`, and `method_exists`, `property_exists`, `is_subclass_of`, `is_a` asked to read text as a class name, `get_parent_class`, `class_implements`, `class_parents`, `class_uses`, `get_class_methods`, `get_class_vars`, unless their first argument is written `$this`, `new …`, `clone …`, `self::class` or `static::class`; `is_callable`, `constant` and `defined`, unless their argument is literal text without `::` or, for `is_callable`, a function written in place); it constructs a class it is given (`simplexml_load_string`, `simplexml_load_file`, `mysqli_fetch_object`, `pg_fetch_object` with a class argument); or it is a `filter_var`, `filter_input`, `filter_var_array` or `filter_input_array` call that names `FILTER_CALLBACK`, or whose filter is not named by one of PHP's own `FILTER_…` constants (a variable, a number or a constant of the project may stand for `FILTER_CALLBACK`); for the two functions that take a table of filters, their second argument, each filter of a table written in place is looked at, alone or under the key `'filter'`, and a table that is not written in place with constants and literals counts as naming any. Arguments given by name or unpacked may be any of these. A method or a constructor PHP itself declares is taken not to store any either, unless it is given such a callback; belongs to `Closure`, `Generator`, `Fiber` or the reflection classes; is `PDOStatement::fetchObject` or `mysqli_result::fetch_object` given a class, `PDOStatement::fetchAll` given a second argument, `ArrayObject::setIteratorClass`, `SplFileInfo::getFileInfo`, `getPathInfo`, `setFileClass` or `setInfoClass` given a class, `DOMDocument::registerNodeClass` given a class to register, `SoapServer::handle`, a method of an iterator that wraps another one (`IteratorIterator` and the PHP classes derived from it, `MultipleIterator`, `RecursiveIteratorIterator`, `RecursiveTreeIterator`), or the construction of an `ArrayObject` given the class of its iterators; or is a method, neither final nor a constructor, of a PHP class that a class of the project extends, which may call a method the project replaces (as inserting into an `SplHeap` calls its `compare`). Constructing a class that finds no constructor and no destructor runs nothing (before PHP 8 a method named like its class is a constructor, and is not looked into). A function, method or constructor of the analyzed project does not either when the declaration that runs is known (a function declared once; for a method, as in the string-parameter rule of the failure inspections: final, private, named by its class, or replaced by no project class, each class involved declared once except copies of the class looked up that each declare the method, every copy and replacement counted too), takes no parameter by reference, and its body, the default values of its parameters and the closures written in it included, names no request superglobal, no `$GLOBALS` and no variable by a computed name (`${'_GET'}` is the superglobal), evaluates and includes no code, and calls or constructs nothing but what PHP declares, on the terms above, or a class of the project without constructor and destructor, or a function of the same file declared once, unconditionally, taking nothing by reference, whose own body spares the tables on these terms, up to four calls deep (a call back to a function being looked into does not spare them); a method of the project such a callee calls is not looked into further. Every other callee may: an unresolved function or method, a receiver of unknown class, a computed name, `new static`, an anonymous class, a function that calls a method of the project, a function of another file, or functions more than four calls deep. What is said here of PHP's own functions and methods is a limit of the analysis, not a property of PHP. Not seen: code that runs without a call being written (an object converted to text, counted, iterated, serialized or cloned by a PHP function, a magic method, a property hook, an autoloader started by a class name written in code); a class behind a stream wrapper path; an `assert()` callback; PHP functions registered on an `XSLTProcessor`; rows fetched into a class chosen by an earlier `setFetchMode()`; and a reference to a request superglobal kept elsewhere (a global variable, a static property or a property another function bound to it), which a callee can write through without naming the superglobal. A PHP function called directly in the scope of the output is a refill when it runs code of the project as described above (a callback given to `array_map`, a handler it calls). Calls written in the output statement itself run before the parts written after them, and so may refill what those parts read. When the output statement sits in a loop, what fills a superglobal later in that loop does so before the next turn and counts, while a replacement made after the output does not; a replacement made in the loop before the output runs again after such a refill, so it still holds on every turn. After a replacement of the whole superglobal, the value is reported only when every element of it that still feeds the value was filled again.
 - The narrowing of E4 and E5 through a variable's reaching assignment is not applied, and the report is kept, when the scope can rebind that variable behind the assignment: a reference alias, a by-reference closure capture or argument, a by-reference `foreach` over it, a `catch` binding or `static` declaration of the same name, `extract()`, a variable variable, a `global` declaration of it or a `$GLOBALS` access that is not a different literal entry.
 - Request data that a `switch` compared with constant labels is the matched label inside an arm reached only through string labels that do not read as numbers (not empty and not starting, after whitespace, with a digit, a sign or a dot), and after the switch when every other way out replaced it or left the scope: `switch ($sort) { case 'name': case 'date': break; default: $sort = 'name'; }` validates `$sort`. A numeric, empty, boolean or null label, a label expression, a fall-through from another arm, a `default` arm and any other subject prove nothing. The subject is a plain variable or an element of a request superglobal read under one constant key (`switch ($_GET['action'])`, not `$_FILES`); the element is the matched label only while nothing that may run code is evaluated: a call, an object creation, an assignment, an `unset`, or the use of a local variable, property, offset of a local or class constant ends it, as does a reference to the superglobal. A matched label is text the program wrote: the parts of the output that follow it are still examined. So is a value derived from one by joining it with constant text or passing it through a builtin that only edits text (`$class = $sort . '-col'`, `strtoupper($sort)`): the output parts that follow such a value are examined as well. A `switch (true)` reads each case expression like the condition of an `if`/`elseif` chain.
+
+Native first-class function references and callback helpers preserve supported native transformations and sinks. Project method callbacks require a native receiver and a closed, visible method target. A bounded complete set of callable alternatives joins every target; an unknown alternative establishes no result proof.
+
+A complete finite mapped input retains the supported callback result for each element and preserves literal keys. Literal callable-name alternatives, closed invokable objects and returned closures with immutable captures preserve supported output provenance; unknown alternatives and mutable or reference captures establish no proof.
 
 ## Fix
 

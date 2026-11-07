@@ -1,5 +1,7 @@
 package flow
 
+import "sort"
+
 // projectValues records a dependency on values rather than keys or the whole
 // array. Sources are immutable and shared until a symbolic projection changes.
 func projectValues(v Value) Value {
@@ -38,6 +40,11 @@ func projectSource(v Value, s Source) Value {
 
 // substitute expands syntax-free dependencies using declaration-ordered args.
 func substitute(template Value, args []Value, known bool) Value {
+	fuel := MaxSources
+	return substituteValue(template, args, known, MaxDepth, &fuel)
+}
+
+func substituteValue(template Value, args []Value, known bool, depth int, fuel *int) Value {
 	v := Value{Complete: template.Complete}
 	for _, source := range template.Sources {
 		if source.Parameter < 0 {
@@ -49,6 +56,29 @@ func substitute(template Value, args []Value, known bool) Value {
 		}
 	}
 	v.Safe |= template.Safe
+	v.literal = template.literal
+	v.truth = template.truth
+	v.record = template.record
+	if template.elements != nil && depth > 0 && len(template.elements.items) <= *fuel {
+		*fuel -= len(template.elements.items)
+		if len(template.elements.items) == 0 {
+			v.elements = emptyElements
+		} else {
+			v.elements = template.elements
+			changed := false
+			for _, key := range sortedElementKeys(template.elements) {
+				before := template.elements.items[key]
+				after := substituteValue(before, args, known, depth-1, fuel)
+				if !equal(before, after) {
+					if !changed {
+						v.elements = cloneElements(template.elements)
+						changed = true
+					}
+					v.elements.put(key, after)
+				}
+			}
+		}
+	}
 	return v
 }
 
@@ -69,4 +99,43 @@ func projectKeys(v Value) Value {
 		}
 	}
 	return v
+}
+
+// Compact shapes share only immutable provenance. A single fuel allowance
+// bounds the entire tree; losing nested detail retains aggregate provenance.
+func compactElements(elements *elementSet, depth int, fuel *int) *elementSet {
+	if elements == nil || depth == 0 || len(elements.items) > *fuel {
+		return nil
+	}
+	*fuel -= len(elements.items)
+	if len(elements.items) == 0 {
+		return emptyElements
+	}
+	out := elements
+	changed := false
+	for _, key := range sortedElementKeys(elements) {
+		value := elements.items[key]
+		entry := compactCallableValue(value)
+		entry.elements = compactElements(value.elements, depth-1, fuel)
+		if !equal(value, entry) {
+			if !changed {
+				out = cloneElements(elements)
+				changed = true
+			}
+			out.put(key, entry)
+		}
+	}
+	return out
+}
+
+func sortedElementKeys(elements *elementSet) []string {
+	if len(elements.order) == len(elements.items) && sort.StringsAreSorted(elements.order) {
+		return elements.order
+	}
+	keys := make([]string, 0, len(elements.items))
+	for key := range elements.items {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }

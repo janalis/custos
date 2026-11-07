@@ -50,7 +50,7 @@ func PossibleValuesComplete(f *syntax.File, e syntax.Expr) (vals []syntax.Expr, 
 func CompleteValuesWithReferences(f *syntax.File, e syntax.Expr, mayWrite func(*syntax.Arg) bool) (vals []syntax.Expr, complete bool) {
 	pc := &completeValues{ValueWalk: NewValueWalk(f)}
 	pc.ReferenceArgument = mayWrite
-	pc.ElvisCond, pc.NilStops = true, true
+	pc.NilStops = true
 	pc.Resolve = pc.resolveExpr
 	pc.Collect(e)
 	return pc.Result()

@@ -182,7 +182,7 @@ func (e *Env) refineInts(n *syntax.Binary, f *frame, truth bool) {
 	if !ok || !known || variable.NameExpr != nil {
 		return
 	}
-	v := f.vars[variable.Name]
+	v := f.vars.value(variable.Name)
 	lo, hi, known := integerBounds(v)
 	if !known {
 		return
@@ -243,7 +243,7 @@ func (e *Env) IntEntry(x syntax.Expr) (int64, bool) {
 		}
 	}
 	normal := e.scope(scope)
-	if value := normal.values[x]; !normal.complete || value.Expr == nil && value.interval == nil && value.origins == nil {
+	if value := normal.values.at(x); !normal.complete || value.Expr == nil && value.interval == nil && value.origins == nil {
 		return 0, false
 	}
 	twin := *e
@@ -255,7 +255,7 @@ func (e *Env) IntEntry(x syntax.Expr) (int64, bool) {
 	// Its cloned memo retains normal callee results, and it cannot require
 	// more transfer work than that completed analysis.
 	r := twin.followMode(syntax.EnclosingVariableScope(x), nil, true, x)
-	value := r.values[x]
+	value := r.values.at(x)
 	lo, hi, known := integerBounds(value)
 	return lo, value.Complete && known && lo == hi
 }
@@ -289,13 +289,14 @@ func (g *graph) entryPrefix(at int, f frame, r *scopeResult, target syntax.Expr)
 				return
 			}
 		}
-		if len(b.next) == 1 {
-			at = b.next[0]
+		next := g.successors(at)
+		if len(next) == 1 {
+			at = int(next[0])
 			continue
 		}
 		condition, ok := b.node.(syntax.Expr)
 		truth, known := entryTruth(condition, r)
-		if !ok || !known || len(b.next) != 2 {
+		if !ok || !known || len(next) != 2 {
 			return
 		}
 		branch := 1
@@ -303,7 +304,7 @@ func (g *graph) entryPrefix(at int, f frame, r *scopeResult, target syntax.Expr)
 			branch = 0
 		}
 		g.env.refine(condition, &f, truth)
-		at = b.next[branch]
+		at = int(next[branch])
 	}
 }
 
@@ -334,7 +335,7 @@ func entrySafe(node syntax.Node, target syntax.Expr, contains bool, f frame) boo
 			safe = first
 		case *syntax.Assign:
 			name := plainVariable(n.Var)
-			old, held := f.vars[name]
+			old, held := f.vars.lookup(name)
 			safe = name != "" && !n.ByRef && f.aliased[name] == 0 && (held && old.plain && old.deep || !held && f.definite)
 		case *syntax.IncDec:
 			safe = plainVariable(n.Var) != "" && f.aliased[plainVariable(n.Var)] == 0
@@ -381,8 +382,8 @@ func entryTruth(x syntax.Expr, r *scopeResult) (bool, bool) {
 		}
 	}
 	if n, ok := syntax.UnwrapParens(x).(*syntax.Binary); ok {
-		lo, hi, a := integerBounds(r.values[n.Left])
-		bl, bh, b := integerBounds(r.values[n.Right])
+		lo, hi, a := integerBounds(r.values.at(n.Left))
+		bl, bh, b := integerBounds(r.values.at(n.Right))
 		if a && b && lo == hi && bl == bh {
 			switch n.Op.Kind {
 			case syntax.TLess:
@@ -396,7 +397,7 @@ func entryTruth(x syntax.Expr, r *scopeResult) (bool, bool) {
 			}
 		}
 	}
-	lo, hi, known := integerBounds(r.values[x])
+	lo, hi, known := integerBounds(r.values.at(x))
 	return lo != 0, known && lo == hi
 }
 

@@ -1,7 +1,8 @@
 # UnqualifiedReference implementation notes
 
-## Known gaps
+## Namespace context
 
-A call inside the global block `namespace { … }` of a multi-namespace file
-is reported although it already binds globally. `uqEligible` could skip it
-when the governing namespace (`uqGoverningNamespace`) has no name.
+The shared name resolver supplies the effective namespace at a source offset.
+An empty namespace is global, whether it comes from a braced global block or a
+file without namespace declarations. The governing declaration is still used
+for the rule's explicit-import checks.

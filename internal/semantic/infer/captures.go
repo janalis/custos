@@ -35,6 +35,7 @@ func (e *Env) captureType(closure syntax.Expr, name string) types.Type {
 	e.captureDepth--
 	delete(e.captureBusy, k)
 	e.captures[k] = t
+	e.remember(undo{kind: undoCapture, expr: k.scope, text: k.name})
 	return t
 }
 

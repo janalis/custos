@@ -13,6 +13,7 @@ import (
 	"custos/internal/php/syntax"
 	"custos/internal/project"
 	"custos/internal/project/config"
+	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
 )
@@ -175,6 +176,7 @@ func (s *Server) reindexDoc(uri string) bool {
 	s.mu.Lock()
 	d, ok := s.docs[uri]
 	ix, cfg, build := s.index, s.cfg, s.flowBuild
+	updater := s.flowUpdater
 	var text []byte
 	var path string
 	var prev *index.FileSymbols
@@ -206,7 +208,10 @@ func (s *Server) reindexDoc(uri string) bool {
 	if build != nil && prev != nil && index.SameDeclarations(prev, fs) {
 		// No other file sees a change: summarize again only what the
 		// buffer's summaries reach.
-		if next, ok := updateFlow(build, map[string][]byte{path: text}, ix); ok {
+		if updater == nil {
+			updater = (*project.FlowBuild).Update
+		}
+		if next, ok := updater(build, map[string][]byte{path: text}, ix); ok {
 			s.mu.Lock()
 			if s.flowBuild == build {
 				changed := !next.Snapshot.Equal(build.Snapshot)
@@ -231,6 +236,7 @@ func (s *Server) reindexDoc(uri string) bool {
 func (s *Server) refreshFlow() {
 	s.mu.Lock()
 	e, ix, cfg := s.engine, s.index, s.cfg
+	builder := s.flowBuilder
 	if e == nil || !e.NeedsFlow() || ix == nil {
 		s.mu.Unlock()
 		return
@@ -285,7 +291,11 @@ func (s *Server) refreshFlow() {
 		order = cache.FlowOrder(files, cfg.Flow)
 	}
 	// Compose every unsaved dependency in the same bounded fixed point.
-	build := buildFlow(context.Background(), files, sources, opt, ix, cfg.Flow, order)
+	if builder == nil {
+		builder = project.BuildFlowOrdered
+	}
+	// Dependency contracts are summarized on demand against this index.
+	build := builder(context.Background(), files, sources, opt, ix, project.WithVendorFlow(cfg.Root, ix, opt, cfg.Flow), order)
 	if cfg.FlowOrder {
 		_ = cache.SaveFlowOrder(build.Order(), cfg.Flow)
 	}
@@ -312,6 +322,11 @@ func indexWorkspace(root string, files []string, opt syntax.Options, options inf
 var (
 	discoverIndexFiles = project.Discover
 	buildIndexSymbols  = indexWorkspace
-	buildFlow          = project.BuildFlowOrdered
-	updateFlow         = (*project.FlowBuild).Update
+)
+
+// Build overrides belong to a single server and are captured under its mutex.
+// A deferred update from another server cannot observe a test's replacements.
+type (
+	flowBuilder func(context.Context, []string, [][]byte, syntax.Options, *index.Index, flow.Options, map[string]int) *project.FlowBuild
+	flowUpdater func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool)
 )

@@ -14,12 +14,53 @@ Detect request-derived data reaching a response-header value without a dominatin
 
 ## Detection
 
+Bounded pure callbacks can select conditional returns, ternary arms and
+short-circuited boolean or null-coalescing operands from proven values. Skipped
+operands do not run. Byte-string length and default whitespace trimming may
+participate when their string inputs are proven. Immutable literal-array defaults
+and read-only known-key projections preserve individual field provenance.
+Literal-array keys retain PHP numeric-string distinctions; warning-producing
+key conversions establish no pure contract.
+Sealed array packs in pure wrapper calls follow PHP argument ordering, names and
+version requirements. Unknown bindings, mutation, reference entries and observable
+object or resource lifetimes establish no structural refinement.
+Pure PHP 8 match expressions compare proven scalars strictly and select the first
+matching arm or the default; an unmatched expression establishes no result.
+Quiet offset queries distinguish a missing entry from a present null entry:
+coalescing and isset treat both alike, while array_key_exists tests presence.
+Pure wrappers may compose visible static methods with a closed target, excluding
+late static dispatch. An initialized scalar accumulator, one pure assignment per
+foreach iteration and a final accumulator return may be evaluated over a proven
+finite scalar array in insertion order. References, mutation and unknown elements
+establish no reduction result.
+A proven present array is non-null for isset and coalescing, with its field
+provenance retained. Finite plain arrays support normal counting and strict
+scalar membership tests. Scalar reductions may use explicit local keys and
+addition or concatenation assignment, retaining exact key types and insertion
+order. Pure methods may delegate through the current instance to a visible
+closed helper that does not read or write receiver state. Unknown receivers,
+object lifetimes, reference bindings and loose comparisons establish no proof.
+
 - D1. Report request-derived data reaching a response-header value without a dominating CR/LF rejection or safe construction summary.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 - D4. A CR/LF rejection is recognized for a variable when the tested expression still carries the single assignment that reaches the header value, and the conditions guarding the use prove the test found no line break: the branch of an `if`/`elseif`/`else` chain, a ternary or `match (true)` arm, or the right operand of `&&`/`||` entered only then, or code after an `if` whose branch for a line break always leaves (`exit`, `return`, `throw`, `break`, `continue`), with or without other arms. The test result may also be kept in a local and tested there. A jump label between the test and the use voids it.
 - D5. The accepted line-break tests are a two-argument builtin `preg_match` with a literal, modifier-free pattern made of one character class holding exactly CR and LF (delimiter `/`, `#` or `~`, single- or double-quoted), and a two-argument builtin `strpbrk` whose literal character list contains both bytes. They may be used bare, negated with `!`, compared with `===`, `==`, `!==`, `!=` against `0`, `1` (`preg_match` only) or `false` in either operand order, written as `preg_match(...) > 0`, and combined through `||` (rejecting guard) or `&&` (accepting branch). The paired `str_contains` checks and the `preg_match(...) === 0` forms established by the shared flow analysis remain accepted.
 - D6. The header value is examined structurally: a concatenation or interpolated string is safe when every part is; a ternary when both results are; a `match` when every arm result is (the subject and arm conditions only select, and a throwing arm yields nothing); a variable when its single reaching assignment is. The walk is bounded to 32 nested steps; deeper values keep the report. A variable is followed to its reaching assignment only when its scope cannot rebind it behind that assignment; a reference alias, a by-reference closure capture, `foreach` or argument, a `catch` binding or `static` declaration of the same name, `extract()`, an assignment through a variable variable, a `global` declaration of it or a `$GLOBALS` access that is not a different literal entry keeps the report.
+
+- D7. A known callback invoked by a complete finite filter can carry unsafe header uses through a wrapper. Callback arguments follow the filter's value-only, key-only or combined mode. Unknown targets, incomplete argument packs and unsupported callback bindings establish no such proof.
+
+A complete finite reduction can carry unsafe header uses from its callbacks
+through a wrapper. The accumulator follows insertion order and starts with the
+explicit initial value, or null when omitted. Unknown membership, callback
+targets, references and unsupported bindings establish no reduction proof.
+
+Callbacks that complete without a value, or with a bare return, produce null.
+A filter may therefore discard every entry while still reaching unsafe header
+uses in the callback. Proven primitive argument and return conversions can
+refine predicates, respecting callback invocation rules and definition
+strictness. Pure bounded accumulator expressions may refine a later predicate;
+uncertain conversions and arithmetic establish no constant result.
 
 ## Exceptions (no report)
 
@@ -41,6 +82,14 @@ Detect request-derived data reaching a response-header value without a dominatin
 ## Fix
 
 No automatic fix: header-specific validation must preserve application meaning.
+
+Supported finite predicates may discard an entry when every normal return is
+falsy, including different falsy values and implicit null. Apply declared return
+conversions before comparing truth outcomes; mixed truth stays uncertain.
+Preserve unsafe callback uses even when no entries remain. A known scalar result
+may come from warning-free primitive arithmetic, literal defaults, unchanged
+scalar captures or resolved pure wrappers. Keep separate factory invocations
+independent and reject uncertain calls, conversions, references and mutable state.
 
 ## Options
 

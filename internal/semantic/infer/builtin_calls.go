@@ -22,7 +22,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 	// Only resolved native declarations establish argument-dependent contracts.
 	builtin := strings.ToLower(fqn)
 	switch builtin {
-	case "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "substr_replace", "preg_filter", "preg_replace_callback_array",
+	case "count", "sizeof", "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "substr_replace", "preg_filter", "preg_replace_callback_array",
 		"max", "min", "pathinfo", "gettimeofday", "var_export", "print_r", "mb_convert_encoding", "array_rand",
 		"current", "reset", "end", "next", "prev", "array_pop", "array_shift", "hrtime", "sscanf", "parse_url", "abs",
 		"array_values", "array_reverse", "array_slice", "array_filter", "array_unique", "array_map", "explode", "array_reduce", "call_user_func", "call_user_func_array":
@@ -39,17 +39,34 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 	// The stubs declare array_keys($array) as an older variant only, so its
 	// main signature requires the search value.
 	keysOnly := builtin == "array_keys" && len(n.Args.Args) == 1 && n.Args.Args[0].(*syntax.Arg).Name == nil && !n.Args.Args[0].(*syntax.Arg).Unpack
-	if !keysOnly && !builtinBindingsKnown(n.Args, function.Params, e.PHP, allowTailSpread) {
+	var ordered []syntax.Expr
+	resolved := false
+	if len(function.Params) == 0 || !function.Params[len(function.Params)-1].Variadic {
+		ordered, resolved = e.BuiltinArguments(n)
+	}
+	if !keysOnly && !resolved && !builtinBindingsKnown(n.Args, function.Params, e.PHP, allowTailSpread) {
 		return types.Unknown, false
 	}
+	nargs := len(n.Args.Args)
+	if resolved {
+		nargs = 0
+		for _, value := range ordered {
+			if value != nil {
+				nargs++
+			}
+		}
+	}
 	arg := func(i int) syntax.Expr {
+		if i >= len(function.Params) {
+			return nil
+		}
+		if resolved {
+			return ordered[i]
+		}
 		if i < len(n.Args.Args) {
 			if a := n.Args.Args[i].(*syntax.Arg); a.Name == nil && !a.Unpack {
 				return a.Value
 			}
-		}
-		if i >= len(function.Params) {
-			return nil
 		}
 		want := strings.TrimPrefix(function.Params[i].Name, "$")
 		for _, node := range n.Args.Args {
@@ -73,6 +90,19 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		return t, ok
 	}
 	switch builtin {
+	case "count", "sizeof":
+		mode := arg(1)
+		normal := mode == nil
+		if literal, ok := syntax.UnwrapParens(mode).(*syntax.Literal); ok {
+			normal = literal.LitKind == syntax.LitInt && literal.Raw == "0"
+		}
+		if name, ok := syntax.UnwrapParens(mode).(*syntax.ConstFetch); ok {
+			value, known := e.constInt(name)
+			normal = known && value == 0
+		}
+		if low, high, known := e.TypeOf(arg(0)).ArrayCardinality(); normal && known {
+			return types.Ints(types.IntRange{Lo: int64(low), Hi: int64(high)}), true
+		}
 	case "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "substr_replace", "preg_filter",
 		"preg_replace_callback_array":
 		subjectIdx := 2
@@ -98,7 +128,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 	case "pathinfo":
 		// One PATHINFO_* flag returns that part as a string, none the
 		// array of parts.
-		if len(n.Args.Args) == 1 && arg(0) != nil {
+		if nargs == 1 && arg(0) != nil {
 			return types.Array.WithShape([]types.ShapeKey{
 				{Name: "dirname", Type: types.String, Optional: true},
 				{Name: "basename", Type: types.String},
@@ -112,15 +142,15 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 	case "gettimeofday":
 		// gettimeofday(true) is a float, else the array of parts.
 		switch {
-		case len(n.Args.Args) == 0:
+		case nargs == 0:
 			return types.Array, true
-		case constLiteral(arg(0)) == "true":
+		case e.TypeOf(arg(0)).OnlyOf("true"):
 			return types.Float, true
-		case constLiteral(arg(0)) == "false":
+		case e.TypeOf(arg(0)).OnlyOf("false"):
 			return types.Array, true
 		}
 	case "var_export", "print_r":
-		if t, ok := printReturn(fqn, arg(1), len(n.Args.Args)); ok {
+		if t, ok := printReturn(fqn, arg(1), nargs); ok {
 			return t, true
 		}
 	case "mb_convert_encoding":
@@ -136,7 +166,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		}
 	case "array_rand":
 		// One key unless a count other than 1 is asked for.
-		if len(n.Args.Args) == 1 {
+		if nargs == 1 {
 			return types.Of("int", "string"), true
 		}
 		if c := arg(1); c != nil {
@@ -177,27 +207,24 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 	case "hrtime":
 		// hrtime() / hrtime(false): [seconds, nanoseconds] (or false);
 		// hrtime(true): nanoseconds as int (float on 32-bit overflow) or false.
-		if len(n.Args.Args) == 0 {
+		if nargs == 0 {
 			return types.Of("int[]", "false"), true
 		}
-		if c, ok := syntax.UnwrapParens(arg(0)).(*syntax.ConstFetch); ok && c.Name != nil {
-			switch strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`)) {
-			case "false":
-				return types.Of("int[]", "false"), true
-			case "true":
-				return types.Of("int", "float", "false"), true
-			}
+		if value := e.TypeOf(arg(0)); value.OnlyOf("false") {
+			return types.Of("int[]", "false"), true
+		} else if value.OnlyOf("true") {
+			return types.Of("int", "float", "false"), true
 		}
 	case "sscanf":
 		// Without output variables the matches are returned (null when
 		// the string is empty or input ends early); the int is the count
 		// of assigned variables.
-		if len(n.Args.Args) == 2 {
+		if nargs == 2 {
 			return types.Of("array", "null"), true
 		}
 	case "parse_url":
 		// Without a component the result is the parts array (or false).
-		switch len(n.Args.Args) {
+		switch nargs {
 		case 1:
 			if arg(0) != nil {
 				parts := []types.ShapeKey{{Name: "scheme"}, {Name: "host"}, {Name: "port"}, {Name: "user"}, {Name: "pass"}, {Name: "path"}, {Name: "query"}, {Name: "fragment"}}
@@ -231,7 +258,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 				switch builtin {
 				case "array_filter":
 					cb := arg(1)
-					if cb == nil {
+					if cb == nil && !resolved {
 						for _, node := range n.Args.Args {
 							if node.(*syntax.Arg).Unpack {
 								cb = node.(*syntax.Arg).Value
@@ -239,15 +266,15 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 							}
 						}
 					}
-					return e.arrayFilterType(a, t, cb), true
+					return preserveArrayCount(e.arrayFilterType(a, t, cb), t, true), true
 				case "array_values":
-					return shapeless(t).WithArrayKey(types.Int), true
+					return preserveArrayCount(shapeless(t).WithArrayKey(types.Int), t, false), true
 				case "array_slice":
-					return shapeless(t).WithNonEmpty(false).WithArrayKey(types.Of("int", "string")), true
+					return sliceArrayCount(shapeless(t).WithNonEmpty(false).WithArrayKey(types.Of("int", "string")), t, arg(1), arg(2)), true
 				case "array_reverse":
-					return shapeless(t).WithArrayKey(types.Of("int", "string")), true
+					return preserveArrayCount(shapeless(t).WithArrayKey(types.Of("int", "string")), t, false), true
 				}
-				return shapeless(t), true
+				return preserveArrayCount(shapeless(t), t, true), true
 			}
 		}
 	case "array_map":

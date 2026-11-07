@@ -27,6 +27,16 @@ Reported:
 
 ## Detection
 
+A bounded local closure may return a proven fresh stream while preserving its
+identity for later caller operations. Separate invocation sites create separate
+identities. Returning a captured or passed stream preserves the caller's existing
+state rather than recording a new open operation. Only operation states shared
+by every normal completion are carried across the call. A close performed inside
+the closure establishes a new closed state only when its success is proven;
+unknown or conflicting effects discard the state proof. Reference captures,
+escaped callables, retained static state and ambiguous returned identities do not
+establish this transfer.
+
 - Report a stream operation requiring an open resource on an identity closed by a successful fclose on every incoming path.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
@@ -39,9 +49,45 @@ Reported:
 - Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 - A close whose stream argument comes from an unpacked list (`fclose(...$handles)`) may close the stream or not: the use is not reported as following a close.
 
+Named function and closed method factories preserve fresh resource identity independently at each caller. Pure parameter pass-through functions preserve the supplied resource identity and its current operation state. Reference returns, opaque mutations and uncertain producers establish no resource-return contract.
+
+A first-class native close or callback-helper close establishes a closed stream on the branch where its exact result is true. A saved result can establish the same proof while that operation is still current. Failure, unchecked results, later operations and escaped handles establish no closed-state proof.
+
+A fixed wrapper may project operations on borrowed stream parameters when the
+same state reaches every normal completion and the wrapper cannot run unknown
+code. Newly closed states require proven success. Repeated actual handle
+identities, reference or variadic parameters, escaping handles and uncertain
+bindings establish no operation proof.
+
+A fixed quiet wrapper returning the unchanged result of its close can establish
+closed state when that result is true. This includes supported wrapper chains
+and closed method targets. Saved results retain the relation only while the
+same close remains current; later operations, reassignment, escapes and unrelated
+return values discard it. Scalar return coercions that change boolean identity
+establish no result-dependent close contract.
+
+Fixed factories may return handles inside complete records with literal keys,
+including nested records and fields that alias the same handle. Each factory
+invocation creates independent fresh identities; pure record wrappers may retain
+a supplied handle and its history. Replacing a field, passing a record to opaque
+code, uncertain membership and resource results from repeated callbacks cannot
+establish a shared closed-state proof.
+
+Pure wrappers may forward complete resource records without changing the
+identities or histories of their fields. Local by-value captures preserve these
+record aliases while the values remain unescaped. A returned closure may create
+a fresh resource record at each invocation; separate invocation sites remain
+independent. Reference bindings, opaque effects and incomplete membership
+establish no such forwarding proof.
+
 ## Fix
 
 No automatic fix: the correct operation order or reopening policy is unknown.
+
+Preserve field aliases when a complete unchanged stream record passes through
+resolved pure wrappers. Do not infer the same identity through mutation,
+references, opaque calls or conversions whose effects are uncertain. Unsupported
+or recursive wrapper paths do not establish a close proof.
 
 ## PHP versions
 

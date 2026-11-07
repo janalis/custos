@@ -28,6 +28,7 @@ func (e *Env) ResolveFunction(call *syntax.FuncCall) *index.Function {
 		e.deps = append(e.deps, fqn)
 	}
 	e.functions[call] = f
+	e.remember(undo{kind: undoFunction, call: call})
 	return f
 }
 

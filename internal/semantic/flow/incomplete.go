@@ -68,6 +68,11 @@ func (c *gapCollector) add(gap Gap) {
 // It does not force scopes that no enabled inspection needs to analyze.
 func (e *Env) Gaps() []Gap {
 	var collector gapCollector
+	if e.local != nil {
+		for node := range e.local.failed {
+			collector.add(Gap{Span: node.Span(), Reason: "flow-budget"})
+		}
+	}
 	for scope, result := range e.scopes {
 		if !result.complete && len(result.gaps) == 0 {
 			span := e.file.Span()

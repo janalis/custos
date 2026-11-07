@@ -2,6 +2,7 @@ package flow
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -15,26 +16,40 @@ import (
 // targets, uncertain packs and duplicate bindings are incomplete.
 func (e *Env) BoundArguments(at syntax.Node) ([]Value, bool) {
 	r := e.scope(syntax.EnclosingVariableScope(at))
-	for _, c := range r.calls {
-		if c.Node == at {
-			return e.bind(at, c.Arguments)
-		}
+	if i, recorded := r.callIndex[at]; recorded {
+		return e.bind(at, r.calls[i].Arguments)
 	}
 	return nil, false
 }
 
-// ReferenceResult returns what a fixed project function leaves in an argument.
+// ReferenceResult returns what a fixed project callable leaves in an argument.
 // Sources include inputs retained on any path; Expr is present only for a
 // single reaching expression from the local reference channel.
 // Unpacked, variadic and unresolved bindings cannot establish this proof.
-// Multiple reference arguments may alias, so their outputs are not projected.
+// Multiple reference outputs require distinct, unaliased local argument cells.
 // A callee that may modify request globals can also write the actual argument
 // through another route; its parameter-only summary cannot prove this result.
-func (e *Env) ReferenceResult(call *syntax.FuncCall, target *syntax.Arg) (Value, bool) {
-	if call == nil || call.Args == nil || target == nil {
+func (e *Env) ReferenceResult(call syntax.Node, target *syntax.Arg) (Value, bool) {
+	list := arguments(call)
+	if list == nil || target == nil {
 		return Value{}, false
 	}
+	if method, ok := call.(*syntax.MethodCall); ok {
+		native := e.types.Native().TypeOf(method.Var)
+		if method.NullSafe || len(native.Classes()) != 1 || len(native.Atoms()) != 1 {
+			return Value{}, false
+		}
+	}
+	if static, ok := call.(*syntax.StaticCall); ok {
+		name, named := static.Class.(*syntax.Name)
+		if !named || strings.EqualFold(name.Value, "static") {
+			return Value{}, false
+		}
+	}
 	params, name, known := e.declaration(call)
+	if _, function := call.(*syntax.FuncCall); !function && (e.sinkSummaryName(call) != name || e.reached(call) == followLoose) {
+		return Value{}, false
+	}
 	summary, described := e.contract(name)
 	if !known || !described || !summary.Fixed || !summary.Spares {
 		return Value{}, false
@@ -43,20 +58,20 @@ func (e *Env) ReferenceResult(call *syntax.FuncCall, target *syntax.Arg) (Value,
 	if !r.complete {
 		return Value{}, false
 	}
-	if len(call.Args.Args) > 256 || len(params) > 64 {
+	if len(list.Args) > 256 || len(params) > 64 {
 		r.gap("argument-budget", call.Span())
 		return Value{}, false
 	}
 	var few [8]int
-	positions := parameters(call.Args, params, few[:0])
+	positions := parameters(list, params, few[:0])
 	at, references := -1, 0
-	for i, node := range call.Args.Args {
+	for i, node := range list.Args {
 		arg, ok := node.(*syntax.Arg)
 		p := positions[i]
 		if !ok || arg.Unpack || arg.ByRef || p < 0 || params[p].Variadic {
 			return Value{}, false
 		}
-		if _, evaluated := r.values[arg.Value]; !evaluated {
+		if _, evaluated := r.values.get(arg.Value); !evaluated {
 			return Value{}, false
 		}
 		if params[p].ByRef {
@@ -66,21 +81,60 @@ func (e *Env) ReferenceResult(call *syntax.FuncCall, target *syntax.Arg) (Value,
 			at = i
 		}
 	}
-	if at < 0 || references != 1 || !params[positions[at]].ByRef {
+	if at < 0 || references != 1 && !r.distinctReferences[call] || !params[positions[at]].ByRef {
 		return Value{}, false
 	}
 	if _, described := summary.ByRef[positions[at]]; !described {
 		return Value{}, false
 	}
-	v := e.left(call, at, call.Args, positions, r.values[target.Value], nil, r)
+	v := e.left(call, at, list, positions, r.values.at(target.Value), nil, r)
 	if body := e.localBody(name); body != nil {
 		p := syntax.VariableScopeParams(body)[positions[at]]
-		v.Expr = e.scope(body).exit[received(p.Var.Name)].Expr
+		v.Expr = e.scope(body).exit.value(received(p.Var.Name)).Expr
 	}
 	return v, true
 }
 
+// Only resolved member metadata is cached. Snapshot reads and live receiver
+// proofs stay at their existing call sites, and unresolved inference can refine.
+type declarationCache struct {
+	index    *index.Index
+	revision uint64
+	php      phpversion.Version
+	members  map[syntax.Node]callDeclaration
+}
+
+type callDeclaration struct {
+	params []index.Param
+	name   string
+}
+
 func (e *Env) declaration(at syntax.Node) ([]index.Param, string, bool) {
+	switch at.(type) {
+	case *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+		if e.types != nil && e.types.Index != nil {
+			cache := &e.declarations
+			revision := e.types.Index.Revision()
+			if cache.index != e.types.Index || cache.revision != revision || cache.php != e.types.PHP {
+				*cache = declarationCache{index: e.types.Index, revision: revision, php: e.types.PHP}
+			}
+			if found, known := cache.members[at]; known {
+				return found.params, found.name, true
+			}
+			params, name, known := e.lookupDeclaration(at)
+			if known {
+				if cache.members == nil {
+					cache.members = map[syntax.Node]callDeclaration{}
+				}
+				cache.members[at] = callDeclaration{params: params, name: name}
+			}
+			return params, name, known
+		}
+	}
+	return e.lookupDeclaration(at)
+}
+
+func (e *Env) lookupDeclaration(at syntax.Node) ([]index.Param, string, bool) {
 	switch n := at.(type) {
 	case *syntax.FuncCall:
 		if f := e.types.ResolveFunction(n); f != nil {
@@ -92,6 +146,16 @@ func (e *Env) declaration(at syntax.Node) ([]index.Param, string, bool) {
 			return nil, "", false
 		}
 		classes := e.types.TypeOf(n.Var).Classes()
+		if len(classes) == 0 {
+			if trait := e.traitReceiver(n); trait != "" {
+				// The using class may override the method: the declaration
+				// gives its parameters and a may-return, never a fixed body.
+				if m := e.types.Index.FindMethod(trait, id.Value, e.types.PHP); m != nil && !m.Magic && !m.Abstract {
+					return m.Params, strings.ToLower(m.Class + "::" + m.Name), true
+				}
+				return nil, "", false
+			}
+		}
 		if len(classes) != 1 {
 			return nil, "", false
 		}
@@ -118,6 +182,22 @@ func (e *Env) declaration(at syntax.Node) ([]index.Param, string, bool) {
 	return nil, "", false
 }
 
+// traitReceiver names the trait whose instance method calls `$this->m()`
+// directly. `$this` has no class there, but the trait's own (or used)
+// non-abstract declarations are what the call reaches unless overridden.
+// Closures are excluded: they may be bound to another object.
+func (e *Env) traitReceiver(n *syntax.MethodCall) string {
+	if n.NullSafe || plainVariable(n.Var) != "this" {
+		return ""
+	}
+	// A method's `$this` has a class unless the method belongs to a trait.
+	method, ok := syntax.EnclosingVariableScope(n).(*syntax.Method)
+	if !ok || method.Modifiers.Has(syntax.TStatic) || syntax.EnclosingClass(method).ClassKind != syntax.KindTrait {
+		return ""
+	}
+	return e.types.ClassFQN(syntax.EnclosingClass(method))
+}
+
 // invalidateReferences discards values a callee may replace through reference
 // parameters. Unresolved callees cannot establish a by-value parameter contract.
 func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *frame, r *scopeResult) {
@@ -127,6 +207,22 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 	params, _, known := e.declaration(at)
 	var few [8]int
 	positions := parameters(list, params, few[:0])
+	referenceCount := 0
+	for _, param := range params {
+		if param.ByRef {
+			referenceCount++
+		}
+	}
+	if known && referenceCount > 1 {
+		distinct := distinctReferenceLocals(list, params, positions, f, r)
+		if old, seen := r.distinctReferences[at]; seen {
+			distinct = distinct && old
+		}
+		if r.distinctReferences == nil {
+			r.distinctReferences = map[syntax.Node]bool{}
+		}
+		r.distinctReferences[at] = distinct
+	}
 	for i, x := range list.Args {
 		a, ok := x.(*syntax.Arg)
 		if !ok {
@@ -149,13 +245,13 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 			// A declared reference parameter replaces the value. An unresolved
 			// callee may not write at all: request data stays possible.
 			// The write reaches the names aliased with the argument too.
-			next := unsettled(f.vars[variable.Name], Value{}, r)
+			next := unsettled(f.vars.value(variable.Name), Value{}, r)
 			if known {
 				next = Value{}
 				name, builtin, _, _ := e.callee(at)
 				switch {
 				case !builtin:
-					next = e.left(at, i, list, positions, f.vars[variable.Name], f, r)
+					next = e.left(at, i, list, positions, f.vars.value(variable.Name), f, r)
 				case name == "settype" && scalarType(list):
 				case name == "mysqli_stmt_bind_result" || name == "bind_result" || name == "bindcolumn":
 					// The variable will receive what the database returns.
@@ -164,17 +260,17 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 					// the statement runs; it never writes it.
 					continue
 				default:
-					next = e.updated(name, i, list, positions, params, f.vars[variable.Name], r)
+					next = e.updated(name, i, list, positions, params, f.vars.value(variable.Name), r)
 				}
 				if builtin && p >= 0 {
 					// A PHP function leaves what it declares for the parameter:
 					// an array it filled, or the one it was given, reordered.
 					kind := e.kinds(params[p].Type, params[p].DocType)
 					next.plain = kind&(kindKnown|kindObject|kindOpaque) == kindKnown
-					next.deep = next.plain && (kind&kindArray == 0 || e.sealed(at, name, list, r) && (params[p].Optional || params[p].Variadic || f.vars[variable.Name].deep))
+					next.deep = next.plain && (kind&kindArray == 0 || e.sealed(at, name, list, r) && (params[p].Optional || params[p].Variadic || f.vars.value(variable.Name).deep))
 				}
 			}
-			if old := f.vars[variable.Name]; target != syntax.UnwrapParens(a.Value) {
+			if old := f.vars.value(variable.Name); target != syntax.UnwrapParens(a.Value) {
 				// Only the element can be bound: the callee may change or
 				// create it, with what it writes, but the variable stays the
 				// array it was, with the request data its other elements hold.
@@ -205,7 +301,11 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 	name, sealed := e.summaryName(call), true
 	switch n := call.(type) {
 	case *syntax.MethodCall:
-		name, sealed = e.dispatched(call, e.follows(n.Var, f), name)
+		followed := e.reached(call)
+		if f != nil {
+			followed = e.follows(n.Var, f)
+		}
+		name, sealed = e.dispatched(call, followed, name)
 	case *syntax.StaticCall:
 		name, sealed = e.dispatched(call, followTyped, name)
 	}
@@ -225,7 +325,7 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 			if position != source.Parameter || !isArg {
 				continue
 			}
-			in := r.values[arg.Value]
+			in := r.values.at(arg.Value)
 			if i == at {
 				in = old
 			}
@@ -250,7 +350,7 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 		at := positions[at]
 		if at >= 0 && at < len(params) && params[at].Var != nil {
 			result := e.scope(body)
-			written := result.exit[received(params[at].Var.Name)]
+			written := result.exit.value(received(params[at].Var.Name))
 			next.origins = result.producers(written)
 		}
 	}
@@ -326,7 +426,7 @@ func (e *Env) follows(receiver syntax.Expr, f *frame) uint8 {
 	if name == "" || name == "this" {
 		return followTyped
 	}
-	held := f.vars[name]
+	held := f.vars.value(name)
 	if _, shared := f.aliased[name]; shared || held.Identity == 0 && (held.Expr == nil || held.Invalidated != 0) {
 		return followLoose
 	}
@@ -583,6 +683,9 @@ func shares(list *syntax.ArgList) bool {
 func arguments(call syntax.Node) *syntax.ArgList {
 	switch n := call.(type) {
 	case *syntax.FuncCall:
+		if n == nil {
+			return nil
+		}
 		return n.Args
 	case *syntax.MethodCall:
 		return n.Args
@@ -849,7 +952,7 @@ func (e *Env) updated(name string, at int, list *syntax.ArgList, positions []int
 		if !ok || i == at || positions[i] >= 0 && strings.Contains(params[positions[i]].Type, "callable") {
 			continue
 		}
-		if in := r.values[other.Value]; tainted(in) {
+		if in := r.values.at(other.Value); tainted(in) {
 			inputs = merge(inputs, Value{Complete: true, Sources: in.Sources, Safe: in.Safe})
 		}
 	}
@@ -922,12 +1025,22 @@ func (e *Env) bind(at syntax.Node, values []Value) ([]Value, bool) {
 	case *syntax.StaticCall:
 		list = n.Args
 	}
+	return e.bindTo(list, params, values)
+}
+
+func (e *Env) bindTo(list *syntax.ArgList, params []index.Param, values []Value) ([]Value, bool) {
+	args, _, known := e.bindValues(list, params, values, false)
+	return args, known
+}
+
+func (e *Env) bindValues(list *syntax.ArgList, params []index.Param, values []Value, packs bool) ([]Value, []bool, bool) {
 	if len(params) > 64 || list != nil && len(list.Args) > 256 {
-		return nil, false
+		return nil, nil, false
 	}
 	args := make([]Value, len(params))
 	seen := make([]bool, len(params))
-	position, count := 0, 0
+	position, count, variadicNext := 0, 0, 0
+	var elements *elementSet
 	named, unpacked, explicitNamed := false, false, false
 	put := func(name string, isNamed bool, value Value) bool {
 		count++
@@ -965,6 +1078,16 @@ func (e *Env) bind(at syntax.Node, values []Value) ([]Value, bool) {
 				args[p] = Value{Complete: true}
 			}
 			args[p] = merge(args[p], value)
+			if packs {
+				key := name
+				if !isNamed {
+					key = strconv.Itoa(variadicNext)
+					variadicNext++
+				}
+				elements = elements.with(key, value)
+				args[p].elements = elements
+				args[p].plain = true
+			}
 		} else {
 			args[p] = value
 		}
@@ -976,23 +1099,23 @@ func (e *Env) bind(at syntax.Node, values []Value) ([]Value, bool) {
 		for i, x := range list.Args {
 			a, ok := x.(*syntax.Arg)
 			if !ok || a.ByRef || i >= len(values) {
-				return nil, false
+				return nil, nil, false
 			}
 			if a.Unpack {
 				if explicitNamed || e.types.PHP.Below(phpversion.PHP56) {
-					return nil, false
+					return nil, nil, false
 				}
 				unpacked = true
 				// PHPDoc does not prove the runtime keys or their order.
 				t := e.types.Native().TypeOf(a.Value)
 				if !t.IsArrayLike() || !t.IsSealedShape() {
-					return nil, false
+					return nil, nil, false
 				}
 				for _, key := range t.ShapeKeys() {
 					v, held := values[i].elements.lookup(key.Name)
 					isNamed := !types.IsIntKey(key.Name)
 					if key.Optional || !held || !uniqueArgument(key.Name, isNamed, names) || !put(key.Name, isNamed, v) {
-						return nil, false
+						return nil, nil, false
 					}
 				}
 				continue
@@ -1003,19 +1126,19 @@ func (e *Env) bind(at syntax.Node, values []Value) ([]Value, bool) {
 				explicitNamed = true
 			}
 			if unpacked && (name == "" || e.types.PHP.Below(phpversion.PHP81)) || !uniqueArgument(name, a.Name != nil, names) || !put(name, a.Name != nil, values[i]) {
-				return nil, false
+				return nil, nil, false
 			}
 		}
 	}
 	for i, p := range params {
 		if !seen[i] {
 			if !p.Optional && !p.Variadic {
-				return nil, false
+				return nil, nil, false
 			}
-			args[i] = Value{Complete: true}
+			args[i] = Value{Complete: true, plain: p.Variadic}
 		}
 	}
-	return args, true
+	return args, seen, true
 }
 
 // uniqueArgument rejects repeated named keys, including in a variadic pack.
@@ -1117,7 +1240,7 @@ func (e *Env) provable(call syntax.Node, list *syntax.ArgList, f *frame) bool {
 			continue
 		}
 		if variable := guarded(arg.Value); variable != nil {
-			if held, tracked := f.vars[variable.Name]; tracked && !held.NonNull {
+			if held, tracked := f.vars.lookup(variable.Name); tracked && !held.NonNull {
 				return true
 			}
 		}
@@ -1232,4 +1355,35 @@ func (e *Env) localBody(name string) syntax.Node {
 		return body
 	}
 	return nil
+}
+
+// Only independent local cells may reuse parameter-only reference summaries.
+// Alias groups, captured storage, globals, static locals and element lvalues
+// can overlap through paths not represented by their written variable names.
+func distinctReferenceLocals(list *syntax.ArgList, params []index.Param, positions []int, f *frame, r *scopeResult) bool {
+	if r.global || !f.definite {
+		return false
+	}
+	names := map[string]bool{}
+	count := 0
+	for i, node := range list.Args {
+		p := positions[i]
+		arg, ok := node.(*syntax.Arg)
+		if !ok || arg.Unpack || arg.ByRef || p < 0 {
+			return false
+		}
+		if !params[p].ByRef {
+			continue
+		}
+		name := plainVariable(arg.Value)
+		value := f.vars.value(name)
+		_, shared := f.aliased[name]
+		_, static := r.statics[name]
+		if !value.Complete || value.replaced || value.Invalidated != 0 || name == "" || external(name) || name == "GLOBALS" || names[name] || shared || static || r.globalNames[name] {
+			return false
+		}
+		names[name] = true
+		count++
+	}
+	return count > 1
 }

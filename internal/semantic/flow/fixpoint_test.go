@@ -157,9 +157,9 @@ func TestSourcesStayOrderedAndBounded(t *testing.T) {
 		t.Fatalf("%d sources, whole=%v", len(capped), whole)
 	}
 	// A full list still changes when an earlier source displaces a later one.
-	full := frame{vars: map[string]Value{"x": {Sources: more}}, states: map[uint32]State{}}
-	if changed, _ := full.absorb(frame{vars: map[string]Value{"x": {Sources: many}}}); !changed || full.vars["x"].Sources[0] != many[0] {
-		t.Fatalf("full list unchanged: %+v", full.vars["x"])
+	full := frame{vars: bindings{"x": {Value: Value{Sources: more}}}, states: map[uint32]State{}}
+	if changed, _ := full.absorb(frame{vars: bindings{"x": {Value: Value{Sources: many}}}}); !changed || full.vars.value("x").Sources[0] != many[0] {
+		t.Fatalf("full list unchanged: %+v", full.vars.value("x"))
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 
 func TestUnsafeExpressionRange(t *testing.T) {
 	for _, tc := range []struct{ name, source, want string }{
+		{"array spread", `echo '<p>'.implode('', [...[$_GET['first']]]);`, `implode('', [...[$_GET['first']]])`},
 		{"concatenation", `echo '<p>'.($_GET['first']).'</p>';`, `$_GET['first']`},
 		{"comma operands", `echo '<p>', $_GET['first'], '</p>', $_GET['second'];`, `$_GET['first']|$_GET['second']`},
 		{"print", `print '<p>'.$_POST['first'].'</p>';`, `$_POST['first']`},

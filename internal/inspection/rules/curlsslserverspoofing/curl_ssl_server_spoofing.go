@@ -23,11 +23,29 @@ const (
 func (curlSslServerSpoofing) ID() string { return "CurlSslServerSpoofing" }
 func (curlSslServerSpoofing) Semantic()  {}
 func (curlSslServerSpoofing) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KConstFetch}
+	return []syntax.NodeKind{syntax.KConstFetch, syntax.KFuncCall}
 }
 
 func (curlSslServerSpoofing) Check(ctx *analysis.Context, n syntax.Node) {
-	k := n.(*syntax.ConstFetch) // the parser always gives it a name token
+	var k *syntax.ConstFetch
+	var site syntax.Node
+	var value syntax.Expr
+	if call, ok := n.(*syntax.FuncCall); ok {
+		if !ctx.IsGlobalFunctionCall(call, "curl_setopt") {
+			return
+		}
+		args, known := ctx.Types().Native().BuiltinArguments(call)
+		if !known || len(args) != 3 {
+			return
+		}
+		k, known = syntax.UnwrapParens(args[1]).(*syntax.ConstFetch)
+		if !known || curlArgumentCall(k) == call {
+			return
+		}
+		site, value = call, args[2]
+	} else {
+		k = n.(*syntax.ConstFetch)
+	}
 	var host bool
 	switch astquery.LastNamePart(k.Name.Value) {
 	case "CURLOPT_SSL_VERIFYHOST":
@@ -36,7 +54,9 @@ func (curlSslServerSpoofing) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return // E5
 	}
-	site, value := curlSettingSite(ctx, k)
+	if site == nil {
+		site, value = curlSettingSite(ctx, k)
+	}
 	if site == nil || value == nil {
 		return
 	}
@@ -64,7 +84,7 @@ type curlValues struct {
 // verdict classifies every value discovered from e; both results are false
 // when the discovery is unknown.
 func (w *curlValues) verdict(e syntax.Expr) (enable, disable bool) {
-	w.ElvisCond, w.SkipEmpty = true, true
+	w.SkipEmpty = true
 	w.Resolve = w.resolve
 	w.Collect(e)
 	vals, _ := w.Result()
@@ -220,17 +240,13 @@ func curlOwnProperty(target syntax.Expr, name string) bool {
 
 // curlSettingSite implements D1–D3: the reported node and the value set.
 func curlSettingSite(ctx *analysis.Context, k *syntax.ConstFetch) (site syntax.Node, value syntax.Expr) {
+	if call := curlArgumentCall(k); call != nil && ctx.IsGlobalFunctionCall(call, "curl_setopt") {
+		args, known := ctx.Types().Native().BuiltinArguments(call)
+		if known && len(args) == 3 && syntax.UnwrapParens(args[1]) == k {
+			return call, args[2]
+		}
+	}
 	switch p := k.Parent().(type) {
-	case *syntax.Arg: // D1 (an Arg's only expression child is its value)
-		call := astquery.ParentFuncCall(k)
-		if call == nil || !ctx.IsGlobalFunctionCall(call, "curl_setopt") || astquery.ArgCount(call) != 3 {
-			return nil, nil
-		}
-		third, ok := call.Args.Args[2].(*syntax.Arg)
-		if !ok || third.Value == nil {
-			return nil, nil
-		}
-		return call, third.Value
 	case *syntax.ArrayItem: // D2
 		if p.Key != syntax.Expr(k) || p.Value == nil {
 			return nil, nil
@@ -353,4 +369,18 @@ func curlBool(enable bool) int {
 		return 1
 	}
 	return -1
+}
+
+// Find the enclosing call for a constant inside a literal argument pack too.
+func curlArgumentCall(node syntax.Node) *syntax.FuncCall {
+	for steps := 0; node.Parent() != nil && steps < 64; steps++ {
+		node = node.Parent()
+		if call, ok := node.(*syntax.FuncCall); ok {
+			return call
+		}
+		if syntax.IsVariableScope(node) {
+			break
+		}
+	}
+	return nil
 }

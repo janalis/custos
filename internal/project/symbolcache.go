@@ -199,7 +199,7 @@ func (c *SymbolCache) FlowOrder(files []string, options flow.Options) map[string
 		return nil
 	}
 	var f flowOrderFile
-	if gob.NewDecoder(bytes.NewReader(b)).Decode(&f) != nil || f.Key != c.key+fmt.Sprint(options) {
+	if gob.NewDecoder(bytes.NewReader(b)).Decode(&f) != nil || f.Key != c.key+options.String() {
 		return nil
 	}
 	c.order = f.Order
@@ -225,7 +225,7 @@ func (c *SymbolCache) SaveFlowOrder(order map[string]int, options flow.Options) 
 	if maps.Equal(abs, c.order) {
 		return nil
 	}
-	return writeCache(c.orderPath(), flowOrderFile{Key: c.key + fmt.Sprint(options), Order: abs})
+	return writeCache(c.orderPath(), flowOrderFile{Key: c.key + options.String(), Order: abs})
 }
 
 // relocate points cached declarations at path when an earlier run named

@@ -210,6 +210,7 @@ func (e *Env) bodyReturn(span syntax.Span) types.Type {
 	e.bodyDepth--
 	delete(e.bodyBusy, span)
 	e.bodies[span] = t
+	e.remember(undo{kind: undoBody, span: span})
 	return t
 }
 

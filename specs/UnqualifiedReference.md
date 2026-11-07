@@ -40,6 +40,9 @@ The whole rule is active only when the configured PHP level is **≥ 7.0**.
   - if the file declares exactly one namespace (braced or not) → that one;
   - if it declares several → the nearest enclosing namespace block of the
     node; if there is none → no report.
+  - the governing namespace must have a non-empty name; a global
+    `namespace { ... }` block is already global and produces no report in
+    either part.
 - **D5** The name resolves (with PHP's namespace fallback rules, using the
   project index and the built-in stubs) to a function (for calls) or a
   constant (for constant references) whose fully-qualified name is
@@ -122,7 +125,8 @@ reports: one on the call (Part A) and one on the callback string (Part B).
 
 - **E1** PHP level below 7.0.
 - **E2** Qualified names (`\strlen()`, `Sub\strlen()`, `namespace\strlen()`).
-- **E3** File without any namespace declaration (Part A only).
+- **E3** No governing named namespace, including a global `namespace { ... }`
+  block in a file that also contains named namespace blocks (both parts).
 - **E4** Name resolving to a non-global function/constant, or unresolved.
 - **E5** Name imported with `use function` / `use const` in the namespace body.
 - **E6** Calls outside the opcode list while `REPORT_ALL_FUNCTIONS` is off;
@@ -235,13 +239,24 @@ $max  = PHP_INT_MAX;
 define('LIMIT', 3);
 ```
 
+A global block remains global even when another block declares a namespace:
+
+```php
+<?php
+namespace FeatureArea { function marker() {} }
+namespace {
+    $length = strlen($payload); // no report
+    array_map('strlen', $payloads); // no report, including REPORT_ALL_FUNCTIONS
+}
+```
+
 ## Divergences
 
 - **Part B honours D4 (custos diverges).** Upstream reports callback
   strings even in files without a namespace, where qualifying makes no
   difference (WordPress-style procedural code: `array_map('intval', $ids)`).
   custos applies D4 to Part B too: no report when the file declares no
-  namespace. Not covered by upstream fixtures.
+  named namespace, including within global namespace blocks.
 - **D11 — custos diverges from upstream.** Upstream checks that the *outer*
   function (`array_map`, …) exists instead of the callback, so with
   `REPORT_ALL_FUNCTIONS` any callback string is reported, including names

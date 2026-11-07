@@ -89,6 +89,9 @@ func TestStateAndFinally(t *testing.T) {
 		{`$h=fopen('a','r');fclose($h);escape($h);fread($h,1);`, false},
 		{`$h=fopen('a','r');try{work();}finally{fclose($h);}fread($h,1);`, true},
 		{`function f($h){fclose($h);fread($h,1);}`, true},
+		// A later chain link reaches what an earlier link captured.
+		{`$h=fopen('a','r');$o->keep($h)->then(fclose($h))->run();fread($h,1);`, false},
+		{`$h=fopen('a','r');$o->keep(function(){})->then(fclose($h));fread($h,1);`, false},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)

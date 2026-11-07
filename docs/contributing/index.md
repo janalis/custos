@@ -69,6 +69,7 @@ Some tests read optional environment variables:
 | `CUSTOS_CORPUS_MAX` | Cap on the files the parser oracle test takes from the corpus. |
 | `CUSTOS_FIXCHECK` | Set by `make fixcheck`; `php` also lints samples with `php -l`. |
 | `CUSTOS_BENCH_FILE` | A PHP file for the parser benchmark on real input. |
+| `CUSTOS_PERF_TRACE` | `1` adds raw timing for each edit, parse/analysis phases, CPU time, GC count and pause deltas to `TestEditLatency`; GC snapshots and trace logging occur outside the measured edit. |
 | `CUSTOS_PERF` | `1` (set by `make bench`) turns logged performance budgets into failures. |
 | `CUSTOS_TYPECOV`, `CUSTOS_TYPECOV_OUT` | `root=srcdir;…` roots to measure expressions with unknown inferred types, and where to write the report. |
 

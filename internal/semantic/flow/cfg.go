@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"maps"
 	"slices"
 	"sort"
 	"strconv"
@@ -12,12 +13,17 @@ import (
 	"custos/internal/semantic/types"
 )
 
+// Compact successor indices can represent every permitted block ID.
+const _ uint16 = MaxBlocks - 1
+
 type (
 	block struct {
 		node        syntax.Node
 		nodes       []syntax.Node
-		next        []int
+		more        int
 		exceptional int
+		next        [2]uint16
+		nextCount   int8
 		shared      bool
 		head        bool
 		choice      int8
@@ -33,6 +39,7 @@ type (
 	}
 	graph struct {
 		blocks   []block
+		fanouts  [][]uint16
 		complete bool
 		proofs   map[int]*exceptionProof
 		// full marks a graph that reached MaxBlocks.
@@ -79,8 +86,40 @@ func (g *graph) add(n syntax.Node, next ...int) int {
 		g.complete, g.full = false, true
 		return 0
 	}
-	g.blocks = append(g.blocks, block{node: n, next: next, exceptional: -1})
-	return len(g.blocks) - 1
+	g.blocks = append(g.blocks, block{node: n, exceptional: -1})
+	at := len(g.blocks) - 1
+	g.link(at, next...)
+	return at
+}
+
+// link stores the usual one or two successors within the block. Exception
+// dispatch can have any number of successors and uses a separate list.
+func (g *graph) link(at int, next ...int) {
+	b := &g.blocks[at]
+	if len(next) <= len(b.next) {
+		b.nextCount = int8(len(next))
+		for i, target := range next {
+			b.next[i] = uint16(target)
+		}
+		return
+	}
+	b.nextCount = -1
+	b.more = len(g.fanouts)
+	targets := make([]uint16, len(next))
+	for i, target := range next {
+		targets[i] = uint16(target)
+	}
+	g.fanouts = append(g.fanouts, targets)
+}
+
+// Successors are read only after construction; the block buffer can no longer
+// grow or change the inline entries while a caller reads them.
+func (g *graph) successors(at int) []uint16 {
+	b := &g.blocks[at]
+	if b.nextCount < 0 {
+		return g.fanouts[b.more]
+	}
+	return b.next[:b.nextCount]
 }
 
 // test adds the block of a condition, or of what a loop iterates: its
@@ -146,7 +185,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		test := g.test(n.Cond, x)
 		g.blocks[test].head = true
 		lx := x.inside(next, test)
-		g.blocks[test].next = repeats(n.Cond, g.stmt(n.Body, test, lx), next)
+		g.link(test, repeats(n.Cond, g.stmt(n.Body, test, lx), next)...)
 		return test
 	case *syntax.DoWhile:
 		g.blocks[next].shared = true
@@ -154,7 +193,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		g.blocks[test].head = true
 		lx := x.inside(next, test)
 		body := g.stmt(n.Body, test, lx)
-		g.blocks[test].next = repeats(n.Cond, body, next)
+		g.link(test, repeats(n.Cond, body, next)...)
 		// The body runs again: what is written before the loop is not part
 		// of its first block.
 		g.blocks[body].shared = true
@@ -185,7 +224,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		for i := len(earlier) - 1; i >= 0; i-- {
 			cond = g.atom(earlier[i], cond, x)
 		}
-		g.blocks[test].next = []int{cond}
+		g.link(test, cond)
 		start := test
 		for i := len(n.Init) - 1; i >= 0; i-- {
 			start = g.atom(n.Init[i], start, x)
@@ -196,7 +235,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		test := g.test(n, x)
 		g.blocks[test].head = true
 		lx := x.inside(next, test)
-		g.blocks[test].next = []int{g.stmt(n.Body, test, lx), next}
+		g.link(test, g.stmt(n.Body, test, lx), next)
 		return test
 	case *syntax.Return:
 		return g.atom(n, x.ret, x)
@@ -276,7 +315,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		g.labels[n.Name.Value] = at
 		g.first = n.Span().Start + 1
 		for _, jump := range g.jumps[n.Name.Value] {
-			g.blocks[jump.block].next = []int{g.through(jump.finals, at)}
+			g.link(jump.block, g.through(jump.finals, at))
 		}
 		delete(g.jumps, n.Name.Value)
 		return at
@@ -671,6 +710,7 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 		r = e.follow(scope, distrust, round == staticRounds)
 		addReads(r.reads, earlier.reads)
 	}
+	r.finished = true
 	return r
 }
 
@@ -714,23 +754,41 @@ func (e *Env) typed(p *syntax.Param, deep bool) bool {
 	return !deep && (p.Variadic || declared.OnlyOf("array") || e.types.PHP.AtLeast(phpversion.PHP70) && declared.OnlyOf("int", "float", "string", "bool", "true", "false", "null", "array"))
 }
 
-// expressions counts the expressions of scope (the file's top level when
-// nil) outside the functions it declares: about how many values its
-// analysis records, so its maps are allocated once at their size.
-func (e *Env) expressions(scope syntax.Node) int {
-	n := 0
+// expressionSizes estimates the two map capacities separately. Lexical names,
+// declaration headers and plain assignment targets are not evaluated values.
+// Control wrappers lower to their tests and bodies rather than transfer nodes.
+// These are allocation hints only: both maps grow for any additional entries.
+func (e *Env) expressionSizes(scope syntax.Node) (values, before int) {
 	count := func(x syntax.Node) bool {
-		if _, ok := x.(syntax.Expr); ok {
-			n++
+		switch x.(type) {
+		case *syntax.Block, *syntax.Namespace, *syntax.Function, *syntax.Method, *syntax.ClassLike,
+			*syntax.If, *syntax.ElseIf, *syntax.Else, *syntax.While, *syntax.DoWhile, *syntax.For,
+			*syntax.Try, *syntax.Finally, *syntax.Switch, *syntax.Case, *syntax.Label, *syntax.Goto, *syntax.Break, *syntax.Continue:
+		case syntax.Expr:
+			switch n := x.(type) {
+			case *syntax.Name, *syntax.Identifier, *syntax.ArgList, *syntax.VariadicPlaceholder:
+			case *syntax.Variable:
+				assignment, target := n.Parent().(*syntax.Assign)
+				if !target || assignment.Var != n || assignment.Op.Kind != syntax.TEqual || n.NameExpr != nil {
+					values++
+					before++
+				}
+			default:
+				values++
+				before++
+			}
+
+		case syntax.Stmt:
+			before++
 		}
-		return x == scope || !syntax.IsVariableScope(x)
+		return !syntax.IsVariableScope(x)
 	}
 	if scope == nil {
 		syntax.InspectFile(e.file, count)
 	} else {
-		syntax.Inspect(scope, count)
+		syntax.Inspect(syntax.VariableScopeBody(scope), count)
 	}
-	return n
+	return values, before
 }
 
 func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bool) *scopeResult {
@@ -738,8 +796,12 @@ func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bo
 }
 
 func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr) *scopeResult {
-	size := e.expressions(scope)
-	r := &scopeResult{originTypes: e.types, values: make(map[syntax.Expr]Value, size), before: make(map[syntax.Node]map[uint32]State, size), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
+	return e.followSeeded(scope, distrust, distrustAll, target, nil, nil, nil)
+}
+
+func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr, seeds map[string]Value, states map[uint32]State, resources map[uint32]bool) *scopeResult {
+	values, before := e.expressionSizes(scope)
+	r := &scopeResult{sharing: e.sharingArena(), resourceInputs: resources, originTypes: e.types, values: newValueStore(values), before: make(map[syntax.NodeIdentity]map[uint32]State, before), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
 	r.reads = e.begin()
 	defer e.end(r.reads)
@@ -750,16 +812,26 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	exit := g.add(nil)
 	done := g.add(nil, exit)
 	x := exits{ret: done, thrown: exit, brk: done, cont: done}
-	entry := done
+	fallthroughExit := done
+	if body, ok := syntax.VariableScopeBody(scope).(*syntax.Block); ok && body != nil {
+		terminalReturn := false
+		if len(body.Stmts) > 0 {
+			_, terminalReturn = body.Stmts[len(body.Stmts)-1].(*syntax.Return)
+		}
+		if !terminalReturn {
+			fallthroughExit = g.add(nil, done)
+		}
+	}
+	entry := fallthroughExit
 	if scope == nil {
-		entry = g.list(e.file.Stmts, done, x)
+		entry = g.list(e.file.Stmts, fallthroughExit, x)
 	} else {
 		body := syntax.VariableScopeBody(scope)
 		if st, ok := body.(syntax.Stmt); ok {
 			g.body = body
-			entry = g.stmt(st, done, x)
+			entry = g.stmt(st, fallthroughExit, x)
 		} else if body != nil {
-			entry = g.atom(body, done, x)
+			entry = g.atom(body, fallthroughExit, x)
 		}
 	}
 	// All label bodies remain built, including those entered by goto inside a
@@ -768,7 +840,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	for i := range g.blocks {
 		b := &g.blocks[i]
 		hasExceptional = hasExceptional || b.exceptional > 0
-		if condition, ok := b.node.(syntax.Expr); ok && len(b.next) == 2 {
+		if condition, ok := b.node.(syntax.Expr); ok && len(g.successors(i)) == 2 {
 			if truth, known := constantTruth(condition); known {
 				b.choice = 2
 				if truth {
@@ -784,6 +856,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	g.complete = g.complete && len(g.jumps) == 0
 	initial := frame{owner: r, definite: scope != nil}
 	initial.resetVars()
+	initial.states = maps.Clone(states)
 	switch captured := scope.(type) {
 	case *syntax.Closure:
 		// A captured variable holds a value without a binding.
@@ -794,6 +867,12 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	for i, p := range syntax.VariableScopeParams(scope) {
 		if p.Var != nil {
 			initial.setVar(p.Var.Name, Value{Complete: true, Identity: p.Var.Span().Start + 1, Sources: []Source{{Kind: "parameter", Parameter: i}}, plain: e.typed(p, false), deep: e.typed(p, true)})
+		}
+	}
+	if seeds != nil {
+		initial.definite = true
+		for name, value := range seeds {
+			initial.setVar(name, value)
 		}
 	}
 	e.bindings(scope, r, &initial)
@@ -889,7 +968,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 				r.copies += work
 			}
 		}
-		if held := out.vars[b.pin]; b.pin != "" && tainted(held) {
+		if held := out.vars.value(b.pin); b.pin != "" && tainted(held) {
 			// The request data was just compared equal to a fixed text.
 			out.write(r, b.pin, Value{Complete: true, matched: true, plain: true, deep: true})
 		} else if strings.Contains(b.pin, "\x00") {
@@ -906,15 +985,16 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 				r.copies += work
 			}
 		}
+		next := g.successors(i)
 		condition, conditional := b.node.(syntax.Expr)
-		conditional = conditional && len(b.next) == 2
+		conditional = conditional && len(next) == 2
 		loop, iterating := b.node.(*syntax.Foreach)
-		for j, target := range b.next {
+		for j, target := range next {
 			if b.choice != 0 && int(b.choice)-1 != j {
 				continue
 			}
 			// The last successor takes the working frame itself.
-			last := b.choice != 0 || j == len(b.next)-1
+			last := b.choice != 0 || j == len(next)-1
 			branch := out
 			if (conditional || iterating) && !last {
 				r.copies += len(out.vars) + len(out.states)
@@ -927,7 +1007,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 				// The body starts with an element in the targets.
 				e.each(loop, &branch, r)
 			}
-			propagate(target, branch, conditional || iterating || last)
+			propagate(int(target), branch, conditional || iterating || last)
 		}
 		if throwing {
 			propagate(b.exceptional, exceptional, true)
@@ -936,8 +1016,10 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	// What each variable may hold when the scope ends is what a holder of a
 	// reference to it has written.
 	r.exit = inputs[exit].vars
+	r.exitStates = inputs[done].states
 	leaving(&inputs[exit], r)
 	r.leaves = inputs[done].vars == nil
+	r.fallsThrough = fallthroughExit != done && inputs[fallthroughExit].vars != nil
 	if !g.complete {
 		reason := "unsupported-control-flow"
 		if g.full {
@@ -954,6 +1036,11 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 		r.cut = 0
 	}
 	sort.Slice(r.calls, func(i, j int) bool { return r.calls[i].Node.Span().Start < r.calls[j].Node.Span().Start })
+	// Evaluation order can differ from source order for nested calls.
+	// Publish indices into the same ordered history that queries observe.
+	for i, call := range r.calls {
+		r.callIndex[call.Node] = i
+	}
 	return r
 }
 
@@ -975,8 +1062,8 @@ func (g *graph) once(sweep bool, keep ...int) []bool {
 		}
 	}
 	for j, b := range g.blocks {
-		for _, t := range b.next {
-			back(j, t)
+		for _, t := range g.successors(j) {
+			back(j, int(t))
 		}
 		if b.exceptional >= 0 {
 			back(j, b.exceptional)

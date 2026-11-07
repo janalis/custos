@@ -16,7 +16,6 @@ type ValueWalk struct {
 	Out  []syntax.Expr
 	Stop bool // the result is unknown (incomplete): consumers stay silent
 
-	ElvisCond bool // `c ?: e` also yields c (otherwise only e)
 	NilStops  bool // a missing expression makes the result unknown
 	SkipEmpty bool // zero-width (recovery) expressions are ignored
 	// resolve handles e (variables, properties, constants...); false when
@@ -59,7 +58,7 @@ func (w *ValueWalk) Collect(e syntax.Expr) {
 	case *syntax.Ternary:
 		if x.Then != nil {
 			w.Collect(x.Then)
-		} else if w.ElvisCond {
+		} else {
 			w.Collect(x.Cond)
 		}
 		w.Collect(x.Else)

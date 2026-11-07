@@ -37,23 +37,24 @@ func (e *Engine) NeedsFlow() bool {
 func (e *Engine) WithFlow(snapshot *flow.Snapshot) *Engine {
 	configured := *e
 	configured.flow = snapshot
+	// Local analysis answers dependency contracts as the snapshot does.
+	if snapshot != nil {
+		configured.cfg.Flow.Vendor = snapshot.Options().Vendor
+	}
 	return &configured
 }
 
 // Flow returns the shared lazy, file-local control-flow environment.
 func (c *Context) Flow() *flow.Env {
+	if failure, failed := c.failed["flow analysis"]; failed {
+		panic(failure)
+	}
 	if c.flow == nil {
 		snapshot := c.engine.flow
 		// The buffer's declarations shadow the indexed copy of its path.
-		// Only files with callable declarations need a local summary overlay.
-		// The environment that computed them serves, or the results of it
-		// that read nothing they change.
+		// Local contracts and their dependencies are computed only when queried.
 		c.build("flow analysis", func() {
-			env, own := flow.Summarize(c.File, c.Types(), snapshot, c.engine.cfg.Flow)
-			if len(own.Summaries) > 0 && !snapshot.Holds(own) {
-				env = env.Rebase(snapshot.WithFile(own))
-			}
-			c.flow = env
+			c.flow = flow.NewLocal(c.File, c.Types(), snapshot, c.engine.cfg.Flow, func(build func()) { c.build("flow analysis", build) })
 		})
 	}
 	return c.flow

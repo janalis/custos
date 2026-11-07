@@ -23,6 +23,13 @@ type Sink struct {
 
 // Summary is a compact, syntax-free callable return and sink contract.
 type Summary struct {
+	pure              *pureContract
+	defaults          []Value
+	forward           *forwardReturn
+	argumentSensitive bool
+	returned          *returnedCallable
+	resource          *resourceReturn
+	effects           []resourceEffect
 	// dispatch is a reserved, syntax-free class metadata contract.
 	dispatch  *sinkClass
 	Return    Value
@@ -227,6 +234,9 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 	name = names.Fold(name)
 	if s.base == nil {
 		v, ok := s.summaries[name]
+		if !ok && s.shared[name] == 0 && s.options.Vendor != nil {
+			return s.options.Vendor.lookup(name)
+		}
 		return v, ok
 	}
 	// A name has a contract when exactly one file declares it, counting the
@@ -247,6 +257,8 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 	switch {
 	case inOwn && declaring == 0:
 		return fresh, true
+	case !inOwn && declaring == 0 && s.options.Vendor != nil:
+		return s.options.Vendor.lookup(name)
 	case inOwn || declaring != 1:
 		return Summary{}, false
 	case !inReplaced:
@@ -291,10 +303,34 @@ func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapsho
 // the environment then read what the snapshot with the file's summaries
 // reads (see Rebase).
 func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) (*Env, *File) {
+	e, order := summaryInventory(file, types, snapshot, options)
+	s := e.summarizing
+	out := s.out
+	for _, n := range order {
+		e.summarize(n)
+	}
+	e.summarizing = nil
+	out.consulted, e.consulted = e.consulted, nil
+	for key, read := range e.answers {
+		switch {
+		case read.held:
+			out.held = append(out.held, key)
+		case out.served == nil:
+			out.served = map[string]bool{key: true}
+		default:
+			out.served[key] = true
+		}
+	}
+	slices.Sort(out.held)
+	return e, out
+}
+
+// summaryInventory builds declaration metadata without following callable bodies.
+func summaryInventory(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) (*Env, []syntax.Node) {
 	e := New(file, types, snapshot, options)
 	e.consulted = map[string]bool{}
 	out := &File{options: e.options, Path: file.Path, Summaries: map[string]Summary{}}
-	s := &summarizing{out: out, declared: map[string][]syntax.Node{}, names: map[syntax.Node]string{}, state: map[syntax.Node]uint8{}}
+	s := &summarizing{out: out, base: e.snapshot, declared: map[string][]syntax.Node{}, names: map[syntax.Node]string{}, state: map[syntax.Node]uint8{}}
 	var order []syntax.Node
 	syntax.InspectFile(file, func(n syntax.Node) bool {
 		name := ""
@@ -324,34 +360,37 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 		}
 		return true
 	})
-	e.summarizing = s
-	for _, n := range order {
-		e.summarize(n)
-	}
-	e.summarizing = nil
-	out.consulted, e.consulted = e.consulted, nil
-	for key, read := range e.answers {
-		switch {
-		case read.held:
-			out.held = append(out.held, key)
-		case out.served == nil:
-			out.served = map[string]bool{key: true}
-		default:
-			out.served[key] = true
+	// Reuse the declaration inventory instead of walking the file again on
+	// the first local producer or nested-contract query.
+	e.localBodies = make(map[string]syntax.Node, len(s.declared))
+	for key, declarations := range s.declared {
+		for _, declaration := range declarations {
+			switch declaration.(type) {
+			case *syntax.Function, *syntax.Method:
+				if _, duplicate := e.localBodies[key]; duplicate {
+					e.localBodies[key] = nil
+				} else {
+					e.localBodies[key] = declaration
+				}
+			}
 		}
 	}
-	slices.Sort(out.held)
-	return e, out
+	e.summarizing = s
+	return e, order
 }
 
 // summarizing is the state of Summarize: the summaries made so far, each
 // callable of the file under its key, and whether its summary is begun
 // (summaryBegun) or made (summaryMade).
 type summarizing struct {
-	out      *File
-	declared map[string][]syntax.Node
-	names    map[syntax.Node]string
-	state    map[syntax.Node]uint8
+	base         *Snapshot
+	cached       map[string]Summary
+	borrowed     map[syntax.Node]*scopeResult
+	dependencies map[syntax.Node]map[string]bool
+	out          *File
+	declared     map[string][]syntax.Node
+	names        map[syntax.Node]string
+	state        map[syntax.Node]uint8
 }
 
 const (
@@ -366,15 +405,23 @@ func (e *Env) summarize(n syntax.Node) {
 		return
 	}
 	s.state[n] = summaryBegun
+	if s.dependencies != nil {
+		reads := e.begin()
+		defer func() { e.end(reads); s.dependencies[n] = reads }()
+	}
+	if prior := s.borrowed[n]; prior != nil && prior.finished {
+		e.scopes[n] = prior
+	}
 	r := e.scope(n)
-	sum := Summary{Return: Value{Complete: r.complete}}
+	sum := Summary{Return: Value{Complete: r.complete}, argumentSensitive: r.argumentSensitive}
 	body := syntax.VariableScopeBody(n)
 	sum.Generator = r.generator
 	for i, v := range r.returns {
+		v = e.constrainCallbackReturn(n, scalarSnapshot(v))
 		if i == 0 {
-			sum.Return = v
+			sum.Return = scalarSnapshot(v)
 		} else {
-			sum.Return = merge(sum.Return, v)
+			sum.Return = merge(sum.Return, scalarSnapshot(v))
 		}
 	}
 	sum.Return.Complete = sum.Return.Complete && r.complete
@@ -388,11 +435,11 @@ func (e *Env) summarize(n syntax.Node) {
 		if p.ByRef && p.Var != nil && r.complete {
 			// The argument holds what the name wrote to it while it
 			// stood for it.
-			left := r.exit[received(p.Var.Name)]
+			left := r.exit.value(received(p.Var.Name))
 			if p.Variadic {
 				// The arguments keep what they held, and may hold
 				// what was written to an element of the array.
-				left = merge(left, r.exit[p.Var.Name])
+				left = merge(left, r.exit.value(p.Var.Name))
 			}
 			if sum.ByRef == nil {
 				sum.ByRef = map[int]Value{}
@@ -400,10 +447,27 @@ func (e *Env) summarize(n syntax.Node) {
 			sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, scalars: left.scalars}
 		}
 	}
+	sum.Return = e.completedReturn(n, r, sum.Return)
+	sum.forward = e.summarizeForward(n, r, sum.Return)
+	if sum.Fixed {
+		sum.pure = e.compilePure(n, r, nil, 0)
+		sum.defaults = e.literalDefaults(n)
+	}
+	sum.resource = e.summarizeResource(n, r, sum)
+	sum.Return = summarizeRecord(n, r, sum)
+	sum.effects = summarizeResourceEffects(n, r, sum)
+	if sum.Fixed && !byReference(n) {
+		sum.returned = e.summarizeReturned(sum.Return, r, len(syntax.VariableScopeParams(n)))
+	}
+	sum.Return.returned = nil
+	sum.Return.targets = nil
 	sum.Return.Expr = nil
+	shapeFuel := MaxSources
+	sum.Return.elements = compactElements(sum.Return.elements, MaxDepth, &shapeFuel)
 	sum.Return.interval = nil
 	sum.Return.origins = nil
-	sum.Return.Identity = 0
+	sum.Return.Identity, sum.Return.storedIdentity = 0, 0
+	sum.Return.record = nil
 	if !sum.Generator {
 		for _, c := range r.calls {
 			sum.Sinks = appendSinks(sum.Sinks, e.nativeSinks(c))
@@ -454,13 +518,10 @@ func unconditional(n syntax.Node) bool {
 // read meanwhile gave one answer, the one s gives. Otherwise a new one keeps
 // the results computed from none of those that differ.
 func (e *Env) Rebase(s *Snapshot) *Env {
-	differ := map[string]bool{}
-	for key, read := range e.answers {
-		summary, ok := s.lookup(key)
-		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(read.summary, summary) {
-			differ[key] = true
-		}
+	if e.local != nil {
+		return NewLocal(e.file, e.types, s, e.options, e.local.guard)
 	}
+	differ := changedAnswers(e.answers, s.lookup)
 	if len(differ) == 0 && snapshotOptions(s) == e.options {
 		e.snapshot = s
 		return e
@@ -475,6 +536,17 @@ func (e *Env) Rebase(s *Snapshot) *Env {
 		}
 	}
 	return n
+}
+
+func changedAnswers(answers map[string]answer, lookup func(string) (Summary, bool)) map[string]bool {
+	differ := map[string]bool{}
+	for key, read := range answers {
+		summary, ok := lookup(key)
+		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(read.summary, summary) {
+			differ[key] = true
+		}
+	}
+	return differ
 }
 
 // begin starts recording the contracts a result computed while summaries
@@ -525,6 +597,11 @@ func addReads(into, from map[string]bool) {
 // and the answer while the summaries of the file are being computed.
 func (e *Env) contract(name string) (Summary, bool) {
 	if e.consulted == nil || name == "" {
+		if e.local != nil && name != "" {
+			if summary, known, own := e.localContract(strings.ToLower(name)); own {
+				return summary, known
+			}
+		}
 		return e.snapshot.lookup(name)
 	}
 	e.consulted[name] = true
@@ -535,6 +612,17 @@ func (e *Env) contract(name string) (Summary, bool) {
 	summary, ok, own := e.serve(key)
 	if !own {
 		summary, ok = e.snapshot.lookup(key)
+	}
+	if state := e.summarizing; state != nil && state.dependencies != nil {
+		// Local workers publish into one immutable view. Stable own and external
+		// answers cannot change; retain only local recursion holes for replay.
+		if !own && len(state.declared[key]) == 1 && state.base.alone(e.file.Path, key) {
+			if e.answers == nil {
+				e.answers = map[string]answer{}
+			}
+			e.answers[key] = answer{held: true}
+		}
+		return summary, ok
 	}
 	read, again := e.answers[key]
 	if !again {
@@ -566,7 +654,7 @@ type answer struct {
 // summary is being made. own is false for any other key.
 func (e *Env) serve(key string) (summary Summary, ok, own bool) {
 	s := e.summarizing
-	if s == nil || !e.snapshot.alone(s.out.Path, key) {
+	if s == nil || !s.base.alone(s.out.Path, key) {
 		return Summary{}, false, false
 	}
 	if strings.HasPrefix(key, sinkClassKey("")) {
@@ -576,6 +664,9 @@ func (e *Env) serve(key string) (summary Summary, ok, own bool) {
 	if declared := s.declared[key]; len(declared) == 1 && s.state[declared[0]] != summaryBegun {
 		// The reader depends on the summary, which Rebase compares, not on
 		// what computing it read.
+		if cached, known := s.cached[key]; known {
+			return cached, true, true
+		}
 		reading := e.reading
 		e.reading = nil
 		e.summarize(declared[0])
@@ -607,19 +698,10 @@ func (s *Snapshot) alone(path, key string) bool {
 	return declaring == 0
 }
 
-// nativeSinks recognizes resolved native sinks and binds named arguments.
+// nativeSinks selects resolved native sinks before binding their arguments.
 func (e *Env) nativeSinks(c Call) []Sink {
 	name, builtin := e.callName(c.Node)
 	if !builtin {
-		return nil
-	}
-	args, known := e.bind(c.Node, c.Arguments)
-	if !known {
-		// A reference argument, which a command fills with its output,
-		// leaves the first parameter what it was given.
-		args, known = e.leading(c)
-	}
-	if !known || len(args) == 0 {
 		return nil
 	}
 	context := Context(0)
@@ -641,23 +723,40 @@ func (e *Env) nativeSinks(c Call) []Sink {
 		case "curl_init":
 			context = URL
 		case "curl_setopt":
-			if len(args) > 2 {
-				if constant, ok := args[1].Expr.(*syntax.ConstFetch); ok && strings.EqualFold(strings.TrimPrefix(constant.Name.Value, `\`), "CURLOPT_URL") {
-					context = URL
-					position = 2
-				}
-			}
+			context = URL
+			position = 2
 		}
 	}
 	if context == 0 {
 		return nil
+	}
+	args, known := e.bind(c.Node, c.Arguments)
+	if !known {
+		// A reference argument, which a command fills with its output,
+		// leaves the first parameter what it was given.
+		args, known = e.leading(c)
+	}
+	if !known || len(args) == 0 {
+		return nil
+	}
+	if position == 2 {
+		if len(args) <= 2 {
+			return nil
+		}
+		constant, ok := args[1].Expr.(*syntax.ConstFetch)
+		if !ok || !strings.EqualFold(strings.TrimPrefix(constant.Name.Value, `\`), "CURLOPT_URL") {
+			return nil
+		}
 	}
 	if call, function := c.Node.(*syntax.FuncCall); function && name == "proc_open" && e.vector(call, args[0]) {
 		// An array is an argument vector: no shell reads it.
 		return nil
 	}
 	value := args[position]
+	value.targets = nil
+	value.returned = nil
 	value.Expr = nil
+	value.elements = nil
 	value.interval = nil
 	value.origins = nil
 	value.Identity = 0
@@ -715,7 +814,7 @@ func (e *Env) commands(body syntax.Node, r *scopeResult) []Sink {
 			return false
 		}
 		if command, ok := n.(*syntax.InterpolatedString); ok && command.Backtick {
-			if value, reached := r.values[command]; reached {
+			if value, reached := r.values.get(command); reached {
 				value.Expr, value.origins, value.Identity = nil, nil, 0
 				sinks = append(sinks, Sink{Name: "shell_exec", Context: Shell, Argument: value, Path: e.file.Path, Span: command.Span()})
 			}
@@ -728,10 +827,13 @@ func (e *Env) commands(body syntax.Node, r *scopeResult) []Sink {
 // Sinks expands known project wrapper sink contracts at this call site.
 // The argument sources and escaping contexts come from this call's flow.
 func (e *Env) Sinks(at syntax.Node) []Sink {
+	if sinks, known := e.scope(syntax.EnclosingVariableScope(at)).closureSinks[at]; known {
+		return sinks
+	}
 	name := e.sinkSummaryName(at)
 	summary, ok := e.contract(name)
 	if !ok {
-		return nil
+		return e.closedSinks(at)
 	}
 	args, known := e.BoundArguments(at)
 	if !known {
@@ -745,6 +847,9 @@ func (e *Env) Sinks(at syntax.Node) []Sink {
 	}
 	return out
 }
+
+// Options returns the analysis options the snapshot's summaries assume.
+func (s *Snapshot) Options() Options { return snapshotOptions(s) }
 
 func snapshotOptions(s *Snapshot) Options {
 	if s == nil {

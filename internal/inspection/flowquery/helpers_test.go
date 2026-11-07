@@ -8,7 +8,7 @@ import (
 	phpversion "custos/internal/php/version"
 )
 
-func Parse(t *testing.T, src string) *syntax.File {
+func Parse(t testing.TB, src string) *syntax.File {
 	t.Helper()
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.Max})
 	if len(f.Errors) > 0 {

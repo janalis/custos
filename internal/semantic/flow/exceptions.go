@@ -114,14 +114,14 @@ func (p *exceptionProof) holds(f frame) bool {
 		return false
 	}
 	for _, name := range p.reads {
-		v, exists := f.vars[name]
+		v, exists := f.vars.lookup(name)
 		_, shared := f.aliased[name]
 		if !exists || !v.Complete || !v.plain || shared || f.wild {
 			return false
 		}
 	}
 	for _, name := range p.writes {
-		old, exists := f.vars[name]
+		old, exists := f.vars.lookup(name)
 		_, shared := f.aliased[name]
 		if !p.local || shared || f.wild || !exists && !f.definite || exists && !storedScalar(old) {
 			return false

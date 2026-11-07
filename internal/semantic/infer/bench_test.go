@@ -220,3 +220,23 @@ func BenchmarkTypeOfPipesAndGenerators(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkBooleanBuiltinContracts(b *testing.B) {
+	f := syntax.Parse("test.php", []byte(`<?php function f(bool $flag) { $off = false; probe(hrtime($off), gettimeofday($off)); if ($flag === true) { probe(hrtime(as_number: $flag)); } }`), syntax.Options{Version: phpversion.Max})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	var calls []*syntax.FuncCall
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if call, ok := n.(*syntax.FuncCall); ok {
+			calls = append(calls, call)
+		}
+		return true
+	})
+	b.ReportAllocs()
+	for b.Loop() {
+		env := infer.NewEnv(f, names.New(f), ix, phpversion.Max, infer.Options{})
+		for _, call := range calls {
+			env.TypeOf(call)
+		}
+	}
+}

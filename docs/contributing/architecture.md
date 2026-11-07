@@ -129,11 +129,41 @@ withhold a finding, never to raise one. Where a `goto` label may let a jump
 bypass a guard, `semanticquery.NativeLabelled` says so, and the guard proves
 nothing.
 
-PHPUnit call and version support belongs in `phpunit`. Preserve the
+Constant string consumers can use `syntax.LiteralStringValue` for decoded
+quoted strings, heredocs and nowdocs. `syntax.DecodeLiteralString` additionally
+maps each decoded byte to its original source span, including entire escape
+sequences and indentation removal. Request that mapping only when source
+positions are needed; quoted-string helpers retain their narrower contracts.
+
+`flowquery.MethodReceiverEffect` describes a possible receiver mutation through
+member accesses and fluent chains. Its conditional flag records nullsafe
+accesses; a possible mutation is never proof that a write occurred.
+`Flow().ParameterRead` uses CFG results to ask whether a parameter's entry
+value is read. Only a known negative result proves that value unused; unknown
+values and incomplete scopes stay conservative. Captures are observed when the
+closure is created; arrow parameter names shadow outer names. Scope introspection
+observes the possible current parameter bindings at the call's execution point.
+
+PHPUnit declaration metadata, call and version support belongs in `phpunit`. Preserve the
 difference between a written call name and its actual runtime target,
 especially when deciding whether a fix is safe.
 
 ## Semantic evidence and fix safety
+
+`infer.Env.BuiltinArguments` resolves a native function and returns source
+expressions in parameter order. It validates the entire call, including PHP
+version rules, duplicate bindings and bounded literal argument packs; unknown
+or variadic bindings establish no value or omission proof. Use this when a rule
+needs runtime argument roles rather than their written positions. Nested literal
+packs are expanded with depth and entry budgets; numeric keys are renumbered on
+array spread, and string keys follow the configured PHP version's overwrite rules.
+`types.Type.ArrayCardinality` supplies lower and upper bounds from sealed,
+array-only types and explicit finite bounds independent of key identities.
+Key-changing operations derive new bounds; mutation drops them. Normal
+`count()` and `sizeof()` calls can use those bounds. Constant slice offsets and
+lengths refine the bounds; proven zero-entry alternatives contribute no element
+widening in unions. Recursive counts require separate evidence. A quick-fix needing runtime cardinality uses native
+inference and requires equal bounds; documented shapes alone cannot authorize the edit.
 
 A written name is not enough to identify a builtin. Use the analysis context's
 resolved global-function queries so namespace functions and imports retain
@@ -162,6 +192,10 @@ must discard definite facts rather than authorize a finding or fix.
 
 ## Flow and project summaries
 
+Published call histories preserve source order. Their node index is rebuilt after
+sorting so argument and sink queries can look up calls directly, including calls
+whose evaluation order differs from source order.
+
 Flow queries track reachable assignments, branch guards, object and resource
 identities and context-specific validation, and distinguish an unchecked read
 result from one rejected by a strict failure check. Project analysis builds
@@ -175,7 +209,167 @@ open documents.
   never validates file paths or network destinations.
 - A method wrapper needs a final receiver class, a final method or an
   accessible private method, with one unconditional declaration. Overridable
-  methods stay conservative.
+  methods stay conservative: a call through an interface, an abstract method or
+  an overridable method keeps the sources the declared body may return, but its
+  result is never complete. In a trait method, `$this->m()` resolves to the
+  trait's own or used non-abstract declaration on the same open terms; closures
+  and other receivers holding `$this` do not. A native receiver union of at most eight
+  classes may instead join return contracts and possible sinks when each target
+  is non-overridable (a final class, a final method or an accessible private
+  method) and every target, declaration chain and argument binding is known. PHPDoc-only unions,
+  escaped receivers, missing targets, generators and reference bindings do not
+  establish that proof. Each class-metadata and callable contract participates
+  in the cross-file dependency graph.
+- Locally created closures and arrows use bounded invocation frames with
+  argument values and by-value capture snapshots. Caller-specific bindings never
+  replace the ordinary symbolic scope cache or enter project snapshots. Reference
+  captures/parameters, generators, static state, escaped values and ambiguous
+  callees remain conservative. Supplied optional arguments are bound directly;
+  omitted defaults require supported pure primitive values. Variadics retain
+  bounded individual entries. Invocation work is charged to the caller's budget
+  and incomplete status propagates to it.
+- First-class project-function references and known project callbacks passed to
+  `call_user_func` or `call_user_func_array` reuse complete callable summaries and
+  binding proofs. Native function targets reuse native contracts. Closed method callbacks and
+  invokable objects require native receiver evidence and non-overridable visible
+  targets. Complete finite alternatives join all targets, including literal
+  callable names; unsupported alternatives establish no proof.
+- Finite `array_map` inputs evaluate supported callback contracts per element.
+  One input preserves literal keys; up to eight complete inputs with proven
+  insertion order bind positional values, pad shorter inputs with null and use
+  numeric output keys. Proven sealed argument packs use the runtime-role binder;
+  an unpacked pack must retain every entry, independently of its native shape.
+  A null callback keeps one input or zips several inputs into numeric rows.
+  Immutable nested element provenance crosses local
+  invocation frames and bounded syntax-free return templates. Callback effects do not establish caller operation
+  facts or execution-order proofs. Unknown inputs and unsupported bindings use
+  conservative aggregate provenance.
+- Pure array transforms can project indexed columns, combine nonempty equal-length
+  arrays and replace keys across two positional arrays. New index values require
+  proven source-free integer/string keys; collisions retain winning provenance
+  at the first insertion position. Local one-level destructuring snapshots its
+  input and validates every requested field before binding fresh slots. Canonical
+  foreach updates can prepare one fresh per-entry local; required reads still
+  run when unused, and that local is hidden after the loop and between stages.
+  Shared expression, copy, shape and execution limits bound all these forms.
+- Audited pure array fills, keyed fills, flips and chunks reserve combined work,
+  copies and shape widths before constructing immutable records. Key-producing
+  scalar values must be source-free integers/strings; chunking retains individual
+  entry provenance. Integer-only sums check every intermediate addition and
+  retain numeric provenance. Missing reads, coercions, aliases, observable
+  lifetimes and exhausted depth/source bounds establish no exact result.
+- Pure array padding and integer ranges share that construction budget; ranges
+  accept only steps that every supported PHP version handles alike. Text case
+  changes are compiled only from PHP 8.2 (locale-independent), trims read their
+  character list as a byte set without ranges, and text padding bounds its
+  output bytes. Stub metadata repeating an optional parameter is accepted only
+  for that exact duplicate.
+- Pure duplicate removal compares text forms of proven integers and strings;
+  strict searches reuse strict query identity and return plain keys; integer
+  minimum and maximum keep the winning entry; products check every
+  multiplication for overflow. Variadic natives compile only plain positional
+  arguments.
+- Named and returned callbacks can publish bounded syntax-free primitive return
+  expressions, literal defaults and immutable captured parameter slots. Resolved
+  pure wrapper calls compose these contracts; evaluation checks discarded local
+  assignments too. Invocation binding uses call-site strictness, while return
+  conversion uses definition strictness. Recursion, uncertain conversions and
+  exhausted work limits retain unknown results. Scalar evaluation refines
+  provenance separately; exact record forwarding additionally proves caller
+  resource identities and preserves field aliases.
+- Pure callback contracts also encode bounded conditional returns, ternaries,
+  short-circuit boolean operations and null coalescing. Only the selected operand
+  is evaluated. Audited native `strlen` and default `trim` calls require proven
+  strings. Immutable literal-array defaults and known-key projections preserve
+  field provenance, with canonical PHP integer-key normalization and no
+  warning-producing key conversions; structural refinement rejects observable object/resource
+  inputs. Compiled wrapper spreads reuse the runtime argument-role binder.
+- Pure summaries also resolve the audited native `COUNT_NORMAL` constant and
+  PHP 8 byte-string prefix, suffix and containment predicates. Strict membership
+  can use an empty array or a decisive matching scalar entry, while unknown
+  entries establish no absence proof. Bounded immutable array spreads follow
+  version-specific key rules. Empty array accumulators with one append-only
+  foreach update preserve insertion order and individual element provenance;
+  aliases and observable object or resource lifetimes remain unsupported.
+- Supported accumulator loops can feed one final pure expression over the carry
+  and unchanged entry bindings; loop key/value variables establish no post-loop
+  binding. Append-only loops can filter by a proven per-entry pure condition.
+  Ordered native array queries preserve individual elements and exact key types;
+  primitive type predicates require scalar or immutable record evidence. Bounded
+  byte slices use PHP-version range behavior, retain input provenance and clear
+  escaping proofs. Unknown conditions and unsupported conversions stay unknown.
+- Complete immutable arrays supply boolean truth and quiet empty-query results.
+  Computed integer/string keys and fresh keyed accumulators share canonical key
+  handling and preserve insertion order and field provenance. Array unions keep
+  left entries and numeric keys while still evaluating both operands. At most
+  two sequential canonical foreach stages compose with distinct carry slots and
+  one shared work budget; loop-local bindings do not leak between stages or into
+  final expressions. Uncertain keys, membership and lifetimes remain unknown.
+- Pure wrappers compose native mapping/filtering with fixed named project
+  callbacks, shared role binding and internal callback coercion. Two complete
+  equal-length mapping inputs pair by position and produce numeric keys; one
+  input preserves keys. Audited string-only `strlen` and default `trim` callbacks
+  compose without publishing effects. Filter modes bind value, key or value/key
+  roles while retaining original entries and their provenance.
+  Canonical first-match searches stop evaluation at the first proven match, and
+  continue guards skip update keys and values; break guards stop the loop. Audited explicit casts and typed
+  callback binding retain scalar sources with conversion-specific safety.
+  Strict record identity compares ordered keys and nested values, with decisive
+  mismatches and shared recursion/work limits, also used by array-valued match
+  and strict membership queries. Uncertain earlier query comparisons remain
+  unknown. Callback effects and exhausted
+  comparisons establish no caller facts.
+- Direct noncapturing arrow callbacks compile with fresh parameter bindings and
+  shared expansion limits; they publish neither closure identities nor effects.
+  Native scalar folds compose fixed project callbacks over ordered immutable
+  inputs. Array slices normalize proven bounds without overflowing and preserve
+  only selected values; strict filtered keys require every membership outcome.
+  One-level foreach destructuring binds fresh field slots and validates every
+  requested read before guards, including fields unused by an update. Field
+  bindings never escape into a later stage or final expression.
+- Audited native string joins/splits retain only emitted source provenance and
+  enforce byte, cardinality and origin bounds without publishing escaping facts.
+  Column projections require every requested field; two-input merges rebuild
+  provenance from winning entries after numeric reindexing and string overwrites.
+  Direct noncapturing ordinary closures share the inline callback compiler and
+  dependency/parameter/expansion checks. Destructured first-match searches use
+  required-field reads before each visited condition, then stop at the match.
+- Checked integer division/remainder and bitwise instructions reject implicit
+  coercions and unsafe bounds while retaining numeric source provenance.
+  Byte replacement/repetition validate expansion before allocation and publish
+  no escaping facts. Reversal preserves per-entry provenance and key rules.
+  Terminal integer switches use proven integer tests and one pure return per
+  arm, selecting default only after all tests fail and never merging unused
+  selector or return origins into the selected result.
+- Callback truth outcomes are separate from literal equality. Each normal return,
+  including implicit null, is converted before joining truth outcomes. Agreeing
+  falsy returns can remove entries without treating different literals as equal.
+- Finite `array_filter` inputs reuse callback binding and sink contracts in
+  value, key or combined mode. Retained entries keep their original provenance;
+  predicate results never act as transformations. Unknown truth keeps possible
+  entries without establishing complete output membership. Mutable entry values
+  establish no output-field proof.
+- Returned closure contracts contain only parameter metadata, symbolic values,
+  bounded nested shape templates and sinks. Capture-free closures and immutable by-value captures can cross
+  project boundaries; references, mutable captures, generators and static state
+  cannot. Each caller supplies its own factory argument snapshots.
+- Indirect native closes remain pending until the exact result is proven true.
+  Fixed quiet wrappers returning an unchanged close result reuse that relation,
+  including supported wrapper chains and closed method calls. Scalar return
+  coercions establish no such boolean identity proof.
+  Saved results retain that proof only while the pending operation is current;
+  failure branches, later operations and escapes establish no close proof.
+- Closure invocation frames copy operation states. A returned fresh resource gets
+  a caller identity; a borrowed identity preserves the existing caller state.
+  Only states shared by normal completions are projected, and a newly observed
+  close requires proven success. Other callee-local identities are dropped.
+- `Flow().ReferenceResult` also projects reference outputs from a proven
+  final or private method. Nullable, escaped and PHPDoc-only receivers do not
+  establish that replacement proof. Multiple reference outputs require distinct,
+  unaliased local cells; globals, static locals and element lvalues remain unknown.
+- Fixed quiet wrappers project common `fread`, `fwrite` and checked-close states
+  onto proven borrowed resources. Escapes, repeated actual handle identities,
+  reference parameters and variadics establish no effect proof.
 - Catch paths are pruned only for blocks proven non-throwing. Calls, uncertain
   reads or writes, callbacks and object destruction keep exception paths;
   `finally` blocks follow the applicable exits. `declare(ticks=…)` disables
@@ -183,6 +377,45 @@ open documents.
 - Ambiguous declarations, escaped resources, unsupported operations, recursion
   and exhausted budgets discard definite facts: an unknown result is never
   proof of a bug.
+- Dependency callables have no published summaries: a lookup that no
+  snapshot file declares goes to the options' `Vendor` provider, which
+  summarizes the single dependency file declaring the callable (or the class
+  whose metadata is asked) alone, without a snapshot or further provider, and
+  memoizes per file and per key. Results therefore never depend on which
+  lookup comes first. Snapshots built with different providers are
+  incompatible; `Engine.WithFlow` adopts the snapshot's provider.
+- Expression depth counts nesting, not fluent links: a call or property fetch
+  used as the receiver of the next link is evaluated at the same depth (parsing
+  already bounds tree depth). Each evaluated call memoizes what its operands
+  let escape, so later links do not walk the chain again.
+
+Nested element facts have bounded depth and branching cost even when loops wrap an
+earlier array. Exhaustion discards field detail while retaining aggregate
+provenance. Return templates use a deterministic budget for the whole tree.
+Whole-entry completeness and insertion order are separate from value completeness;
+losing an entry invalidates complete-pack and exact-cardinality proofs. Optional
+filter entries retain all possible values for single-input mapping but establish
+no exact argument-pack or multi-input positional proof. Scalar
+coercions and predicates discard operand array shapes. Compact templates are
+immutable: unchanged subtrees and empty sets are shared, while changed fields
+trigger a map copy. Predicate literals are retained only when declared parameter or return
+conversion cannot change their scalar kind.
+
+Expression values use small, lazily allocated blocks behind per-scope indices;
+queries still return value copies. Branch bindings retain copy-on-write maps
+whose immutable value cells remain shared when a map is cloned. Writes replace
+shared cells; cells still private to one frame can be updated in place.
+Lookups return value copies. Recording an unchanged fact keeps the
+existing map shared. Class identity
+keys may be cached, but each contract use must still record its dependency.
+Summarization reuses its declaration inventory for local producer queries.
+Resolved member declaration metadata is cached per call site, index identity
+and revision, and PHP version. Unresolved lookups remain eligible for later
+inference. Keep live receiver, visibility and contract dependency proofs at
+each use.
+Terminal native-value queries may skip discovery only when they produce the
+same candidate as the full discovery procedure; properties, constants and
+conditional alternatives keep their existing resolution path.
 
 ### Assertions
 
@@ -195,6 +428,20 @@ assertion can execute code, so a string — or any argument not syntactically
 known to be non-string — invalidates local proofs; native type predicates and
 strict comparisons stay usable. From PHP 8 a plain variable assertion may also
 supply a guard.
+
+File-query environments inventory local declarations without following bodies.
+They mask the indexed version of the buffer immediately and compute demanded
+contracts and their dependencies in isolated workers. Acyclic dependencies need
+one pass; recursive closures replay in declaration order when discovery did not
+already start at their first declaration. A bounded discovery budget ensures
+inspection query order cannot change their contracts. Stable contracts
+remain private to the environment, and only scopes whose recorded answers still
+match are reused. Workers share completed global facts, pure metadata caches and
+the file-local resource-identity registry; active scopes are never borrowed.
+Rebasing a query environment rebuilds its local cache. Project
+snapshot publication remains exhaustive through `Summarize`. Deferred worker
+failures run inside the context's shared flow-data guard, so they do not disable
+the inspection that happened to request the contract.
 
 ## Analysis status
 
@@ -209,6 +456,14 @@ Analysis gaps are reported as status reasons instead of findings:
   `internal-failure` when building data rules share (names, symbols, types,
   flow) crashed; `io-error` from `diagnostic.Status`; `project.AnalyzeBuffer`
   and LSP guarded analysis: `internal-failure`.
+
+A type that reads itself (a loop-carried variable narrowed back to a class)
+is first inferred with the recursive read unknown. When that type is known, it
+is assumed for the recursive read and inferred again; the same type back is a
+fixpoint covering every value the cycle produces, and no gap is reported.
+Otherwise every cached result derived from the assumption is retracted and the
+first behavior, with its `inference-recursion` gap, stands. Re-inference is
+bounded per environment and never nests.
 
 The LSP discards results from an older document version, a reopened document
 or a replaced engine before publishing diagnostics or status. Lazy fixes are

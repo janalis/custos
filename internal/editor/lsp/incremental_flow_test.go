@@ -70,7 +70,7 @@ func TestIncrementalFlowRefresh(t *testing.T) {
 				srcs[i] = s.docs[uri].text
 			}
 		}
-		if !project.BuildFlow(context.Background(), files, srcs, syntax.Options{Version: s.cfg.PHP}, s.index, s.cfg.Flow).Snapshot.Equal(s.flow) {
+		if !project.BuildFlow(context.Background(), files, srcs, syntax.Options{Version: s.cfg.PHP}, s.index, s.flow.Options()).Snapshot.Equal(s.flow) {
 			t.Fatal("incremental summaries differ from a full build")
 		}
 	}
@@ -83,20 +83,18 @@ func TestIncrementalFlowRefresh(t *testing.T) {
 	sameAsFull()
 	// Another refresh published meanwhile: the update is dropped and the
 	// summaries rebuilt.
-	defer func(f func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool)) {
-		updateFlow = f
-	}(updateFlow)
-	updateFlow = func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+	defer s.setFlowUpdater(nil)
+	s.setFlowUpdater(func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
 		next, ok := b.Update(changed, ix)
 		s.flowBuild = nil
 		return next, ok
-	}
+	})
 	if !edit("<?php function invoke($arg, $more = null) { system($arg); // concurrent\n}") || s.flowBuild == nil {
 		t.Fatal("superseded update not rebuilt")
 	}
-	updateFlow = func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
+	s.setFlowUpdater(func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
 		return nil, false
-	}
+	})
 	if !edit("<?php function invoke($arg, $more = null) { system($arg); // refused\n}") {
 		t.Fatal("refused update not rebuilt")
 	}
@@ -150,12 +148,10 @@ func TestFlowUpdateAfterAnalysis(t *testing.T) {
 	}
 	edit(string(src))
 	s.reflow(uri) // records the buffer's symbols
-	defer func(f func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool)) {
-		updateFlow = f
-	}(updateFlow)
+	defer s.setFlowUpdater(nil)
 	var updates []string
 	running := false
-	updateFlow = func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+	s.setFlowUpdater(func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
 		if !strings.Contains(out.String(), "publishDiagnostics") {
 			t.Error("summaries updated before the document was analysed")
 		}
@@ -170,7 +166,7 @@ func TestFlowUpdateAfterAnalysis(t *testing.T) {
 			s.reflow(uri) // queued behind the running update
 		}
 		return b.Update(changed, ix)
-	}
+	})
 	edit("<?php function invoke($arg) { system($arg); /* typing */ }")
 	out.Reset()
 	defer func(d time.Duration) { FlowDelay = d }(FlowDelay)
@@ -183,9 +179,9 @@ func TestFlowUpdateAfterAnalysis(t *testing.T) {
 	if len(updates) != 2 || !strings.Contains(updates[1], "later") || s.reflowing {
 		t.Fatalf("updates: %q reflowing=%v", updates, s.reflowing)
 	}
-	updateFlow = func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
+	s.setFlowUpdater(func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
 		panic("update")
-	}
+	})
 	s.reflow(uri)
 	if s.reflowing || !strings.Contains(out.String(), "flow update panicked") {
 		t.Fatal("failed update left the queue busy or unreported")
@@ -221,13 +217,13 @@ func TestOpenedDocumentUpdatesBuild(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			old := buildFlow
-			defer func() { buildFlow = old }()
+			old := project.BuildFlowOrdered
+			defer s.setFlowBuilder(nil)
 			builds := 0
-			buildFlow = func(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *project.FlowBuild {
+			s.setFlowBuilder(func(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *project.FlowBuild {
 				builds++
 				return old(ctx, files, srcs, opt, ix, options, order)
-			}
+			})
 			uri := "file://" + wrapper
 			s.docs[uri] = &document{path: wrapper, text: []byte(tc.text)}
 			if !s.reindexDoc(uri) || (builds > 0) != tc.rebuilt {
@@ -257,16 +253,18 @@ func TestFlowUpdateAfterPause(t *testing.T) {
 		t.Fatal("index not requested")
 	}
 	s.buildIndex()
-	defer func(f func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool)) {
-		updateFlow = f
-	}(updateFlow)
+	defer s.setFlowUpdater(nil)
 	updated := make(chan string, 4)
-	updateFlow = func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+	s.setFlowUpdater(func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
 		for path := range changed {
-			updated <- filepath.Base(path)
+			// Other white-box servers can still have a deferred update. Only
+			// this workspace belongs to the pause being measured here.
+			if filepath.Dir(path) == root {
+				updated <- filepath.Base(path)
+			}
 		}
 		return b.Update(changed, ix)
-	}
+	})
 	defer func(d time.Duration) { FlowDelay = d }(FlowDelay)
 	FlowDelay = 20 * time.Millisecond
 	for _, uri := range uris {

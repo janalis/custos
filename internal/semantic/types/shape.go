@@ -186,6 +186,7 @@ func (t Type) WithArrayKey(key Type) Type {
 // sealed states that the array has no other keys (a literal array). More
 // than MaxShapeKeys keys keep only the emptiness fact.
 func (t Type) WithShape(keys []ShapeKey, sealed bool) Type {
+	t.card = nil
 	a := t.cloneInfo()
 	a.key = 0
 	a.keyPattern = nil
@@ -247,6 +248,9 @@ func (t Type) MapShape(fn func(ShapeKey) ShapeKey) Type {
 	keys := make([]ShapeKey, len(t.arr.keys))
 	for i, k := range t.arr.keys {
 		keys[i] = fn(k)
+		if keys[i].Name != k.Name || keys[i].Optional != k.Optional {
+			t.card = nil
+		}
 	}
 	a := t.cloneInfo()
 	a.keys = keys
@@ -261,6 +265,9 @@ func (t Type) IsNonEmptyArray() bool { return t.hasArrayAtom() && t.arr.isNonEmp
 // WithNonEmpty sets (or clears) the non-empty fact of t's array members.
 // Clearing also drops required shape keys' guarantee by making them optional.
 func (t Type) WithNonEmpty(nonEmpty bool) Type {
+	if !nonEmpty && t.card != nil {
+		t.card = &arraySize{0, t.card.maximum}
+	}
 	if !t.hasArrayAtom() || t.arr.isNonEmpty() == nonEmpty {
 		return t
 	}
@@ -280,6 +287,7 @@ func (t Type) WithNonEmpty(nonEmpty bool) Type {
 // WithoutShape drops per-key types, keeping emptiness and element facts
 // (for operations that renumber or drop keys).
 func (t Type) WithoutShape() Type {
+	t.card = nil
 	if !t.HasShape() {
 		return t
 	}
@@ -293,7 +301,7 @@ func (t Type) WithoutShape() Type {
 // WithoutArrayInfo drops every array fact beyond the atoms (tools/genstubs
 // stores plain atom sets).
 func (t Type) WithoutArrayInfo() Type {
-	t.arr, t.element = nil, nil
+	t.arr, t.element, t.card = nil, nil, nil
 	return t
 }
 
@@ -622,4 +630,26 @@ func keyDoc(key uint8) string {
 	default:
 		return "int|string"
 	}
+}
+
+// ArrayCardinality returns finite bounds for an array-only type, from explicit
+// count metadata or a sealed shape. Optional keys increase only the upper bound.
+// Unknown sizes and unions with non-arrays establish no cardinality proof.
+func (t Type) ArrayCardinality() (minimum, maximum int, known bool) {
+	if !t.IsArrayLike() {
+		return 0, 0, false
+	}
+	if t.card != nil {
+		return t.card.minimum, t.card.maximum, true
+	}
+	if !t.IsSealedShape() {
+		return 0, 0, false
+	}
+	for _, key := range t.ShapeKeys() {
+		if !key.Optional {
+			minimum++
+		}
+		maximum++
+	}
+	return minimum, maximum, true
 }

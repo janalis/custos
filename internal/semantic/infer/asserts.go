@@ -54,6 +54,7 @@ func (e *Env) assertsOf(x syntax.Expr) *callAsserts {
 		e.asserts = map[syntax.Expr]*callAsserts{}
 	}
 	e.asserts[x] = ca
+	e.remember(undo{kind: undoAssert, expr: x})
 	return ca
 }
 

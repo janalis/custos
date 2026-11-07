@@ -1,10 +1,7 @@
 # PhpUnitTests implementation notes
 
-## Known gaps
+## Metadata
 
-- `@depends clone x` / `@depends shallowClone x`: the modifier word is
-  resolved as the reference, so these tags are reported. Skipping the
-  modifier and resolving the following word would remove the false reports.
-- PHPUnit 10+ attributes (`#[DataProvider]`, `#[Depends]`, `#[CoversClass]`,
-  `#[Test]`) are not read; supporting them would need a separate pass over
-  attribute arguments.
+Docblock tags and resolved PHPUnit attributes share normalized metadata.
+Attribute findings retain the existing target-check messages and never offer
+annotation-removal edits.

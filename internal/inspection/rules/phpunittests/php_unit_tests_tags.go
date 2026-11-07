@@ -6,6 +6,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -37,65 +38,6 @@ func putDocToken(f *syntax.File, n, name syntax.Node) (syntax.Token, bool) {
 		}
 	}
 	return syntax.Token{}, false
-}
-
-// putTag is one tag found in a doc comment.
-type putTag struct {
-	name       string // with '@'
-	start, end uint32 // absolute span of the tag name
-	value      string // first word after the tag name ("" when none)
-	annotation bool   // starts a docblock line (D3)
-}
-
-func putIsTagChar(c byte) bool {
-	return c == '_' || c == '-' || c == '\\' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
-}
-
-// putTags lists the tags of a doc comment token.
-func putTags(f *syntax.File, tok syntax.Token) []putTag {
-	text := string(f.Src[tok.Start:tok.End])
-	var out []putTag
-	for i := 0; i < len(text); i++ {
-		if text[i] != '@' || (i > 0 && putIsTagChar(text[i-1])) {
-			continue
-		}
-		j := i + 1
-		for j < len(text) && putIsTagChar(text[j]) {
-			j++
-		}
-		if j == i+1 {
-			continue
-		}
-		t := putTag{name: text[i:j], start: tok.Start + uint32(i), end: tok.Start + uint32(j)}
-		// D3: annotation position
-		k := i
-		for k > 0 && (text[k-1] == ' ' || text[k-1] == '\t' || text[k-1] == '\r' || text[k-1] == '\n') {
-			k--
-		}
-		if k == 3 && strings.HasPrefix(text, "/**") {
-			t.annotation = true
-		} else if k > 0 && text[k-1] == '*' {
-			b := k - 1
-			for b > 0 && (text[b-1] == ' ' || text[b-1] == '\t') {
-				b--
-			}
-			t.annotation = b > 0 && text[b-1] == '\n'
-		}
-		// value: first word on the same line
-		v := j
-		for v < len(text) && (text[v] == ' ' || text[v] == '\t') {
-			v++
-		}
-		w := v
-		for w < len(text) && text[w] != ' ' && text[w] != '\t' && text[w] != '\n' && text[w] != '\r' &&
-			!strings.HasPrefix(text[w:], "*/") {
-			w++
-		}
-		t.value = text[v:w]
-		out = append(out, t)
-		i = j - 1
-	}
-	return out
 }
 
 // putRefLike reports whether a tag value is a reference-like word (D4).
@@ -152,19 +94,24 @@ func putCheckTags(ctx *analysis.Context, m *syntax.Method) {
 		return
 	}
 	tok, ok := putDocToken(ctx.File, m, m.Name)
-	if !ok {
+	var metadata []phpunit.Metadata
+	if ok {
+		metadata = phpunit.Tags(ctx.File, tok)
+	}
+	metadata = append(metadata, phpunit.AttributeMetadata(ctx, m.Attrs)...)
+	if len(metadata) == 0 {
 		return
 	}
 	at := m.Span().Start
 	classFQN := ctx.Types().ClassFQN(cl)
 	isTestName := strings.HasPrefix(m.Name.Value, "test")
-	for _, t := range putTags(ctx.File, tok) { // D2
-		if !t.annotation { // D3
+	for _, t := range metadata { // D2
+		if !t.Annotation { // D3
 			continue
 		}
-		switch t.name {
+		switch t.Name {
 		case "@test":
-			if isTestName { // D11
+			if isTestName && !t.Attribute { // D11
 				putReportTest(ctx, tok, t)
 			}
 			continue
@@ -172,12 +119,12 @@ func putCheckTags(ctx *analysis.Context, m *syntax.Method) {
 		default:
 			continue
 		}
-		if !putRefLike(t.value) { // D4
+		if !t.Attribute && !putRefLike(t.Value) { // D4 applies only to docblock words
 			continue
 		}
-		switch t.name {
+		switch t.Name {
 		case "@dataProvider":
-			meth, decl, known := putResolveMember(ctx, t.value, classFQN, at)
+			meth, decl, known := putResolveMember(ctx, t.Value, classFQN, at)
 			if meth == "" { // D5
 				if known {
 					ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, putProviderMsg)
@@ -188,7 +135,7 @@ func putCheckTags(ctx *analysis.Context, m *syntax.Method) {
 				ctx.ReportNode(m.Name, putNamedMsg)
 			}
 		case "@depends":
-			meth, decl, known := putResolveMember(ctx, t.value, classFQN, at)
+			meth, decl, known := putResolveMember(ctx, t.Value, classFQN, at)
 			if meth == "" { // D7
 				if known {
 					ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, putDependsMsg)
@@ -199,7 +146,11 @@ func putCheckTags(ctx *analysis.Context, m *syntax.Method) {
 				ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, putDependsMsg)
 			}
 		case "@covers":
-			ref := t.value
+			if t.Attribute {
+				putCheckCoversAttribute(ctx, m.Name, t)
+				continue
+			}
+			ref := t.Value
 			if strings.HasPrefix(ref, "::") { // D10a: ::m against @coversDefaultClass
 				if def := putCoversDefaultClass(ctx, cl); def != "" && !strings.HasPrefix(ref, "::<") && putCoversResolves(ctx, def+ref, at) {
 					continue
@@ -211,7 +162,7 @@ func putCheckTags(ctx *analysis.Context, m *syntax.Method) {
 				continue
 			}
 			if !putCoversResolves(ctx, ref, at) { // D9, D10
-				ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, "The @covers target '"+t.value+"' cannot be resolved.")
+				ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, "The @covers target '"+t.Value+"' cannot be resolved.")
 			}
 		}
 	}
@@ -268,12 +219,17 @@ func putFindMethodDecl(ctx *analysis.Context, class, method string) *syntax.Meth
 
 // putHasTestTag reports whether a method's docblock carries @test anywhere.
 func putHasTestTag(ctx *analysis.Context, m *syntax.Method) bool {
+	for _, metadata := range phpunit.AttributeMetadata(ctx, m.Attrs) {
+		if metadata.Name == "@test" {
+			return true
+		}
+	}
 	tok, ok := putDocToken(ctx.File, m, m.Name)
 	if !ok {
 		return false
 	}
-	for _, t := range putTags(ctx.File, tok) {
-		if t.name == "@test" {
+	for _, t := range phpunit.Tags(ctx.File, tok) {
+		if t.Name == "@test" {
 			return true
 		}
 	}
@@ -314,9 +270,9 @@ func putCoversDefaultClass(ctx *analysis.Context, cl *syntax.ClassLike) string {
 	if !ok {
 		return ""
 	}
-	for _, t := range putTags(ctx.File, tok) {
-		if t.annotation && t.name == "@coversDefaultClass" && putRefLike(t.value) {
-			return t.value
+	for _, t := range phpunit.Tags(ctx.File, tok) {
+		if t.Annotation && t.Name == "@coversDefaultClass" && putRefLike(t.Value) {
+			return t.Value
 		}
 	}
 	return ""
@@ -378,19 +334,19 @@ func putFunctionExists(ctx *analysis.Context, name string, at uint32) bool {
 }
 
 // putReportTest reports a redundant @test tag with its removal fix (F17).
-func putReportTest(ctx *analysis.Context, tok syntax.Token, t putTag) {
+func putReportTest(ctx *analysis.Context, tok syntax.Token, t phpunit.Metadata) {
 	src := ctx.Src
-	span := syntax.Span{Start: t.start, End: t.end}
+	span := syntax.Span{Start: t.Start, End: t.End}
 	ctx.Report(span, putTestMsg, diagnostic.Fix{
 		Title: "Remove @test",
 		Edits: func() []diagnostic.TextEdit {
-			end := t.end
+			end := t.End
 			// value text on the same line, up to the newline or the closer
 			e := end
 			for e < tok.End && src[e] != '\n' && src[e] != '\r' && !(src[e] == '*' && e+1 < tok.End && src[e+1] == '/') {
 				if src[e] == '@' && (src[e-1] == ' ' || src[e-1] == '\t') {
 					// another tag shares the line: it now starts where @test did
-					return []diagnostic.TextEdit{{Span: syntax.Span{Start: t.start, End: e}}}
+					return []diagnostic.TextEdit{{Span: syntax.Span{Start: t.Start, End: e}}}
 				}
 				e++
 			}
@@ -398,7 +354,7 @@ func putReportTest(ctx *analysis.Context, tok syntax.Token, t putTag) {
 				e--
 			}
 			end = e
-			start := t.start
+			start := t.Start
 			for start > tok.Start && (src[start-1] == ' ' || src[start-1] == '\t') {
 				start--
 			}
@@ -408,4 +364,21 @@ func putReportTest(ctx *analysis.Context, tok syntax.Token, t putTag) {
 			return []diagnostic.TextEdit{{Span: syntax.Span{Start: start, End: end}}}
 		},
 	})
+}
+
+func putCheckCoversAttribute(ctx *analysis.Context, owner *syntax.Identifier, metadata phpunit.Metadata) {
+	if ctx.Index().Class(strings.TrimPrefix(metadata.Value, `\`), ctx.PHP) == nil {
+		ctx.ReportSeverity(owner.Span(), diagnostic.SeverityError, "The @covers target '"+metadata.Value+"' cannot be resolved.")
+	}
+}
+
+func putCheckClassAttributes(ctx *analysis.Context, class *syntax.ClassLike) {
+	if class.Name == nil || class.Name.Span().Len() == 0 {
+		return
+	}
+	for _, metadata := range phpunit.AttributeMetadata(ctx, class.Attrs) {
+		if metadata.Name == "@covers" {
+			putCheckCoversAttribute(ctx, class.Name, metadata)
+		}
+	}
 }

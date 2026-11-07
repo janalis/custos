@@ -19,12 +19,15 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		if label, ok := n.Parent().(*syntax.Case); ok && label.Cond == n {
 			// A label is compared loosely with the subject of its switch.
 			subject := label.Parent().(*syntax.Switch).Cond
-			if constantName(subject) == "" && (!v.plain && !textless(subject) || !r.values[subject].plain && !textless(n)) {
+			if constantName(subject) == "" && (!v.plain && !textless(subject) || !r.values.at(subject).plain && !textless(n)) {
 				e.implicit(n, f, r)
 			}
 		}
 	case *syntax.Return:
 		v := e.eval(n.Expr, f, r, 0)
+		if n.Expr == nil {
+			v = nullResult()
+		}
 		if n.Expr != nil && !v.plain && returnsText(syntax.EnclosingVariableScope(n)) {
 			// The declared type converts an object to text.
 			r.runs = true
@@ -67,7 +70,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 					r.globalNames = map[string]bool{}
 				}
 				r.globalNames[name] = true
-				f.setVar(name, unsettled(f.vars[name], e.held(name, r), r))
+				f.setVar(name, unsettled(f.vars.value(name), e.held(name, r), r))
 			}
 		}
 	case *syntax.Unset:
@@ -123,7 +126,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 // targets are evaluated, then given a key and an element of what the loop
 // iterates.
 func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
-	iterated := r.values[n.Expr]
+	iterated := r.values.at(n.Expr)
 	if n.ByRef || referenceTarget(n.Value, f) {
 		// The loop variable stays bound to an element after the loop.
 		f.alias(rootVariable(n.Value), aliasAny)
@@ -148,7 +151,7 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 		spread(n.Value, item, f, r)
 		if name := plainVariable(n.Value); name != "" && iterated.upload == uploadTable {
 			// Each element of the table is one uploaded file.
-			entry := f.vars[name]
+			entry := f.vars.value(name)
 			entry.upload = uploadEntry
 			f.setVar(name, entry)
 		}
@@ -156,20 +159,21 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 	if name := plainVariable(n.Key); name != "" && iterated.plain {
 		// A key of an array is a number or text: neither false nor null, and
 		// no object. Anything else that is iterated chooses its keys.
-		key := f.vars[name]
+		key := f.vars.value(name)
 		key.NonFalse, key.NonNull, key.plain, key.deep = true, true, true, true
 		f.setVar(name, key)
 	}
 	if name := plainVariable(n.Value); name != "" && iterated.deep && !n.ByRef {
 		// An array that holds no object yields none.
-		item := f.vars[name]
+		item := f.vars.value(name)
 		item.plain, item.deep = true, true
 		f.setVar(name, item)
 	}
 }
 
 func remember(r *scopeResult, n syntax.Node, f frame) {
-	if old, ok := r.before[n]; ok {
+	key := syntax.Identity(n)
+	if old, ok := r.before[key]; ok {
 		for id, s := range old {
 			if common, ok := agree(s, f.states[id]); ok {
 				old[id] = common
@@ -188,7 +192,7 @@ func remember(r *scopeResult, n syntax.Node, f frame) {
 				m[id] = s
 			}
 		}
-		r.before[n] = m
+		r.before[key] = m
 	}
 }
 
@@ -221,6 +225,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			}
 			f.definite = false
 			v = Value{}
+			if assignment, target := n.Parent().(*syntax.Assign); !target || assignment.Var != n || assignment.Op.Kind != syntax.TEqual {
+				e.observeParameters(n, f, r)
+			}
 			if name, known := literalText(n.NameExpr); known && external(name) {
 				v = e.request(name, n, f)
 			}
@@ -228,17 +235,16 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			v = e.request(n.Name, n, f)
 		} else {
 			var tracked bool
-			if v, tracked = f.vars[n.Name]; !tracked {
+			if v, tracked = f.vars.lookup(n.Name); !tracked {
 				// A variable nothing assigned is null, and the globals table
 				// is an array. The session table is whatever the application
 				// put there.
 				v.plain, v.deep = n.Name == "GLOBALS" || f.definite && importable(n.Name), f.definite && importable(n.Name)
-				if spread := f.vars[imported]; importable(n.Name) && tainted(spread) {
+				if spread := f.vars.value(imported); importable(n.Name) && tainted(spread) {
 					// An import of request data may have created the variable.
 					v = Value{Sources: spread.Sources, Safe: spread.Safe}
 				}
 			}
-			v.elements = nil
 			v.tested, v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull, v.entry = nil, nil, false, false, false, false, false
 		}
 	case *syntax.Paren:
@@ -352,10 +358,11 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			deciding := n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd
 			skipped := clone(f)
 			e.refine(n.Left, &skipped, !deciding)
-			for name, refined := range skipped.vars {
+			for name, refinedCell := range skipped.vars {
+				refined := refinedCell.Value
 				// Only what the outcome excludes is kept: a value pinned
 				// or cleared by the test is another value to later reads.
-				if held := f.vars[name]; refined.Expr != held.Expr || len(refined.Sources) != len(held.Sources) {
+				if held := f.vars.value(name); refined.Expr != held.Expr || len(refined.Sources) != len(held.Sources) {
 					skipped.setVar(name, held)
 				}
 			}
@@ -370,7 +377,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			if stored := assignedInPlace(n.Right); stored != nil {
 				// A value the same assignment produced earlier may arrive on
 				// the path that skips it: its test then says nothing of it.
-				reached := skipped.vars[stored.Var.(*syntax.Variable).Name]
+				reached := skipped.vars.value(stored.Var.(*syntax.Variable).Name)
 				produced := Value{Expr: syntax.UnwrapParens(stored.Value)}
 				if reached.Expr == produced.Expr || reached.Expr == nil && reached.origins != nil && (reached.origins.full || reached.origins.holds(&Value{Expr: produced.Expr, NonFalse: true, NonNull: true})) {
 					if r.stale == nil {
@@ -385,7 +392,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				// Nor is one that passed this test on an earlier turn, where
 				// the left operand skips it since (see relation).
 				name := stored.Var.(*syntax.Variable).Name
-				kept, tracked := skipped.vars[name]
+				kept, tracked := skipped.vars.lookup(name)
 				held := skipped.relates(n)
 				notFalse, notNull := kept.NonFalse || !tracked && skipped.definite || held&relatedFalse != 0, kept.NonNull || held&relatedNull != 0
 				ran, left := uint8(0), uint8(0)
@@ -405,7 +412,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				skipped.relate(n, left)
 				f.relate(n, ran)
 				*f = rejoin(skipped, *f, r)
-				if joined := f.vars[name]; notFalse || notNull {
+				if joined := f.vars.value(name); notFalse || notNull {
 					joined.unless, joined.unlessFalse, joined.unlessNull = n, false, false
 					joined.skippedFalse, joined.skippedNull = notFalse, notNull
 					f.setVar(name, joined)
@@ -602,17 +609,25 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			v.scalars = false
 			v.Safe |= everyContext
 		}
+		if slot, constant := arrayKey(n.Dim); constant {
+			if own, tracked := r.values.at(n.Var).elements.lookup(slot); tracked {
+				v = resourceElement(x, own, f, r)
+				v.Expr = x
+				v.plain, v.deep = own.plain, own.deep
+			}
+		}
 		if variable, ok := root.(*syntax.Variable); ok {
 			key, known := literalText(n.Dim)
 			if variable.NameExpr == nil && !external(variable.Name) {
 				own, tracked := Value{}, false
 				if slot, constant := arrayKey(n.Dim); constant && levels == 1 {
-					own, tracked = f.vars[variable.Name].elements.lookup(slot)
+					own, tracked = f.vars.value(variable.Name).elements.lookup(slot)
 				}
 				switch {
 				case tracked:
 					// The element's own last write decides what it holds.
-					v = Value{Complete: own.Complete, Sources: own.Sources, Safe: own.Safe, Expr: x}
+					v = resourceElement(x, own, f, r)
+					v.Expr = x
 				case whole == uploadEntry && known && uploadField(key):
 					// The server chooses these fields of an uploaded file.
 					v = Value{Expr: x, Complete: true}
@@ -620,7 +635,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 					v.upload = uploadEntry
 				case variable.Name == "GLOBALS" && levels == 1 && known && (r.global || r.globalNames[key]):
 					// The entry is the variable of that name.
-					held := f.vars[key]
+					held := f.vars.value(key)
 					v = Value{Complete: held.Complete, Sources: held.Sources, Safe: held.Safe, Expr: x}
 				}
 			}
@@ -660,7 +675,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			e.eval(item.Key, f, r, depth+1)
 			value := e.eval(item.Value, f, r, depth+1)
 			v = merge(v, value)
-			if item.Unpack || item.ByRef {
+			if item.ByRef || item.Unpack && !e.completeSpread(value) {
 				v.Complete = false
 			}
 			if item.Unpack && !value.plain {
@@ -672,6 +687,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			}
 		}
 		v.Expr = x
+		v.elements = e.literalElements(n, r)
 	case *syntax.PropertyFetch:
 		e.eval(n.Var, f, r, depth+1)
 		if conditional(n) {
@@ -713,6 +729,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.Closure:
 		// The body executes only on invocation, where it can write these names.
 		for _, use := range n.Uses {
+			if use.Var != nil {
+				e.eval(use.Var, f, r, depth+1)
+			}
 			if use.ByRef && use.Var != nil {
 				f.alias(use.Var.Name, aliasHeld)
 				if written := e.holderWrites(n, use.Var.Name); retained(written) {
@@ -723,7 +742,16 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				}
 			}
 		}
-	case *syntax.ArrowFunction: // The body executes only on invocation.
+		e.captureClosure(n, f, r)
+		if _, known := r.closures[n]; known {
+			v.targets = oneCallableTarget(n)
+		}
+	case *syntax.ArrowFunction: // Capture now; execute the body only on invocation.
+		e.observeArrow(n, f, r)
+		e.captureClosure(n, f, r)
+		if _, known := r.closures[n]; known {
+			v.targets = oneCallableTarget(n)
+		}
 	case *syntax.Yield, *syntax.YieldFrom:
 		e.suspend(x, f, r, depth)
 		// What the consumer sends back is not known.
@@ -811,6 +839,43 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	default:
 		v.plain, v.deep = false, false
 	}
+	// Shape completeness describes an array value, not a scalar coercion or
+	// predicate computed from that array. Only value-preserving forms retain it.
+	if v.literal != nil || v.truth != 0 {
+		switch x.(type) {
+		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.ArrayDimFetch, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		default:
+			v.literal = nil
+			v.truth = 0
+		}
+	}
+	switch x.(type) {
+	case *syntax.Binary, *syntax.Unary:
+		v = evaluatedScalar(x, v, r)
+	}
+	if v.elements != nil {
+		switch node := x.(type) {
+		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.Array, *syntax.ArrayDimFetch, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		case *syntax.Unary:
+			if node.Op.Kind != syntax.TArrayCast && node.Op.Kind != syntax.TAt {
+				v.elements = nil
+			}
+		case *syntax.Binary:
+			if node.Op.Kind != syntax.TPlus && node.Op.Kind != syntax.TCoalesce {
+				v.elements = nil
+			}
+		default:
+			v.elements = nil
+		}
+	}
+	if v.targets != nil || v.returned != nil {
+		switch x.(type) {
+		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.Closure, *syntax.ArrowFunction, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		default:
+			v.targets = nil
+			v.returned = nil
+		}
+	}
 	// Only an expression that hands its operand on unchanged yields the
 	// uploads table, one of its entries or an array of numbers.
 	if v.upload != 0 || v.scalars {
@@ -833,17 +898,28 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	default:
 		v.interval = nil
 	}
-	if old, ok := r.values[x]; ok {
+	if old, ok := r.values.get(x); ok {
 		seen := merge(old, v)
 		if _, read := x.(*syntax.Variable); read {
 			// Every visit of the read adds the producers that reach it.
 			seen.origins = origins(old, v, r)
 		}
-		r.values[x] = seen
+		r.values.set(x, seen)
 	} else {
-		r.values[x] = v
+		r.values.set(x, v)
 	}
 	return v
+}
+
+// chainDepth charges nothing for a fluent link: each `->m()` of a chain wraps
+// the one before it, so a long builder chain is deep without being nested
+// code. Parsing bounds the tree depth, and operations still bound the work.
+func chainDepth(receiver syntax.Expr) int {
+	switch receiver.(type) {
+	case *syntax.MethodCall, *syntax.PropertyFetch:
+		return 0
+	}
+	return 1
 }
 
 // plainVariable names a target that is a variable written as such.
@@ -955,7 +1031,7 @@ func taken(target syntax.Expr, f *frame) {
 			continue
 		}
 		if name := plainVariable(item.Value); name != "" {
-			slot := f.vars[name]
+			slot := f.vars.value(name)
 			slot.plain, slot.deep = true, true
 			f.setVar(name, slot)
 		} else {
@@ -1037,7 +1113,7 @@ func conditional(x syntax.Expr) bool {
 
 // request constructs the same provenance for every spelling of a request table.
 func (e *Env) request(name string, at syntax.Expr, f *frame) Value {
-	held, written := f.vars[name]
+	held, written := f.vars.lookup(name)
 	v := Value{
 		Complete: true, Expr: at, plain: true, deep: !written || held.deep,
 		Sources: []Source{{Kind: name, Path: e.file.Path, Span: at.Span(), Parameter: -1}},
@@ -1082,18 +1158,38 @@ func external(s string) bool {
 func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	var rv Value
 	if receiver != nil {
-		rv = e.eval(receiver, f, r, depth+1)
+		rv = e.eval(receiver, f, r, depth+chainDepth(receiver))
 	}
 	if args != nil && len(args.Args) == 1 {
 		if _, callable := args.Args[0].(*syntax.VariadicPlaceholder); callable {
 			// `f(...)` only makes a closure: nothing is called.
-			return Value{Complete: true, Expr: n.(syntax.Expr), plain: true, deep: true}
+			e.captureCallable(n, rv, f, r)
+			value := Value{Complete: true, Expr: n.(syntax.Expr), plain: true, deep: true}
+			if _, known := r.callables[value.Expr]; known || r.boundMethods[value.Expr] != nil {
+				value.targets = oneCallableTarget(value.Expr)
+			}
+			return value
 		}
 	}
 	followed := followTyped
+	closedFollowed := followTyped
 	if receiver != nil {
 		untest(receiver, f, true)
 		followed = e.follows(receiver, f)
+		closedFollowed = followed
+		if followed == followLoose {
+			known := closedBinding(receiver, f)
+			if known {
+				closedFollowed = followTyped
+			}
+			if r.closedReceivers == nil {
+				r.closedReceivers = map[syntax.Node]bool{}
+			}
+			if earlier, seen := r.closedReceivers[n]; seen {
+				known = known && earlier
+			}
+			r.closedReceivers[n] = known
+		}
 		if name := plainVariable(receiver); name != "" && name != "this" {
 			// What the variable holds wherever the call is reached.
 			if r.receivers == nil {
@@ -1102,6 +1198,11 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			r.receivers[n] = max(r.receivers[n], followed)
 		}
 	}
+	mapping := false
+	if call, ok := n.(*syntax.FuncCall); ok {
+		name, builtin := e.callName(call)
+		mapping = builtin && (name == "array_map" || name == "array_filter" || name == "array_reduce")
+	}
 	values := []Value{}
 	var argumentStorage [8]*syntax.Arg
 	written := argumentStorage[:0]
@@ -1109,7 +1210,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		values = make([]Value, 0, len(args.Args))
 		for _, x := range args.Args {
 			value := e.eval(x, f, r, depth+1)
-			if a, ok := x.(*syntax.Arg); ok && a.Unpack {
+			if a, ok := x.(*syntax.Arg); ok && (a.Unpack || mapping) {
 				// Capture entries before a later argument can replace them.
 				value.elements = e.elements(a.Value, f, r)
 			}
@@ -1119,9 +1220,28 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			}
 		}
 	}
+	return e.finishCall(n, args, &evaluatedCall{receiver: receiver, receiverValue: rv, followed: followed, closedFollowed: closedFollowed, values: values, written: written}, f, r)
+}
+
+type evaluatedCall struct {
+	prepared                 bool
+	receiver                 syntax.Expr
+	receiverValue            Value
+	followed, closedFollowed uint8
+	values                   []Value
+	written                  []*syntax.Arg
+}
+
+// finishCall applies the same contracts to written and resolved callable calls;
+// prepared argument values are never evaluated a second time.
+func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCall, f *frame, r *scopeResult) Value {
+	receiver, rv, followed, closedFollowed, values, written := input.receiver, input.receiverValue, input.followed, input.closedFollowed, input.values, input.written
 	f.unmatchAll(r)
 	leaving(f, r)
 	name, builtin, result, documented := e.callee(n)
+	if builtin {
+		e.observeIntrospection(n, name, args, f, r)
+	}
 	c := Call{Node: n, Name: name, Receiver: receiver, Arguments: values}
 	if i, ok := r.callIndex[n]; ok {
 		for j, v := range values {
@@ -1171,25 +1291,90 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		first = bound[0]
 	} else if call, ok := n.(*syntax.FuncCall); ok && builtin && call.Args != nil {
 		if ordered, known := e.guardArguments(call); known && len(ordered) > 0 && ordered[0] != nil {
-			first = r.values[ordered[0]]
+			first = r.values.at(ordered[0])
 		}
 	} else if !builtin && len(values) > 0 {
 		first = values[0]
 	}
+	invoked := false
+	immutablePure := false
+	var invocationStates map[uint32]State
 	if s, ok := e.contract(e.summaryName(n)); ok {
+		r.argumentSensitive = r.argumentSensitive || s.argumentSensitive
+		if boundOK && len(s.defaults) > 0 {
+			bound, boundOK = e.defaultArguments(n, values, s.defaults)
+		}
 		v = Value{Complete: s.Return.Complete, Expr: n.(syntax.Expr), Safe: s.Return.Safe}
 		v = substitute(s.Return, bound, boundOK)
 		v.Expr = n.(syntax.Expr)
 		v.Safe |= s.Return.Safe
+		forwarded := false
+		precise := e.preciseSummaryTarget(n, closedFollowed)
+		if boundOK && s.Fixed && precise {
+			result, states, ok := e.pureReturn(n, s.pure, bound, nil, v, f, r)
+			immutablePure = ok && result.plain && result.deep && pureReadOnlyInputs([]Value{result}, nil)
+			if !ok {
+				result, states, ok = e.forwardedReturn(n, s.forward, bound, f, r)
+			}
+			if ok {
+				v = result
+				v.Expr = n.(syntax.Expr)
+				invocationStates = states
+				invoked = len(states) > 0
+				forwarded = true
+			}
+		}
+		if v.elements != nil && (!s.Fixed || !precise) {
+			v.elements = nil
+		}
+		// An overridable or bodiless target may not be the body that runs:
+		// its return keeps the sources it may yield but proves nothing more.
+		if !precise {
+			v.Complete = false
+		}
+		if boundOK {
+			v.returned = e.bindReturned(n, s.returned, bound)
+		}
 		v.scalars = s.Return.scalars && len(v.Sources) > 0
+		if !forwarded && boundOK && v.Complete && s.Quiet && precise {
+			v, invocationStates = e.instantiateRecord(n, v, bound, f, r)
+			invoked = len(invocationStates) > 0
+		}
+		if boundOK && v.Complete {
+			if identity, states, known := e.instantiateResource(n, s.resource, bound, f, r); known {
+				v.Identity = identity
+				invoked, invocationStates = true, states
+			}
+		}
+		if boundOK && len(s.effects) > 0 && precise {
+			effects := e.resourceEffects(n, s.effects, bound, f, r)
+			if len(effects) > 0 {
+				if invocationStates == nil {
+					invocationStates = effects
+				} else {
+					for id, state := range effects {
+						invocationStates[id] = state
+					}
+				}
+				invoked = true
+			}
+		}
 		if s.Generator {
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
 	} else if !builtin {
-		r.gap("unresolved-dispatch", n.Span())
-		// Nothing is known about what an unresolved callee returns: it may
-		// well validate or escape its arguments.
-		v = Value{Expr: v.Expr}
+		if returned, states, known := e.invokeCallable(n, values, f, r); known {
+			invoked, invocationStates = true, states
+			v = returned
+			v.Expr = n.(syntax.Expr)
+		} else if returned, known := e.closedReturn(n, values, closedFollowed); known {
+			v = returned
+			v.Expr = n.(syntax.Expr)
+		} else {
+			r.gap("unresolved-dispatch", n.Span())
+			// An unresolved callee may validate or escape its arguments.
+			v = Value{Expr: v.Expr}
+		}
 	}
 	if builtin {
 		contract := transforms[name]
@@ -1242,6 +1427,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 		// Invoking a closure object runs project code like calling it.
 		if name == "__invoke" || name == "call" || e.callbackParameter(n, args, values) {
+			invalidateCallbackRecords(values, f, r)
 			reenter(n, f, r)
 			if e.exposed(f, r) {
 				e.invalidateShared(n, f, r)
@@ -1324,6 +1510,10 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			// A fresh handle: no code ran on it, whatever its arguments
 			// went through.
 			v.Identity, v.Invalidated = n.Span().Start+1, 0
+			if r.allocations == nil {
+				r.allocations = map[uint32]bool{}
+			}
+			r.allocations[v.Identity] = true
 		case "prepare", "query":
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
@@ -1362,7 +1552,14 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			}
 		}
 	}
-	if v.Identity != 0 {
+	if builtin && (name == "call_user_func" || name == "call_user_func_array") {
+		if returned, states, known := e.invokeCallable(n, values, f, r); known {
+			v = returned
+			v.Expr = n.(syntax.Expr)
+			invoked, invocationStates = true, states
+		}
+	}
+	if v.Identity != 0 && !invoked {
 		f.setState(v.Identity, State{Operation: name, Span: n.Span()})
 	}
 	id := rv.Identity
@@ -1384,9 +1581,21 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			delete(f.states, values[i].Identity)
 		}
 	}
-	e.invalidateReferences(n, args, f, r)
-	if args != nil {
+	// Supported invocation bindings reject every reference parameter.
+	if !invoked {
+		e.invalidateReferences(n, args, f, r)
+	}
+	if args != nil && !input.prepared {
 		e.accepted(n, args, builtin, followed, f)
+	}
+	if invoked {
+		for identity, state := range invocationStates {
+			if state.Operation == "" {
+				delete(f.states, identity)
+			} else {
+				f.setState(identity, state)
+			}
+		}
 	}
 	// What PHP itself returns is what it declares. An array one of its
 	// functions returns holds what the function was given.
@@ -1394,8 +1603,23 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	kind := e.kinds(result, documented)
 	v.plain = builtin && kind&(kindKnown|kindObject|kindOpaque) == kindKnown
 	v.deep = v.plain && (kind&kindArray == 0 || e.sealed(n, name, args, r))
-	if builtin && e.keyed(n, name, args) {
+	if immutablePure || builtin && e.keyed(n, name, args) {
 		v.plain, v.deep = true, true
+	}
+	if builtin && name == "array_map" {
+		if mapped, known := e.mappedCallback(n, args, values, f, r); known {
+			v = mapped
+		}
+	}
+	if builtin && name == "array_filter" {
+		if filtered, known := e.filteredCallback(n, args, values, f, r); known {
+			v = filtered
+		}
+	}
+	if builtin && name == "array_reduce" {
+		if reduced, known := e.reducedCallback(n, args, values, f, r); known {
+			v = reduced
+		}
 	}
 	return v
 }
@@ -1468,10 +1692,18 @@ func (e *Env) callee(n syntax.Node) (string, bool, string, string) {
 }
 
 // invalidateEscaped separates operation histories across calls with unknown effects.
+// escapeSet is what one call let escape: the identities reachable from its
+// operands, and whether a nested scope may reach any local.
+type escapeSet struct {
+	identities []uint32
+	all        bool
+}
+
 func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *scopeResult) {
 	identities := map[uint32]bool{}
 	all := false
 	for _, value := range values {
+		collectRecordIdentities(value.elements, identities)
 		if value.Identity != 0 {
 			identities[value.Identity] = true
 		}
@@ -1492,14 +1724,44 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 				return false
 			}
 			if expr, ok := child.(syntax.Expr); ok {
-				if v := r.values[expr]; v.Identity != 0 {
+				if v := r.values.at(expr); v.Identity != 0 {
 					identities[v.Identity] = true
 				}
+			}
+			// An evaluated call already collected what its operands let
+			// escape: its subtree holds nothing more.
+			if memo, ok := r.escaped[child]; ok {
+				all = all || memo.all
+				for _, id := range memo.identities {
+					identities[id] = true
+				}
+				return false
 			}
 			return true
 		})
 	}
-	for name, value := range f.vars {
+	if r.escaped == nil {
+		r.escaped = map[syntax.Node]escapeSet{}
+	}
+	memo := escapeSet{all: all}
+	if len(identities) > 0 {
+		memo.identities = make([]uint32, 0, len(identities))
+		for id := range identities {
+			memo.identities = append(memo.identities, id)
+		}
+	}
+	r.escaped[at] = memo
+	if all {
+		for _, valueCell := range f.vars {
+			value := valueCell.Value
+			collectRecordIdentities(value.elements, identities)
+		}
+	}
+	for id := range identities {
+		delete(f.states, id)
+	}
+	for name, valueCell := range f.vars {
+		value := valueCell.Value
 		if value.Identity != 0 && (all || identities[value.Identity]) {
 			value.Invalidated = at.Span().Start + 1
 			f.setVar(name, value)
@@ -1602,7 +1864,7 @@ func kill(target syntax.Expr, f *frame, r *scopeResult) {
 		case "GLOBALS":
 			global(n, Value{}, false, f, r)
 		default:
-			f.write(r, name, unsettled(f.vars[name], Value{}, r))
+			f.write(r, name, unsettled(f.vars.value(name), Value{}, r))
 			// The slot may be a reference to a variable (`$a = [&$v]`).
 			f.through(r, Value{})
 		}
@@ -1632,14 +1894,14 @@ func global(target *syntax.ArrayDimFetch, v Value, definite bool, f *frame, r *s
 		} else {
 			r.operations += len(r.globalNames)
 			for bound := range r.globalNames {
-				f.write(r, bound, unsettled(f.vars[bound], v, r))
+				f.write(r, bound, unsettled(f.vars.value(bound), v, r))
 			}
 		}
 	case !r.global && !r.globalNames[name]:
 	case definite:
 		f.write(r, name, v)
 	default:
-		f.write(r, name, unsettled(f.vars[name], v, r))
+		f.write(r, name, unsettled(f.vars.value(name), v, r))
 	}
 }
 
@@ -1653,7 +1915,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 		e.release(n, target.Name, f, r)
 		if direct, ok := syntax.UnwrapParens(n.Value).(*syntax.Variable); ok && direct.NameExpr == nil {
 			f.bind(target.Name, direct.Name, n.Span().Start)
-			f.setVar(target.Name, f.vars[direct.Name])
+			f.setVar(target.Name, f.vars.value(direct.Name))
 			return
 		}
 		f.alias(target.Name, aliasAny)
@@ -1674,7 +1936,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 	case *syntax.ArrayDimFetch:
 		if name := rootVariable(slot); name != "" {
 			f.alias(name, aliasAny)
-			f.setVar(name, unsettled(f.vars[name], v, r))
+			f.setVar(name, unsettled(f.vars.value(name), v, r))
 		}
 	}
 }
@@ -1709,7 +1971,7 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 		_, whole := fetch.Var.(*syntax.Variable)
 		global(fetch, v, whole && n.Op.Kind == syntax.TEqual, f, r)
 	default:
-		old, tracked := f.vars[name]
+		old, tracked := f.vars.lookup(name)
 		// A table of the request, or a variable nothing assigned, is no object.
 		held := old.plain || external(name) || !tracked && f.definite && importable(name)
 		if !held {
@@ -1755,9 +2017,11 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 // whole.
 func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet {
 	switch n := syntax.UnwrapParens(value).(type) {
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.ArrayDimFetch:
+		return r.values.at(n).elements
 	case *syntax.Variable:
 		if n.NameExpr == nil && !external(n.Name) {
-			return f.vars[n.Name].elements
+			return f.vars.value(n.Name).elements
 		}
 	case *syntax.Unary:
 		if n.Op.Kind == syntax.TArrayCast {
@@ -1778,36 +2042,52 @@ func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet 
 			return common(e.elements(n.Then, f, r), e.elements(n.Else, f, r))
 		}
 	case *syntax.Array:
-		if len(n.Items) == 0 || len(n.Items) > MaxSources {
-			return nil
-		}
-		next, counting := int64(0), true
-		set := &elementSet{items: make(map[string]Value, len(n.Items))}
-		for _, item := range n.Items {
-			if item == nil || item.Unpack || item.ByRef {
-				return nil
-			}
-			key, known := strconv.FormatInt(next, 10), counting
-			if item.Key != nil {
-				key, known = arrayKey(item.Key)
-			}
-			if !known {
-				return nil
-			}
-			// PHP numbers an item without a key after the largest integer
-			// key so far; what follows a negative one depends on its version.
-			if index, err := strconv.ParseInt(key, 10, 64); err == nil && index >= next {
-				next = index + 1
-			} else if err == nil && index < 0 {
-				counting = false
-			}
-			own := r.values[item.Value]
-			set.items[key] = Value{Complete: own.Complete, Sources: own.Sources, Safe: own.Safe}
-		}
-		r.operations += len(set.items)
-		return set
+		return r.values.at(n).elements
 	}
 	return nil
+}
+
+func (e *Env) literalElements(n *syntax.Array, r *scopeResult) *elementSet {
+	if len(n.Items) == 0 {
+		return emptyElements
+	}
+	if len(n.Items) > MaxSources {
+		return nil
+	}
+	next, counting := int64(0), true
+	set := &elementSet{items: make(map[string]Value, len(n.Items)), width: len(n.Items), whole: true}
+	for _, item := range n.Items {
+		if item == nil || item.Unpack || item.ByRef {
+			return nil
+		}
+		key, known := strconv.FormatInt(next, 10), counting
+		if item.Key != nil {
+			key, known = arrayKey(item.Key)
+		}
+		if !known {
+			return nil
+		}
+		// PHP numbers an item without a key after the largest integer
+		// key so far; what follows a negative one depends on its version.
+		if index, err := strconv.ParseInt(key, 10, 64); err == nil && index >= next {
+			next = index + 1
+		} else if err == nil && index < 0 {
+			counting = false
+		}
+		own := r.values.at(item.Value)
+		if _, existed := set.items[key]; !existed {
+			set.order = append(set.order, key)
+		}
+		entry := elementValue(own)
+		if own.Complete && !own.replaced && own.Invalidated == 0 {
+			entry.storedIdentity = own.Identity
+		} else {
+			entry.storedIdentity = 0
+		}
+		set.put(key, entry)
+	}
+	r.operations += len(set.items)
+	return set
 }
 
 // arrayKey returns the key PHP uses for a constant array offset: a decimal
@@ -1971,7 +2251,7 @@ func (e *Env) assigns(call syntax.Node, list *syntax.ArgList, f *frame, r *scope
 	}
 	for i, item := range array.Items {
 		e.release(call, names[i], f, r)
-		f.write(r, names[i], r.values[item.Value])
+		f.write(r, names[i], r.values.at(item.Value))
 	}
 	return true
 }
@@ -2029,7 +2309,7 @@ func scalar(r *scopeResult, x syntax.Expr, depth int) bool {
 	case *syntax.Assign:
 		switch n.Op.Kind {
 		case syntax.TPlusEqual, syntax.TCoalesceEqual:
-			return depth > 0 && scalar(r, r.values[n.Var].Expr, depth-1)
+			return depth > 0 && scalar(r, r.values.at(n.Var).Expr, depth-1)
 		}
 		return n.Op.Kind != syntax.TEqual
 	}
@@ -2047,7 +2327,7 @@ func spread(target syntax.Expr, v Value, f *frame, r *scopeResult) {
 	}
 	if name := rootVariable(target); name != "" {
 		// The names bound with the target read what it was given.
-		f.write(r, name, unsettled(f.vars[name], v, r))
+		f.write(r, name, unsettled(f.vars.value(name), v, r))
 		return
 	}
 	for _, item := range targetItems(target) {
@@ -2125,7 +2405,7 @@ func leaving(f *frame, r *scopeResult) {
 
 // holds checks what is assumed of one static variable.
 func (r *scopeResult) holds(f *frame, name string) {
-	v, tracked := f.vars[name]
+	v, tracked := f.vars.lookup(name)
 	if _, shared := f.aliased[name]; shared || tracked && !v.NonFalse && !v.entry {
 		if r.broken == nil {
 			r.broken = map[string]bool{}
@@ -2165,7 +2445,7 @@ func reenter(at syntax.Node, f *frame, r *scopeResult) {
 		f.related = nil
 	}
 	for name, known := range r.statics {
-		v, tracked := f.vars[name]
+		v, tracked := f.vars.lookup(name)
 		if !tracked || known.state == staticKept {
 			continue
 		}
@@ -2373,7 +2653,7 @@ func (e *Env) sealed(call syntax.Node, name string, list *syntax.ArgList, r *sco
 		if !ok || at < 0 || invoked(params[at]) && constantName(arg.Value) != "null" && !e.harmless(arg.Value) {
 			return false
 		}
-		if kind := e.kinds(params[at].Type, params[at].DocType); !params[at].ByRef && !r.values[arg.Value].deep && (kind&kindKnown == 0 || kind&(kindObject|kindOpaque|kindArray) != 0) {
+		if kind := e.kinds(params[at].Type, params[at].DocType); !params[at].ByRef && !r.values.at(arg.Value).deep && (kind&kindKnown == 0 || kind&(kindObject|kindOpaque|kindArray) != 0) {
 			return false
 		}
 	}
@@ -2683,7 +2963,8 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 	if r.global && e.globalsTable() {
 		f.related = nil
 		r.operations += len(f.vars)
-		for name, old := range f.vars {
+		for name, oldCell := range f.vars {
+			old := oldCell.Value
 			v := unsettled(old, e.held(name, r), r)
 			v.Invalidated, v.replaced = stamp, true
 			f.setVar(name, v)
@@ -2709,7 +2990,7 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 		if !shared {
 			written = e.held(name, r)
 		}
-		v := unsettled(f.vars[name], written, r)
+		v := unsettled(f.vars.value(name), written, r)
 		v.Invalidated, v.replaced = stamp, true
 		f.setVar(name, v)
 	}
@@ -2735,9 +3016,9 @@ func (e *Env) held(name string, r *scopeResult) Value {
 func (e *Env) holderWrites(scope syntax.Node, name string) Value {
 	r := e.scope(scope)
 	written := Value{Complete: true}
-	left, captured := r.exit[received(name)]
+	left, captured := r.exit.lookup(received(name))
 	if !captured {
-		left = r.exit[name]
+		left = r.exit.value(name)
 	}
 	for _, v := range []Value{left, r.globalWrites[name]} {
 		if retained(v) {
@@ -2885,7 +3166,7 @@ func nested(target syntax.Expr) bool {
 // another value: what it held may be an object, or hold one, which nothing
 // else refers to.
 func (e *Env) release(at syntax.Node, name string, f *frame, r *scopeResult) {
-	held, tracked := f.vars[name]
+	held, tracked := f.vars.lookup(name)
 	if tracked && !held.deep || !tracked && !external(name) && !(f.definite && importable(name)) {
 		e.implicit(at, f, r)
 	}
@@ -3078,6 +3359,29 @@ func (e *Env) loaded(n *syntax.ClassConstFetch) bool {
 	if strings.EqualFold(class.Value, "static") {
 		declared := e.types.Index.Class(own, e.types.PHP)
 		return constant.Final || declared.Final
+	}
+	return true
+}
+
+// completeSpread accepts only an evaluated literal-array producer. Completeness
+// already accounts for nested spreads, references and unknown element values.
+func (e *Env) completeSpread(v Value) bool {
+	if !v.Complete || v.Expr == nil || e.types.PHP.Below(phpversion.PHP74) {
+		return false
+	}
+	array, ok := syntax.UnwrapParens(v.Expr).(*syntax.Array)
+	if !ok {
+		return false
+	}
+	if e.types.PHP.AtLeast(phpversion.PHP81) {
+		return true
+	}
+	// Before 8.1 string keys cannot be unpacked. Restrict this proof to
+	// implicit numeric keys; explicit and nested keys remain conservative.
+	for _, item := range array.Items {
+		if item != nil && (item.Key != nil || item.Unpack) {
+			return false
+		}
 	}
 	return true
 }

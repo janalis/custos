@@ -6,6 +6,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
 )
@@ -301,25 +302,8 @@ func dfiVariable(ctx *analysis.Context, v *syntax.Variable, m, dep map[string]bo
 				}
 			}
 		}
-		if call, ok := list.Parent().(*syntax.MethodCall); ok && !call.NullSafe { // D8a
-			obj := call.Var
-			for {
-				switch o := obj.(type) {
-				case *syntax.Paren:
-					obj = o.Expr
-					continue
-				case *syntax.PropertyFetch:
-					obj = o.Var
-					continue
-				case *syntax.ArrayDimFetch:
-					obj = o.Var
-					continue
-				case *syntax.MethodCall: // custos: a fluent chain modifies its root
-					obj = o.Var
-					continue
-				}
-				break
-			}
+		if call, ok := list.Parent().(*syntax.MethodCall); ok { // D8a
+			obj := flowquery.MethodReceiverEffect(call).Root
 			if ov, ok := obj.(*syntax.Variable); ok && ov.Name != "" {
 				m[ov.Name] = true
 				return

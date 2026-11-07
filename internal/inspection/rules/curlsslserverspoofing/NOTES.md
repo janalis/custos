@@ -1,8 +1,7 @@
 # CurlSslServerSpoofing implementation notes
 
-## Known gaps
+## Argument roles
 
-- D1 does not check that `K` is the second argument of `curl_setopt`. When
-  `K` is the value, it resolves to a number and nothing is reported, but
-  `curl_setopt(CURLOPT_SSL_VERIFYPEER, $h, false)` would still be. Requiring
-  the second position is equivalent on realistic code and closes that case.
+Call settings use native argument binding, including literal packs. A constant
+in the handle or value slot cannot select the option. Standalone option arrays
+and assignments retain their separate setting-site checks.

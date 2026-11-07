@@ -22,6 +22,7 @@ import (
 // facts are kept the same way: int values (ints.go), string lengths
 // (lengths.go), enum cases (cases.go) and string values (strings.go).
 type Type struct {
+	card    *arraySize // finite cardinality bounds independent of key identities
 	atoms   []string   // sorted, unique; nil = unknown
 	arr     *arrayInfo // optional array facts; nil when none
 	element *Type      // complete element metadata not expressible by T[] atoms
@@ -134,9 +135,11 @@ func (t Type) OnlyOf(atoms ...string) bool {
 // Union merges types. Unknown absorbs nothing: unknown|int = int|unknown
 // is represented as unknown (callers must treat partial knowledge as unknown).
 func Union(ts ...Type) Type {
+	ts = canonicalEmptyArrays(ts)
+	low, high, sized := unionCardinality(ts)
 	ts, absorbed := absorbEmptyArrays(ts)
 	if absorbed {
-		return Union(ts...).WithNonEmpty(false)
+		return Union(ts...).WithNonEmpty(false).withCardinality(low, high, sized)
 	}
 	var all []string
 	info, ints, lens, cases, strs := false, false, false, false, false
@@ -171,7 +174,7 @@ func Union(ts ...Type) Type {
 	if strs && u.Has("string") {
 		u.strs = unionStrs(ts)
 	}
-	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts)).withUnionElements(ts)
+	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts)).withUnionElements(ts).withCardinality(low, high, sized)
 }
 
 // withUnionElements preserves complete element contracts across array members.
@@ -193,7 +196,7 @@ func (t Type) withUnionElements(ts []Type) Type {
 
 // absorbEmptyArrays drops the empty arrays (`[]`) of ts when another member
 // has array members that hold an empty array too (`T[]`, or `array` without
-// a sealed shape): the union then reads their elements, which an empty array
+// required keys): the union then reads their elements, which an empty array
 // adds none to. absorbed reports a drop; the union is then no longer known
 // non-empty.
 func absorbEmptyArrays(ts []Type) ([]Type, bool) {
@@ -203,8 +206,6 @@ func absorbEmptyArrays(ts []Type) ([]Type, bool) {
 		case t.isEmptyArray():
 			empty++
 		case !t.hasArrayAtom():
-		case t.arr != nil && t.arr.shape && t.arr.sealed:
-			return ts, false // keys become optional instead (see mergeInfo)
 		default:
 			other = true
 		}

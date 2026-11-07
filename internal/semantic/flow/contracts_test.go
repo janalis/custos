@@ -279,7 +279,7 @@ func TestMalformedOrDynamicCallsDiscardContracts(t *testing.T) {
 			t.Fatal("malformed literal accepted")
 		}
 	}
-	frame := frame{vars: map[string]Value{}, states: map[uint32]State{}}
+	frame := frame{vars: bindings{}, states: map[uint32]State{}}
 	e.refine(nil, &frame, true)
 	e, f = environment(t, `$x=$_GET['x'];in_array($x,['a'],true);str_contains($x,"\r");`, nil)
 	arrayCall := *callsNamed(f, "in_array")[0]
@@ -299,8 +299,8 @@ func TestMalformedOrDynamicCallsDiscardContracts(t *testing.T) {
 }
 
 func TestFrameJoinsRequireAgreement(t *testing.T) {
-	a := frame{vars: map[string]Value{"x": {Complete: true, Sources: []Source{{Kind: "a"}}}}, states: map[uint32]State{1: {Operation: "open"}}}
-	b := frame{vars: map[string]Value{"x": {Complete: true, Sources: []Source{{Kind: "b"}}}}, states: map[uint32]State{1: {Operation: "close"}}}
+	a := frame{vars: bindings{"x": {Value: Value{Complete: true, Sources: []Source{{Kind: "a"}}}}}, states: map[uint32]State{1: {Operation: "open"}}}
+	b := frame{vars: bindings{"x": {Value: Value{Complete: true, Sources: []Source{{Kind: "b"}}}}}, states: map[uint32]State{1: {Operation: "close"}}}
 	joined := clone(&a)
 	if changed, _ := joined.absorb(b); !changed {
 		t.Fatal("different origins agreed")
@@ -315,8 +315,8 @@ func TestFrameJoinsRequireAgreement(t *testing.T) {
 		t.Fatal("a path joined with itself changed")
 	}
 	joined = clone(&a)
-	joined.absorb(frame{vars: map[string]Value{}, states: map[uint32]State{}})
-	if joined.vars["x"].Complete || len(joined.states) != 0 {
+	joined.absorb(frame{vars: bindings{}, states: map[uint32]State{}})
+	if joined.vars.value("x").Complete || len(joined.states) != 0 {
 		t.Fatal("missing path retained definite facts")
 	}
 }
@@ -369,7 +369,7 @@ func TestBranchFrameBudgetInvalidatesWideScopes(t *testing.T) {
 func TestIncompleteArrayItemsCannotEstablishTaint(t *testing.T) {
 	e, _ := environment(t, "", nil)
 	r := e.scope(nil)
-	frame := frame{vars: map[string]Value{}, states: map[uint32]State{}}
+	frame := frame{vars: bindings{}, states: map[uint32]State{}}
 	value := e.eval(&syntax.Array{Items: []*syntax.ArrayItem{nil}}, &frame, r, 0)
 	if !value.Complete {
 		t.Fatal("omitted item discarded complete empty array")

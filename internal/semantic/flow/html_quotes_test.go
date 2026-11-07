@@ -71,7 +71,7 @@ func BenchmarkHTMLQuoteSafety(b *testing.B) {
 	arg := argument(callsNamed(f, "probe")[0])
 	e.Value(arg)
 	r := e.scope(nil)
-	flags := r.values[callsNamed(f, "htmlspecialchars")[0].Args.Args[1].(*syntax.Arg).Value]
+	flags := r.values.at(callsNamed(f, "htmlspecialchars")[0].Args.Args[1].(*syntax.Arg).Value)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {

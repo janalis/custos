@@ -19,9 +19,11 @@ When every call replaces with the same string literal, the replace stays one
 scalar and only the searches are merged. Without that shortcut, EspoCRM's
 sheet-name cleanup turned `:` and `/` into `''` instead of `' '`.
 
-## Known gaps
+## Empty lists and cardinality
 
-- Empty array lists: when a search or replace argument of either call is
-  `[]`, the cascade is reported but no fix is offered. A merge could treat
-  `[]` as an empty element list and still emit the other call's elements;
-  `merge` already keeps `from`'s elements for an empty target.
+Empty search lists contribute no replacement pairs. Before merging, empty
+replacement lists are padded with explicit empty strings so later pairs cannot
+shift into them. Dropped evaluations must be harmless; scalar coercions,
+assignments, calls, references and uncertain keys keep the fix unavailable.
+Exact native array cardinality can expand a scalar replacement for a known
+number of searches. PHPDoc-only shapes do not establish that count.

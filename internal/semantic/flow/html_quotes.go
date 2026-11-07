@@ -41,7 +41,7 @@ func (e *Env) htmlFlagBits(x syntax.Expr, r *scopeResult, budget int) (int64, bo
 		r.gap("flow-budget", x.Span())
 		return 0, false
 	}
-	if v, ok := r.values[x]; ok && v.Complete && v.Expr != nil && v.Expr != x {
+	if v, ok := r.values.get(x); ok && v.Complete && v.Expr != nil && v.Expr != x {
 		return e.htmlFlagBits(v.Expr, r, budget-1)
 	}
 	switch n := syntax.UnwrapParens(x).(type) {

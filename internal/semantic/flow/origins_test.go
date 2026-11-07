@@ -110,9 +110,9 @@ func TestOriginCellsChargedOnce(t *testing.T) {
 	if r.retained != 9 || raw.unguarded(r) != raw || r.retained != 9 {
 		t.Fatal("unchanged invalidation charged origin cells")
 	}
-	original := frame{owner: r, vars: map[string]Value{"v": {origins: raw}}, states: map[uint32]State{}}
+	original := frame{owner: r, vars: bindings{"v": {Value: Value{origins: raw}}}, states: map[uint32]State{}}
 	copy := clone(&original)
-	if copy.vars["v"].origins != raw || r.retained != 9 {
+	if copy.vars.value("v").origins != raw || r.retained != 9 {
 		t.Fatal("frame copy charged shared origins")
 	}
 	r.retained = MaxRetained - 1

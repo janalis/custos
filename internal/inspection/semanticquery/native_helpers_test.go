@@ -363,3 +363,24 @@ func TestNativeRemainingBoundaries(t *testing.T) {
 		}
 	})
 }
+
+func TestCurlSettingResolvedRoles(t *testing.T) {
+	for _, tc := range []struct{ call, want string }{
+		{`curl_setopt(value:false,option:CURLOPT_SSL_VERIFYPEER,handle:$h)`, `false`},
+		{`curl_setopt(...[$h,CURLOPT_SSL_VERIFYPEER,false])`, `false`},
+		{`curl_setopt_array($h,[CURLOPT_SSL_VERIFYPEER=>false])`, `false`},
+		{`curl_setopt_array(options:$unknown,handle:$h)`, ``},
+		{`curl_setopt($h,42,CURLOPT_SSL_VERIFYPEER)`, ``},
+		{`curl_setopt(...$unknown)`, ``},
+	} {
+		probeNative(t, `probe(`+tc.call+`);`, func(ctx *analysis.Context, probe *syntax.FuncCall) {
+			call := probe.Args.Args[0].(*syntax.Arg).Value.(*syntax.FuncCall)
+			if got := ctx.Text(CurlSetting(ctx, call, "CURLOPT_SSL_VERIFYPEER")); got != tc.want {
+				t.Fatalf("%s: %s", tc.call, got)
+			}
+			if CurlSetting(ctx, nil, "CURLOPT_SSL_VERIFYPEER") != nil {
+				t.Fatal("nil call")
+			}
+		})
+	}
+}

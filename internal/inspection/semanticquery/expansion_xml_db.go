@@ -55,19 +55,29 @@ func ExpansionDOMElementChildren(ctx *analysis.Context, e syntax.Expr, at syntax
 	}
 	if p, ok := v.(*syntax.PropertyFetch); ok {
 		if id, ok := p.Name.(*syntax.Identifier); ok && id.Value == "documentElement" {
-			prior, historyKnown := NativeCallHistory(ctx, at, p.Var, "loadXML", "load", "appendChild", "removeChild").Certain()
-			if !historyKnown {
+			history := NativeCallHistory(ctx, at, p.Var, "loadXML", "load", "appendChild", "removeChild")
+			if !history.Complete {
 				return false
 			}
-			if len(prior) == 0 {
-				return false
+			// Zero is unknown; one and two mean absent and present.
+			state := 0
+			for _, event := range history.Events {
+				next := 0
+				if c, ok := event.Node.(*syntax.MethodCall); ok && NativeMethod(ctx, c, "DOMDocument", "loadXML") {
+					if source, known := NativeString(ctx, CallArgument(c.Args, 0, "source")); known {
+						next = 1
+						if XMLChildren(source) {
+							next = 2
+						}
+					}
+				}
+				if event.Must || state == next {
+					state = next
+				} else {
+					state = 0
+				}
 			}
-			c, ok := prior[len(prior)-1].(*syntax.MethodCall)
-			if !ok || !NativeMethod(ctx, c, "DOMDocument", "loadXML") {
-				return false
-			}
-			s, known := NativeString(ctx, CallArgument(c.Args, 0, "source"))
-			return known && XMLChildren(s)
+			return state == 2
 		}
 	}
 	found := false

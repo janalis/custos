@@ -5,6 +5,8 @@ package flow
 import (
 	"cmp"
 	"maps"
+	"math/bits"
+	"slices"
 	"sort"
 	"strings"
 
@@ -79,6 +81,10 @@ type Source struct {
 // Value is a conservative union of possible inputs. Safe is the intersection
 // of proven escaping contexts. Expr and Identity require agreement on every path.
 type Value struct {
+	record   *resourceReturn
+	literal  *constantScalar
+	returned *callableValue
+	targets  *callableSet
 	interval *intInterval
 	Sources  []Source
 	Expr     syntax.Expr
@@ -102,6 +108,7 @@ type Value struct {
 	tested, unless *syntax.Binary
 	Length         int64
 	Identity       uint32
+	storedIdentity uint32
 	Invalidated    uint32
 	Safe           Context
 	Complete       bool
@@ -131,6 +138,7 @@ type Value struct {
 	// deep marks one that, when it is an array, holds no object either, at
 	// any depth: what is done with its elements runs none.
 	plain, deep bool
+	truth       uint8
 }
 
 // Origin is one expression that may have produced the value read, with the
@@ -317,7 +325,40 @@ const (
 
 // elementSet is never modified once a binding holds it: a write makes a new
 // one, which lets every copy of the array value share it.
-type elementSet struct{ items map[string]Value }
+type elementSet struct {
+	hasResources bool
+	whole        bool // every runtime entry is tracked; false after losing an entry
+	optional     bool // tracked keys may be absent, so membership/count is not exact
+	items        map[string]Value
+	order        []string // nil unless insertion order is proven for the complete set
+	depth        int      // bounded structural cost, including branching
+	width        int      // upper bound on the number of entries during construction
+}
+
+// Empty element sets contain no mutable evaluation metadata and are shared.
+var emptyElements = &elementSet{whole: true}
+
+func cloneElements(s *elementSet) *elementSet {
+	out := *s
+	out.items = maps.Clone(s.items)
+	return &out
+}
+
+// put is only used while constructing an unpublished set. A loop that wraps
+// its previous array cannot accumulate an unbounded chain of nested facts.
+func (s *elementSet) put(key string, value Value) {
+	height := bits.Len(uint(max(1, s.width)))
+	if value.elements != nil {
+		if value.elements.depth+height > MaxDepth {
+			value.elements = nil
+		} else {
+			height += value.elements.depth
+		}
+	}
+	s.hasResources = s.hasResources || value.storedIdentity != 0 || value.record != nil || value.elements != nil && value.elements.hasResources
+	s.depth = max(s.depth, height)
+	s.items[key] = value
+}
 
 // without returns the set less one element, which a callee holding a
 // reference to it may have rewritten; nothing when the element is not known.
@@ -325,10 +366,10 @@ func (s *elementSet) without(key string, known bool) *elementSet {
 	if s == nil || !known {
 		return nil
 	}
-	n := &elementSet{items: map[string]Value{}}
+	n := &elementSet{items: map[string]Value{}, width: len(s.items)}
 	for k, v := range s.items {
 		if k != key {
-			n.items[k] = v
+			n.put(k, v)
 		}
 	}
 	if len(n.items) == 0 {
@@ -339,11 +380,20 @@ func (s *elementSet) without(key string, known bool) *elementSet {
 
 // with returns the set with one more element written.
 func (s *elementSet) with(key string, v Value) *elementSet {
-	n := &elementSet{items: map[string]Value{key: v}}
+	width := 1
+	if s != nil {
+		width += len(s.items)
+	}
+	n := &elementSet{items: map[string]Value{}, width: width}
+	if s != nil {
+		n.whole = s.whole
+		n.optional = s.optional
+	}
+	n.put(key, v)
 	if s != nil {
 		for k, old := range s.items {
 			if k != key {
-				n.items[k] = old
+				n.put(k, old)
 			}
 		}
 	}
@@ -359,7 +409,7 @@ func common(a, b *elementSet) *elementSet {
 	if a == nil || b == nil {
 		return nil
 	}
-	kept := true
+	kept := slices.Equal(a.order, b.order) && (!a.whole || b.whole && len(a.items) == len(b.items)) && (!b.optional || a.optional)
 	for k, v := range a.items {
 		w, ok := b.items[k]
 		if !ok || !equal(merge(v, w), v) {
@@ -370,23 +420,30 @@ func common(a, b *elementSet) *elementSet {
 	if kept {
 		return a
 	}
-	n := &elementSet{items: map[string]Value{}}
+	n := &elementSet{items: map[string]Value{}, width: min(len(a.items), len(b.items)), whole: a.whole && b.whole && len(a.items) == len(b.items), optional: a.optional || b.optional}
+	if slices.Equal(a.order, b.order) {
+		n.order = a.order
+	}
 	for k, v := range a.items {
 		if w, ok := b.items[k]; ok {
-			n.items[k] = merge(v, w)
+			n.put(k, merge(v, w))
 		}
 	}
 	if len(n.items) == 0 {
 		return nil
+	}
+	if len(n.items) != len(a.items) {
+		n.whole = false
 	}
 	return n
 }
 
 // State is the most recent operation common to every reaching path.
 type State struct {
-	Operation  string
-	Span       syntax.Span
-	Successful bool
+	Operation    string
+	Span         syntax.Span
+	Successful   bool
+	closeChecked bool // the exact fclose result was proven true
 }
 
 // Call describes a reached call and its argument values (in written order).
@@ -399,7 +456,7 @@ type Call struct {
 
 type frame struct {
 	owner  *scopeResult
-	vars   map[string]Value
+	vars   bindings
 	states map[uint32]State
 	// aliased names are bound to storage that code outside the tracked
 	// bindings can write: aliasHeld for storage only a callee can reach,
@@ -417,6 +474,10 @@ type frame struct {
 	// name (`$r = &$$n`): a write through a reference kept somewhere may
 	// reach any variable.
 	wild bool
+	// cellsShared stays set after detaching a map: unchanged cells may still
+	// belong to another frame. A replacement tagged with the current map's
+	// sharing marker is private and can be updated without another allocation.
+	cellsShared bool
 	// related lists what holds between the left operand of a short-circuit
 	// operation and the variable its right operand assigns in place (see
 	// relation). The list is never modified once a frame holds it.
@@ -428,10 +489,20 @@ type frame struct {
 	varsShared *bool
 }
 
-// setVar binds name to v.
+// setVar updates an owned cell or replaces one a snapshot may still hold.
 func (f *frame) setVar(name string, v Value) {
+	if f.cellsShared || f.varsShared != nil && *f.varsShared {
+		if held, known := f.vars.lookup(name); known && equal(held, v) {
+			return
+		}
+	}
 	f.ownVars()
-	f.vars[name] = v
+	if cell := f.vars[name]; cell != nil && (!f.cellsShared || cell.owner != nil && cell.owner == f.varsShared) {
+		cell.Value = v
+		return
+	}
+	cell := &bindingCell{Value: v, owner: f.varsShared}
+	f.vars[name] = cell
 }
 
 // unsetVar removes the binding of name.
@@ -444,13 +515,15 @@ func (f *frame) unsetVar(name string) {
 
 func (f *frame) ownVars() {
 	if f.varsShared != nil && *f.varsShared {
-		f.vars, f.varsShared = maps.Clone(f.vars), new(bool)
+		f.vars, f.varsShared = maps.Clone(f.vars), f.shareFlag()
+		f.cellsShared = true
 	}
 }
 
 // resetVars gives the frame new, empty variables.
 func (f *frame) resetVars() {
-	f.vars, f.varsShared = map[string]Value{}, new(bool)
+	f.vars, f.varsShared = bindings{}, f.shareFlag()
+	f.cellsShared = false
 }
 
 // relation tells, for a short-circuit operation whose right operand assigns
@@ -497,7 +570,7 @@ func (f *frame) relate(by *syntax.Binary, bits uint8) {
 // the variable is not false, or not null, on its own. A variable nothing
 // assigned is null.
 func (f *frame) settled(by *syntax.Binary) uint8 {
-	v, tracked := f.vars[assignedInPlace(by.Right).Var.(*syntax.Variable).Name]
+	v, tracked := f.vars.lookup(assignedInPlace(by.Right).Var.(*syntax.Variable).Name)
 	return excluded(v, !tracked && f.definite)
 }
 
@@ -583,7 +656,7 @@ const imported = ""
 // importing joins request data an import may have spread over the scope.
 func (f *frame) importing(v Value) {
 	if tainted(v) {
-		f.setVar(imported, unsettled(f.vars[imported], v, f.owner))
+		f.setVar(imported, unsettled(f.vars.value(imported), v, f.owner))
 	}
 }
 
@@ -647,7 +720,7 @@ func (f *frame) unmatchAll(r *scopeResult) {
 func (f *frame) matched(element string) bool {
 	table, _, _ := strings.Cut(element, "\x00")
 	_, shared := f.aliased[table]
-	return element != "" && !shared && f.vars[element].NonFalse
+	return element != "" && !shared && f.vars.value(element).NonFalse
 }
 
 // unmatch discards the matches recorded for the elements of a request table
@@ -666,20 +739,33 @@ func (f *frame) unmatch(r *scopeResult, table string) {
 }
 
 // Options controls runtime assumptions used for flow proofs.
-type Options struct{ Assertions bool }
+type Options struct {
+	Assertions bool
+	// Vendor, when set, answers contracts no file of a snapshot declares from
+	// dependency files (see Vendor). Snapshots built with different providers
+	// are not compatible.
+	Vendor *Vendor
+}
 
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
-	options  Options
-	file     *syntax.File
-	types    *infer.Env
-	snapshot *Snapshot
+	sharing         *sharingFlags
+	recordSites     map[recordSite]uint32
+	declarations    declarationCache
+	classKeys       map[string]string
+	invocationDepth int
+	arrowNames      map[*syntax.ArrowFunction]captureNames
+	options         Options
+	file            *syntax.File
+	types           *infer.Env
+	snapshot        *Snapshot
 	// consulted records the contracts read while summaries are extracted.
 	consulted map[string]bool
 	// answers holds what those contracts gave, and summarizing the state of
 	// the summaries being computed, which serve the file's own.
 	answers     map[string]answer
 	summarizing *summarizing
+	local       *localSummaries
 	// reading holds, innermost last, the contracts each result being
 	// computed read meanwhile; globalReads and staticReads those the cached
 	// globals and static variable facts were computed from.
@@ -696,6 +782,7 @@ type Env struct {
 	globalTaint  map[string]Value
 	writers      map[globalWriter]bool
 	globalsKnown bool
+	globalsReady bool
 	// overridden caches, per receiver class and method, whether a class of
 	// the project replaces the method (see replaced).
 	overridden map[[2]string]bool
@@ -712,21 +799,37 @@ type Env struct {
 }
 
 type scopeResult struct {
-	gaps            map[string]syntax.Span
-	originTypes     *infer.Env
-	originKeys      map[syntax.Expr]string
-	originReserve   int
-	originContracts map[string]bool
-	generator       bool
-	values          map[syntax.Expr]Value
+	sharing *sharingFlags
+
+	resourceInputs     map[uint32]bool
+	fallsThrough       bool
+	argumentSensitive  bool
+	distinctReferences map[syntax.Node]bool
+	callables          map[syntax.Expr]string
+	boundMethods       map[syntax.Expr]*boundMethod
+	allocations        map[uint32]bool
+	exitStates         map[uint32]State
+	closures           map[syntax.Expr]map[string]Value
+	closureSinks       map[syntax.Node][]Sink
+	parameterReads     map[string]uint8
+	parameterObserved  map[string]uint8
+	closedReceivers    map[syntax.Node]bool
+	gaps               map[string]syntax.Span
+	originTypes        *infer.Env
+	originKeys         map[syntax.Expr]string
+	originReserve      int
+	originContracts    map[string]bool
+	generator          bool
+	values             valueStore
 	// reads names the contracts the result was computed from, with those of
 	// the results and facts it read; nil when Summarize did not compute it.
 	reads     map[string]bool
-	before    map[syntax.Node]map[uint32]State
+	before    map[syntax.NodeIdentity]map[uint32]State
 	calls     []Call
 	returns   []Value
 	callIndex map[syntax.Node]int
 	complete  bool
+	finished  bool
 	// cut is where dynamic code (include, eval) first made the scope
 	// incomplete, when nothing else had before and the control flow is
 	// otherwise complete: what is known of an expression evaluated before
@@ -755,7 +858,7 @@ type scopeResult struct {
 	holders map[string]Value
 	// exit is the request data each variable may hold when the scope ends,
 	// and globalWrites what the scope stores in literal globals table entries.
-	exit         map[string]Value
+	exit         bindings
 	globalWrites map[string]Value
 	// globalNames are the names the scope binds with `global`.
 	globalNames map[string]bool
@@ -777,6 +880,9 @@ type scopeResult struct {
 	// receivers tells, for each method call on a variable, what the variable
 	// holds wherever the call is reached (see follows).
 	receivers map[syntax.Node]uint8
+	// escaped memoizes what each evaluated call let escape (see
+	// invalidateEscaped), so a fluent chain is not walked again per link.
+	escaped map[syntax.Node]escapeSet
 	// labelled is where the first `goto` label of the scope is written, plus
 	// one: a statement after it can be reached without running the ones
 	// written before it.
@@ -820,7 +926,7 @@ func (e *Env) Value(x syntax.Expr) Value {
 		return Value{Complete: true}
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	v, ok := r.values[x]
+	v, ok := r.values.get(x)
 	if !ok {
 		return Value{}
 	}
@@ -833,8 +939,9 @@ func (e *Env) Resolve(x syntax.Expr) (syntax.Expr, bool) {
 	if x == nil {
 		return nil, false
 	}
-	v := e.Value(x)
-	return v.Expr, e.scope(syntax.EnclosingVariableScope(x)).complete && v.Expr != nil
+	r := e.scope(syntax.EnclosingVariableScope(x))
+	v := r.values.at(x)
+	return v.Expr, r.complete && v.Expr != nil
 }
 
 // Excludes proves that a checked variable cannot equal false or null here.
@@ -845,7 +952,7 @@ func (e *Env) Excludes(x syntax.Expr, literal string) bool {
 		return false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	v := r.values[x]
+	v := r.values.at(x)
 	if !r.complete && !beforeCut(r, x) {
 		return false
 	}
@@ -1072,7 +1179,7 @@ func (e *Env) Reaching(x syntax.Expr) ([]Origin, bool) {
 		return nil, false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	v, ok := r.values[x]
+	v, ok := r.values.get(x)
 	switch {
 	case !ok || !r.complete:
 		return nil, false
@@ -1106,7 +1213,7 @@ func (e *Env) Tainted(x syntax.Expr, context Context) bool {
 		return false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	v := r.values[x]
+	v := r.values.at(x)
 	return r.complete && !v.Safe.Covers(context) && tainted(v)
 }
 
@@ -1117,7 +1224,7 @@ func (e *Env) Matched(x syntax.Expr) bool {
 		return false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	return r.complete && r.values[x].matched
+	return r.complete && r.values.at(x).matched
 }
 
 // Calls returns reached calls in a scope, excluding nested scopes. Returned
@@ -1134,7 +1241,7 @@ func (e *Env) StateBefore(at syntax.Node, receiver syntax.Expr, operations ...st
 	if !r.complete || !v.Complete || v.Identity == 0 {
 		return State{}, false
 	}
-	s, ok := r.before[at][v.Identity]
+	s, ok := r.before[syntax.Identity(at)][v.Identity]
 	if !ok {
 		return State{}, false
 	}
@@ -1182,7 +1289,7 @@ func (e *Env) GlobalStateBefore(at syntax.Node, domain string) (State, bool) {
 	if !r.complete {
 		return State{}, false
 	}
-	state, ok := r.before[at][id]
+	state, ok := r.before[syntax.Identity(at)][id]
 	return state, ok
 }
 
@@ -1201,8 +1308,22 @@ func merge(a, b Value) Value {
 		sb, ub, cb = allContexts, ua, ca
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
+	if ta, tb := truthOutcomes(a), truthOutcomes(b); ta != 0 && tb != 0 {
+		v.truth = ta | tb
+	}
 	v.interval = joinInts(a, b)
+	if sameScalar(a.literal, b.literal) {
+		v.literal = a.literal
+	}
+	if a.storedIdentity == b.storedIdentity {
+		v.storedIdentity = a.storedIdentity
+	}
+	if sameRecord(a.record, b.record) {
+		v.record = a.record
+	}
 	v.elements = common(a.elements, b.elements)
+	v.targets = joinCallableValues(a, b)
+	v.returned = joinReturned(a.returned, b.returned)
 	// Text of the program joined with a matched label is text of the program.
 	v.matched = (a.matched || b.matched) && (a.matched || a.written()) && (b.matched || b.written())
 	v.entry = a.entry && b.entry
@@ -1302,7 +1423,7 @@ func before(a, b Source) bool {
 // equal reports two values that hold the same facts. Element sets are
 // compared by identity, which merge keeps when nothing changes.
 func equal(v, w Value) bool {
-	if !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.replaced != w.replaced || v.plain != w.plain || v.deep != w.deep {
+	if v.truth != w.truth || v.storedIdentity != w.storedIdentity || !sameRecord(v.record, w.record) || !sameScalar(v.literal, w.literal) || !sameReturned(v.returned, w.returned) || !sameCallableTargets(v.targets, w.targets) || !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.replaced != w.replaced || v.plain != w.plain || v.deep != w.deep {
 		return false
 	}
 	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || !sameOrigins(v.origins, w.origins) || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
@@ -1323,10 +1444,11 @@ func equal(v, w Value) bool {
 // apart: their variables are copied on the first change of either.
 func clone(f *frame) frame {
 	if f.varsShared == nil {
-		f.varsShared = new(bool)
+		f.varsShared = f.shareFlag()
 	}
 	*f.varsShared = true
-	n := frame{owner: f.owner, vars: f.vars, varsShared: f.varsShared, states: maps.Clone(f.states), definite: f.definite, wild: f.wild, related: f.related}
+	f.cellsShared = true
+	n := frame{cellsShared: true, owner: f.owner, vars: f.vars, varsShared: f.varsShared, states: maps.Clone(f.states), definite: f.definite, wild: f.wild, related: f.related}
 	if len(f.aliased) > 0 {
 		n.aliased = make(map[string]uint32, len(f.aliased))
 		for k, group := range f.aliased {
@@ -1410,7 +1532,7 @@ func (f *frame) write(r *scopeResult, name string, v Value) {
 			switch {
 			case other == name || g != group:
 			case group == aliasAny:
-				f.setVar(other, unsettled(f.vars[other], v, f.owner))
+				f.setVar(other, unsettled(f.vars.value(other), v, f.owner))
 			default:
 				f.setVar(other, v)
 			}
@@ -1438,7 +1560,7 @@ func (f *frame) through(r *scopeResult, v Value) {
 	r.operations += len(f.aliased)
 	for other, g := range f.aliased {
 		if g == aliasAny {
-			f.setVar(other, unsettled(f.vars[other], v, f.owner))
+			f.setVar(other, unsettled(f.vars.value(other), v, f.owner))
 		}
 	}
 }
@@ -1456,7 +1578,8 @@ func (f *frame) forget(r *scopeResult) {
 func (f *frame) unsettle(r *scopeResult, written Value) {
 	f.related = nil
 	r.operations += len(f.vars)
-	for name, old := range f.vars {
+	for name, oldCell := range f.vars {
+		old := oldCell.Value
 		f.setVar(name, unsettled(old, written, f.owner))
 	}
 }
@@ -1497,6 +1620,7 @@ func agree(a, b State) (State, bool) {
 		return State{}, false
 	}
 	a.Successful = a.Successful && b.Successful
+	a.closeChecked = a.closeChecked && b.closeChecked
 	return a, true
 }
 
@@ -1521,8 +1645,9 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 	if len(f.related)+len(b.related) > 0 && f.correlated(b) {
 		changed = true
 	}
-	for k, v := range f.vars {
-		w, ok := b.vars[k]
+	for k, vCell := range f.vars {
+		v := vCell.Value
+		w, ok := b.vars.lookup(k)
 		if ok {
 			shared++
 		}
@@ -1550,7 +1675,8 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 	}
 	if shared < len(b.vars) {
 		work += len(b.vars)
-		for k, v := range b.vars {
+		for k, vCell := range b.vars {
+			v := vCell.Value
 			if _, ok := f.vars[k]; ok {
 				continue
 			}

@@ -5,7 +5,207 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Summarize dependency functions and methods on demand from the `vendor/` file
+  declaring them, so flow analysis follows request data through library
+  wrappers and reaches their sinks; far fewer calls report
+  `unresolved-dispatch`.
+
+- Preserve known PDO bindings and DOM child facts through redundant conditional operations.
+
 ### Changed
+
+- Evaluate default-mode duplicate removal, strict searches, integer minimum,
+  maximum and checked products, text reversal and substring counts in pure
+  wrappers.
+
+- Infer loop-carried types that read themselves, such as a variable narrowed
+  back to a class on each iteration, when the cycle reaches a fixpoint; such
+  files no longer report `inference-recursion`.
+
+- Evaluate array padding, integer ranges, ASCII case changes (PHP 8.2+),
+  trims with a character list and text padding in pure wrappers, keeping
+  element and input provenance.
+
+- Evaluate bounded immutable array fills, keyed fills, flips and chunks in pure
+  wrappers; compute checked integer-only array sums while preserving key order,
+  element provenance and required argument evaluation.
+
+- Compose indexed column projections, key/value array combinations and two-array
+  key-preserving replacements in pure wrappers; support one-level local
+  destructuring and fresh per-entry preparation in canonical foreach updates,
+  retaining winning-field provenance and required-read checks.
+
+- Evaluate checked integer division, remainder, bitwise operations and shifts in
+  pure wrappers; compose bounded byte replacement/repetition, immutable array
+  reversal and integer switch returns while preserving provenance and order.
+
+- Compose audited string joins/splits, column projections, two-array merges and
+  noncapturing closure callbacks in pure wrappers; support destructured
+  first-match searches while preserving winning-value and field provenance.
+
+- Compose noncapturing arrow callbacks and scalar reductions in pure wrappers;
+  evaluate immutable slices, strict filtered keys and one-level foreach
+  destructuring while retaining field provenance and required-read checks.
+
+- Extend pure callbacks with filter modes, two-array positional mapping and
+  audited string builtins; evaluate strict array queries and break-guarded loops
+  while preserving provenance, evaluation order and conservative limits.
+
+- Compose pure mapping/filtering callbacks, first-match searches and continue
+  guards, evaluate audited casts and strict array identity, and retain derived
+  scalar provenance through callback coercions and arithmetic.
+
+- Refine immutable array truth and quiet empty queries, computed keys, keyed
+  foreach builders, left-biased array unions and two-stage loop pipelines while
+  preserving insertion order, field provenance and shared evaluation budgets.
+
+- Extend pure summaries with post-loop expressions, conditional append filtering,
+  ordered array queries, primitive type predicates and version-aware byte slices
+  while preserving element provenance and conservative lifetime checks.
+
+- Refine pure strict membership from decisive entries, resolve native count mode
+  constants, evaluate byte-string predicates and preserve immutable elements
+  through bounded array spreads and append-only foreach summaries.
+
+- Refine pure record presence and coalescing, finite array counts and strict
+  membership, keyed scalar reductions and closed instance helper composition.
+- Add optional raw edit timing, parse and analysis phases, CPU and GC telemetry
+  to latency benchmarks without changing the 30 ms performance threshold.
+
+- Reduce edit allocations with compact node identity keys, branch-owned variable
+  cells, shared bookkeeping markers and bounded expression buffer metadata.
+
+- Refine bounded pure PHP 8 match expressions, quiet record queries, closed static
+  helper calls and initialized scalar foreach reductions from proven inputs.
+- Reuse stable local summary components during recursive replay and avoid
+  redundant dependency comparisons within an immutable query snapshot.
+
+- Follow bounded pure callback branches, native string length and trimming,
+  immutable array defaults and field projections, and sealed wrapper argument packs.
+- Compute local callable contracts on demand during file queries while preserving
+  exhaustive project snapshots, buffer shadowing and dependency invalidation.
+
+- Store common control-flow successors within their blocks, avoiding separate
+  edge allocations while retaining arbitrary exception fanout and block limits.
+
+- Avoid binding arguments for native calls that cannot be command, path, SQL,
+  header or URL sinks when computing callable summaries.
+
+- Remove runtime division from flow expression-store access while retaining
+  lazy payload allocation sizes, and avoid duplicate scope walks when resolving values.
+
+- Share unchanged flow variable values across copied branch maps, reducing
+  allocation during analysis while preserving isolated writes and value-copy reads.
+
+- Reduce pure callback contract compilation allocations by sharing immutable
+  parameter-slot instructions, keeping small variable-binding sets on the stack
+  and copying invocation slots only for declared scalar coercions.
+
+- Evaluate bounded scalar return expressions for named and returned callbacks,
+  including literal defaults, immutable captures and proven pure wrapper chains.
+- Join agreeing callback truth outcomes across distinct normal returns after
+  return coercions, preserving exact literal distinctions and callback sinks.
+- Preserve unchanged resource records through proven pure wrapper chains.
+
+- Preserve proven scalar bindings through named and returned callback contracts,
+  respecting argument strictness and the return definition's strictness.
+- Track implicit null results separately from explicit returns and preserve
+  callback sinks when a null predicate discards all entries.
+- Forward complete resource records through pure wrappers and local captures;
+  instantiate returned-closure resource factories independently at each caller.
+- Evaluate bounded primitive callback expressions and reduction accumulators,
+  rejecting overflow, uncertain coercions and excessive string work.
+
+- Accept harmless surplus positional arguments for resolved user callbacks while
+  preserving native arity and argument-introspection guards.
+- Follow finite reductions in insertion order for accumulator provenance and sinks.
+- Preserve literal predicates through named and returned-closure summaries; model
+  proven primitive callback coercions with PHP strictness and version checks.
+- Preserve fresh and borrowed stream identities in bounded returned records,
+  including field aliases, separate factory calls and escape invalidation.
+
+- Analyze supported finite filter callbacks for unsafe uses and proven predicates,
+  preserving original retained values and respecting return coercions.
+- Preserve nested provenance through returned closures and immutable captures.
+- Bind proven sealed mapping argument packs and support null-callback zip results.
+- Follow unchanged close results through fixed wrappers and closed methods,
+  retaining success proofs only while the corresponding operation is current.
+- Share empty shapes and unchanged compact templates to reduce flow allocations.
+
+- Reuse the flow summary declaration inventory for local contract queries.
+- Evaluate supported finite multi-array callbacks with insertion order, null
+  padding and PHP key behavior; preserve bounded nested return provenance.
+- Project multiple reference outputs for distinct, unaliased local variables.
+- Carry common borrowed-stream reads, writes and proven successful closes
+  through fixed wrapper contracts, with dependency invalidation on edits.
+
+- Use indexed flow call lookups while preserving source-ordered histories,
+  including nested calls and native callable replay.
+
+- Cache resolved method and constructor argument metadata per flow environment,
+  refreshing it when the symbol index or PHP version changes.
+
+- Reduce flow-analysis allocations with indexed expression-value storage,
+  unchanged-fact branch reuse and cached class identity keys.
+- Resolve terminal native-value queries without candidate-walk allocation or
+  unnecessary semantic initialization.
+
+- Finite `array_map` inputs reuse supported callback transformations and sinks.
+- Checked indirect stream closes retain success and failure branch distinctions,
+  including saved results whose operation is still current.
+- Literal callable-name alternatives and closed invokable objects retain
+  supported return and sink provenance.
+- Returned closures publish syntax-free contracts for capture-free bodies and
+  immutable captures, with caller-specific argument snapshots.
+
+- Native and closed project-method callables reuse return and sink contracts;
+  bounded complete callable alternatives retain joined provenance.
+- Builtin argument binding follows proven unmodified local literal packs.
+- Named resource factories and pure resource pass-through functions preserve
+  caller resource identities across syntax-free project summaries.
+
+- First-class project-function callables and known project callbacks carry
+  return and sink provenance through direct calls and callback helpers.
+- Local closures bind supplied optional arguments, supported primitive defaults
+  and bounded variadic packs with individual positional and named entries.
+- Builtin argument binding expands bounded nested literal array packs using
+  PHP-version-aware key ordering, renumbering and overwrite semantics.
+- Closure-created resources retain caller identities for operation tracking;
+  captured resource returns preserve prior state without reopening it.
+- Constant array slices retain tighter count bounds, and proven empty array
+  alternatives no longer widen unions' element contracts.
+
+- Local closure and arrow calls carry captured values, return provenance and
+  possible sinks through bounded invocation analysis.
+- Receiver unions can follow proven final methods on extensible classes;
+  reference-output queries also support proven method targets.
+- Fixed-signature builtin return inference uses shared argument binding for
+  positional, named and literal-unpacked calls.
+- Array transformations retain entry-count bounds independently of keys,
+  refining normal `count()` and `sizeof()` results without assuming recursive counts.
+
+- Parameter-use proofs observe captures and scope-introspection reads at their
+  evaluation points, including shadowed arrow parameters and selected arguments.
+- Builtin argument binding supports positional, named and literal unpacked
+  arguments; cURL TLS checks use the resolved option and value roles.
+- Qualification checks skip global namespace blocks in mixed-namespace files.
+- Replacement merges preserve empty-list padding and use proven native array
+  cardinality while retaining observable argument evaluation.
+- Flow summaries join returns and possible sinks across bounded native unions
+  of final receiver classes, with every target and binding verified.
+
+- Value discovery retains both short-ternary operands, and builtin return
+  inference follows proven boolean arguments to `hrtime` and `gettimeofday`.
+- Parameter-overwrite checks require flow evidence; nullsafe calls retain
+  possible receiver mutations when checking loop independence.
+- Regex checks accept constant heredoc and nowdoc patterns. Constant strings
+  can retain source mappings through escapes and indentation removal.
+- PHPUnit metadata checks support resolved attributes and dependency clone
+  modifiers alongside docblock annotations.
+
+- Flow analysis preserves complete values through proven literal-array spreads.
 
 - Array unions, spreads, computed keys and shape-limit fallback retain union
   and nested element types, including documented generic element contracts.
@@ -16,6 +216,17 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Cross-file flow summaries follow dependencies on cold runs too, so long
   acyclic call chains no longer consume a round per file. Recursive groups
   remain bounded, and `--flow-order` remains an optional scheduling hint.
+- Resolve `$this->method()` inside a trait method to the trait's own or used
+  declaration, keeping the result open because the using class may override it.
+- Long fluent call chains no longer exhaust the flow expression-depth budget,
+  and evaluating them stays linear in the chain length.
+
+### Fixed
+
+- Calls through an interface, an abstract method or an overridable method no
+  longer yield a complete value from the declared body: the result keeps the
+  sources that body may return but no longer proves facts an override could
+  contradict.
 
 ## [0.1.8] - 2026-11-04
 
