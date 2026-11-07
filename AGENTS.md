@@ -65,6 +65,7 @@ internal/output/ internal/cli/ internal/editor/{lsp,mcp}/  adapters
 internal/platform/safeio/ internal/testing/  bounded IO; conformance harness, test budgets
 tools/                              generators, architecture, coverage, clean-room checks
 specs/                              clean-room behavioral spec per rule ID
+bench/                              competitor benchmark: tools, versions, configs, results (tools/benchcmp)
 docs/                               VitePress guide, contributing docs, generated rules
 ```
 
@@ -81,6 +82,7 @@ make rules-doc      # regenerate docs/rules/ (site), docs/internals/rules.md, ex
 make fixtures       # own fixtures (CI gate)            RULE=<ID> to filter
 make conformance    # EA fixtures from local checkout   RULE=<ID> to filter
 make bench / fuzz
+make compare        # competitor benchmark → bench/results.json + docs/guide/benchmark.md (TOOL=/CORPUS= filter; compare-doc renders only)
 make cleanroom      # forbidden upstream tokens; verbatim EA text when the checkout exists
 make docs / docs-dev # build / serve the docs site (Node 20+, docs/package.json)
 make coverage       # 100% gates: internal/inspection/rules from own fixtures + rule and catalogue tests; cmd/ + internal/ + tools/ from the whole suite

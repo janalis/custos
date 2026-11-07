@@ -33,8 +33,8 @@ features:
   - icon: ⚡
     title: Fast, no PHP needed
     details: A single static Go binary with its own PHP parser and type inference. It indexes your project and vendor symbols, then analyzes files in parallel.
-    link: /guide/installation
-    linkText: Install
+    link: /guide/benchmark
+    linkText: Benchmark
   - icon: 🧩
     title: In your editor
     details: custos lsp shows diagnostics as you type and offers quick-fixes, fix-all and suppressions. It runs alongside your main PHP language server.

@@ -9,7 +9,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
 
-.PHONY: architecture coverage fixcheck stubs build test vet fmt fmt-check lint bench fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
+.PHONY: architecture coverage fixcheck stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -51,6 +51,23 @@ fmt-check:
 bench:
 	$(GO) test -run '^$$' -bench . -benchmem ./...
 	CUSTOS_PERF=1 $(GO) test -count=1 -run TestEditLatency -v ./internal/editor/lsp
+
+# Compare custos with other PHP tools on real projects (bench/competitors.json):
+# install the pinned tools and corpora under .cache/bench (needs PHP with the
+# ast and pcntl extensions, Composer and git), measure, and regenerate
+# docs/guide/benchmark.md. TOOL= and CORPUS= take comma-separated filters; a
+# filtered run writes .cache/bench/results.json instead of bench/results.json.
+TOOL   ?=
+CORPUS ?=
+BENCH_RESULTS = $(if $(TOOL)$(CORPUS),.cache/bench/results.json,bench/results.json)
+compare: build
+	$(GO) run ./tools/benchcmp install -tool "$(TOOL)" -corpus "$(CORPUS)"
+	$(GO) run ./tools/benchcmp run -tool "$(TOOL)" -corpus "$(CORPUS)" -results $(BENCH_RESULTS)
+	$(GO) run ./tools/benchcmp render -results $(BENCH_RESULTS) $(if $(TOOL)$(CORPUS),-page .cache/bench/benchmark.md)
+
+# Regenerate docs/guide/benchmark.md from bench/results.json.
+compare-doc:
+	$(GO) run ./tools/benchcmp render
 
 # Short fuzz smoke over every Fuzz* target.
 fuzz:

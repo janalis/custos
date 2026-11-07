@@ -5,6 +5,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A [benchmark page](https://janalis.github.io/custos/guide/benchmark)
+  compares the time, peak memory and findings of custos with PHPStan, Psalm,
+  Phan, Mago, PHP_CodeSniffer, PHP-CS-Fixer and Rector on real projects. A
+  weekly workflow moves every tool and project to its latest release and
+  refreshes the numbers.
+
 ## [0.1.9] - 2026-11-07
 
 ### Added

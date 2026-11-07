@@ -1,0 +1,194 @@
+{
+  "runs": 3,
+  "warmup": 1,
+  "timeout": "30m",
+  "corpora": [
+    {
+      "name": "guzzle",
+      "repo": "https://github.com/guzzle/guzzle.git",
+      "tag": "8.3.1",
+      "paths": [
+        "src"
+      ]
+    },
+    {
+      "name": "composer",
+      "repo": "https://github.com/composer/composer.git",
+      "tag": "2.11.1",
+      "paths": [
+        "src"
+      ]
+    },
+    {
+      "name": "laravel",
+      "repo": "https://github.com/laravel/framework.git",
+      "tag": "v13.40.0",
+      "paths": [
+        "src"
+      ]
+    }
+  ],
+  "packages": {
+    "carthage-software/mago": "1.59.0",
+    "friendsofphp/php-cs-fixer": "v3.95.29",
+    "phan/phan": "6.0.11",
+    "phpstan/phpstan": "2.3.5",
+    "rector/rector": "2.8.4",
+    "squizlabs/php_codesniffer": "4.0.4",
+    "vimeo/psalm": "7.0.5"
+  },
+  "tools": [
+    {
+      "id": "custos",
+      "label": "custos analyse",
+      "kind": "analyzer",
+      "cmd": [
+        "{custos}",
+        "analyse",
+        "-format",
+        "json",
+        "-fail-on",
+        "never",
+        "-no-cache",
+        "{paths}"
+      ],
+      "findings": "custos"
+    },
+    {
+      "id": "custos-fix",
+      "label": "custos fix",
+      "kind": "fixer",
+      "cmd": [
+        "{custos}",
+        "fix",
+        "-dry-run",
+        "-no-cache",
+        "{paths}"
+      ],
+      "findings": "custos-fix",
+      "stream": "stderr"
+    },
+    {
+      "id": "phpstan",
+      "label": "PHPStan",
+      "kind": "analyzer",
+      "package": "phpstan/phpstan",
+      "cmd": [
+        "{pkg}/vendor/bin/phpstan",
+        "analyse",
+        "--configuration={configs}/phpstan.neon",
+        "--error-format=json",
+        "--no-progress",
+        "--memory-limit=-1"
+      ],
+      "findings": "phpstan"
+    },
+    {
+      "id": "psalm",
+      "label": "Psalm",
+      "kind": "analyzer",
+      "package": "vimeo/psalm",
+      "cmd": [
+        "{pkg}/vendor/bin/psalm",
+        "--config={configs}/psalm.xml",
+        "--root={corpus}",
+        "--no-cache",
+        "--no-progress",
+        "--output-format=json",
+        "--threads={cpus}"
+      ],
+      "findings": "psalm"
+    },
+    {
+      "id": "phan",
+      "label": "Phan",
+      "kind": "analyzer",
+      "package": "phan/phan",
+      "cmd": [
+        "{pkg}/vendor/bin/phan",
+        "--config-file={configs}/phan.php",
+        "--output-mode=json",
+        "--no-progress-bar",
+        "--processes={cpus}"
+      ],
+      "findings": "phan"
+    },
+    {
+      "id": "mago-analyze",
+      "label": "Mago analyze",
+      "kind": "analyzer",
+      "package": "carthage-software/mago",
+      "cmd": [
+        "{pkg}/vendor/bin/mago",
+        "--config={configs}/mago.toml",
+        "--workspace={corpus}",
+        "analyze",
+        "--reporting-format=json"
+      ],
+      "findings": "mago"
+    },
+    {
+      "id": "mago-lint",
+      "label": "Mago lint",
+      "kind": "linter",
+      "package": "carthage-software/mago",
+      "cmd": [
+        "{pkg}/vendor/bin/mago",
+        "--config={configs}/mago.toml",
+        "--workspace={corpus}",
+        "lint",
+        "--reporting-format=json"
+      ],
+      "findings": "mago"
+    },
+    {
+      "id": "phpcs",
+      "label": "PHP_CodeSniffer",
+      "kind": "linter",
+      "package": "squizlabs/php_codesniffer",
+      "cmd": [
+        "{pkg}/vendor/bin/phpcs",
+        "--standard={configs}/phpcs.xml",
+        "--report=json",
+        "-q",
+        "--parallel={cpus}",
+        "{paths}"
+      ],
+      "findings": "phpcs"
+    },
+    {
+      "id": "php-cs-fixer",
+      "label": "PHP-CS-Fixer",
+      "kind": "fixer",
+      "package": "friendsofphp/php-cs-fixer",
+      "cmd": [
+        "{pkg}/vendor/bin/php-cs-fixer",
+        "fix",
+        "--dry-run",
+        "--config={configs}/php-cs-fixer.php",
+        "--format=json",
+        "--using-cache=no",
+        "--show-progress=none"
+      ],
+      "env": {
+        "PHP_CS_FIXER_IGNORE_ENV": "1"
+      },
+      "findings": "php-cs-fixer"
+    },
+    {
+      "id": "rector",
+      "label": "Rector",
+      "kind": "fixer",
+      "package": "rector/rector",
+      "cmd": [
+        "{pkg}/vendor/bin/rector",
+        "process",
+        "--dry-run",
+        "--config={configs}/rector.php",
+        "--output-format=json",
+        "--no-progress-bar"
+      ],
+      "findings": "rector"
+    }
+  ]
+}
