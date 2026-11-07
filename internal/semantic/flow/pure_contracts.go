@@ -69,6 +69,11 @@ const (
 	pureStrPad
 	pureArrayPad
 	pureRange
+	pureUnique
+	pureSearch
+	pureExtreme
+	pureProduct
+	pureTextScan
 	pureLimit = 64
 )
 

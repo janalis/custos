@@ -264,6 +264,11 @@ open documents.
   character list as a byte set without ranges, and text padding bounds its
   output bytes. Stub metadata repeating an optional parameter is accepted only
   for that exact duplicate.
+- Pure duplicate removal compares text forms of proven integers and strings;
+  strict searches reuse strict query identity and return plain keys; integer
+  minimum and maximum keep the winning entry; products check every
+  multiplication for overflow. Variadic natives compile only plain positional
+  arguments.
 - Named and returned callbacks can publish bounded syntax-free primitive return
   expressions, literal defaults and immutable captured parameter slots. Resolved
   pure wrapper calls compose these contracts; evaluation checks discarded local

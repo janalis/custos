@@ -183,6 +183,10 @@ func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index
 		return c.arrayConstruction(node, name, params)
 	case "array_pad", "range":
 		return c.padding(node, name, params)
+	case "array_unique", "array_search", "array_product", "strrev", "substr_count":
+		return c.query(node, name, params)
+	case "min", "max":
+		return c.extreme(node, name)
 	case "strtolower", "strtoupper", "ucfirst", "lcfirst", "ltrim", "rtrim", "str_pad":
 		return c.textShape(node, name, params)
 	case "trim":
@@ -414,6 +418,9 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 	}
 	if expr.kind == pureArrayPad || expr.kind == pureRange {
 		return e.evalPadding(expr, left, slots, r, depth)
+	}
+	if expr.kind >= pureUnique && expr.kind <= pureTextScan {
+		return e.evalQuery(expr, left, slots, r, depth)
 	}
 	if expr.kind == pureReplace || expr.kind == pureRepeat {
 		return e.evalByteTransform(expr, left, slots, r, depth)

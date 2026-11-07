@@ -9,6 +9,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Evaluate default-mode duplicate removal, strict searches, integer minimum,
+  maximum and checked products, text reversal and substring counts in pure
+  wrappers.
+
 - Infer loop-carried types that read themselves, such as a variable narrowed
   back to a class on each iteration, when the cycle reaches a fixpoint; such
   files no longer report `inference-recursion`.

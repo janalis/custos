@@ -228,6 +228,16 @@ a nonempty proven pad and a proven left, right or both mode adds the pad's
 provenance only when padding is inserted. Unproven lengths, modes, empty pads and
 oversized results establish no exact value.
 
+Removing duplicates from a complete ordered array of proven integers and
+strings compares their text forms and keeps the first key of each, with that
+entry's provenance; explicit comparison modes establish nothing. A search
+proven strict returns the first matching key, or false. The smallest or
+largest of proven integers, given as one nonempty array or as several
+arguments, is the first winning entry with its provenance. Integer products
+are exact only while every step fits an integer; an empty product is one.
+Reversing proven text keeps its provenance; counting a nonempty proven
+substring without offsets yields a number.
+
 Combining two complete nonempty immutable arrays pairs values by iteration
 position, regardless of their original keys. The lengths must match. Key values
 must be proven integers or strings without source provenance. Duplicate keys
