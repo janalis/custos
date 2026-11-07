@@ -429,4 +429,7 @@ type FileSymbols struct {
 	// ClassAliasFallbacks records the namespaced function candidate for each
 	// provisional alias, keyed by its position in ClassAliases.
 	ClassAliasFallbacks map[int]string `json:"aliasFallbacks,omitempty"`
+	// Digest fingerprints the parsed file the symbols come from (see
+	// Digest), when the indexer recorded it; 0 when not.
+	Digest uint64 `json:"-"`
 }

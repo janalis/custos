@@ -23,7 +23,13 @@ type Index struct {
 	constants map[string][]*Constant
 	files     map[string]*FileSymbols
 	aliases   map[string][]classAlias // lower alias -> declarations, in insertion order
-	children  map[string][]string     // lower parent/interface FQN -> child FQNs (lazy)
+	// children (lower parent/interface FQN -> child FQNs) and aliasedBy
+	// (lower original FQN -> the aliases class_alias() gives it) are built on
+	// first use and dropped by Add and Remove (see table).
+	children  atomic.Pointer[map[string][]string]
+	aliasedBy atomic.Pointer[map[string][]string]
+	// extending caches Extending by name, valid for the generation stored.
+	extending sync.Map
 
 	// gen counts the changes (Add/Remove) of this layer; ancestors caches
 	// Ancestors per class and version, valid while the generation of this
@@ -186,7 +192,7 @@ func (ix *Index) Add(fs *FileSymbols) {
 		}
 		ix.aliases[key(a[0])] = append(ix.aliases[key(a[0])], classAlias{original: a[1], file: fs.Path, fallback: fs.ClassAliasFallbacks[pos]})
 	}
-	ix.children = nil
+	ix.dropTables()
 	ix.gen.Add(1)
 	ix.clearMethodCache()
 }
@@ -197,7 +203,7 @@ func (ix *Index) Remove(path string) {
 	defer ix.mu.Unlock()
 	ix.mutable()
 	ix.removeLocked(path)
-	ix.children = nil
+	ix.dropTables()
 	ix.gen.Add(1)
 	ix.clearMethodCache()
 }
@@ -593,7 +599,9 @@ func (ix *Index) FindMethod(class, name string, ver phpversion.Version) *Method 
 	ix.methodMu.Lock()
 	// A concurrent writer may have invalidated this lookup while it resolved.
 	if ix.generation() == generation {
-		if ix.methods == nil || ix.methodGeneration != generation || len(ix.methods) >= maxResolvedMethods {
+		// The bound keeps a long-lived editor index small; a frozen one serves
+		// a single run, whose lookups would otherwise keep evicting each other.
+		if ix.methods == nil || ix.methodGeneration != generation || len(ix.methods) >= maxResolvedMethods && !ix.frozen.Load() {
 			ix.methods = make(map[resolvedMethodKey]resolvedMethodEntry)
 			ix.methodGeneration = generation
 		}
@@ -664,34 +672,61 @@ func (ix *Index) FindConst(class, name string, ver phpversion.Version) *ClassCon
 // Children returns the FQNs of classes directly extending/implementing fqn
 // (project symbols only), sorted.
 func (ix *Index) Children(fqn string) []string {
-	// The table is built once per change of the index: readers share it.
-	ix.mu.RLock()
-	if ix.children != nil {
-		defer ix.mu.RUnlock()
-		return ix.children[key(fqn)]
-	}
-	ix.mu.RUnlock()
-	ix.mu.Lock()
-	defer ix.mu.Unlock()
-	if ix.children == nil {
-		ix.children = map[string][]string{}
-		for _, cs := range ix.classes {
-			for _, c := range cs {
-				if c.Parent != "" {
-					ix.children[key(c.Parent)] = append(ix.children[key(c.Parent)], c.FQN)
-				}
-				for _, i := range c.Interfaces {
-					ix.children[key(i)] = append(ix.children[key(i)], c.FQN)
-				}
+	return ix.table(&ix.children, ix.buildChildren)[key(fqn)]
+}
+
+func (ix *Index) buildChildren() map[string][]string {
+	children := map[string][]string{}
+	for _, cs := range ix.classes {
+		for _, c := range cs {
+			if c.Parent != "" {
+				children[key(c.Parent)] = append(children[key(c.Parent)], c.FQN)
+			}
+			for _, i := range c.Interfaces {
+				children[key(i)] = append(children[key(i)], c.FQN)
 			}
 		}
-		// Sorted, so walks that stop at the first match read the same
-		// classes on every run.
-		for _, children := range ix.children {
-			slices.Sort(children)
+	}
+	// Sorted, so walks that stop at the first match read the same
+	// classes on every run.
+	for _, list := range children {
+		slices.Sort(list)
+	}
+	return children
+}
+
+// table returns the lookup table at p, built by build under the write lock
+// the first time after a change of the index. Readers share it: they must
+// not modify it. A frozen index reads it without taking the read lock.
+func (ix *Index) table(p *atomic.Pointer[map[string][]string], build func() map[string][]string) map[string][]string {
+	if ix.frozen.Load() {
+		if t := p.Load(); t != nil {
+			return *t
+		}
+	} else {
+		ix.mu.RLock()
+		t := p.Load()
+		ix.mu.RUnlock()
+		if t != nil {
+			return *t
 		}
 	}
-	return ix.children[key(fqn)]
+	ix.mu.Lock()
+	defer ix.mu.Unlock()
+	// Another reader may have built it while this one waited.
+	t := p.Load()
+	if t == nil {
+		built := build()
+		t = &built
+		p.Store(t)
+	}
+	return *t
+}
+
+// dropTables runs under the index write lock, after a change.
+func (ix *Index) dropTables() {
+	ix.children.Store(nil)
+	ix.aliasedBy.Store(nil)
 }
 
 // Stats returns symbol counts (project layer only).

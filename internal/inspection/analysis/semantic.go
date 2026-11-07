@@ -134,10 +134,17 @@ func (c *Context) Names() *names.Resolver {
 
 // Index returns a symbol index containing this file's own declarations
 // layered over the project index and the PHP stubs (built on first use).
+// A file the project index holds as it is reads that index itself: its
+// lookups then share what other files' analyses already resolved.
 func (c *Context) Index() *index.Index {
 	if c.index == nil {
 		c.build("symbol index", func() {
-			ix := index.New(c.engine.projectIndex())
+			project := c.engine.projectIndex()
+			if project.Holds(c.File.Path, index.Digest(c.File)) {
+				c.index = project
+				return
+			}
+			ix := index.New(project)
 			ix.Add(index.Extract(c.File))
 			c.index = ix
 		})
