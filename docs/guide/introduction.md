@@ -81,4 +81,5 @@ custos works alongside type checkers (PHPStan, Psalm), formatters
 (Intelephense, Phpactor, PhpStorm). It covers patterns that are legal PHP
 but probably wrong, slow, insecure or outdated. Through its
 [MCP server](./mcp), AI coding agents can run the same checks and apply the
-same quick-fixes.
+same quick-fixes. The [benchmark](./benchmark) compares their speed and
+memory use on real projects.

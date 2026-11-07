@@ -1,0 +1,6 @@
+# Paths are relative to the analyzed project (--workspace).
+[source]
+paths = [
+    "@PATH@",
+]
+includes = ["vendor"]

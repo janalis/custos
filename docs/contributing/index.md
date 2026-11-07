@@ -54,6 +54,7 @@ code compiles.
 | `make rules-doc` | Regenerate the rule catalogue docs: `docs/rules/`, `docs/internals/rules.md`, `custos explain` texts. |
 | `make docs` / `make docs-dev` | Build or serve this site. |
 | `make bench` / `make fuzz` | Benchmarks (`-benchmem`), with the language server's edit-latency budget enforced, and a short fuzz run of every fuzz target. |
+| `make compare` / `make compare-doc` | Compare custos with other PHP tools on the projects of `bench/competitors.json` (needs PHP with `ast` and `pcntl`, Composer and git; `TOOL=` / `CORPUS=` filter), or only regenerate `docs/guide/benchmark.md` from `bench/results.json`. The weekly `benchmark` workflow bumps versions, reruns it and opens a pull request. |
 | `make fixcheck` | Apply every quick-fix on the projects in `CUSTOS_CORPUS` and require the result to still parse. |
 | `make stubs` | Rebuild the embedded PHP builtin symbol index from phpstorm-stubs. |
 

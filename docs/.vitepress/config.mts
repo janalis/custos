@@ -56,6 +56,7 @@ export default withMermaid(defineConfig({
             { text: 'What is custos?', link: '/guide/introduction' },
             { text: 'Installation', link: '/guide/installation' },
             { text: 'Getting started', link: '/guide/getting-started' },
+            { text: 'Benchmark', link: '/guide/benchmark' },
           ],
         },
         {

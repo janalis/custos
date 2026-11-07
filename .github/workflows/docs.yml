@@ -13,6 +13,8 @@ on:
       - "internal/inspection/meta/**"
       - "tools/rulesref/**"
       - "tools/internal/**"
+      - "tools/benchcmp/**"
+      - "bench/results.json"
       - ".github/workflows/docs.yml"
   pull_request:
     paths:
@@ -22,6 +24,8 @@ on:
       - "internal/inspection/meta/**"
       - "tools/rulesref/**"
       - "tools/internal/**"
+      - "tools/benchcmp/**"
+      - "bench/results.json"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
   workflow_call:
@@ -51,6 +55,15 @@ jobs:
           if [ -n "$changed" ]; then
             echo "$changed"
             echo "::error::rule pages are stale: run make rules-doc and commit"
+            exit 1
+          fi
+      - name: generated benchmark page is committed
+        run: |
+          go run ./tools/benchcmp render
+          changed=$(git status --porcelain -- docs/guide/benchmark.md)
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            echo "::error::benchmark page is stale: run make compare-doc and commit"
             exit 1
           fi
       - uses: actions/setup-node@v4

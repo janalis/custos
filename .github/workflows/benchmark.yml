@@ -1,0 +1,74 @@
+name: benchmark
+# Every Monday, and on demand: move the benchmarked tools and projects to
+# their latest release (bench/competitors.json), measure custos against them
+# and open (or update) a pull request with the new numbers
+# (bench/results.json, docs/guide/benchmark.md).
+#
+# Needs "Allow GitHub Actions to create and approve pull requests" in the
+# repository's Actions settings. Pull requests opened with GITHUB_TOKEN do not
+# trigger the ci workflow: set a BENCH_TOKEN secret (a token with contents and
+# pull-requests write access) to have them checked.
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Move tools and projects to their latest release first"
+        type: boolean
+        default: true
+concurrency: benchmark
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # Phan needs ast (parser) and pcntl (parallel workers).
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: ast, pcntl
+          ini-values: memory_limit=-1
+          tools: composer
+          coverage: none
+      - run: make build
+      - id: bump
+        if: github.event_name == 'schedule' || inputs.bump
+        run: |
+          {
+            echo "changes<<CHANGES"
+            go run ./tools/benchcmp bump
+            echo "CHANGES"
+          } >> "$GITHUB_OUTPUT"
+      - run: go run ./tools/benchcmp install
+      - run: go run ./tools/benchcmp run
+      - run: go run ./tools/benchcmp render
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.BENCH_TOKEN || secrets.GITHUB_TOKEN }}
+          branch: bench/auto
+          base: develop
+          delete-branch: true
+          add-paths: |
+            bench/competitors.json
+            bench/results.json
+            docs/guide/benchmark.md
+          commit-message: Update competitor benchmark
+          title: Update competitor benchmark
+          body: |
+            Weekly run of the [benchmark workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            Version changes:
+
+            ```text
+            ${{ steps.bump.outputs.changes || 'none' }}
+            ```
