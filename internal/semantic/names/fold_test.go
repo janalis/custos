@@ -6,8 +6,9 @@ import (
 )
 
 func TestFold(t *testing.T) {
-	for _, name := range []string{`App\Thing`, `App\Thing`, "lower", ""} {
-		if got := Fold(name); got != map[string]string{`App\Thing`: `app\thing`, "lower": "lower", "": ""}[name] {
+	want := map[string]string{`App\Thing`: `app\thing`, "lower": "lower", "": "", `app\thing`: `app\thing`, "ÉTÉ": "été", "été": "été", "İ": "i"}
+	for _, name := range []string{`App\Thing`, `App\Thing`, "lower", "", `app\thing`, "ÉTÉ", "été", "İ"} {
+		if got := Fold(name); got != want[name] {
 			t.Fatalf("Fold(%q) = %q", name, got)
 		}
 	}
@@ -24,7 +25,7 @@ func TestFold(t *testing.T) {
 }
 
 func BenchmarkFold(b *testing.B) {
-	names := []string{`Symfony\Component\DependencyInjection\ContainerBuilder`, `Psr\Log\LoggerInterface`, `Closure`}
+	names := []string{`Symfony\Component\DependencyInjection\ContainerBuilder`, `psr\log\loggerinterface`, `Closure`}
 	b.ReportAllocs()
 	for i := 0; b.Loop(); i++ {
 		Fold(names[i%len(names)])
