@@ -13,6 +13,13 @@ versions follow [Semantic Versioning](https://semver.org/).
   weekly workflow moves every tool and project to its latest release and
   refreshes the numbers.
 
+### Changed
+
+- Faster analysis of projects with deep class hierarchies, with the same
+  findings and fixes: on laravel/framework (4 cores), `custos analyse` takes
+  about 40% less time and `custos fix` about 35% less. Machines with up to 8
+  cores now use all of them for flow analysis.
+
 ## [0.1.9] - 2026-11-07
 
 ### Added

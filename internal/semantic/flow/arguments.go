@@ -855,30 +855,9 @@ func (e *Env) below(receiver string, found func(sub string) bool) bool {
 	if declared := ix.Class(receiver, e.types.PHP); declared != nil && declared.Final {
 		return false
 	}
-	seen := map[string]bool{strings.ToLower(strings.TrimPrefix(receiver, `\`)): true}
-	for queue := []string{receiver}; len(queue) > 0; queue = queue[1:] {
-		// The names of the class: its own, its aliases and theirs.
-		names := []string{queue[0]}
-		for i := 0; i < len(names); i++ {
-			for _, alias := range ix.AliasesOf(names[i]) {
-				if !seen[strings.ToLower(alias)] {
-					seen[strings.ToLower(alias)] = true
-					names = append(names, alias)
-				}
-			}
-		}
-		for _, name := range names {
-			for _, sub := range ix.ChildrenAll(name) {
-				folded := strings.ToLower(sub)
-				if seen[folded] {
-					continue
-				}
-				seen[folded] = true
-				if found(sub) {
-					return true
-				}
-				queue = append(queue, sub)
-			}
+	for _, sub := range ix.Extending(receiver) {
+		if found(sub) {
+			return true
 		}
 	}
 	return false

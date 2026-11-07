@@ -10,9 +10,15 @@ var spanType = reflect.TypeFor[syntax.Span]()
 
 // SameDeclarations reports whether a and b, two extractions of one file,
 // declare the same symbols with the same facts, wherever they sit: they
-// differ at most in source positions, which give no other file a type.
+// differ at most in source positions, which give no other file a type, and
+// in the digest of their bytes.
 func SameDeclarations(a, b *FileSymbols) bool {
-	return sameValue(reflect.ValueOf(a), reflect.ValueOf(b))
+	if a == nil || b == nil {
+		return a == b
+	}
+	x, y := *a, *b
+	x.Digest, y.Digest = 0, 0
+	return sameValue(reflect.ValueOf(&x), reflect.ValueOf(&y))
 }
 
 // sameValue is reflect.DeepEqual for the acyclic symbol trees, with every

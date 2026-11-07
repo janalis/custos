@@ -61,6 +61,13 @@ func TestMethodCacheSeparatesVersionsAndBoundsStorage(t *testing.T) {
 	if ix.FindMethod("Versioned", "run", phpversion.PHP80) == nil || len(ix.methods) != 1 {
 		t.Fatal("cache limit changed resolution or retained excess entries")
 	}
+	ix.Freeze()
+	for i := range maxResolvedMethods {
+		ix.methods[resolvedMethodKey{class: fmt.Sprint(i)}] = resolvedMethodEntry{generation: ix.generation()}
+	}
+	if ix.FindMethod("Versioned", "run", phpversion.PHP74) != nil || len(ix.methods) != maxResolvedMethods+2 {
+		t.Fatal("frozen index evicted its method cache")
+	}
 }
 
 func TestOversizedMethodKeysAreNotRetained(t *testing.T) {

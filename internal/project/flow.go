@@ -190,7 +190,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	// a file in no recursion keeps that summary, which its unchanged
 	// contracts determine.
 	probe := make([]*flow.File, len(dirty))
-	_ = parallel(context.Background(), len(dirty), runtime.GOMAXPROCS(0)/2, func(j int) {
+	_ = parallel(context.Background(), len(dirty), summaryWorkers(runtime.GOMAXPROCS(0)), func(j int) {
 		if file := tree(dirty[j]); file != nil {
 			probe[j] = extractFlow(file, ix, b.opt.Version, b.Snapshot, b.options)
 		}
@@ -636,9 +636,7 @@ func (b *FlowBuild) flowWaves() []flowWave {
 
 // summarize summarizes the files of work side by side against snapshot.
 func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Snapshot, against []*flow.Snapshot, ix *index.Index, tree func(int) *syntax.File) {
-	// Half the cores: summaries allocate heavily, and on symfony/src
-	// (16 cores) every core made the whole run about 8% slower.
-	_ = parallel(ctx, len(work), runtime.GOMAXPROCS(0)/2, func(j int) {
+	_ = parallel(ctx, len(work), summaryWorkers(runtime.GOMAXPROCS(0)), func(j int) {
 		if file := tree(work[j]); file != nil {
 			i := work[j]
 			b.results[i] = extractFlow(file, ix, b.opt.Version, snapshot, b.options)
@@ -648,6 +646,15 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 			}
 		}
 	}, nil)
+}
+
+// summaryWorkers is the number of files summarized side by side on cores
+// CPUs. Summaries allocate heavily: on symfony/src (16 cores) every core
+// made the whole run about 8% slower, so many cores use half. A small
+// machine keeps them all: on 4 cores, 2 workers made laravel's run about
+// 6% slower.
+func summaryWorkers(cores int) int {
+	return max(cores/2, min(cores, 8))
 }
 
 // trace records what the summaries of file i just consulted and declare.

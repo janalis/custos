@@ -61,3 +61,10 @@ function g(string $s): int { return 1; }
 		t.Error("nil and empty slice compared equal")
 	}
 }
+
+func TestSameDeclarationsIgnoresDigest(t *testing.T) {
+	a, b := &FileSymbols{Path: "a.php", Digest: 1}, &FileSymbols{Path: "a.php", Digest: 2}
+	if !SameDeclarations(a, b) || a.Digest != 1 || b.Digest != 2 {
+		t.Fatal("digest compared or cleared")
+	}
+}

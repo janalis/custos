@@ -178,6 +178,7 @@ func indexCached(path string, opt syntax.Options, options infer.Options, cache *
 func ExtractSymbols(path string, src []byte, opt syntax.Options, options infer.Options) *index.FileSymbols {
 	f := syntax.ParseBest(path, src, opt)
 	fs := index.Extract(f)
+	fs.Digest = index.Digest(f)
 	infer.AnnotateReturns(f, fs, stubs.Index(), opt.Version, options)
 	return fs
 }

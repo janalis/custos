@@ -19,6 +19,10 @@ var (
 // names. Lookups repeat the same few thousand names, so their folded form is
 // remembered instead of allocated again on every call.
 func Fold(name string) string {
+	if lowerASCII(name) {
+		// Most names the index folds are its own keys: nothing to do.
+		return name
+	}
 	if v, ok := folded.Load(name); ok {
 		return v.(string)
 	}
@@ -30,4 +34,15 @@ func Fold(name string) string {
 		}
 	}
 	return lower
+}
+
+// lowerASCII reports a name of ASCII bytes without an upper-case letter,
+// which lower-casing leaves as it is.
+func lowerASCII(name string) bool {
+	for i := 0; i < len(name); i++ {
+		if c := name[i]; c >= 0x80 || 'A' <= c && c <= 'Z' {
+			return false
+		}
+	}
+	return true
 }

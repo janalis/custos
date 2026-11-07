@@ -43,6 +43,50 @@ func (ix *Index) directSubclasses(fqn string) []string {
 	return out
 }
 
+// Extending lists each class that extends or implements fqn, directly or
+// not, through any of its declarations and through the names class_alias()
+// gives it and its aliases: breadth first, each class once, fqn and its
+// aliases left out. The receiver may be written with a leading backslash.
+// The list is kept per name until the index changes; callers must not
+// modify it.
+func (ix *Index) Extending(fqn string) []string {
+	k := strings.TrimPrefix(fqn, `\`)
+	g := ix.generation()
+	if e, ok := ix.extending.Load(k); ok && e.(extendingEntry).gen == g {
+		return e.(extendingEntry).classes
+	}
+	var out []string
+	seen := map[string]bool{strings.ToLower(k): true}
+	for queue := []string{fqn}; len(queue) > 0; queue = queue[1:] {
+		// The names of the class: its own, its aliases and theirs.
+		names := []string{queue[0]}
+		for i := 0; i < len(names); i++ {
+			for _, alias := range ix.AliasesOf(names[i]) {
+				if !seen[strings.ToLower(alias)] {
+					seen[strings.ToLower(alias)] = true
+					names = append(names, alias)
+				}
+			}
+		}
+		for _, name := range names {
+			for _, sub := range ix.ChildrenAll(name) {
+				if folded := strings.ToLower(sub); !seen[folded] {
+					seen[folded] = true
+					out = append(out, sub)
+					queue = append(queue, sub)
+				}
+			}
+		}
+	}
+	ix.extending.Store(k, extendingEntry{gen: g, classes: out})
+	return out
+}
+
+type extendingEntry struct {
+	gen     uint64
+	classes []string
+}
+
 // AliasesOf returns the names the project's class_alias() calls give the
 // class fqn, across all layers, sorted. A class declared under such a name
 // as its parent extends fqn.
@@ -50,40 +94,21 @@ func (ix *Index) AliasesOf(fqn string) []string {
 	fqn = key(fqn)
 	var out []string
 	for l := ix; l != nil; l = l.base {
-		l.mu.RLock()
-		for alias, targets := range l.aliases {
-			for _, target := range targets {
-				if aliasMatches(target.original, fqn) {
-					out = append(out, alias)
-				}
-			}
-		}
-		l.mu.RUnlock()
+		out = append(out, l.table(&l.aliasedBy, l.buildAliasedBy)[fqn]...)
 	}
 	sort.Strings(out)
 	return out
 }
 
-// aliasMatches avoids allocating lowercase copies for the usual ASCII names.
-// Unicode uses key so matching retains the index's lowercase semantics.
-func aliasMatches(original, folded string) bool {
-	original = strings.TrimPrefix(original, `\`)
-	for i := range len(original) {
-		if original[i] >= 128 {
-			return key(original) == folded
+// buildAliasedBy maps each class class_alias() names, folded, to the
+// aliases it is given (one entry per declaration).
+func (ix *Index) buildAliasedBy() map[string][]string {
+	byOriginal := map[string][]string{}
+	for alias, targets := range ix.aliases {
+		for _, target := range targets {
+			k := key(target.original)
+			byOriginal[k] = append(byOriginal[k], alias)
 		}
 	}
-	if len(original) != len(folded) {
-		return false
-	}
-	for i := range len(original) {
-		c := original[i]
-		if c >= 'A' && c <= 'Z' {
-			c += 'a' - 'A'
-		}
-		if c != folded[i] {
-			return false
-		}
-	}
-	return true
+	return byOriginal
 }
