@@ -1,1 +1,397 @@
-{}
+{
+  "date": "2026-11-07",
+  "runner": {
+    "os": "linux/amd64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "cores": 4,
+    "memoryGB": 15.6
+  },
+  "php": "8.4.27",
+  "runs": 3,
+  "corpora": [
+    {
+      "name": "guzzle",
+      "repo": "https://github.com/guzzle/guzzle.git",
+      "tag": "8.3.1",
+      "files": 74,
+      "rows": [
+        {
+          "id": "custos",
+          "label": "custos analyse",
+          "kind": "analyzer",
+          "version": "0.1.9-2-g66733bd5",
+          "status": "ok",
+          "median": 0.464781755,
+          "min": 0.462025828,
+          "max": 0.511908348,
+          "peakMB": 104.0390625,
+          "findings": 48
+        },
+        {
+          "id": "custos-fix",
+          "label": "custos fix",
+          "kind": "fixer",
+          "version": "0.1.9-2-g66733bd5",
+          "status": "ok",
+          "median": 0.546056662,
+          "min": 0.54350734,
+          "max": 0.548642968,
+          "peakMB": 104.203125,
+          "findings": 25
+        },
+        {
+          "id": "phpstan",
+          "label": "PHPStan",
+          "kind": "analyzer",
+          "version": "2.3.5",
+          "status": "ok",
+          "median": 3.692604995,
+          "min": 3.688347575,
+          "max": 3.814760227,
+          "peakMB": 313.55859375,
+          "findings": 50
+        },
+        {
+          "id": "psalm",
+          "label": "Psalm",
+          "kind": "analyzer",
+          "version": "7.0.5",
+          "status": "ok",
+          "median": 3.872386755,
+          "min": 3.747557454,
+          "max": 3.873764793,
+          "peakMB": 467.119140625,
+          "findings": 172
+        },
+        {
+          "id": "phan",
+          "label": "Phan",
+          "kind": "analyzer",
+          "version": "6.0.11",
+          "status": "ok",
+          "median": 1.064373971,
+          "min": 1.015309616,
+          "max": 1.083597149,
+          "peakMB": 207.93359375,
+          "findings": 281
+        },
+        {
+          "id": "mago-analyze",
+          "label": "Mago analyze",
+          "kind": "analyzer",
+          "version": "1.59.0",
+          "status": "ok",
+          "median": 0.165579138,
+          "min": 0.165016391,
+          "max": 0.16622139,
+          "peakMB": 214.7607421875,
+          "findings": 584
+        },
+        {
+          "id": "mago-lint",
+          "label": "Mago lint",
+          "kind": "linter",
+          "version": "1.59.0",
+          "status": "ok",
+          "median": 0.086286617,
+          "min": 0.081939927,
+          "max": 0.093173288,
+          "peakMB": 149.126953125,
+          "findings": 846
+        },
+        {
+          "id": "phpcs",
+          "label": "PHP_CodeSniffer",
+          "kind": "linter",
+          "version": "4.0.4",
+          "status": "ok",
+          "median": 0.757037029,
+          "min": 0.75091963,
+          "max": 0.762853084,
+          "peakMB": 94.6494140625,
+          "findings": 720
+        },
+        {
+          "id": "php-cs-fixer",
+          "label": "PHP-CS-Fixer",
+          "kind": "fixer",
+          "version": "v3.95.29",
+          "status": "ok",
+          "median": 1.173735392,
+          "min": 1.167666589,
+          "max": 1.1742839919999999,
+          "peakMB": 157.4423828125,
+          "findings": 0
+        },
+        {
+          "id": "rector",
+          "label": "Rector",
+          "kind": "fixer",
+          "version": "2.8.4",
+          "status": "ok",
+          "median": 5.83928657,
+          "min": 5.837398226,
+          "max": 5.935344173,
+          "peakMB": 498.0595703125,
+          "findings": 26
+        }
+      ]
+    },
+    {
+      "name": "composer",
+      "repo": "https://github.com/composer/composer.git",
+      "tag": "2.11.1",
+      "files": 321,
+      "rows": [
+        {
+          "id": "custos",
+          "label": "custos analyse",
+          "kind": "analyzer",
+          "version": "0.1.9-2-g66733bd5",
+          "status": "ok",
+          "median": 2.684963849,
+          "min": 2.6501263550000003,
+          "max": 2.9130713740000003,
+          "peakMB": 272.765625,
+          "findings": 757
+        },
+        {
+          "id": "custos-fix",
+          "label": "custos fix",
+          "kind": "fixer",
+          "version": "0.1.9-2-g66733bd5",
+          "status": "ok",
+          "median": 3.40053895,
+          "min": 3.357258272,
+          "max": 3.403620333,
+          "peakMB": 261.7958984375,
+          "findings": 511
+        },
+        {
+          "id": "phpstan",
+          "label": "PHPStan",
+          "kind": "analyzer",
+          "version": "2.3.5",
+          "status": "ok",
+          "median": 8.83241067,
+          "min": 8.663433184,
+          "max": 8.992339992,
+          "peakMB": 820.4765625,
+          "findings": 242
+        },
+        {
+          "id": "psalm",
+          "label": "Psalm",
+          "kind": "analyzer",
+          "version": "7.0.5",
+          "status": "ok",
+          "median": 14.161335715,
+          "min": 14.114415394,
+          "max": 14.255262481,
+          "peakMB": 1166.3212890625,
+          "findings": 1198
+        },
+        {
+          "id": "phan",
+          "label": "Phan",
+          "kind": "analyzer",
+          "version": "6.0.11",
+          "status": "ok",
+          "median": 3.89527296,
+          "min": 3.8896845129999997,
+          "max": 4.142587886,
+          "peakMB": 522.6259765625,
+          "findings": 2238
+        },
+        {
+          "id": "mago-analyze",
+          "label": "Mago analyze",
+          "kind": "analyzer",
+          "version": "1.59.0",
+          "status": "ok",
+          "median": 0.506727392,
+          "min": 0.499138006,
+          "max": 0.515447811,
+          "peakMB": 232.6533203125,
+          "findings": 5050
+        },
+        {
+          "id": "mago-lint",
+          "label": "Mago lint",
+          "kind": "linter",
+          "version": "1.59.0",
+          "status": "ok",
+          "median": 0.144031719,
+          "min": 0.137769492,
+          "max": 0.145224414,
+          "peakMB": 170.9580078125,
+          "findings": 4757
+        },
+        {
+          "id": "phpcs",
+          "label": "PHP_CodeSniffer",
+          "kind": "linter",
+          "version": "4.0.4",
+          "status": "ok",
+          "median": 2.276677393,
+          "min": 2.264925298,
+          "max": 2.439718958,
+          "peakMB": 104.5751953125,
+          "findings": 10174
+        },
+        {
+          "id": "php-cs-fixer",
+          "label": "PHP-CS-Fixer",
+          "kind": "fixer",
+          "version": "v3.95.29",
+          "status": "ok",
+          "median": 4.638434117,
+          "min": 4.619219375,
+          "max": 4.65316999,
+          "peakMB": 162.349609375,
+          "findings": 320
+        },
+        {
+          "id": "rector",
+          "label": "Rector",
+          "kind": "fixer",
+          "version": "2.8.4",
+          "status": "ok",
+          "median": 10.979792944,
+          "min": 10.895483344,
+          "max": 11.081888976,
+          "peakMB": 1933.01171875,
+          "findings": 138
+        }
+      ]
+    },
+    {
+      "name": "laravel",
+      "repo": "https://github.com/laravel/framework.git",
+      "tag": "v13.40.0",
+      "files": 1746,
+      "rows": [
+        {
+          "id": "custos",
+          "label": "custos analyse",
+          "kind": "analyzer",
+          "version": "0.1.9-2-g66733bd5",
+          "status": "ok",
+          "median": 10.594012957,
+          "min": 10.35935293,
+          "max": 10.798555877,
+          "peakMB": 909.109375,
+          "findings": 10997
+        },
+        {
+          "id": "custos-fix",
+          "label": "custos fix",
+          "kind": "fixer",
+          "version": "0.1.9-2-g66733bd5",
+          "status": "ok",
+          "median": 13.968331572,
+          "min": 13.958604561,
+          "max": 14.000563851,
+          "peakMB": 926.6796875,
+          "findings": 4617
+        },
+        {
+          "id": "phpstan",
+          "label": "PHPStan",
+          "kind": "analyzer",
+          "version": "2.3.5",
+          "status": "ok",
+          "median": 22.208531796,
+          "min": 21.867133439,
+          "max": 22.267236599,
+          "peakMB": 1615.7080078125,
+          "findings": 3826
+        },
+        {
+          "id": "psalm",
+          "label": "Psalm",
+          "kind": "analyzer",
+          "version": "7.0.5",
+          "status": "ok",
+          "median": 55.976782352,
+          "min": 55.234916366,
+          "max": 56.294563566,
+          "peakMB": 3196.9013671875,
+          "findings": 7041
+        },
+        {
+          "id": "phan",
+          "label": "Phan",
+          "kind": "analyzer",
+          "version": "6.0.11",
+          "status": "ok",
+          "median": 16.078397492,
+          "min": 15.879756613,
+          "max": 16.085595986,
+          "peakMB": 1791.892578125,
+          "findings": 9102
+        },
+        {
+          "id": "mago-analyze",
+          "label": "Mago analyze",
+          "kind": "analyzer",
+          "version": "1.59.0",
+          "status": "ok",
+          "median": 0.816033078,
+          "min": 0.797232558,
+          "max": 0.818669713,
+          "peakMB": 385.6787109375,
+          "findings": 21385
+        },
+        {
+          "id": "mago-lint",
+          "label": "Mago lint",
+          "kind": "linter",
+          "version": "1.59.0",
+          "status": "ok",
+          "median": 0.237580073,
+          "min": 0.235761858,
+          "max": 0.248868681,
+          "peakMB": 201.0546875,
+          "findings": 9047
+        },
+        {
+          "id": "phpcs",
+          "label": "PHP_CodeSniffer",
+          "kind": "linter",
+          "version": "4.0.4",
+          "status": "ok",
+          "median": 6.937655886,
+          "min": 6.467801962,
+          "max": 7.193138104,
+          "peakMB": 131.2353515625,
+          "findings": 9854
+        },
+        {
+          "id": "php-cs-fixer",
+          "label": "PHP-CS-Fixer",
+          "kind": "fixer",
+          "version": "v3.95.29",
+          "status": "ok",
+          "median": 9.579109152000001,
+          "min": 9.552818058,
+          "max": 9.679907991,
+          "peakMB": 180.1318359375,
+          "findings": 446
+        },
+        {
+          "id": "rector",
+          "label": "Rector",
+          "kind": "fixer",
+          "version": "2.8.4",
+          "status": "ok",
+          "median": 26.254313756,
+          "min": 25.960312825,
+          "max": 26.273208189,
+          "peakMB": 3581.095703125,
+          "findings": 1325
+        }
+      ]
+    }
+  ]
+}
