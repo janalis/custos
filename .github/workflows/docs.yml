@@ -49,9 +49,13 @@ jobs:
           # Tags for the version in the nav, history for "last updated".
           fetch-depth: 0
           ref: ${{ inputs.ref }}
+      # This job builds the site the deploy job publishes: it restores no
+      # Actions cache, which code run by the benchmark workflow could have
+      # written.
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache: false
       - name: generated docs are committed
         run: |
           go run ./tools/rulesref
@@ -73,8 +77,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: docs/package-lock.json
       - run: npm ci
         working-directory: docs
       - run: npm run build

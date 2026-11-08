@@ -6,7 +6,9 @@ name: benchmark
 #
 # The measure job runs third-party code (the tools, at versions bump may have
 # just moved to, on cloned projects), so it gets a read-only token, keeps no
-# git credentials, sees no secret and writes no Actions cache. It hands the
+# git credentials, sees no secret and saves no Actions cache itself; the code
+# it runs could still reach the job's cache token, so the workflows that
+# publish (publish, release, docs) restore no cache. It hands the
 # two data files to the publish job, which adopts only the bumped versions
 # and tags and the measured numbers (benchcmp adopt refuses any other
 # change and takes names from the trusted configuration), renders the page with
@@ -40,7 +42,8 @@ jobs:
           # Tags, so that the custos version reads vX.Y.Z(-N-gSHA).
           fetch-depth: 0
           persist-credentials: false
-      # A cache this job saved could be restored by privileged runs.
+      # A cache this job saved could be restored by privileged runs (which
+      # restore none anyway: see the comment at the top).
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
