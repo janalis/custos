@@ -7,12 +7,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/meta"
 	"custos/internal/output/diff"
 	"custos/internal/project"
 )
 
 func cmdFix(args []string, stdout, stderr io.Writer) (int, error) {
 	c := newCommon("fix", stderr)
+	c.rules = fixableRules
 	dry := c.fs.Bool("dry-run", false, "do not write files")
 	showDiff := c.fs.Bool("diff", false, "print a unified diff of the changes")
 	s, err := c.prepare(args)
@@ -62,4 +65,17 @@ func cmdFix(args []string, stdout, stderr io.Writer) (int, error) {
 		return 2, fmt.Errorf("%d file(s) could not be fixed", failed)
 	}
 	return 0, nil
+}
+
+// fixableRules are the registered rules that offer a quick-fix. fix applies
+// nothing else, so running the others would only cost time; the fixture
+// tests check that no other rule reports a quick-fix.
+func fixableRules() []analysis.Rule {
+	var out []analysis.Rule
+	for _, r := range registry() {
+		if d, _ := meta.Describe(r.ID()); d.Fix {
+			out = append(out, r)
+		}
+	}
+	return out
 }

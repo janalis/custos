@@ -283,6 +283,26 @@ func (s *Snapshot) Equal(other *Snapshot) bool {
 	return s.options == other.options && reflect.DeepEqual(s.flat().summaries, other.flat().summaries)
 }
 
+// EqualFor is Equal for snapshots built from the same files but for those
+// declaring the given names: only the contracts of these names are compared.
+func (s *Snapshot) EqualFor(other *Snapshot, names []string) bool {
+	if s == nil || other == nil {
+		return s == other
+	}
+	if s.options != other.options {
+		return false
+	}
+	a, b := s.flat(), other.flat()
+	for _, name := range names {
+		x, inA := a.summaries[name]
+		y, inB := b.summaries[name]
+		if inA != inB || !reflect.DeepEqual(x, y) {
+			return false
+		}
+	}
+	return true
+}
+
 // Extract computes compact summaries while the project's parser tree is
 // available. It does not open any other files. A supplied snapshot permits
 // bounded composition with previously summarized project wrappers.

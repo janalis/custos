@@ -126,5 +126,7 @@ then use free `##` sections, written in our own words.
 4. Touching a hot path? Add or extend a benchmark (`make bench`).
 5. `make rules-doc`, then `make verify`. The rule reference marks a rule as
    having a quick-fix when one of its `*.fixed.*` fixtures differs from its
-   source, which is why fixture changes need `make rules-doc` too.
+   source, which is why fixture changes need `make rules-doc` too. `custos fix`
+   runs only the rules so marked, and `make fixtures` fails when a rule reports
+   a quick-fix without being marked: run `make rules-doc` after adding one.
 6. Add a line under `## [Unreleased]` in `CHANGELOG.md`.

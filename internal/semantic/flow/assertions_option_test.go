@@ -57,6 +57,26 @@ func TestOptionalAssertionArgumentEffects(t *testing.T) {
 	}
 }
 
+func TestSnapshotEqualForComparesNamedContracts(t *testing.T) {
+	one := &File{Path: "a.php", Summaries: map[string]Summary{"f": {Generator: true}, "g": {}}}
+	changed := &File{Path: "a.php", Summaries: map[string]Summary{"f": {}, "g": {}}}
+	other := &File{Path: "b.php", Summaries: map[string]Summary{"h": {}}}
+	before, after := NewSnapshot(one, other), NewSnapshot(changed, other)
+	if !before.EqualFor(after, []string{"g", "h", "missing"}) || before.EqualFor(after, []string{"g", "f"}) {
+		t.Fatal("EqualFor did not compare exactly the named contracts")
+	}
+	if before.EqualFor(NewSnapshot(other), []string{"g"}) {
+		t.Fatal("a contract present on one side only compared equal")
+	}
+	var none *Snapshot
+	if !none.EqualFor(nil, nil) || none.EqualFor(before, nil) || before.EqualFor(nil, nil) {
+		t.Fatal("nil snapshots compare equal only to each other")
+	}
+	if NewSnapshot().EqualFor(NewSnapshotWithOptions(Options{Assertions: true}), nil) {
+		t.Fatal("snapshots with different assumptions compared equal")
+	}
+}
+
 func TestAssertionSnapshotIdentity(t *testing.T) {
 	off := NewSnapshot()
 	on := NewSnapshotWithOptions(Options{Assertions: true})

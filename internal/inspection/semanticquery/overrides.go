@@ -28,9 +28,18 @@ func (m MethodOverrides) Declared(name string) []*index.Method {
 }
 
 // DescendantMethods follows classes and interfaces, including methods composed
-// from traits and their aliases. Callers should memoize this per base class.
+// from traits and their aliases. A frozen index computes it once per class
+// and version; callers must not modify the result.
 func DescendantMethods(ix *index.Index, fqn string, ver phpversion.Version) MethodOverrides {
-	return descendantMethods(ix, fqn, ver, 65536)
+	key := descendantMethodsKey{fqn: strings.ToLower(strings.TrimPrefix(fqn, `\`)), ver: ver}
+	return ix.Memo(key, func() any { return descendantMethods(ix, fqn, ver, 65536) }).(MethodOverrides)
+}
+
+// descendantMethodsKey keys DescendantMethods in the index memo: the
+// enumeration only depends on the declarations of the index.
+type descendantMethodsKey struct {
+	fqn string
+	ver phpversion.Version
 }
 
 func descendantMethods(ix *index.Index, fqn string, ver phpversion.Version, budget int) MethodOverrides {

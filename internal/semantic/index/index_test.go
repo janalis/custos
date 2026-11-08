@@ -7,7 +7,7 @@ import (
 	phpversion "custos/internal/php/version"
 )
 
-func extract(t *testing.T, path, src string) *FileSymbols {
+func extract(t testing.TB, path, src string) *FileSymbols {
 	t.Helper()
 	return Extract(syntax.Parse(path, []byte(src), syntax.Options{Version: phpversion.PHP84}))
 }
