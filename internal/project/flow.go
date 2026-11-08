@@ -46,6 +46,9 @@ type FlowBuild struct {
 	// stale marks the files whose seen is only a hint: an update outside
 	// any recursion changed what they consult on the way (see retrace).
 	stale []bool
+	// sizes holds the length of each file's source as the build read it,
+	// nil when unknown (see summarize).
+	sizes []int
 }
 
 // Files returns the files the build summarized, in build order.
@@ -78,23 +81,42 @@ const maxWaves = 16
 // dependency order during composition; the supplied order is only a hint
 // that can avoid early repeated summaries.
 func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *FlowBuild {
-	trees := make([]*syntax.File, len(files))
-	// A file that crashes the parser keeps no tree: it is not summarized.
+	// Sources are read once. Each summary parses its file again and keeps
+	// no tree: compose then holds the trees of the files being summarized,
+	// not those of every file, which take about ten times their source. A
+	// file that cannot be read or crashes the parser is not summarized.
+	read := make([][]byte, len(files))
+	readable := make([]bool, len(files))
 	_ = parallel(ctx, len(files), 0, func(i int) {
 		var src []byte
 		if i < len(srcs) {
 			src = srcs[i]
 		}
-		trees[i] = parseFlowSource(files[i], src, opt)
+		if src == nil {
+			var err error
+			if src, err = ReadSource(files[i]); err != nil {
+				return
+			}
+		}
+		read[i], readable[i] = src, true
 	}, nil)
-	b := &FlowBuild{files: files, at: make(map[string]int, len(files)), results: make([]*flow.File, len(trees)), sources: map[string][]byte{}, opt: opt, options: options, order: order, traced: true, seen: make([]map[string]bool, len(files)), declares: make([][]string, len(files))}
+	b := &FlowBuild{files: files, at: make(map[string]int, len(files)), results: make([]*flow.File, len(files)), sources: map[string][]byte{}, opt: opt, options: options, order: order, traced: true, seen: make([]map[string]bool, len(files)), declares: make([][]string, len(files))}
 	for i, path := range files {
 		b.at[path] = i
 		if i < len(srcs) && srcs[i] != nil {
 			b.sources[path] = srcs[i]
 		}
 	}
-	tree := func(i int) *syntax.File { return trees[i] }
+	b.sizes = make([]int, len(files))
+	for i, src := range read {
+		b.sizes[i] = len(src)
+	}
+	tree := func(i int) *syntax.File {
+		if !readable[i] {
+			return nil
+		}
+		return syntax.ParseBest(files[i], read[i], opt)
+	}
 	snapshot := flow.NewSnapshotWithOptions(options)
 	against := make([]*flow.Snapshot, len(files))
 	if len(order) > 0 {
@@ -170,7 +192,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 		}
 		dirty = append(dirty, i)
 	}
-	next := &FlowBuild{files: b.files, at: b.at, results: append([]*flow.File(nil), b.results...), sources: maps.Clone(b.sources), opt: b.opt, options: b.options, order: b.order}
+	next := &FlowBuild{files: b.files, at: b.at, results: append([]*flow.File(nil), b.results...), sources: maps.Clone(b.sources), opt: b.opt, options: b.options, order: b.order, sizes: b.sizes}
 	maps.Copy(next.sources, changed)
 	var mu sync.Mutex
 	trees := map[int]*syntax.File{}
@@ -338,7 +360,7 @@ func (b *FlowBuild) rescope(sources map[string][]byte, dirty []int, probe []*flo
 			return nil
 		}
 	}
-	next := &FlowBuild{files: b.files, at: b.at, results: slices.Clone(b.results), sources: sources, opt: b.opt, options: b.options, order: b.order, traced: true, seen: slices.Clone(b.seen), declares: declares}
+	next := &FlowBuild{files: b.files, at: b.at, results: slices.Clone(b.results), sources: sources, opt: b.opt, options: b.options, order: b.order, traced: true, seen: slices.Clone(b.seen), declares: declares, sizes: b.sizes}
 	for k, i := range at {
 		next.results[i], next.seen[i] = part.results[k], part.seen[k]
 	}
@@ -564,9 +586,9 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 					return snapshot
 				}
 				var work []int
-				for _, i := range wave.files {
-					r := b.results[i]
-					if (r == nil || !r.Current(against[i], snapshot)) && summarized[i] < maxSummaries {
+				stale := b.outdated(wave.files, snapshot, against)
+				for k, i := range wave.files {
+					if stale[k] && summarized[i] < maxSummaries {
 						work = append(work, i)
 						summarized[i]++
 					}
@@ -574,9 +596,12 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 				if len(work) == 0 {
 					break
 				}
+				names := b.declared(work)
 				b.summarize(ctx, work, snapshot, against, ix, tree)
 				next := flow.NewSnapshotWithOptions(b.options, b.results...)
-				if snapshot.Equal(next) {
+				// Only the files of work changed: the other contracts are
+				// those of snapshot.
+				if snapshot.EqualFor(next, b.declared(work, names...)) {
 					snapshot = next
 					break
 				}
@@ -634,8 +659,50 @@ func (b *FlowBuild) flowWaves() []flowWave {
 	return waves
 }
 
-// summarize summarizes the files of work side by side against snapshot.
+// outdated reports, for each file of files, that it has no summaries or that
+// a contract they read differs from the snapshot they were computed against.
+// The checks only read immutable snapshots, so they run side by side.
+func (b *FlowBuild) outdated(files []int, snapshot *flow.Snapshot, against []*flow.Snapshot) []bool {
+	out := make([]bool, len(files))
+	check := func(k int) {
+		r := b.results[files[k]]
+		out[k] = r == nil || !r.Current(against[files[k]], snapshot)
+	}
+	if len(files) < minParallelChecks {
+		for k := range files {
+			check(k)
+		}
+		return out
+	}
+	_ = parallel(context.Background(), len(files), 0, check, nil)
+	return out
+}
+
+// minParallelChecks is the number of files from which outdated checks them on
+// every CPU: a few checks cost less than starting the workers.
+const minParallelChecks = 64
+
+// declared appends to names the names the current summaries of the files
+// of work declare.
+func (b *FlowBuild) declared(work []int, names ...string) []string {
+	for _, i := range work {
+		if r := b.results[i]; r != nil {
+			for name := range r.Summaries {
+				names = append(names, name)
+			}
+		}
+	}
+	return names
+}
+
+// summarize summarizes the files of work side by side against snapshot,
+// the largest sources first: a wave lasts at least as long as its slowest
+// file, which should not start last.
 func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Snapshot, against []*flow.Snapshot, ix *index.Index, tree func(int) *syntax.File) {
+	if b.sizes != nil {
+		work = slices.Clone(work)
+		slices.SortStableFunc(work, func(x, y int) int { return b.sizes[y] - b.sizes[x] })
+	}
 	_ = parallel(ctx, len(work), summaryWorkers(runtime.GOMAXPROCS(0)), func(j int) {
 		if file := tree(work[j]); file != nil {
 			i := work[j]
@@ -676,9 +743,15 @@ func (b *FlowBuild) trace(i int) {
 func (b *FlowBuild) unsettled(snapshot *flow.Snapshot, against []*flow.Snapshot) *flow.Snapshot {
 	for {
 		dropped := false
+		var held []int
 		for i, r := range b.results {
-			if r != nil && !r.Current(against[i], snapshot) {
-				b.results[i] = nil
+			if r != nil {
+				held = append(held, i)
+			}
+		}
+		for k, stale := range b.outdated(held, snapshot, against) {
+			if stale {
+				b.results[held[k]] = nil
 				dropped = true
 			}
 		}
