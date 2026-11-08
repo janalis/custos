@@ -6,6 +6,7 @@
 //	benchcmp install  install the pinned tools and corpora under -work
 //	benchcmp run      measure wall time, peak memory and findings into -results
 //	benchcmp render   write the documentation page from -results
+//	benchcmp adopt    take only the versions and tags of -from into -config
 package main
 
 import (
@@ -20,7 +21,7 @@ import (
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
-const usage = "usage: benchcmp bump|install|run|render [flags]"
+const usage = "usage: benchcmp bump|install|run|render|adopt [flags]"
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
@@ -41,6 +42,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	packagist := fs.String("packagist", "https://repo.packagist.org", "Packagist metadata server")
 	toolFilter := fs.String("tool", "", "comma-separated tool IDs (default: all)")
 	corpusFilter := fs.String("corpus", "", "comma-separated corpus names (default: all)")
+	from := fs.String("from", "", "adopt: configuration a benchmark run bumped")
 	if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 {
 		fmt.Fprintln(stderr, usage)
 		return 2
@@ -54,6 +56,19 @@ func run(args []string, stdout, stderr io.Writer) int {
 	switch sub {
 	case "render":
 		err = renderPage(*results, *page, *features, *readme)
+	case "adopt":
+		err = withConfig(*config, func(trusted *Config) error {
+			measured, err := loadConfig(*from)
+			if err != nil {
+				return err
+			}
+			changes, err := adopt(trusted, measured)
+			if err != nil {
+				return err
+			}
+			fmt.Fprint(stdout, strings.Join(append(changes, ""), "\n"))
+			return writeJSON(*config, trusted)
+		})
 	case "bump", "install", "run":
 		err = withConfig(*config, func(c *Config) error {
 			tools, err := selectByName(c.Tools, func(t Tool) string { return t.ID }, *toolFilter)

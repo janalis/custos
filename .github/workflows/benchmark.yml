@@ -6,9 +6,11 @@ name: benchmark
 #
 # The measure job runs third-party code (the tools, at versions bump may have
 # just moved to, on cloned projects), so it gets a read-only token, keeps no
-# git credentials and sees no secret. It hands the two data files to the
-# publish job, which renders the page with this repository's own code and
-# alone may open the pull request, to be reviewed before it is merged.
+# git credentials, sees no secret and writes no Actions cache. It hands the
+# two data files to the publish job, which adopts only the bumped versions
+# and tags (benchcmp adopt refuses any other change), renders the page with
+# this repository's own code and alone may open the pull request, to be
+# reviewed before it is merged.
 #
 # Needs "Allow GitHub Actions to create and approve pull requests" in the
 # repository's Actions settings. Pull requests opened with GITHUB_TOKEN do not
@@ -30,8 +32,6 @@ jobs:
   measure:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    outputs:
-      changes: ${{ steps.bump.outputs.changes }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,9 +39,11 @@ jobs:
           # Tags, so that the custos version reads vX.Y.Z(-N-gSHA).
           fetch-depth: 0
           persist-credentials: false
+      # A cache this job saved could be restored by privileged runs.
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache: false
       # Phan needs ast (parser) and pcntl (parallel workers).
       - uses: shivammathur/setup-php@v2
         with:
@@ -51,14 +53,8 @@ jobs:
           tools: composer
           coverage: none
       - run: make build
-      - id: bump
-        if: github.event_name == 'schedule' || inputs.bump
-        run: |
-          {
-            echo "changes<<CHANGES"
-            go run ./tools/benchcmp bump
-            echo "CHANGES"
-          } >> "$GITHUB_OUTPUT"
+      - if: github.event_name == 'schedule' || inputs.bump
+        run: go run ./tools/benchcmp bump
       - run: go run ./tools/benchcmp install
       - run: go run ./tools/benchcmp run
       - uses: actions/upload-artifact@v4
@@ -83,15 +79,22 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      # Only the two data files are taken from the measure job; the page is
-      # rendered here, from them.
+          cache: false
+      # From the measure job: the versions and tags it measured, checked by
+      # adopt, and the measurements, which render escapes; the page is
+      # rendered here.
       - uses: actions/download-artifact@v4
         with:
           name: benchmark
           path: ${{ runner.temp }}/benchmark
-      - run: |
-          cp "$RUNNER_TEMP/benchmark/competitors.json" bench/competitors.json
-          cp "$RUNNER_TEMP/benchmark/results.json" bench/results.json
+      - id: adopt
+        run: |
+          {
+            echo "changes<<CHANGES"
+            go run ./tools/benchcmp adopt -from "$RUNNER_TEMP/benchmark/competitors.json"
+            echo "CHANGES"
+          } >> "$GITHUB_OUTPUT"
+      - run: cp "$RUNNER_TEMP/benchmark/results.json" bench/results.json
       - run: go run ./tools/benchcmp render
       - uses: peter-evans/create-pull-request@v7
         with:
@@ -111,5 +114,5 @@ jobs:
             Version changes:
 
             ```text
-            ${{ needs.measure.outputs.changes || 'none' }}
+            ${{ steps.adopt.outputs.changes || 'none' }}
             ```
