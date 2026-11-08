@@ -2,6 +2,7 @@ package conformance
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -145,6 +146,10 @@ func (a *adapter) Analyze(req Request) ([]Finding, error) {
 	f := syntax.Parse(req.Path, req.Source, parseOpts())
 	var out []Finding
 	for _, fd := range e.Analyze(f) {
+		// fix runs only the rules whose spec declares a quick-fix.
+		if d, _ := meta.Describe(fd.Rule); len(fd.Fixes) > 0 && !d.Fix {
+			return nil, fmt.Errorf("%s offers a quick-fix its spec does not declare", fd.Rule)
+		}
 		out = append(out, Finding{Rule: fd.Rule, Severity: fd.Severity, Message: fd.Message, Start: int(fd.Span.Start), End: int(fd.Span.End)})
 	}
 	return out, nil

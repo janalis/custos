@@ -19,6 +19,17 @@ versions follow [Semantic Versioning](https://semver.org/).
   findings and fixes: on laravel/framework (4 cores), `custos analyse` takes
   about 40% less time and `custos fix` about 35% less. Machines with up to 8
   cores now use all of them for flow analysis.
+- Faster analysis of projects whose interfaces and base classes have many
+  implementations, with the same findings and fixes: files no longer wait on
+  each other for method lookups, and the methods of a class's descendants
+  are enumerated once per run instead of once per file. On laravel/framework
+  (4 cores), `custos analyse` takes about 30% less time again and
+  `custos fix` about 20% less.
+- `custos fix` runs only the rules that offer a quick-fix, with the same
+  edits: about 20% less time again on laravel/framework.
+- Analysis needs about 20% less memory on laravel/framework and 30% less on
+  composer/composer: flow analysis no longer keeps the syntax trees of every
+  file while it runs.
 
 ## [0.1.9] - 2026-11-07
 

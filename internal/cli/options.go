@@ -29,6 +29,9 @@ type common struct {
 	profile   string
 	noCache   bool
 	flowOrder bool
+	// rules lists the rules the command may run; nil runs every registered
+	// rule.
+	rules func() []analysis.Rule
 }
 
 // cacheDir is where declarations of dependencies are kept between runs
@@ -123,7 +126,11 @@ func (c *common) prepare(args []string) (*setup, error) {
 	if c.exclude != "" {
 		exclude = append(exclude, strings.Split(c.exclude, ",")...)
 	}
-	p, err := project.Open(registry(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Cache: c.cacheDir(), FlowOrder: c.flowOrder || cfg.FlowOrder, Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
+	rules := registry
+	if c.rules != nil {
+		rules = c.rules
+	}
+	p, err := project.Open(rules(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Cache: c.cacheDir(), FlowOrder: c.flowOrder || cfg.FlowOrder, Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
 	if err != nil {
 		return nil, err
 	}
