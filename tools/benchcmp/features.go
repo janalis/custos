@@ -114,8 +114,12 @@ func (f *Features) render(compact bool) string {
 		fmt.Fprintf(&b, "| %s |", escape(feat.Name))
 		for _, t := range f.Tools {
 			c := feat.Cells[t.ID]
-			if compact && c.Value != "" {
-				fmt.Fprintf(&b, " %s |", compactMarks[c.Value])
+			if compact {
+				mark := compactMarks[c.Value]
+				if c.Value == "" {
+					mark = escape(c.Note)
+				}
+				fmt.Fprintf(&b, " %s |", mark)
 				continue
 			}
 			sep := " "

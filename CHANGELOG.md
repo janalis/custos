@@ -5,6 +5,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The README shows the time and peak memory of custos and the other tools
+  on the largest benchmarked project, and a compact feature table; notes and
+  sources stay on the benchmark page.
+
 ## [0.1.10] - 2026-11-08
 
 ### Added

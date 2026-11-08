@@ -18,9 +18,8 @@ const (
 func readmeSection(r *Results, f *Features) string {
 	var b strings.Builder
 	if c, found := largestCorpus(r); found {
-		fmt.Fprintf(&b, "**Speed** on [%s](%s) `%s` (%s PHP files), %d cores, median of %d runs:\n\n",
-			escape(strings.TrimSuffix(strings.TrimPrefix(c.Repo, "https://github.com/"), ".git")),
-			strings.TrimSuffix(c.Repo, ".git"), escape(c.Tag), thousands(c.Files), r.Runner.Cores, r.Runs)
+		fmt.Fprintf(&b, "**Speed** on %s `%s` (%s PHP files), %d cores, median of %d runs:\n\n",
+			repoLink(c.Repo), escape(c.Tag), thousands(c.Files), r.Runner.Cores, r.Runs)
 		b.WriteString("| Tool | Kind | Time | Peak memory |\n| :--- | :--- | ---: | ---: |\n")
 		for _, row := range sortedRows(c.Rows) {
 			if row.Status != "ok" {

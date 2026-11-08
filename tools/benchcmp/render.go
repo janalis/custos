@@ -67,7 +67,7 @@ func render(r *Results, f *Features) string {
 
 func corpusTable(b *strings.Builder, c CorpusResult) {
 	fmt.Fprintf(b, "\n## %s\n\n", escape(c.Name))
-	fmt.Fprintf(b, "[%s](%s) at `%s`, %d PHP files.\n\n", escape(strings.TrimSuffix(strings.TrimPrefix(c.Repo, "https://github.com/"), ".git")), strings.TrimSuffix(c.Repo, ".git"), escape(c.Tag), c.Files)
+	fmt.Fprintf(b, "%s at `%s`, %d PHP files.\n\n", repoLink(c.Repo), escape(c.Tag), c.Files)
 	b.WriteString("| Tool | Kind | Version | Time | vs custos | Peak memory | Findings |\n")
 	b.WriteString("| :--- | :--- | :--- | ---: | ---: | ---: | ---: |\n")
 	for _, r := range sortedRows(c.Rows) {
@@ -79,6 +79,11 @@ func corpusTable(b *strings.Builder, c CorpusResult) {
 		fmt.Fprintf(b, "| %s | %s | %s | %s | %s | %s | %d |\n",
 			label, escape(r.Kind), escape(strings.TrimPrefix(r.Version, "v")), seconds(r.Median), ratio(r, c.Rows), megabytes(r.PeakMB), r.Findings)
 	}
+}
+
+// repoLink links a project's repository, labeled owner/name for GitHub.
+func repoLink(repo string) string {
+	return fmt.Sprintf("[%s](%s)", escape(strings.TrimSuffix(strings.TrimPrefix(repo, "https://github.com/"), ".git")), strings.TrimSuffix(repo, ".git"))
 }
 
 // sortedRows orders rows by kind, then fastest first, failed rows last.

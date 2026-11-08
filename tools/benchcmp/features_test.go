@@ -34,7 +34,9 @@ func TestFeaturesTable(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
 	}
-	got = sampleFeatures().compact()
+	f := sampleFeatures()
+	f.Features[0].Cells["other"] = Cell{Note: "PHP", Source: "https://example.com/php"}
+	got = f.compact()
 	for _, want := range []string{"| Written in | Go | PHP |", "| Fixes | ✓ | ◐ |", "| LSP | ✓ | — |"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("compact: missing %q in:\n%s", want, got)
