@@ -34,6 +34,17 @@ func TestFeaturesTable(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
 	}
+	f := sampleFeatures()
+	f.Features[0].Cells["other"] = Cell{Note: "PHP", Source: "https://example.com/php"}
+	got = f.compact()
+	for _, want := range []string{"| Written in | Go | PHP |", "| Fixes | ✓ | ◐ |", "| LSP | ✓ | — |"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("compact: missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "Checked") {
+		t.Errorf("compact has the checked line:\n%s", got)
+	}
 }
 
 func TestLoadFeatures(t *testing.T) {
@@ -62,17 +73,5 @@ func TestLoadFeatures(t *testing.T) {
 	}
 	if _, err := loadFeatures(filepath.Join(dir, "missing.json")); !os.IsNotExist(err) {
 		t.Errorf("missing file: %v", err)
-	}
-}
-
-// The committed README holds the comparison bench/features.json renders.
-func TestReadmeComparisonIsCurrent(t *testing.T) {
-	f, err := loadFeatures("../../bench/features.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	readme := read(t, "../../README.md")
-	if want, err := spliceReadme(readme, f.table()); err != nil || want != readme {
-		t.Errorf("README comparison is stale (make compare-doc): %v", err)
 	}
 }

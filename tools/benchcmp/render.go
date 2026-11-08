@@ -67,18 +67,11 @@ func render(r *Results, f *Features) string {
 
 func corpusTable(b *strings.Builder, c CorpusResult) {
 	fmt.Fprintf(b, "\n## %s\n\n", escape(c.Name))
-	fmt.Fprintf(b, "[%s](%s) at `%s`, %d PHP files.\n\n", escape(strings.TrimSuffix(strings.TrimPrefix(c.Repo, "https://github.com/"), ".git")), strings.TrimSuffix(c.Repo, ".git"), escape(c.Tag), c.Files)
+	fmt.Fprintf(b, "%s at `%s`, %d PHP files.\n\n", repoLink(c.Repo), escape(c.Tag), c.Files)
 	b.WriteString("| Tool | Kind | Version | Time | vs custos | Peak memory | Findings |\n")
 	b.WriteString("| :--- | :--- | :--- | ---: | ---: | ---: | ---: |\n")
-	rows := slices.Clone(c.Rows)
-	slices.SortStableFunc(rows, func(x, y Row) int {
-		return cmp.Or(cmp.Compare(kindOrder[x.Kind], kindOrder[y.Kind]), cmp.Compare(ok(x), ok(y)), cmp.Compare(x.Median, y.Median))
-	})
-	for _, r := range rows {
-		label := escape(r.Label)
-		if strings.HasPrefix(r.ID, "custos") {
-			label = "**" + label + "**"
-		}
+	for _, r := range sortedRows(c.Rows) {
+		label := rowLabel(r)
 		if r.Status != "ok" {
 			fmt.Fprintf(b, "| %s | %s | %s | %s | — | — | — |\n", label, escape(r.Kind), escape(strings.TrimPrefix(r.Version, "v")), escape(r.Status))
 			continue
@@ -86,6 +79,28 @@ func corpusTable(b *strings.Builder, c CorpusResult) {
 		fmt.Fprintf(b, "| %s | %s | %s | %s | %s | %s | %d |\n",
 			label, escape(r.Kind), escape(strings.TrimPrefix(r.Version, "v")), seconds(r.Median), ratio(r, c.Rows), megabytes(r.PeakMB), r.Findings)
 	}
+}
+
+// repoLink links a project's repository, labeled owner/name for GitHub.
+func repoLink(repo string) string {
+	return fmt.Sprintf("[%s](%s)", escape(strings.TrimSuffix(strings.TrimPrefix(repo, "https://github.com/"), ".git")), strings.TrimSuffix(repo, ".git"))
+}
+
+// sortedRows orders rows by kind, then fastest first, failed rows last.
+func sortedRows(rows []Row) []Row {
+	rows = slices.Clone(rows)
+	slices.SortStableFunc(rows, func(x, y Row) int {
+		return cmp.Or(cmp.Compare(kindOrder[x.Kind], kindOrder[y.Kind]), cmp.Compare(ok(x), ok(y)), cmp.Compare(x.Median, y.Median))
+	})
+	return rows
+}
+
+// rowLabel is the escaped tool label, in bold for custos.
+func rowLabel(r Row) string {
+	if strings.HasPrefix(r.ID, "custos") {
+		return "**" + escape(r.Label) + "**"
+	}
+	return escape(r.Label)
 }
 
 // ok sorts failed rows last.

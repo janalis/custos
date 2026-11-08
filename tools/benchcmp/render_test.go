@@ -74,13 +74,14 @@ func TestRenderPage(t *testing.T) {
 		t.Errorf("renderPage: %v", err)
 	}
 	write(t, readme, "# x\n\n"+readmeStart+"\nold\n"+readmeEnd+"\n\nrest\n")
-	if err := renderPage(results, page, features, readme); err != nil || read(t, readme) != "# x\n\n"+readmeStart+"\n\n"+sampleFeatures().table()+"\n"+readmeEnd+"\n\nrest\n" {
+	if err := renderPage(results, page, features, readme); err != nil || read(t, readme) != "# x\n\n"+readmeStart+"\n\n"+readmeSection(sampleResults(), sampleFeatures())+"\n"+readmeEnd+"\n\nrest\n" {
 		t.Errorf("README section: %v\n%s", err, read(t, readme))
 	}
 	for name, args := range map[string][4]string{
-		"missing results":  {filepath.Join(dir, "missing.json"), page, "", ""},
-		"missing features": {results, page, filepath.Join(dir, "missing.json"), ""},
-		"missing readme":   {results, page, features, filepath.Join(dir, "missing.md")},
+		"missing results":     {filepath.Join(dir, "missing.json"), page, "", ""},
+		"missing features":    {results, page, filepath.Join(dir, "missing.json"), ""},
+		"readme, no features": {results, page, "", filepath.Join(dir, "missing.md")},
+		"missing readme":      {results, page, features, filepath.Join(dir, "missing.md")},
 	} {
 		if err := renderPage(args[0], args[1], args[2], args[3]); err == nil {
 			t.Errorf("%s: no error", name)

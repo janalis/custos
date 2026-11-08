@@ -63,10 +63,10 @@ BENCH_RESULTS = $(if $(TOOL)$(CORPUS),.cache/bench/results.json,bench/results.js
 compare: build
 	$(GO) run ./tools/benchcmp install -tool "$(TOOL)" -corpus "$(CORPUS)"
 	$(GO) run ./tools/benchcmp run -tool "$(TOOL)" -corpus "$(CORPUS)" -results $(BENCH_RESULTS)
-	$(GO) run ./tools/benchcmp render -results $(BENCH_RESULTS) $(if $(TOOL)$(CORPUS),-page .cache/bench/benchmark.md)
+	$(GO) run ./tools/benchcmp render -results $(BENCH_RESULTS) $(if $(TOOL)$(CORPUS),-page .cache/bench/benchmark.md -readme "")
 
-# Regenerate docs/guide/benchmark.md from bench/results.json and the README
-# comparison from bench/features.json.
+# Regenerate docs/guide/benchmark.md and the README comparison from
+# bench/results.json and bench/features.json.
 compare-doc:
 	$(GO) run ./tools/benchcmp render
 

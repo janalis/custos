@@ -45,6 +45,7 @@ func project(t *testing.T) (string, []string) {
 		"-results", filepath.Join(dir, "results.json"),
 		"-page", filepath.Join(dir, "page.md"),
 		"-features", "",
+		"-readme", "",
 		"-packagist", "http://127.0.0.1:0",
 	}
 }
