@@ -42,6 +42,12 @@ type Index struct {
 	methodGeneration uint64
 	methodMu         sync.RWMutex
 	methods          map[resolvedMethodKey]resolvedMethodEntry
+	// frozenMethods caches FindMethod once the index is frozen: a run's
+	// workers resolve many distinct names side by side, and one map behind
+	// one lock made them wait on each other's misses.
+	frozenMethods sync.Map // resolvedMethodKey -> resolvedMethodEntry
+	// memo holds the results of Memo, by key, once the index is frozen.
+	memo sync.Map // any -> memoEntry
 	// globals caches GlobalNames for globalsGeneration.
 	globalsMu         sync.Mutex
 	globals           map[string]bool
@@ -589,6 +595,9 @@ func (ix *Index) FindMethod(class, name string, ver phpversion.Version) *Method 
 	}
 	key := resolvedMethodKey{class: class, name: name, version: ver}
 	generation := ix.generation()
+	if ix.frozen.Load() {
+		return ix.findFrozenMethod(key, generation)
+	}
 	ix.methodMu.RLock()
 	cached, found := ix.methods[key]
 	ix.methodMu.RUnlock()
@@ -599,9 +608,8 @@ func (ix *Index) FindMethod(class, name string, ver phpversion.Version) *Method 
 	ix.methodMu.Lock()
 	// A concurrent writer may have invalidated this lookup while it resolved.
 	if ix.generation() == generation {
-		// The bound keeps a long-lived editor index small; a frozen one serves
-		// a single run, whose lookups would otherwise keep evicting each other.
-		if ix.methods == nil || ix.methodGeneration != generation || len(ix.methods) >= maxResolvedMethods && !ix.frozen.Load() {
+		// The bound keeps a long-lived editor index small.
+		if ix.methods == nil || ix.methodGeneration != generation || len(ix.methods) >= maxResolvedMethods {
 			ix.methods = make(map[resolvedMethodKey]resolvedMethodEntry)
 			ix.methodGeneration = generation
 		}
@@ -613,17 +621,70 @@ func (ix *Index) FindMethod(class, name string, ver phpversion.Version) *Method 
 	return method
 }
 
+// Memo returns the value cached under key for this index, computing it with
+// fn on first use. It serves queries derived from declarations alone that
+// many files of a run ask in turn, such as the methods of a class's
+// descendants. Only a frozen index keeps values (for as long as no base layer
+// changes); otherwise, and on a nil index, fn runs on every call, so an editor index never holds
+// on to answers its next edit makes stale. fn may run more than once when
+// files ask concurrently: it must be a pure function of the index, and its
+// value is shared, so callers must not modify it. Keys must be comparable;
+// callers use a key type of their own so that they never collide.
+func (ix *Index) Memo(key any, fn func() any) any {
+	if ix == nil || !ix.frozen.Load() {
+		return fn()
+	}
+	generation := ix.generation()
+	if cached, found := ix.memo.Load(key); found && cached.(memoEntry).generation == generation {
+		return cached.(memoEntry).value
+	}
+	value := fn()
+	ix.memo.Store(key, memoEntry{generation: generation, value: value})
+	return value
+}
+
+type memoEntry struct {
+	generation uint64
+	value      any
+}
+
+// findFrozenMethod is FindMethod on a frozen index. Its cache is never
+// bounded: a frozen index serves a single run, whose lookups would otherwise
+// keep evicting each other. A base layer may still change, so entries keep
+// the generation they were resolved for.
+func (ix *Index) findFrozenMethod(key resolvedMethodKey, generation uint64) *Method {
+	if cached, found := ix.frozenMethods.Load(key); found && cached.(resolvedMethodEntry).generation == generation {
+		return cached.(resolvedMethodEntry).method
+	}
+	method, direct := ix.resolveMethodDirect(key.class, key.name, key.version)
+	// A method the class declares itself is found as fast as a cached one:
+	// only the lookups through the hierarchy are kept.
+	if !direct {
+		// Lookup names may be slices of an editor buffer; retain only their bytes.
+		key.class, key.name = strings.Clone(key.class), strings.Clone(key.name)
+		ix.frozenMethods.Store(key, resolvedMethodEntry{generation: generation, method: method})
+	}
+	return method
+}
+
 func (ix *Index) resolveMethod(class, name string, ver phpversion.Version) *Method {
+	m, _ := ix.resolveMethodDirect(class, name, ver)
+	return m
+}
+
+// resolveMethodDirect is resolveMethod also telling whether the class
+// itself answered, without a walk through its hierarchy.
+func (ix *Index) resolveMethodDirect(class, name string, ver phpversion.Version) (*Method, bool) {
 	lname := strings.ToLower(name)
 	if c := ix.Class(class, ver); c != nil {
 		if ver != 0 && !c.Avail.In(ver) {
-			return nil
+			return nil, true
 		}
 		if m := c.Methods[lname]; m != nil && !m.Magic && (ver == 0 || m.Avail.In(ver)) {
-			return m.at(ver)
+			return m.at(ver), true
 		}
 	}
-	return ix.findComposedMethod(class, lname, ver)
+	return ix.findComposedMethod(class, lname, ver), false
 }
 
 func (ix *Index) findComposedMethod(class, name string, ver phpversion.Version) *Method {
