@@ -31,6 +31,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          # Never restore a cache another workflow may have written.
+          cache: false
       # The syntax tests compare the lexer and parser with the newest PHP
       # (token_get_all, php -l): keep it at version.Max.
       - uses: shivammathur/setup-php@v2
@@ -71,6 +73,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          # Never restore a cache another workflow may have written.
+          cache: false
       - uses: actions/download-artifact@v4
         with:
           name: release-notes
