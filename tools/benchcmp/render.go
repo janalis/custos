@@ -36,7 +36,7 @@ func render(r *Results, f *Features) string {
 			cpu = r.Runner.CPU + ", "
 		}
 		fmt.Fprintf(&b, "Measured on %s on %s, %s%d cores, %.0f GB of memory, with PHP %s.\n",
-			r.Date, r.Runner.OS, cpu, r.Runner.Cores, r.Runner.MemoryGB, r.PHP)
+			escape(r.Date), escape(r.Runner.OS), escape(cpu), r.Runner.Cores, r.Runner.MemoryGB, escape(r.PHP))
 		fmt.Fprintf(&b, "Each time is the median of %d runs.\n", r.Runs)
 	}
 	for _, c := range r.Corpora {
@@ -66,8 +66,8 @@ func render(r *Results, f *Features) string {
 }
 
 func corpusTable(b *strings.Builder, c CorpusResult) {
-	fmt.Fprintf(b, "\n## %s\n\n", c.Name)
-	fmt.Fprintf(b, "[%s](%s) at `%s`, %d PHP files.\n\n", strings.TrimSuffix(strings.TrimPrefix(c.Repo, "https://github.com/"), ".git"), strings.TrimSuffix(c.Repo, ".git"), c.Tag, c.Files)
+	fmt.Fprintf(b, "\n## %s\n\n", escape(c.Name))
+	fmt.Fprintf(b, "[%s](%s) at `%s`, %d PHP files.\n\n", escape(strings.TrimSuffix(strings.TrimPrefix(c.Repo, "https://github.com/"), ".git")), strings.TrimSuffix(c.Repo, ".git"), escape(c.Tag), c.Files)
 	b.WriteString("| Tool | Kind | Version | Time | vs custos | Peak memory | Findings |\n")
 	b.WriteString("| :--- | :--- | :--- | ---: | ---: | ---: | ---: |\n")
 	rows := slices.Clone(c.Rows)
@@ -75,16 +75,16 @@ func corpusTable(b *strings.Builder, c CorpusResult) {
 		return cmp.Or(cmp.Compare(kindOrder[x.Kind], kindOrder[y.Kind]), cmp.Compare(ok(x), ok(y)), cmp.Compare(x.Median, y.Median))
 	})
 	for _, r := range rows {
-		label := r.Label
+		label := escape(r.Label)
 		if strings.HasPrefix(r.ID, "custos") {
 			label = "**" + label + "**"
 		}
 		if r.Status != "ok" {
-			fmt.Fprintf(b, "| %s | %s | %s | %s | — | — | — |\n", label, r.Kind, strings.TrimPrefix(r.Version, "v"), escape(r.Status))
+			fmt.Fprintf(b, "| %s | %s | %s | %s | — | — | — |\n", label, escape(r.Kind), escape(strings.TrimPrefix(r.Version, "v")), escape(r.Status))
 			continue
 		}
 		fmt.Fprintf(b, "| %s | %s | %s | %s | %s | %s | %d |\n",
-			label, r.Kind, strings.TrimPrefix(r.Version, "v"), seconds(r.Median), ratio(r, c.Rows), megabytes(r.PeakMB), r.Findings)
+			label, escape(r.Kind), escape(strings.TrimPrefix(r.Version, "v")), seconds(r.Median), ratio(r, c.Rows), megabytes(r.PeakMB), r.Findings)
 	}
 }
 

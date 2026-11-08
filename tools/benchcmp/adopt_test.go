@@ -83,3 +83,85 @@ func TestAdoptCommand(t *testing.T) {
 		t.Fatal("missing measured configuration accepted")
 	}
 }
+
+func adoptResultsSample() *Results {
+	return &Results{Date: "2026-11-08", Corpora: []CorpusResult{{
+		Name: "app", Repo: "https://evil.example/x.git", Tag: "{{x}}", Files: 3,
+		Rows: []Row{
+			{ID: "t", Label: "<img onerror=x>", Kind: "{{k}}", Version: "{{v}}", Status: "ok", Median: 1.5, PeakMB: 10, Findings: 4},
+			{ID: "custos", Label: "x", Kind: "x", Version: "0.1.10-1-gf0966217", Status: "ok", Median: 0.5},
+		},
+	}}}
+}
+
+func TestAdoptResultsKeepsOnlyNumbers(t *testing.T) {
+	cfg := adoptConfig()
+	cfg.Tools = append(cfg.Tools, Tool{ID: "custos", Label: "custos analyse", Kind: "analyzer", Findings: "custos"})
+	r := adoptResultsSample()
+	if err := adoptResults(cfg, r); err != nil {
+		t.Fatal(err)
+	}
+	c, row := r.Corpora[0], r.Corpora[0].Rows[0]
+	if c.Repo != "https://example.com/app.git" || c.Tag != "v1.0.0" || c.Files != 3 {
+		t.Errorf("corpus identity not rebuilt: %+v", c)
+	}
+	if row.Label != "T" || row.Kind != "linter" || row.Version != "1.0.0" || row.Median != 1.5 || row.Findings != 4 {
+		t.Errorf("tool identity not rebuilt: %+v", row)
+	}
+	if custos := r.Corpora[0].Rows[1]; custos.Label != "custos analyse" || custos.Version != "0.1.10-1-gf0966217" {
+		t.Errorf("custos row: %+v", custos)
+	}
+	for name, edit := range map[string]func(*Results){
+		"unknown corpus": func(r *Results) { r.Corpora[0].Name = "other" },
+		"unknown tool":   func(r *Results) { r.Corpora[0].Rows[0].ID = "evil" },
+		"custos version": func(r *Results) { r.Corpora[0].Rows[1].Version = "{{constructor}}" },
+	} {
+		r := adoptResultsSample()
+		edit(r)
+		if err := adoptResults(cfg, r); err == nil {
+			t.Errorf("%s: adopted", name)
+		}
+	}
+}
+
+func TestAdoptCommandResults(t *testing.T) {
+	dir := t.TempDir()
+	trusted, measured := filepath.Join(dir, "trusted.json"), filepath.Join(dir, "measured.json")
+	rin, rout := filepath.Join(dir, "rin.json"), filepath.Join(dir, "rout.json")
+	cfg := adoptConfig()
+	cfg.Tools = append(cfg.Tools, Tool{ID: "custos", Label: "custos analyse", Kind: "analyzer", Findings: "custos"})
+	for path, v := range map[string]any{trusted: cfg, measured: cfg, rin: adoptResultsSample()} {
+		if err := writeJSON(path, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	args := []string{"adopt", "-config", trusted, "-from", measured, "-results", rout}
+	if code, _, stderr := call(append(args, "-results-from", rin)...); code != 0 || !strings.Contains(read(t, rout), `"label": "T"`) || strings.Contains(read(t, rout), "onerror") {
+		t.Fatalf("adopt results: %d %s", code, stderr)
+	}
+	for name, body := range map[string]string{"bad json": "{", "unknown tool": `{"corpora": [{"name": "app", "rows": [{"id": "evil"}]}]}`} {
+		write(t, rin, body)
+		if code, _, _ := call(append(args, "-results-from", rin)...); code != 1 {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if code, _, _ := call(append(args, "-results-from", filepath.Join(dir, "missing.json"))...); code != 1 {
+		t.Error("missing results accepted")
+	}
+	if err := writeJSON(rin, adoptResultsSample()); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, _ := call("adopt", "-config", trusted, "-from", measured, "-results", dir, "-results-from", rin); code != 1 {
+		t.Error("unwritable results accepted")
+	}
+}
+
+func TestRenderEscapesMeasuredText(t *testing.T) {
+	r := sampleResults()
+	r.Date, r.PHP, r.Runner.OS, r.Runner.CPU = "{{a}}", "{{b}}", "<os>", "{{c}}"
+	r.Corpora[0].Name, r.Corpora[0].Rows[0].Kind, r.Corpora[0].Rows[0].Version = "{{d}}", "{{e}}", "{{f}}"
+	r.Corpora[0].Rows[1].Label = "{{g}}"
+	if got := render(r, nil); strings.Contains(got, "{{") || strings.Contains(got, "<os>") {
+		t.Errorf("unescaped text:\n%s", got)
+	}
+}

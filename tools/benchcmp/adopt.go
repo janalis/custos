@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"regexp"
 	"slices"
 )
 
@@ -51,4 +52,47 @@ func adopt(trusted, measured *Config) ([]string, error) {
 	}
 	maps.Copy(trusted.Packages, measured.Packages)
 	return changes, nil
+}
+
+// describe matches the custos version a run reports: a release, maybe
+// followed by the commits since it (git describe), or "unknown".
+var describe = regexp.MustCompile(`^(\d+\.\d+\.\d+(-\d+-g[0-9a-f]+)?(-dirty)?|unknown)$`)
+
+// adoptResults takes from r, the measurements of a job that ran
+// third-party code, the numbers alone: the corpus and tool of each result
+// must be in cfg, which supplies their repository, tag, label, kind and
+// version. Free text that remains (dates, machine, statuses) is escaped
+// when rendered.
+func adoptResults(cfg *Config, r *Results) error {
+	corpora := map[string]Corpus{}
+	for _, c := range cfg.Corpora {
+		corpora[c.Name] = c
+	}
+	tools := map[string]Tool{}
+	for _, t := range cfg.Tools {
+		tools[t.ID] = t
+	}
+	for i := range r.Corpora {
+		cr := &r.Corpora[i]
+		c, ok := corpora[cr.Name]
+		if !ok {
+			return fmt.Errorf("results: unknown corpus %q", cr.Name)
+		}
+		cr.Repo, cr.Tag = c.Repo, c.Tag
+		for j := range cr.Rows {
+			row := &cr.Rows[j]
+			t, ok := tools[row.ID]
+			if !ok {
+				return fmt.Errorf("results: unknown tool %q", row.ID)
+			}
+			row.Label, row.Kind = t.Label, t.Kind
+			switch {
+			case t.Package != "":
+				row.Version = cfg.Packages[t.Package]
+			case !describe.MatchString(row.Version):
+				return fmt.Errorf("results: custos version %q is not a release", row.Version)
+			}
+		}
+	}
+	return nil
 }

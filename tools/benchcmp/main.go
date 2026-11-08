@@ -43,6 +43,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	toolFilter := fs.String("tool", "", "comma-separated tool IDs (default: all)")
 	corpusFilter := fs.String("corpus", "", "comma-separated corpus names (default: all)")
 	from := fs.String("from", "", "adopt: configuration a benchmark run bumped")
+	resultsFrom := fs.String("results-from", "", "adopt: measurements of that run, written to -results")
 	if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 {
 		fmt.Fprintln(stderr, usage)
 		return 2
@@ -65,6 +66,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 			changes, err := adopt(trusted, measured)
 			if err != nil {
 				return err
+			}
+			if *resultsFrom != "" {
+				data, err := os.ReadFile(*resultsFrom)
+				if err != nil {
+					return err
+				}
+				var r Results
+				if err := json.Unmarshal(data, &r); err != nil {
+					return fmt.Errorf("%s: %w", *resultsFrom, err)
+				}
+				if err := adoptResults(trusted, &r); err != nil {
+					return err
+				}
+				if err := writeJSON(*results, &r); err != nil {
+					return err
+				}
 			}
 			fmt.Fprint(stdout, strings.Join(append(changes, ""), "\n"))
 			return writeJSON(*config, trusted)

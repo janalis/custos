@@ -8,7 +8,8 @@ name: benchmark
 # just moved to, on cloned projects), so it gets a read-only token, keeps no
 # git credentials, sees no secret and writes no Actions cache. It hands the
 # two data files to the publish job, which adopts only the bumped versions
-# and tags (benchcmp adopt refuses any other change), renders the page with
+# and tags and the measured numbers (benchcmp adopt refuses any other
+# change and takes names from the trusted configuration), renders the page with
 # this repository's own code and alone may open the pull request, to be
 # reviewed before it is merged.
 #
@@ -80,9 +81,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      # From the measure job: the versions and tags it measured, checked by
-      # adopt, and the measurements, which render escapes; the page is
-      # rendered here.
+      # From the measure job, adopt takes the versions and tags it measured
+      # and the numbers of its measurements; corpus and tool names come from
+      # the trusted configuration, and render escapes the remaining text.
       - uses: actions/download-artifact@v4
         with:
           name: benchmark
@@ -91,10 +92,11 @@ jobs:
         run: |
           {
             echo "changes<<CHANGES"
-            go run ./tools/benchcmp adopt -from "$RUNNER_TEMP/benchmark/competitors.json"
+            go run ./tools/benchcmp adopt \
+              -from "$RUNNER_TEMP/benchmark/competitors.json" \
+              -results-from "$RUNNER_TEMP/benchmark/results.json"
             echo "CHANGES"
           } >> "$GITHUB_OUTPUT"
-      - run: cp "$RUNNER_TEMP/benchmark/results.json" bench/results.json
       - run: go run ./tools/benchcmp render
       - uses: peter-evans/create-pull-request@v7
         with:
