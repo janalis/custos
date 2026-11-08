@@ -12,6 +12,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   Phan, Mago, PHP_CodeSniffer, PHP-CS-Fixer and Rector on real projects. A
   weekly workflow moves every tool and project to its latest release and
   refreshes the numbers.
+- The benchmark page and the README compare what custos and those tools
+  offer: type checking, taint analysis, automatic fixes, formatting, language
+  server, MCP server, baseline, custom rules and SARIF output, each cell
+  linked to the tool's documentation.
 
 ### Changed
 

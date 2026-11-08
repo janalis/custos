@@ -45,14 +45,14 @@ func golden(t *testing.T, name, got string) {
 }
 
 func TestRender(t *testing.T) {
-	golden(t, "page.md", render(sampleResults()))
+	golden(t, "page.md", render(sampleResults(), sampleFeatures()))
 	r := sampleResults()
 	r.Runner.CPU = "unknown"
 	r.Corpora[0].Rows = append(r.Corpora[0].Rows, Row{ID: "custos-fix", Label: "custos fix", Kind: "fixer", Status: "timeout"})
-	if got := render(r); !strings.Contains(got, "on linux/amd64, 4 cores") || !strings.Contains(got, "| Fixer | fixer | 1.0.0 | 2.00 s | — |") {
+	if got := render(r, nil); strings.Contains(got, "## Features") || !strings.Contains(got, "on linux/amd64, 4 cores") || !strings.Contains(got, "| Fixer | fixer | 1.0.0 | 2.00 s | — |") {
 		t.Errorf("unknown CPU and failed custos fix:\n%s", got)
 	}
-	if got := render(&Results{}); !strings.Contains(got, "No results yet") {
+	if got := render(&Results{}, nil); !strings.Contains(got, "No results yet") {
 		t.Errorf("empty results:\n%s", got)
 	}
 }
@@ -60,17 +60,38 @@ func TestRender(t *testing.T) {
 func TestRenderPage(t *testing.T) {
 	dir := t.TempDir()
 	results, page := filepath.Join(dir, "r.json"), filepath.Join(dir, "p.md")
+	features, readme := filepath.Join(dir, "f.json"), filepath.Join(dir, "README.md")
 	if err := writeJSON(results, sampleResults()); err != nil {
 		t.Fatal(err)
 	}
-	if err := renderPage(results, page); err != nil || read(t, page) != render(sampleResults()) {
+	if err := writeJSON(features, sampleFeatures()); err != nil {
+		t.Fatal(err)
+	}
+	if err := renderPage(results, page, "", ""); err != nil || read(t, page) != render(sampleResults(), nil) {
+		t.Errorf("renderPage without features: %v", err)
+	}
+	if err := renderPage(results, page, features, ""); err != nil || read(t, page) != render(sampleResults(), sampleFeatures()) {
 		t.Errorf("renderPage: %v", err)
 	}
-	if err := renderPage(filepath.Join(dir, "missing.json"), page); err == nil {
-		t.Error("missing results: no error")
+	write(t, readme, "# x\n\n"+readmeStart+"\nold\n"+readmeEnd+"\n\nrest\n")
+	if err := renderPage(results, page, features, readme); err != nil || read(t, readme) != "# x\n\n"+readmeStart+"\n\n"+sampleFeatures().table()+"\n"+readmeEnd+"\n\nrest\n" {
+		t.Errorf("README section: %v\n%s", err, read(t, readme))
+	}
+	for name, args := range map[string][4]string{
+		"missing results":  {filepath.Join(dir, "missing.json"), page, "", ""},
+		"missing features": {results, page, filepath.Join(dir, "missing.json"), ""},
+		"missing readme":   {results, page, features, filepath.Join(dir, "missing.md")},
+	} {
+		if err := renderPage(args[0], args[1], args[2], args[3]); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+	write(t, readme, "no markers\n")
+	if err := renderPage(results, page, features, readme); err == nil || !strings.Contains(err.Error(), "section") {
+		t.Errorf("README without markers: %v", err)
 	}
 	write(t, results, "{")
-	if err := renderPage(results, page); err == nil {
+	if err := renderPage(results, page, "", ""); err == nil {
 		t.Error("bad results: no error")
 	}
 	_ = os.Remove(results)

@@ -34,6 +34,19 @@ Each time is the median of 3 runs.
 | Lint | linter | 1.0.0 | 1.00 s | 2.0× | 30 MB | 7 |
 | Fixer | fixer | 1.0.0 | 2.00 s | — | 50 MB | 3 |
 
+## Features
+
+What each tool offers besides speed. A tool that lacks a feature may still get it
+from a third-party plugin; the table lists what the tool itself provides.
+
+| Feature | [custos](https://example.com/custos) | [Other \| tool](https://example.com/other) |
+| :--- | :---: | :---: |
+| Written in | Go | PHP |
+| Fixes | ✓ `custos fix` | [partial: some &#123;&#123;rules&#125;&#125;](https://example.com/fix) |
+| LSP | ✓ | — |
+
+Checked against each tool's documentation on 2026-11-08; linked cells cite it.
+
 ## Method
 
 - Every tool analyzes the project's source directories with its own configuration

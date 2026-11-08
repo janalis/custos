@@ -71,6 +71,27 @@ Each time is the median of 3 runs.
 | **custos fix** | fixer | 0.1.9-3-g5f3ee89d | 17.2 s | 1.0× | 928 MB | 4617 |
 | Rector | fixer | 2.8.4 | 33.5 s | 1.9× | 3.5 GB | 1325 |
 
+## Features
+
+What each tool offers besides speed. A tool that lacks a feature may still get it
+from a third-party plugin; the table lists what the tool itself provides.
+
+| Feature | [custos](https://janalis.github.io/custos/) | [PHPStan](https://phpstan.org) | [Psalm](https://psalm.dev) | [Phan](https://github.com/phan/phan) | [Mago](https://mago.carthage.software) | [PHP_CodeSniffer](https://github.com/PHPCSStandards/PHP_CodeSniffer) | [PHP-CS-Fixer](https://cs.symfony.com) | [Rector](https://getrector.com) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Written in | Go | PHP | PHP | PHP | Rust | PHP | PHP | PHP |
+| Runs without PHP | [✓](https://janalis.github.io/custos/guide/installation) | — | — | — | ✓ | — | — | — |
+| Type checking | — infers types for its rules | ✓ | ✓ | ✓ | [✓ `analyze`](https://mago.carthage.software/1.59.0/en/tools/analyzer/overview) | — | — | — |
+| Taint analysis | [✓ across files and into vendor/](https://janalis.github.io/custos/guide/cli) | — | [✓ `--taint-analysis`](https://psalm.dev/docs/security_analysis/) | — | [partial: superglobals echoed directly](https://mago.carthage.software/1.59.0/en/tools/linter/rules) | — | — | — |
+| Automatic fixes | [✓ `custos fix`](https://janalis.github.io/custos/guide/cli) | [partial: `--fix`, experimental](https://phpstan.org/user-guide/command-line-usage) | [✓ `psalter`](https://psalm.dev/docs/manipulating_code/fixing/) | [partial: `--automatic-fix`, few issues](https://github.com/phan/phan/blob/6.0.11/src/Phan/CLI.php) | [✓ `--fix`](https://mago.carthage.software/1.59.0/en/fundamentals/shared-reporting-options) | [✓ `phpcbf`](https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki) | ✓ | ✓ |
+| Formatting | — | — | — | — | [✓ `fmt`](https://mago.carthage.software/1.59.0/en/tools/formatter/overview) | ✓ `phpcbf` | ✓ | — |
+| Language server | [✓ `custos lsp`](https://janalis.github.io/custos/guide/editors) | — | [✓](https://psalm.dev/docs/running_psalm/language_server/) | [✓](https://github.com/phan/phan/wiki/Editor-Support) | [— planned](https://mago.carthage.software/1.59.0/en/faq) | — | — | — |
+| MCP server for AI agents | [✓ `custos mcp`](https://janalis.github.io/custos/guide/mcp) | — | — | — | — | — | — | — |
+| Baseline | [✓](https://janalis.github.io/custos/guide/suppressing#baseline) | [✓](https://phpstan.org/user-guide/baseline) | [✓](https://psalm.dev/docs/running_psalm/dealing_with_code_issues/) | [✓](https://github.com/phan/phan/blob/6.0.11/src/Phan/CLI.php) | [✓](https://mago.carthage.software/1.59.0/en/fundamentals/baseline) | — | — | — |
+| Custom rules | — | [✓](https://phpstan.org/developing-extensions/rules) | [✓](https://psalm.dev/docs/running_psalm/plugins/authoring_plugins/) | [✓](https://github.com/phan/phan/tree/6.0.11/.phan/plugins) | [✓](https://mago.carthage.software/1.59.0/en/extensions/overview) | ✓ sniffs | [✓](https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/blob/master/doc/custom_rules.rst) | [✓](https://getrector.com/documentation/custom-rule) |
+| SARIF output | [✓](https://janalis.github.io/custos/guide/cli) | — | [✓](https://psalm.dev/docs/running_psalm/command_line_usage/) | — | [✓](https://mago.carthage.software/1.59.0/en/fundamentals/shared-reporting-options) | — | — | — |
+
+Checked against each tool's documentation on 2026-11-08; linked cells cite it.
+
 ## Method
 
 - Every tool analyzes the project's source directories with its own configuration
