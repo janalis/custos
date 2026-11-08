@@ -36,6 +36,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	custos := fs.String("custos", "bin/custos", "custos binary under test")
 	results := fs.String("results", "bench/results.json", "measurements")
 	page := fs.String("page", "docs/guide/benchmark.md", "generated documentation page")
+	features := fs.String("features", "bench/features.json", "feature comparison (\"\" for none)")
+	readme := fs.String("readme", "README.md", "README whose comparison section render rewrites (\"\" for none)")
 	packagist := fs.String("packagist", "https://repo.packagist.org", "Packagist metadata server")
 	toolFilter := fs.String("tool", "", "comma-separated tool IDs (default: all)")
 	corpusFilter := fs.String("corpus", "", "comma-separated corpus names (default: all)")
@@ -51,7 +53,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	var err error
 	switch sub {
 	case "render":
-		err = renderPage(*results, *page)
+		err = renderPage(*results, *page, *features, *readme)
 	case "bump", "install", "run":
 		err = withConfig(*config, func(c *Config) error {
 			tools, err := selectByName(c.Tools, func(t Tool) string { return t.ID }, *toolFilter)
@@ -106,7 +108,9 @@ func withConfig(path string, f func(*Config) error) error {
 	return f(c)
 }
 
-func renderPage(results, page string) error {
+// renderPage writes the documentation page and, when features is set, the
+// comparison section of readme.
+func renderPage(results, page, features, readme string) error {
 	data, err := os.ReadFile(results)
 	if err != nil {
 		return err
@@ -115,5 +119,28 @@ func renderPage(results, page string) error {
 	if err := json.Unmarshal(data, &r); err != nil {
 		return fmt.Errorf("%s: %w", results, err)
 	}
-	return os.WriteFile(page, []byte(render(&r)), 0o644)
+	var f *Features
+	if features != "" {
+		if f, err = loadFeatures(features); err != nil {
+			return err
+		}
+		if readme != "" {
+			if err := writeReadme(readme, f); err != nil {
+				return err
+			}
+		}
+	}
+	return os.WriteFile(page, []byte(render(&r, f)), 0o644)
+}
+
+func writeReadme(path string, f *Features) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	out, err := spliceReadme(string(data), f.table())
+	if err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	return os.WriteFile(path, []byte(out), 0o644)
 }

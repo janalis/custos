@@ -1,0 +1,414 @@
+{
+  "checked": "2026-11-08",
+  "tools": [
+    {
+      "id": "custos",
+      "label": "custos",
+      "url": "https://janalis.github.io/custos/"
+    },
+    {
+      "id": "phpstan",
+      "label": "PHPStan",
+      "url": "https://phpstan.org"
+    },
+    {
+      "id": "psalm",
+      "label": "Psalm",
+      "url": "https://psalm.dev"
+    },
+    {
+      "id": "phan",
+      "label": "Phan",
+      "url": "https://github.com/phan/phan"
+    },
+    {
+      "id": "mago",
+      "label": "Mago",
+      "url": "https://mago.carthage.software"
+    },
+    {
+      "id": "phpcs",
+      "label": "PHP_CodeSniffer",
+      "url": "https://github.com/PHPCSStandards/PHP_CodeSniffer"
+    },
+    {
+      "id": "phpcsfixer",
+      "label": "PHP-CS-Fixer",
+      "url": "https://cs.symfony.com"
+    },
+    {
+      "id": "rector",
+      "label": "Rector",
+      "url": "https://getrector.com"
+    }
+  ],
+  "features": [
+    {
+      "name": "Written in",
+      "cells": {
+        "custos": {
+          "note": "Go"
+        },
+        "phpstan": {
+          "note": "PHP"
+        },
+        "psalm": {
+          "note": "PHP"
+        },
+        "phan": {
+          "note": "PHP"
+        },
+        "mago": {
+          "note": "Rust"
+        },
+        "phpcs": {
+          "note": "PHP"
+        },
+        "phpcsfixer": {
+          "note": "PHP"
+        },
+        "rector": {
+          "note": "PHP"
+        }
+      }
+    },
+    {
+      "name": "Runs without PHP",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "source": "https://janalis.github.io/custos/guide/installation"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "no"
+        },
+        "phan": {
+          "value": "no"
+        },
+        "mago": {
+          "value": "yes"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "Type checking",
+      "cells": {
+        "custos": {
+          "value": "no",
+          "note": "infers types for its rules"
+        },
+        "phpstan": {
+          "value": "yes"
+        },
+        "psalm": {
+          "value": "yes"
+        },
+        "phan": {
+          "value": "yes"
+        },
+        "mago": {
+          "value": "yes",
+          "note": "`analyze`",
+          "source": "https://mago.carthage.software/1.59.0/en/tools/analyzer/overview"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "Taint analysis",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "note": "across files and into vendor/",
+          "source": "https://janalis.github.io/custos/guide/cli"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "yes",
+          "note": "`--taint-analysis`",
+          "source": "https://psalm.dev/docs/security_analysis/"
+        },
+        "phan": {
+          "value": "no"
+        },
+        "mago": {
+          "value": "partial",
+          "note": "superglobals echoed directly",
+          "source": "https://mago.carthage.software/1.59.0/en/tools/linter/rules"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "Automatic fixes",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "note": "`custos fix`",
+          "source": "https://janalis.github.io/custos/guide/cli"
+        },
+        "phpstan": {
+          "value": "partial",
+          "note": "`--fix`, experimental",
+          "source": "https://phpstan.org/user-guide/command-line-usage"
+        },
+        "psalm": {
+          "value": "yes",
+          "note": "`psalter`",
+          "source": "https://psalm.dev/docs/manipulating_code/fixing/"
+        },
+        "phan": {
+          "value": "partial",
+          "note": "`--automatic-fix`, few issues",
+          "source": "https://github.com/phan/phan/blob/6.0.11/src/Phan/CLI.php"
+        },
+        "mago": {
+          "value": "yes",
+          "note": "`--fix`",
+          "source": "https://mago.carthage.software/1.59.0/en/fundamentals/shared-reporting-options"
+        },
+        "phpcs": {
+          "value": "yes",
+          "note": "`phpcbf`",
+          "source": "https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki"
+        },
+        "phpcsfixer": {
+          "value": "yes"
+        },
+        "rector": {
+          "value": "yes"
+        }
+      }
+    },
+    {
+      "name": "Formatting",
+      "cells": {
+        "custos": {
+          "value": "no"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "no"
+        },
+        "phan": {
+          "value": "no"
+        },
+        "mago": {
+          "value": "yes",
+          "note": "`fmt`",
+          "source": "https://mago.carthage.software/1.59.0/en/tools/formatter/overview"
+        },
+        "phpcs": {
+          "value": "yes",
+          "note": "`phpcbf`"
+        },
+        "phpcsfixer": {
+          "value": "yes"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "Language server",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "note": "`custos lsp`",
+          "source": "https://janalis.github.io/custos/guide/editors"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "yes",
+          "source": "https://psalm.dev/docs/running_psalm/language_server/"
+        },
+        "phan": {
+          "value": "yes",
+          "source": "https://github.com/phan/phan/wiki/Editor-Support"
+        },
+        "mago": {
+          "value": "no",
+          "note": "planned",
+          "source": "https://mago.carthage.software/1.59.0/en/faq"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "MCP server for AI agents",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "note": "`custos mcp`",
+          "source": "https://janalis.github.io/custos/guide/mcp"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "no"
+        },
+        "phan": {
+          "value": "no"
+        },
+        "mago": {
+          "value": "no"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "Baseline",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "source": "https://janalis.github.io/custos/guide/suppressing#baseline"
+        },
+        "phpstan": {
+          "value": "yes",
+          "source": "https://phpstan.org/user-guide/baseline"
+        },
+        "psalm": {
+          "value": "yes",
+          "source": "https://psalm.dev/docs/running_psalm/dealing_with_code_issues/"
+        },
+        "phan": {
+          "value": "yes",
+          "source": "https://github.com/phan/phan/blob/6.0.11/src/Phan/CLI.php"
+        },
+        "mago": {
+          "value": "yes",
+          "source": "https://mago.carthage.software/1.59.0/en/fundamentals/baseline"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "Custom rules",
+      "cells": {
+        "custos": {
+          "value": "no"
+        },
+        "phpstan": {
+          "value": "yes",
+          "source": "https://phpstan.org/developing-extensions/rules"
+        },
+        "psalm": {
+          "value": "yes",
+          "source": "https://psalm.dev/docs/running_psalm/plugins/authoring_plugins/"
+        },
+        "phan": {
+          "value": "yes",
+          "source": "https://github.com/phan/phan/tree/6.0.11/.phan/plugins"
+        },
+        "mago": {
+          "value": "yes",
+          "source": "https://mago.carthage.software/1.59.0/en/extensions/overview"
+        },
+        "phpcs": {
+          "value": "yes",
+          "note": "sniffs"
+        },
+        "phpcsfixer": {
+          "value": "yes",
+          "source": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/blob/master/doc/custom_rules.rst"
+        },
+        "rector": {
+          "value": "yes",
+          "source": "https://getrector.com/documentation/custom-rule"
+        }
+      }
+    },
+    {
+      "name": "SARIF output",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "source": "https://janalis.github.io/custos/guide/cli"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "yes",
+          "source": "https://psalm.dev/docs/running_psalm/command_line_usage/"
+        },
+        "phan": {
+          "value": "no"
+        },
+        "mago": {
+          "value": "yes",
+          "source": "https://mago.carthage.software/1.59.0/en/fundamentals/shared-reporting-options"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    }
+  ]
+}

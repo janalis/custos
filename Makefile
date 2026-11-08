@@ -65,7 +65,8 @@ compare: build
 	$(GO) run ./tools/benchcmp run -tool "$(TOOL)" -corpus "$(CORPUS)" -results $(BENCH_RESULTS)
 	$(GO) run ./tools/benchcmp render -results $(BENCH_RESULTS) $(if $(TOOL)$(CORPUS),-page .cache/bench/benchmark.md)
 
-# Regenerate docs/guide/benchmark.md from bench/results.json.
+# Regenerate docs/guide/benchmark.md from bench/results.json and the README
+# comparison from bench/features.json.
 compare-doc:
 	$(GO) run ./tools/benchcmp render
 

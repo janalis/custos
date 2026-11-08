@@ -44,6 +44,7 @@ func project(t *testing.T) (string, []string) {
 		"-custos", filepath.Join(fakeBin(t, "custos"), "custos"),
 		"-results", filepath.Join(dir, "results.json"),
 		"-page", filepath.Join(dir, "page.md"),
+		"-features", "",
 		"-packagist", "http://127.0.0.1:0",
 	}
 }
