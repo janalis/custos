@@ -140,7 +140,7 @@ func withConfig(path string, f func(*Config) error) error {
 	return f(c)
 }
 
-// renderPage writes the documentation page and, when features is set, the
+// renderPage writes the documentation page and, when readme is set, the
 // comparison section of readme.
 func renderPage(results, page, features, readme string) error {
 	data, err := os.ReadFile(results)
@@ -156,21 +156,21 @@ func renderPage(results, page, features, readme string) error {
 		if f, err = loadFeatures(features); err != nil {
 			return err
 		}
-		if readme != "" {
-			if err := writeReadme(readme, f); err != nil {
-				return err
-			}
+	}
+	if readme != "" {
+		if err := writeReadme(readme, &r, f); err != nil {
+			return err
 		}
 	}
 	return os.WriteFile(page, []byte(render(&r, f)), 0o644)
 }
 
-func writeReadme(path string, f *Features) error {
+func writeReadme(path string, r *Results, f *Features) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	out, err := spliceReadme(string(data), f.table())
+	out, err := spliceReadme(string(data), readmeSection(r, f))
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}

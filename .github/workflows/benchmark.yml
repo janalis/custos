@@ -2,7 +2,7 @@ name: benchmark
 # Every Monday, and on demand: move the benchmarked tools and projects to
 # their latest release (bench/competitors.json), measure custos against them
 # and open (or update) a pull request with the new numbers
-# (bench/results.json, docs/guide/benchmark.md).
+# (bench/results.json, docs/guide/benchmark.md, the README comparison).
 #
 # The measure job runs third-party code (the tools, at versions bump may have
 # just moved to, on cloned projects), so it gets a read-only token, keeps no
@@ -111,6 +111,7 @@ jobs:
             bench/competitors.json
             bench/results.json
             docs/guide/benchmark.md
+            README.md
           commit-message: Update competitor benchmark
           title: Update competitor benchmark
           body: |
