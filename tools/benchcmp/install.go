@@ -26,7 +26,10 @@ func (b *bench) install(tools []Tool, corpora []Corpus, log io.Writer) error {
 		version := b.cfg.Packages[pkg]
 		dir := b.packageDir(pkg)
 		if err := b.fresh(dir, version, log, func() error {
-			return sh(log, dir, "composer", "require", "--no-interaction", "--no-progress", pkg+":"+version)
+			// No package script or plugin runs: tools are only executed
+			// when measured.
+			return sh(log, dir, "composer", "require", "--no-interaction", "--no-progress",
+				"--no-scripts", "--no-plugins", pkg+":"+version)
 		}); err != nil {
 			return fmt.Errorf("%s: %w", pkg, err)
 		}
