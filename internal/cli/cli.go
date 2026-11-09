@@ -20,7 +20,8 @@ Usage:
   custos lsp                          run the language server (stdio)
   custos rules [--json]               list rules
   custos explain <rule>               describe a rule
-  custos self-update [--check]        update custos to the latest release
+  custos self-update [--check] [--version X.Y.Z]
+                                      update custos to the latest release
   custos version                      print version
 
 Run "custos <command> -h" for command flags.

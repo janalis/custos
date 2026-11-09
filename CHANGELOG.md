@@ -13,8 +13,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   it against `SHA256SUMS`. `--check` only reports whether a release is out.
 - `analyse` and `fix` print a one-line notice when a newer release exists.
   They check at most once a day, while the command runs (waiting at most a
-  second for it), and only when stderr is a terminal. The check is skipped in CI and when `CUSTOS_NO_UPDATE_CHECK`
-  is set.
+  second for it), and only when stderr is a terminal. The check is skipped
+  in CI and when `CUSTOS_NO_UPDATE_CHECK` is set.
 
 ### Changed
 
