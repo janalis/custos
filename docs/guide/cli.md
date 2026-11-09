@@ -7,6 +7,7 @@ custos explain <rule>               # describe a rule and its options
 custos rules [--json]               # list rules
 custos lsp                          # language server over stdio
 custos mcp [flags]                  # MCP server for AI agents (stdio or HTTP)
+custos self-update [--check]        # update to the latest release
 custos version
 ```
 
@@ -193,12 +194,23 @@ only transport; `--stdio` is accepted for clients that always pass it. See
 
 `mcp` takes flags only, no paths.
 
+## self-update
+
+`custos self-update` updates custos the way it was installed. See
+[Updating](./installation#updating) for how each install is handled and
+for the notice that `analyse` and `fix` print when a release is out.
+
+| Flag | Meaning |
+|---|---|
+| `--check` | Only report whether a newer release exists; exit 1 when one does. |
+| `--version X.Y.Z` | Install this release instead of the latest, including an older one. Release binaries only. |
+
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | `0` | Success; no finding at or above `--fail-on`. |
-| `1` | Findings at or above `--fail-on`. |
-| `2` | Usage error (including no or an unknown command), [configuration](./configuration#validation) error, or files `fix` could not process. |
+| `1` | Findings at or above `--fail-on`; with `self-update --check`, a newer release exists. |
+| `2` | Usage error (including no or an unknown command), [configuration](./configuration#validation) error, files `fix` could not process, or a failed update. |
 
 `--fail-on` only applies to `analyse`.

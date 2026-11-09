@@ -59,7 +59,7 @@ func TestComposerMCPWorkspace(t *testing.T) {
 				t.Fatal(err)
 			}
 			fake := filepath.Join(t.TempDir(), "binary")
-			if err := os.WriteFile(fake, []byte("#!/usr/bin/env php\n<?php echo json_encode(['root'=>getenv('CUSTOS_COMPOSER_ROOT'),'cwd'=>getcwd(),'args'=>array_slice($argv,1)]);"), 0o700); err != nil {
+			if err := os.WriteFile(fake, []byte("#!/usr/bin/env php\n<?php echo json_encode(['install'=>getenv('CUSTOS_INSTALL'),'root'=>getenv('CUSTOS_COMPOSER_ROOT'),'cwd'=>getcwd(),'args'=>array_slice($argv,1)]);"), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			nested := filepath.Join(root, "src/deep")
@@ -71,7 +71,7 @@ func TestComposerMCPWorkspace(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				for _, command := range []string{"mcp", "version"} {
+				for _, command := range []string{"mcp", "self-update", "version"} {
 					cmd := exec.Command(php, proxy, command)
 					cmd.Dir = cwd
 					cmd.Env = append(os.Environ(), "CUSTOS_BINARY="+fake, "CUSTOS_COMPOSER_ROOT=old")
@@ -83,14 +83,15 @@ func TestComposerMCPWorkspace(t *testing.T) {
 						t.Fatal(err)
 					}
 					var result struct {
-						Root any
-						Cwd  string
-						Args []string
+						Install string
+						Root    any
+						Cwd     string
+						Args    []string
 					}
 					if err := json.Unmarshal(output, &result); err != nil {
 						t.Fatal(string(output), err)
 					}
-					if result.Cwd != cwd || len(result.Args) != 1 || result.Args[0] != command {
+					if result.Install != "composer" || result.Cwd != cwd || len(result.Args) != 1 || result.Args[0] != command {
 						t.Fatal(result)
 					}
 					want := any(root)

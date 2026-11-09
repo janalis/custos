@@ -20,6 +20,7 @@ Usage:
   custos lsp                          run the language server (stdio)
   custos rules [--json]               list rules
   custos explain <rule>               describe a rule
+  custos self-update [--check]        update custos to the latest release
   custos version                      print version
 
 Run "custos <command> -h" for command flags.
@@ -45,9 +46,15 @@ func Run(version string, args []string, stdin io.Reader, stdout, stderr io.Write
 	code := 0
 	switch args[0] {
 	case "analyse", "analyze":
+		notice := startUpdateNotice(version, stderr)
 		code, err = cmdAnalyse(args[1:], stdout, stderr)
+		notice.finish(stderr)
 	case "fix":
+		notice := startUpdateNotice(version, stderr)
 		code, err = cmdFix(args[1:], stdout, stderr)
+		notice.finish(stderr)
+	case "self-update":
+		code, err = cmdSelfUpdate(version, args[1:], stdout, stderr)
 	case "rules":
 		err = cmdRules(args[1:], stdout, stderr)
 	case "explain":

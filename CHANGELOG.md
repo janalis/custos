@@ -5,6 +5,17 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `custos self-update` updates custos the way it was installed: it runs
+  `brew upgrade` for Homebrew, `composer update janalis/custos` for the
+  Composer package, and replaces a downloaded release binary after checking
+  it against `SHA256SUMS`. `--check` only reports whether a release is out.
+- `analyse` and `fix` print a one-line notice when a newer release exists.
+  They check at most once a day, while the command runs (waiting at most a
+  second for it), and only when stderr is a terminal. The check is skipped in CI and when `CUSTOS_NO_UPDATE_CHECK`
+  is set.
+
 ### Changed
 
 - The README shows the time and peak memory of custos and the other tools

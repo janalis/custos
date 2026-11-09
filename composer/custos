@@ -6,6 +6,9 @@
 //
 //   CUSTOS_BINARY        run this binary instead (no download)
 //   CUSTOS_DOWNLOAD_URL  base URL or directory holding the release assets
+//
+// The binary runs with CUSTOS_INSTALL=composer so that `custos self-update`
+// runs `composer update janalis/custos` in the consuming project.
 
 namespace Custos\Launcher;
 
@@ -154,8 +157,11 @@ if (!$bin) {
         install($bin);
     }
 }
-// Only MCP consumes this hint; preserve cwd and all other command behavior.
-if (($_SERVER['argv'][1] ?? '') === 'mcp') {
+// self-update runs Composer rather than replacing the binary it manages.
+putenv('CUSTOS_INSTALL=composer');
+// Only MCP and self-update consume this hint; preserve cwd and all other
+// command behavior.
+if (in_array($_SERVER['argv'][1] ?? '', ['mcp', 'self-update'], true)) {
     $projectRoot = consumingRoot(realpath(preg_replace('{^phpvfscomposer://}', '', __FILE__)) ?: __FILE__);
     putenv($projectRoot === null ? 'CUSTOS_COMPOSER_ROOT' : 'CUSTOS_COMPOSER_ROOT=' . $projectRoot);
 }
