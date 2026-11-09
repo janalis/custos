@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-11-09
+
 ### Added
 
 - `custos self-update` updates custos the way it was installed: it runs
@@ -528,7 +530,8 @@ First public release.
   stay inside the project; `custos fix` never writes through symlinks; the
   language server rejects malformed or oversized messages.
 
-[Unreleased]: https://github.com/janalis/custos/compare/v0.1.10...HEAD
+[Unreleased]: https://github.com/janalis/custos/compare/v0.1.11...HEAD
+[0.1.11]: https://github.com/janalis/custos/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/janalis/custos/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/janalis/custos/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/janalis/custos/compare/v0.1.7...v0.1.8
