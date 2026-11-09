@@ -5,8 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"testing"
 )
+
+// launcherVersion finds the release the Composer launcher is pinned to.
+var launcherVersion = regexp.MustCompile(`const VERSION = '([^']+)'`)
 
 func TestComposerMCPWorkspace(t *testing.T) {
 	php, err := exec.LookPath("php")
@@ -58,8 +62,17 @@ func TestComposerMCPWorkspace(t *testing.T) {
 			if err := os.WriteFile(proxy, []byte(proxyCode), 0o600); err != nil {
 				t.Fatal(err)
 			}
+			// The managed binary the launcher would download, and a
+			// CUSTOS_BINARY override: both report what they were given.
+			managed := filepath.Join(target, "composer/.bin/custos-"+string(launcherVersion.FindSubmatch(launcher)[1]))
 			fake := filepath.Join(t.TempDir(), "binary")
-			if err := os.WriteFile(fake, []byte("#!/usr/bin/env php\n<?php echo json_encode(['root'=>getenv('CUSTOS_COMPOSER_ROOT'),'cwd'=>getcwd(),'args'=>array_slice($argv,1)]);"), 0o700); err != nil {
+			if err := os.MkdirAll(filepath.Dir(managed), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(fake, []byte("#!/usr/bin/env php\n<?php echo json_encode(['install'=>getenv('CUSTOS_INSTALL'),'root'=>getenv('CUSTOS_COMPOSER_ROOT'),'cwd'=>getcwd(),'args'=>array_slice($argv,1)]);"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Link(fake, managed); err != nil {
 				t.Fatal(err)
 			}
 			nested := filepath.Join(root, "src/deep")
@@ -71,10 +84,16 @@ func TestComposerMCPWorkspace(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				for _, command := range []string{"mcp", "version"} {
+				for i, command := range []string{"mcp", "self-update", "version", "self-update"} {
+					override := i == 3
 					cmd := exec.Command(php, proxy, command)
 					cmd.Dir = cwd
-					cmd.Env = append(os.Environ(), "CUSTOS_BINARY="+fake, "CUSTOS_COMPOSER_ROOT=old")
+					cmd.Env = append(os.Environ(), "CUSTOS_INSTALL=", "CUSTOS_COMPOSER_ROOT=old")
+					if override {
+						cmd.Env = append(cmd.Env, "CUSTOS_BINARY="+fake)
+					} else {
+						cmd.Env = append(cmd.Env, "CUSTOS_BINARY=")
+					}
 					if tc.global {
 						cmd.Env = append(cmd.Env, "COMPOSER_HOME="+root)
 					}
@@ -83,14 +102,20 @@ func TestComposerMCPWorkspace(t *testing.T) {
 						t.Fatal(err)
 					}
 					var result struct {
-						Root any
-						Cwd  string
-						Args []string
+						Install string
+						Root    any
+						Cwd     string
+						Args    []string
 					}
 					if err := json.Unmarshal(output, &result); err != nil {
 						t.Fatal(string(output), err)
 					}
-					if result.Cwd != cwd || len(result.Args) != 1 || result.Args[0] != command {
+					// Only the binary the launcher manages is updated through Composer.
+					wantInstall := "composer"
+					if override {
+						wantInstall = ""
+					}
+					if result.Install != wantInstall || result.Cwd != cwd || len(result.Args) != 1 || result.Args[0] != command {
 						t.Fatal(result)
 					}
 					want := any(root)

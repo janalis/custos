@@ -52,6 +52,29 @@ cd custos
 make build          # → bin/custos
 ```
 
+## Updating
+
+`custos self-update` updates custos the way it was installed:
+
+| Install | What `self-update` does |
+|---|---|
+| Homebrew | Runs `brew upgrade janalis/tap/custos`. |
+| Composer | Runs `composer update janalis/custos` in the project requiring custos. The constraint in `composer.json` still applies: to move past it, run `composer require --dev janalis/custos:^X.Y.Z`. A `CUSTOS_BINARY` override is updated the way that binary was installed instead. |
+| Release download | Downloads the bare binary of the latest release, checks it against `SHA256SUMS` and replaces the running binary. `CUSTOS_DOWNLOAD_URL` and `HTTPS_PROXY` apply as for Composer. The binary's directory must be writable. |
+| From source | Refuses: pull and rebuild. |
+
+`custos self-update --check` only reports whether a newer release exists
+and exits 1 when one does.
+
+When stderr is a terminal, `analyse` and `fix` print a one-line notice
+after their output when a newer release exists, with the command that
+updates your install. They look the latest release up at most once a day,
+while the command runs (a command that finishes first waits for it at most
+one second), and keep the answer in the [cache directory](./cli#paths). The
+check is skipped when `CI` is set, for development builds, and when
+`CUSTOS_NO_UPDATE_CHECK` is set to any value. The language server and the
+MCP server never check.
+
 ## Check the installation
 
 ```sh

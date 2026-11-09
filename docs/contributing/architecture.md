@@ -28,6 +28,7 @@ summarize the same responsibilities.
 | `internal/editor/mcp` | MCP tools, transports, authorization, checkpoints, prepared plan lifecycle and confined writes. |
 | `internal/editor/lsp` | Transport dispatch, settings, workspace indexing, documents, diagnostics and code actions. |
 | `internal/platform/safeio` | Bounded filesystem primitives. |
+| `internal/platform/selfupdate` | Release lookup, install-method detection, the saved update check and checksum-verified replacement of a release binary. |
 | `internal/testing` | Conformance harness and load-scaled test budgets. |
 | `tools` | Generators, architecture enforcement, coverage and clean-room checks. |
 
