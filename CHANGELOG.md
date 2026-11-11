@@ -12,7 +12,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   is complete: Composer's packages all installed and indexed, every
   required `ext-*` described by the stubs, and nothing the analysis skips
   (excluded, hidden or vendor test directories, files too large to
-  analyse) able to declare the name. Existence, extension and version
+  analyze) able to declare the name. Existence, extension and version
   checks guarding the code, early exits included, keep them silent, and
   the language server follows `composer.json` and `installed.json`
   changes.
@@ -28,14 +28,6 @@ versions follow [Semantic Versioning](https://semver.org/).
   than a PHP function or method declares. Overrides in subtypes that accept
   the call, unpacked or unknown named arguments, magic methods and, before
   PHP 8.0, PHP's own functions are left alone.
-- `UndefinedFunction` and `UndefinedClass` (off by default) report a
-  function, or a class loaded by `new`, a static access, `extends`,
-  `implements` or `use`, that neither the project, its installed Composer
-  packages nor PHP declares. They report only when every package the project
-  requires, requires for development or suggests is installed and indexed,
-  and skip names guarded by existence or version checks, names of
-  extensions the stubs lack, and names PHP does not load (`instanceof`,
-  `catch`, types, `::class`, attributes).
 - `--parse-once` (or `"parseOnce": true` in `custos.json`) parses each
   analysed file once and keeps its syntax tree from indexing until its
   analysis, instead of parsing it again in each phase. On laravel's `src`
