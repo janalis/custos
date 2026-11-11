@@ -2,6 +2,7 @@ package catalogue
 
 import (
 	"context"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,8 +29,13 @@ import (
 // fixtures.
 func FuzzRules(f *testing.F) {
 	seeds, _ := filepath.Glob("../rules/*/testdata/*.php")
-	for i, p := range seeds {
-		if i%3 != 0 { // keep the seed corpus small
+	for _, p := range seeds {
+		// Keep the seed corpus small. A third of the fixtures is chosen by a
+		// hash of their path, not their rank, so a fixture added elsewhere
+		// does not change which ones run (and what they cover).
+		h := fnv.New32a()
+		h.Write([]byte(filepath.ToSlash(p)))
+		if h.Sum32()%3 != 0 {
 			continue
 		}
 		if b, err := os.ReadFile(p); err == nil && len(b) < 4096 {
