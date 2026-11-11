@@ -106,9 +106,10 @@ func (p *Project) prepare(keepTrees bool) (engine *analysis.Engine, sources [][]
 			cache.fingerprint(len(php))
 		}
 	}
-	indexed := IndexSources(p.Options.Root, php, scope, p.Options.Exclude)
-	ix, read, parsed := buildIndex(indexed, len(php), p.Options.Parse, inferOpt, cache, keepTrees)
-	ix.SetWorld(ComposerWorld(p.Options.Root, scope, indexed))
+	indexed, skipped := IndexSourcesSkipping(p.Options.Root, php, scope, p.Options.Exclude)
+	ix, read, parsed, unread := buildIndex(indexed, len(php), p.Options.Parse, inferOpt, cache, keepTrees)
+	skipped.Files = append(skipped.Files, unread...)
+	ix.SetWorld(ComposerWorld(p.Options.Root, scope, indexed, skipped))
 	ix.Freeze()
 	engine = engine.WithIndex(ix)
 	if engine.NeedsFlow() {

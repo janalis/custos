@@ -31,9 +31,10 @@ unless every Composer dependency is installed.
   `composer.json` and the vendor directory's `composer/installed.json`
   exist; every package the project requires, suggests or requires for
   development is installed (or replaced or provided by an installed
-  package); every installed package that autoloads code was indexed; and
-  every classmap and files entry of the project's own autoload
-  configuration lies under the analysed paths.
+  package); every installed package that autoloads code was indexed; every
+  classmap entry, of the project or of a package, was read whole (under
+  the analysed paths, with no directory or loadable file left out); and
+  every files entry was read.
 
 ## Exceptions (no report)
 
@@ -46,8 +47,12 @@ unless every Composer dependency is installed.
   existence, a loaded extension, a constant's definition or the PHP version
   (a conditional declaration or guarded code).
 - E3. A namespaced name in a namespace that a PHP extension uses (such as
-  `MongoDB\` or `Swoole\`), and a name under a PSR-4 or PSR-0 prefix that
-  the project autoloads from a directory outside the analysed paths.
+  `MongoDB\` or `Swoole\`), and a name under a PSR-4 or PSR-0 prefix whose
+  code the analysis did not read: a directory outside the analysed paths,
+  or, below it, a directory or a file left out (excluded by the
+  configuration, hidden, a test directory of a package, or too large to
+  analyse). Below a PSR-4 directory only the namespace of what was left
+  out is concerned.
 - E4. A global name when an indexed file calls `class_alias()` with computed
   names, which may declare any global alias (framework facades).
 - E5. Names PHP does not load: `instanceof` and `catch` (they compare

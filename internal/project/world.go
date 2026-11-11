@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"custos/internal/platform/safeio"
@@ -13,9 +14,10 @@ import (
 
 // ComposerWorld derives what the index knows of the project's world (see
 // index.World) from Composer's metadata under root. scope lists the project
-// directories whose PHP files are indexed and indexed the files of the
-// index (paths absolute or relative to the working directory).
-func ComposerWorld(root string, scope, indexed []string) index.World {
+// directories whose PHP files are indexed, indexed the files of the index
+// and skipped what the walks and the indexing left out (paths absolute or
+// relative to the working directory).
+func ComposerWorld(root string, scope, indexed []string, skipped Skipped) index.World {
 	// Abs fails only when the working directory is gone; Rel then fails
 	// for every path and the world stays incomplete.
 	absRoot, _ := filepath.Abs(root)
@@ -32,7 +34,7 @@ func ComposerWorld(root string, scope, indexed []string) index.World {
 	read := func(name string) ([]byte, error) {
 		return safeio.ReadFile(filepath.Join(absRoot, filepath.FromSlash(name)), 4*config.MaxFileSize)
 	}
-	return composerWorld(read, rel(scope), rel(indexed))
+	return composerWorld(read, rel(scope), rel(indexed), Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
 }
 
 // composerManifest is the part of composer.json and of an installed
@@ -80,13 +82,14 @@ func dirs(raw json.RawMessage) []string {
 // requires, development ones included, is installed (or replaced or
 // provided by an installed one), every installed package that autoloads
 // code has indexed files, every package the project suggests is
-// installed, and every classmap and files entry of the
-// project's autoload configuration lies in scope. Without the development
+// installed, every classmap entry of the project and of the packages was
+// walked whole and every files entry was indexed. Without the development
 // packages, production code may still name them (tool extensions, optional
 // integrations), so the world is not complete. PSR-4 and PSR-0 prefixes
-// whose directories are out of scope (or excluded from the vendor walk)
-// are blind.
-func composerWorld(read func(string) ([]byte, error), scope, indexed []string) index.World {
+// whose directories are out of scope, or lie in a directory the walks
+// skipped, are blind; below a PSR-4 directory, so are the namespaces of
+// the directories that hold what the walks or the indexing left out.
+func composerWorld(read func(string) ([]byte, error), scope, indexed []string, skipped Skipped) index.World {
 	b, err := read("composer.json")
 	if err != nil {
 		return index.World{}
@@ -135,9 +138,9 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string) i
 			files[d] = true
 		}
 	}
+	g := newGaps(indexed, skipped)
 	w := index.World{Complete: true}
 	inScope := func(p string) bool {
-		p = path.Clean(p)
 		for _, s := range scope {
 			s = path.Clean(s)
 			if s == "." || p == s || strings.HasPrefix(p, s+"/") {
@@ -146,27 +149,59 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string) i
 		}
 		return false
 	}
-	// The project's own autoload configuration.
-	for _, a := range []composerAutoload{root.Autoload, root.AutoloadDev} {
-		for _, mapping := range []map[string]json.RawMessage{a.PSR4, a.PSR0} {
+	// autoload adds the blind prefixes of a, whose paths are relative to
+	// dir, and reports whether the world stays complete. For the project's
+	// own configuration (own), out of scope counts as skipped.
+	autoload := func(a composerAutoload, dir string, own bool) bool {
+		for _, psr4 := range []bool{true, false} {
+			mapping := a.PSR4
+			if !psr4 {
+				mapping = a.PSR0
+			}
 			for prefix, raw := range mapping {
 				for _, d := range dirs(raw) {
-					if inScope(d) {
+					d = path.Join(dir, d)
+					var blind []string
+					if own && !inScope(d) || g.within(d) {
+						blind = []string{""}
+					} else {
+						blind = g.psr(d)
+					}
+					if len(blind) == 0 {
 						continue
 					}
 					// A fallback directory or a PSR-0 prefix of class names
 					// may hold any name.
 					if prefix == "" || !strings.HasSuffix(prefix, `\`) {
-						return index.World{}
+						return false
 					}
-					w.Blind = append(w.Blind, strings.ToLower(prefix))
+					for _, sub := range blind {
+						if !psr4 {
+							sub = "" // PSR-0 maps underscores to directories too
+						}
+						w.Blind = append(w.Blind, strings.ToLower(prefix+sub))
+					}
 				}
 			}
 		}
-		for _, p := range append(append([]string{}, a.Classmap...), a.Files...) {
-			if !inScope(p) {
-				return index.World{}
+		for _, p := range a.Classmap {
+			p = path.Join(dir, p)
+			if own && !inScope(p) || g.within(p) || g.holds(p) {
+				return false
 			}
+		}
+		for _, p := range a.Files {
+			// Only what was indexed (and read) can be seen.
+			if p = path.Join(dir, p); !g.indexed[p] || g.file[p] {
+				return false
+			}
+		}
+		return true
+	}
+	// The project's own autoload configuration.
+	for _, a := range []composerAutoload{root.Autoload, root.AutoloadDev} {
+		if !autoload(a, ".", true) {
+			return index.World{}
 		}
 	}
 	// Installed packages: each that autoloads code must have been indexed.
@@ -178,39 +213,98 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string) i
 		if p.InstallPath != "" {
 			dir = path.Join(vendor, "composer", p.InstallPath)
 		}
-		if !files[dir] {
+		if !files[dir] || !autoload(p.Autoload, dir, false) {
 			return index.World{}
-		}
-		// The vendor walk leaves test directories out.
-		for _, mapping := range []map[string]json.RawMessage{p.Autoload.PSR4, p.Autoload.PSR0} {
-			for prefix, raw := range mapping {
-				for _, d := range dirs(raw) {
-					if !testDir(d) {
-						continue
-					}
-					if prefix == "" || !strings.HasSuffix(prefix, `\`) {
-						return index.World{}
-					}
-					w.Blind = append(w.Blind, strings.ToLower(prefix))
-				}
-			}
-		}
-		for _, p := range append(append([]string{}, p.Autoload.Classmap...), p.Autoload.Files...) {
-			if testDir(p) {
-				return index.World{}
-			}
 		}
 	}
 	return w
 }
 
-// testDir reports whether a package path crosses a directory the vendor
-// walk skips.
-func testDir(p string) bool {
-	for _, part := range strings.Split(path.Clean(p), "/") {
-		if part == "tests" || part == "Tests" || part == "test" {
+// gaps answers where the walks for the index left something out (paths
+// relative to the project root, slash-separated and clean).
+type gaps struct {
+	indexed, dir, file map[string]bool
+	// dirs and files list the skipped directories and files, sorted.
+	dirs, files []string
+}
+
+func newGaps(indexed []string, skipped Skipped) *gaps {
+	g := &gaps{indexed: map[string]bool{}, dir: map[string]bool{}, file: map[string]bool{}}
+	for _, f := range indexed {
+		g.indexed[path.Clean(f)] = true
+	}
+	for _, d := range skipped.Dirs {
+		d = path.Clean(d)
+		g.dir[d] = true
+		g.dirs = append(g.dirs, d)
+	}
+	for _, f := range skipped.Files {
+		f = path.Clean(f)
+		g.file[f] = true
+		g.files = append(g.files, f)
+	}
+	sort.Strings(g.dirs)
+	sort.Strings(g.files)
+	return g
+}
+
+// within reports whether p (clean) is, or lies in, a skipped directory.
+func (g *gaps) within(p string) bool {
+	for {
+		if g.dir[p] {
 			return true
 		}
+		parent := path.Dir(p)
+		if parent == p || p == "." {
+			return false
+		}
+		p = parent
 	}
-	return false
+}
+
+// under returns the skipped directories and files strictly below p
+// (clean), and the prefix their paths share.
+func (g *gaps) under(p string) (dirs, files []string, prefix string) {
+	prefix = p + "/"
+	if p == "." {
+		prefix = ""
+	}
+	span := func(list []string) []string {
+		i := sort.SearchStrings(list, prefix)
+		j := i
+		for j < len(list) && strings.HasPrefix(list[j], prefix) {
+			j++
+		}
+		return list[i:j]
+	}
+	return span(g.dirs), span(g.files), prefix
+}
+
+// holds reports whether the classmap entry p (clean) is, or holds, a
+// skipped file or directory.
+func (g *gaps) holds(p string) bool {
+	dirs, files, _ := g.under(p)
+	return g.file[p] || len(dirs)+len(files) > 0
+}
+
+// psr returns the name prefixes, relative to the namespace a PSR directory
+// p (clean) maps, that may name what the walks left out below it: for a
+// skipped directory, its path with backslashes and a trailing one; for a
+// skipped file a PSR autoloader can load (*.php or *.hh named after a
+// class), its path without the extension.
+func (g *gaps) psr(p string) []string {
+	dirs, files, prefix := g.under(p)
+	ns := func(rel string) string { return strings.ReplaceAll(strings.TrimPrefix(rel, prefix), "/", `\`) }
+	var out []string
+	for _, d := range dirs {
+		out = append(out, ns(d)+`\`)
+	}
+	for _, f := range files {
+		ext := path.Ext(f)
+		name := strings.TrimSuffix(f, ext)
+		if (ext == ".php" || ext == ".hh") && !strings.Contains(path.Base(name), ".") {
+			out = append(out, ns(name))
+		}
+	}
+	return out
 }

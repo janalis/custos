@@ -22,37 +22,67 @@ import (
 // Each file appears once, so a project path that holds vendor adds nothing
 // twice.
 func IndexSources(root string, files, paths, exclude []string) []string {
+	out, _ := IndexSourcesSkipping(root, files, paths, exclude)
+	return out
+}
+
+// IndexSourcesSkipping is IndexSources also returning what the walks left
+// out (see Skipped): a path they could not walk counts as a skipped
+// directory, the vendor directory never does for the project walk (the
+// vendor walk covers it).
+func IndexSourcesSkipping(root string, files, paths, exclude []string) ([]string, Skipped) {
 	out := append([]string(nil), files...)
 	seen := make(map[string]bool, len(files))
 	for _, f := range files {
 		seen[absolute(f)] = true
 	}
+	var skipped Skipped
 	vendor := filepath.Join(root, vendorDir(root))
-	add := func(found []string, skip ...string) {
-	next:
+	vendorAbs := absolute(vendor)
+	under := func(p, dir string) bool {
+		return p == dir || strings.HasPrefix(p, dir+string(filepath.Separator))
+	}
+	add := func(found []string, skip string) (dropped bool) {
 		for _, f := range found {
 			key := absolute(f)
-			for _, dir := range skip {
-				if strings.HasPrefix(key, dir+string(filepath.Separator)) {
-					continue next
-				}
+			if under(key, skip) {
+				dropped = true
+				continue
 			}
 			if !seen[key] {
 				seen[key] = true
 				out = append(out, f)
 			}
 		}
+		return dropped
 	}
 	// Vendor files are left to the vendor walk and its policy.
-	if own, err := Discover(paths, exclude); err == nil {
-		add(own, absolute(vendor))
+	var own Skipped
+	if found, err := discoverSkipping(paths, exclude, nil, &own); err == nil {
+		add(found, vendorAbs)
+		for _, d := range own.Dirs {
+			if !under(absolute(d), vendorAbs) {
+				skipped.Dirs = append(skipped.Dirs, d)
+			}
+		}
+		for _, f := range own.Files {
+			if !under(absolute(f), vendorAbs) {
+				skipped.Files = append(skipped.Files, f)
+			}
+		}
+	} else {
+		skipped.Dirs = append(skipped.Dirs, paths...)
 	}
 	if st, err := os.Stat(vendor); err == nil && st.IsDir() {
-		if vf, err := Discover([]string{vendor}, append([]string{"node_modules", "tests", "Tests", "test"}, exclude...)); err == nil {
-			add(vf, absolute(filepath.Join(vendor, "janalis", "custos")))
+		if vf, err := discoverSkipping([]string{vendor}, append([]string{"node_modules", "tests", "Tests", "test"}, exclude...), nil, &skipped); err == nil {
+			if self := filepath.Join(vendor, "janalis", "custos"); add(vf, absolute(self)) {
+				skipped.Dirs = append(skipped.Dirs, self)
+			}
+		} else {
+			skipped.Dirs = append(skipped.Dirs, vendor)
 		}
 	}
-	return out
+	return out, skipped
 }
 
 // absolute is path made absolute and clean, to compare listed files.
@@ -113,13 +143,22 @@ func BuildIndexKeep(files []string, keep int, opt syntax.Options, options infer.
 // files past keep from cache while they are unchanged, records the others
 // in it, and saves it.
 func BuildIndexCached(files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache) (*index.Index, [][]byte) {
-	ix, srcs, _ := buildIndex(files, keep, opt, options, cache, false)
+	ix, srcs, _, _ := buildIndex(files, keep, opt, options, cache, false)
 	return ix, srcs
 }
 
+// BuildIndexUnread is BuildIndexCached keeping no source and also returning
+// the files whose declarations it could not read (unreadable, too large or
+// crashing the extraction).
+func BuildIndexUnread(files []string, opt syntax.Options, options infer.Options, cache *SymbolCache) (*index.Index, []string) {
+	ix, _, _, unread := buildIndex(files, 0, opt, options, cache, false)
+	return ix, unread
+}
+
 // buildIndex is BuildIndexCached also returning, with keepTrees, the syntax
-// trees of the first keep files (nil where unread or crashed).
-func buildIndex(files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache, keepTrees bool) (*index.Index, [][]byte, []*syntax.File) {
+// trees of the first keep files (nil where unread or crashed), and the
+// files whose declarations it could not read.
+func buildIndex(files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache, keepTrees bool) (*index.Index, [][]byte, []*syntax.File, []string) {
 	ix := index.New(stubs.Index())
 	ix.DeferTypeAliases()
 	results := make([]*index.FileSymbols, len(files))
@@ -142,7 +181,11 @@ func buildIndex(files []string, keep int, opt syntax.Options, options infer.Opti
 		}
 		results[i] = indexCached(files[i], opt, options, cache)
 	}, nil)
-	for _, fs := range results {
+	var unread []string
+	for i, fs := range results {
+		if fs == nil {
+			unread = append(unread, files[i])
+		}
 		if fs != nil && len(fs.Classes)+len(fs.Functions)+len(fs.Constants)+len(fs.ClassAliases) > 0 {
 			ix.Add(fs)
 		}
@@ -156,13 +199,14 @@ func buildIndex(files []string, keep int, opt syntax.Options, options infer.Opti
 		}
 	}
 	ix.LinkTypeAliases()
-	return ix, srcs, trees
+	return ix, srcs, trees, unread
 }
 
 // extract is ExtractSymbols; tests replace it to simulate a crash.
 var extract = ExtractSymbols
 
-// indexOne reads and extracts one file. A crash (parser or inference bug on
+// indexOne reads and extracts one file; a file too large to analyse
+// declares nothing it can read (nil). A crash (parser or inference bug on
 // unusual input) drops that file's symbols instead of taking down the CLI
 // or the language server; the file itself still gets an "internal" finding
 // when it is analysed.
@@ -175,6 +219,9 @@ func indexOne(path string, opt syntax.Options, options infer.Options) (fs *index
 	src, err := ReadSource(path)
 	if err != nil {
 		return nil, nil
+	}
+	if len(src) > syntax.MaxFileSize {
+		return nil, src
 	}
 	return extract(path, src, opt, options), src
 }
@@ -191,6 +238,9 @@ func indexTree(path string, opt syntax.Options, options infer.Options) (fs *inde
 		return nil, nil, nil
 	}
 	tree = syntax.ParseBest(path, src, opt)
+	if len(src) > syntax.MaxFileSize {
+		return nil, src, tree
+	}
 	return extractTree(tree, opt, options), src, tree
 }
 
@@ -202,7 +252,7 @@ func indexCached(path string, opt syntax.Options, options infer.Options, cache *
 		return fs
 	}
 	info, err := os.Stat(path)
-	if err != nil {
+	if err != nil || info.Size() > syntax.MaxFileSize {
 		return nil
 	}
 	if fs := cache.lookup(path, info); fs != nil {

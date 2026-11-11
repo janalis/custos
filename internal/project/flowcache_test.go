@@ -47,7 +47,7 @@ func (p *flowStepsProject) run(t *testing.T, srcs map[string][]byte) (*flowSteps
 	t.Helper()
 	c := OpenSymbolCache(p.dir, p.root, p.opt, infer.Options{})
 	c.fingerprint(len(p.files))
-	ix, read, _ := buildIndex(IndexSources(p.root, p.files, nil, nil), len(p.files), p.opt, infer.Options{}, c, false)
+	ix, read, _, _ := buildIndex(IndexSources(p.root, p.files, nil, nil), len(p.files), p.opt, infer.Options{}, c, false)
 	for i, path := range p.files {
 		if src, ok := srcs[path]; ok {
 			read[i] = src
@@ -125,7 +125,7 @@ func TestFlowStepsRefused(t *testing.T) {
 	writeFile(t, filepath.Join(p.root, "vendor", "lib", "run.php"), "<?php\nnamespace Lib;\nfunction run($c) { return $c; }\n")
 	c := OpenSymbolCache(p.dir, p.root, p.opt, infer.Options{})
 	c.fingerprint(len(p.files))
-	ix, read, _ := buildIndex(IndexSources(p.root, p.files, nil, nil), len(p.files), p.opt, infer.Options{}, c, false)
+	ix, read, _, _ := buildIndex(IndexSources(p.root, p.files, nil, nil), len(p.files), p.opt, infer.Options{}, c, false)
 	if s := c.flowSteps(p.root, p.files, read, WithVendorFlow(p.root, ix, p.opt, flow.Options{})); s != nil {
 		t.Fatal("racy dependency")
 	}

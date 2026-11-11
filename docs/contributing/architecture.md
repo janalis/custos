@@ -133,10 +133,15 @@ world. It is complete only when `composer.json` and the vendor directory's
 `composer/installed.json` exist, every package the project requires,
 requires for development or suggests is installed (or replaced or
 provided), every installed package that autoloads code has indexed files,
-no vendor file was skipped, and every classmap and files entry of the
-project's autoload configuration lies in the indexed paths. PSR-4 and PSR-0
-prefixes whose directories lie outside them (or in the test directories the
-vendor walk skips) are listed as blind. `Index.DynamicAliases` reports a
+no vendor file was skipped, every classmap entry (the project's or a
+package's) was read whole and every files entry was read. PSR-4 and PSR-0
+prefixes whose directories lie outside the indexed paths or in a skipped
+directory are listed as blind, and so are, below a PSR-4 directory, the
+namespaces of what was skipped. "Skipped" is recorded by the walks
+themselves (`project.Skipped`: excluded, hidden and vendor test
+directories, declaration-only and non-`.php` loadable files) and by the
+indexing (files too large or unreadable), so the world never re-derives
+discovery's rules. `Index.DynamicAliases` reports a
 `class_alias()` with computed names, and `Index.BuiltinPrefixes` the
 namespaces and leading words PHP extensions use. Rules ask
 `semanticquery.UndeclaredEverywhere`, which combines them, rather than

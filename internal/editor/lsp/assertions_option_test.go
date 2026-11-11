@@ -83,7 +83,7 @@ func TestAssertionModeOwnsIndexBuild(t *testing.T) {
 				}
 				return oldDiscover(paths, exclude)
 			}
-			buildIndexSymbols = func(root string, files []string, opt syntax.Options, options infer.Options) *index.Index {
+			buildIndexSymbols = func(root string, files []string, opt syntax.Options, options infer.Options) (*index.Index, []string) {
 				if options.Assertions {
 					close(oldStarted)
 					<-releaseOld
@@ -222,7 +222,7 @@ func TestIndexBuildCrashLeavesTheServerServing(t *testing.T) {
 	s := whiteBox(t, root, io.Discard, unescapedhtmloutput.New())
 	oldBuild := buildIndexSymbols
 	defer func() { buildIndexSymbols = oldBuild }()
-	buildIndexSymbols = func(string, []string, syntax.Options, infer.Options) *index.Index { panic("index bug") }
+	buildIndexSymbols = func(string, []string, syntax.Options, infer.Options) (*index.Index, []string) { panic("index bug") }
 	if !s.beginIndexing() {
 		t.Fatal("index not requested")
 	}

@@ -61,9 +61,10 @@ func (s *Server) buildIndex() {
 		s.abandonIndex(e, generation)
 		return
 	}
-	indexed := project.IndexSources(cfg.Root, files, paths, cfg.Exclude)
-	ix := buildIndexSymbols(cfg.Root, indexed, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
-	ix.SetWorld(project.ComposerWorld(cfg.Root, paths, indexed))
+	indexed, skipped := project.IndexSourcesSkipping(cfg.Root, files, paths, cfg.Exclude)
+	ix, unread := buildIndexSymbols(cfg.Root, indexed, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	skipped.Files = append(skipped.Files, unread...)
+	ix.SetWorld(project.ComposerWorld(cfg.Root, paths, indexed, skipped))
 	s.mu.Lock()
 	if s.engine != e || s.indexGeneration != generation {
 		s.mu.Unlock()
@@ -310,14 +311,14 @@ func (s *Server) refreshFlow() {
 }
 
 // indexWorkspace indexes files, taking the declarations of unchanged ones
-// from the cache the command line shares (see project.SymbolCache).
-func indexWorkspace(root string, files []string, opt syntax.Options, options infer.Options) *index.Index {
+// from the cache the command line shares (see project.SymbolCache), and
+// returns the files whose declarations it could not read.
+func indexWorkspace(root string, files []string, opt syntax.Options, options infer.Options) (*index.Index, []string) {
 	var cache *project.SymbolCache
 	if dir := project.CacheDir(); dir != "" {
 		cache = project.OpenSymbolCache(dir, root, opt, options)
 	}
-	ix, _ := project.BuildIndexCached(files, 0, opt, options, cache)
-	return ix
+	return project.BuildIndexUnread(files, opt, options, cache)
 }
 
 // Test seams also keep each build's filesystem/index operations explicit.

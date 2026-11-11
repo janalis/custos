@@ -30,8 +30,9 @@ installed.
   directory's `composer/installed.json` exist; every package the project
   requires, suggests or requires for development is installed (or replaced
   or provided by an installed package); every installed package that
-  autoloads code was indexed; and every classmap and files entry of the
-  project's own autoload configuration lies under the analysed paths.
+  autoloads code was indexed; every classmap entry, of the project or of a
+  package, was read whole (under the analysed paths, with no directory or
+  loadable file left out); and every files entry was read.
 
 ## Exceptions (no report)
 
@@ -44,8 +45,10 @@ installed.
   the PHP version (a conditional declaration or guarded code).
 - E3. A namespaced name in a namespace that a PHP extension uses (such as
   `MongoDB\` or `Swoole\`), and a namespaced name under a PSR-4 or PSR-0
-  prefix that the project autoloads from a directory outside the analysed
-  paths.
+  prefix whose code the analysis did not read: a directory outside the
+  analysed paths, or, below it, a directory or a file left out (excluded
+  by the configuration, hidden, a test directory of a package, or too
+  large to analyse).
 - E4. A global name whose leading word, up to its first underscore, starts
   no function PHP or a known extension declares (`newext_open()`): it may
   belong to an extension the stubs lack. A global name without an

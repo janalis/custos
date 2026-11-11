@@ -59,6 +59,8 @@ type Snapshot struct {
 	// (nil when absent), read for the index world (see composerWorld). It
 	// changes only with the installed packages, which VendorDigest covers.
 	installed []byte
+	// unseen is what the capture walks left out (see Skipped).
+	unseen Skipped
 }
 
 // FileStat is the cheap identity of an input between two hash checks.
@@ -186,7 +188,7 @@ func capture(ctx context.Context, root *os.Root, rules []analysis.Rule, paths []
 	if composer, ok := s.Sources["composer.json"]; ok {
 		s.installed, _ = ReadConfined(root, installedJSON(composer), MaxSnapshotBytes)
 	}
-	s.Skipped, s.SkippedCount = l.skipped, l.skippedCount
+	s.Skipped, s.SkippedCount, s.unseen = l.skipped, l.skippedCount, l.unseen
 	if err := s.readVendor(ctx, extractVendor); err != nil {
 		return nil, err
 	}
@@ -214,15 +216,19 @@ type listing struct {
 	stats                      map[string]FileStat
 	skipped                    []string
 	skippedCount               int
+	// unseen is what the walks left out below the paths they scanned (see
+	// Skipped), for the index world.
+	unseen Skipped
 }
 
 // found is what scanning one directory produced, in listing order.
 type found struct {
-	names []string
-	infos []fs.FileInfo
-	dirs  []string
-	links []string
-	err   error
+	names  []string
+	infos  []fs.FileInfo
+	dirs   []string
+	links  []string
+	pruned []string
+	err    error
 }
 
 // splitLevels is the depth at which a walk stops listing single directories
@@ -259,6 +265,9 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 				match = match || matchesAny(path.Base(name), patterns)
 			}
 			if !match {
+				if loadable(name) {
+					l.unseen.Files = append(l.unseen.Files, name)
+				}
 				return
 			}
 			if inVendor {
@@ -295,6 +304,9 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 				entries, err := fs.ReadDir(dir.FS(), ".")
 				for _, d := range entries {
 					child := path.Join(name, d.Name())
+					if child == packageToSkip && d.IsDir() {
+						f.pruned = append(f.pruned, child)
+					}
 					if child == packageToSkip || child == vendor {
 						continue
 					}
@@ -313,6 +325,7 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 						continue
 					}
 					if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, strings.TrimPrefix(child, scanned+"/")) || hidden(d.Name()) {
+						f.pruned = append(f.pruned, child)
 						continue
 					}
 					if !recurse {
@@ -346,6 +359,7 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 					for i, name := range f.names {
 						file(name, f.infos[i])
 					}
+					l.unseen.Dirs = append(l.unseen.Dirs, f.pruned...)
 					for _, name := range f.links {
 						l.skip(name, "symlink")
 					}
@@ -742,5 +756,5 @@ func (s *Snapshot) world() index.World {
 		scope = s.Config.Paths
 	}
 	indexed := append(append([]string{}, s.OwnFiles...), s.Vendor...)
-	return composerWorld(read, scope, indexed)
+	return composerWorld(read, scope, indexed, s.unseen)
 }
