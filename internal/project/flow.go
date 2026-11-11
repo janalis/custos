@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
@@ -60,6 +61,9 @@ type FlowBuild struct {
 	// priors holds, per file, the steps an earlier build made from the same
 	// source (see seed).
 	priors [][]flowStep
+	// made counts the summaries the build made instead of taking them from
+	// its priors.
+	made atomic.Int64
 }
 
 // flowStep is one summary a build made of a file, with the snapshot it
@@ -793,6 +797,7 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 		if step, ok := b.reuse(i, snapshot); ok {
 			b.results[i], basis = step.result, step.against
 		} else if file := tree(i); file != nil {
+			b.made.Add(1)
 			// The file's first summary starts from the first one the
 			// earlier build made, if any, which read the same contracts
 			// the closest.

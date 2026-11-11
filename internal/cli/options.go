@@ -36,7 +36,8 @@ type common struct {
 }
 
 // cacheDir is where declarations of dependencies are kept between runs
-// (see project.CacheDir); "" with --no-cache.
+// with the cross-file summaries of the analysed files (see
+// project.CacheDir); "" with --no-cache.
 func (c *common) cacheDir() string {
 	if c.noCache {
 		return ""
@@ -59,7 +60,7 @@ func newCommon(name string, stderr io.Writer) *common {
 	c.fs.BoolVar(&c.all, "all", false, "enable every rule, including disabled-by-default ones")
 	c.fs.StringVar(&c.exclude, "exclude", "", "comma-separated extra directories to exclude")
 	c.fs.StringVar(&c.profile, "cpuprofile", "", "write a CPU profile to this file")
-	c.fs.BoolVar(&c.noCache, "no-cache", false, "do not reuse or save the declarations of dependencies between runs")
+	c.fs.BoolVar(&c.noCache, "no-cache", false, "do not reuse or save declarations of dependencies and cross-file summaries between runs")
 	c.fs.BoolVar(&c.flowOrder, "flow-order", false, "use the last saved cross-file summary order as a scheduling hint")
 	c.fs.BoolVar(&c.parseOnce, "parse-once", false, "keep each analysed file's syntax tree between phases: faster, more memory")
 	return c

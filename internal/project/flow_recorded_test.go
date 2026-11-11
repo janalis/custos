@@ -43,7 +43,7 @@ func TestRecordedUpdateOracle(t *testing.T) {
 		files, _ = Discover([]string{filepath.Join(root, "src")}, nil)
 		ix = BuildIndex(IndexSources(root, files, nil, nil), opt, infer.Options{})
 		options = WithVendorFlow(root, ix, opt, flow.Options{})
-		edits = corpusEdits(t, root, files, opt)
+		edits = corpusEdits(t, root, files, opt, true)
 	} else {
 		var paths map[string]string
 		paths, files, ix = rescopeProject(t)
@@ -104,9 +104,9 @@ func TestRecordedUpdateOracle(t *testing.T) {
 var firstBody = regexp.MustCompile(`function\s+\w+\s*\([^)]*\)\s*(:\s*[\w\\?|]+\s*)?\{`)
 
 // corpusEdits returns the edits TestRecordedUpdateOracle applies to the
-// corpus at root, keeping those that leave the declarations as they are
-// (Update's contract).
-func corpusEdits(t *testing.T, root string, files []string, opt syntax.Options) []recordedEdit {
+// corpus at root, keeping, when same is set, those that leave the
+// declarations as they are (Update's contract).
+func corpusEdits(t *testing.T, root string, files []string, opt syntax.Options, same bool) []recordedEdit {
 	t.Helper()
 	var targets []string
 	if list := os.Getenv("CUSTOS_ORACLE_EDITS"); list != "" {
@@ -131,16 +131,16 @@ func corpusEdits(t *testing.T, root string, files []string, opt syntax.Options) 
 		if err != nil {
 			t.Fatal(err)
 		}
-		same := func(edited string) bool {
+		keep := func(edited string) bool {
 			was := ExtractSymbols(path, src, opt, infer.Options{})
-			return index.SameDeclarations(was, ExtractSymbols(path, []byte(edited), opt, infer.Options{}))
+			return !same || index.SameDeclarations(was, ExtractSymbols(path, []byte(edited), opt, infer.Options{}))
 		}
 		candidates := []string{string(src) + "\n// edit\n"}
 		if at := firstBody.FindIndex(src); at != nil {
 			candidates = append(candidates, string(src[:at[1]])+" exec($_GET['custos']); "+string(src[at[1]:]))
 		}
 		for _, edited := range candidates {
-			if same(edited) {
+			if keep(edited) {
 				edits = append(edits, recordedEdit{path, edited})
 			}
 		}

@@ -48,8 +48,13 @@ class A { public int $p = 1; /** @return int[] */ public function f(array $x): a
 function g(string $s): int { return 1; }
 `, false},
 	} {
-		if got := SameDeclarations(base, extract(tc.src)); got != tc.same {
+		other := extract(tc.src)
+		if got := SameDeclarations(base, other); got != tc.same {
 			t.Errorf("%s: same = %v, want %v", tc.name, got, tc.same)
+		}
+		// The fingerprint agrees, whatever order maps list their keys in.
+		if got := Fingerprint(base) == Fingerprint(other); got != tc.same {
+			t.Errorf("%s: same fingerprint = %v, want %v", tc.name, got, tc.same)
 		}
 	}
 	if !SameDeclarations(nil, nil) || SameDeclarations(base, nil) {
@@ -57,8 +62,21 @@ function g(string $s): int { return 1; }
 	}
 	var empty, none FileSymbols
 	none.Globals = []string{}
-	if SameDeclarations(&empty, &none) {
+	if SameDeclarations(&empty, &none) || Fingerprint(&empty) == Fingerprint(&none) {
 		t.Error("nil and empty slice compared equal")
+	}
+	if Fingerprint(nil) == Fingerprint(&empty) {
+		t.Error("nil symbols fingerprinted as empty ones")
+	}
+	// Maps, nil or empty, in key order; fallbacks keyed by number.
+	withMap := func(m map[int]string) *FileSymbols { return &FileSymbols{ClassAliasFallbacks: m} }
+	if Fingerprint(withMap(nil)) == Fingerprint(withMap(map[int]string{})) ||
+		Fingerprint(withMap(map[int]string{1: "a", -2: "b"})) != Fingerprint(withMap(map[int]string{-2: "b", 1: "a"})) ||
+		Fingerprint(withMap(map[int]string{1: "a"})) == Fingerprint(withMap(map[int]string{1: "b"})) {
+		t.Error("maps")
+	}
+	if Fingerprint(&FileSymbols{Path: "a", Digest: 1}) != Fingerprint(&FileSymbols{Path: "a", Digest: 2}) {
+		t.Error("digest fingerprinted")
 	}
 }
 

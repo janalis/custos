@@ -1,7 +1,11 @@
 package index
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
 	"reflect"
+	"slices"
 
 	"custos/internal/php/syntax"
 )
@@ -63,4 +67,77 @@ func sameValue(a, b reflect.Value) bool {
 		return true
 	}
 	return a.Equal(b) // strings, numbers and booleans
+}
+
+// Fingerprint hashes fs as SameDeclarations compares it: two extractions
+// SameDeclarations calls the same have the same fingerprint, and any other
+// difference changes it but for a SHA-256 collision. Unlike Digest, it is
+// stable across processes, so a cache kept between runs can compare
+// declarations it no longer holds.
+func Fingerprint(fs *FileSymbols) [sha256.Size]byte {
+	var buf []byte
+	if fs != nil {
+		x := *fs
+		x.Digest = 0
+		buf = appendValue(buf, reflect.ValueOf(&x))
+	}
+	return sha256.Sum256(buf)
+}
+
+// appendValue appends the encoding of a to buf, as sameValue compares it:
+// every syntax.Span the same, nil distinct from empty, maps in key order.
+func appendValue(buf []byte, a reflect.Value) []byte {
+	if a.Type() == spanType {
+		return buf
+	}
+	switch a.Kind() {
+	case reflect.Pointer:
+		if a.IsNil() {
+			return append(buf, 0)
+		}
+		return appendValue(append(buf, 1), a.Elem())
+	case reflect.Struct:
+		for i := range a.NumField() {
+			buf = appendValue(buf, a.Field(i))
+		}
+		return buf
+	case reflect.Slice, reflect.Array:
+		if a.Kind() == reflect.Slice && a.IsNil() {
+			return append(buf, 0)
+		}
+		buf = binary.AppendUvarint(buf, uint64(a.Len())+1)
+		for i := range a.Len() {
+			buf = appendValue(buf, a.Index(i))
+		}
+		return buf
+	case reflect.Map:
+		if a.IsNil() {
+			return append(buf, 0)
+		}
+		buf = binary.AppendUvarint(buf, uint64(a.Len())+1)
+		type entry struct {
+			key   []byte
+			value reflect.Value
+		}
+		entries := make([]entry, 0, a.Len())
+		for it := a.MapRange(); it.Next(); {
+			entries = append(entries, entry{appendValue(nil, it.Key()), it.Value()})
+		}
+		slices.SortFunc(entries, func(x, y entry) int { return bytes.Compare(x.key, y.key) })
+		for _, e := range entries {
+			buf = appendValue(append(buf, e.key...), e.value)
+		}
+		return buf
+	case reflect.String:
+		buf = binary.AppendUvarint(buf, uint64(a.Len()))
+		return append(buf, a.String()...)
+	case reflect.Bool:
+		if a.Bool() {
+			return append(buf, 1)
+		}
+		return append(buf, 0)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return binary.AppendVarint(buf, a.Int())
+	}
+	return binary.AppendUvarint(buf, a.Uint()) // the other kinds symbols hold
 }

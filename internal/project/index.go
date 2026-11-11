@@ -133,9 +133,11 @@ func buildIndex(files []string, keep int, opt syntax.Options, options infer.Opti
 		switch {
 		case i < keep && keepTrees:
 			results[i], srcs[i], trees[i] = indexTree(files[i], opt, options)
+			cache.declared(i, results[i])
 			return
 		case i < keep:
 			results[i], srcs[i] = indexOne(files[i], opt, options)
+			cache.declared(i, results[i])
 			return
 		}
 		results[i] = indexCached(files[i], opt, options, cache)

@@ -12,6 +12,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   analysis, instead of parsing it again in each phase. On laravel's `src`
   a run takes about 5–15% less time for about 40% more memory at peak.
   Findings are the same.
+- `analyse` and `fix` keep the cross-file summaries of the checked files in
+  the cache, next to the declarations of dependencies. A run after an edit
+  summarizes again only what the edit reaches, as the language server does;
+  the summaries are set aside when declarations, dependency files, the set
+  of checked files or the working directory change. Findings are the same
+  with or without them, and `--no-cache` bypasses them too. A re-run of
+  composer's `src` after editing one file took about 0.55 s instead of
+  1.1 s, at no more memory; the cache keeps about 5 MB for laravel's `src`.
 
 ### Changed
 

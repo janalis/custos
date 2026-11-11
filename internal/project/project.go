@@ -20,8 +20,9 @@ type Options struct {
 	// besides the analysed ones, so cross-file facts do not depend on which
 	// files a run names. Empty means Paths.
 	Scope []string
-	// Cache is the directory keeping the declarations of files indexed but
-	// not analysed between runs (see SymbolCache); empty disables it.
+	// Cache is the directory keeping, between runs, the declarations of
+	// files indexed but not analysed (see SymbolCache) and the flow
+	// summaries of the analysed ones (see flowSteps); empty disables it.
 	Cache string
 	// FlowOrder summarizes the flow of the analysed files in the order the
 	// last run with the cache saved, and saves this run's (see
@@ -97,6 +98,9 @@ func (p *Project) prepare(keepTrees bool) (*analysis.Engine, [][]byte, []*syntax
 	var cache *SymbolCache
 	if p.Options.Cache != "" {
 		cache = OpenSymbolCache(p.Options.Cache, p.Options.Root, p.Options.Parse, inferOpt)
+		if engine.NeedsFlow() {
+			cache.fingerprint(len(php))
+		}
 	}
 	ix, read, parsed := buildIndex(IndexSources(p.Options.Root, php, scope, p.Options.Exclude), len(php), p.Options.Parse, inferOpt, cache, keepTrees)
 	ix.Freeze()
@@ -107,10 +111,18 @@ func (p *Project) prepare(keepTrees bool) (*analysis.Engine, [][]byte, []*syntax
 		if p.Options.FlowOrder {
 			order = cache.FlowOrder(php, options)
 		}
-		build := buildFlow(context.Background(), php, read, p.Options.Parse, ix, options, order, nil, false, parsed)
+		steps := cache.flowSteps(p.Options.Root, php, read, options)
+		var earlier *FlowBuild
+		if steps != nil {
+			earlier = steps.earlier
+		}
+		build := buildFlow(context.Background(), php, read, p.Options.Parse, ix, options, order, earlier, steps != nil, parsed)
 		if p.Options.FlowOrder && cache != nil {
 			_ = cache.SaveFlowOrder(build.Order(), options)
 		}
+		// The cache only saves time: a failure to write it changes no result.
+		_ = steps.save(build)
+		preparedFlow(build)
 		engine = engine.WithFlow(build.Snapshot)
 	}
 	sources := make([][]byte, len(p.Files))
@@ -157,3 +169,6 @@ func analyzeSource(engine fixing.Analyzer, path string, src []byte, opt syntax.O
 	}
 	return result
 }
+
+// preparedFlow sees each flow build prepare makes; tests replace it.
+var preparedFlow = func(*FlowBuild) {}

@@ -51,6 +51,16 @@ binary, the target PHP version or the parse and inference options change, so
 results are the same with or without it. `--no-cache` neither reads nor
 writes it.
 
+The same cache keeps the cross-file summaries of the checked files. A run
+after an edit summarizes again only what the edit reaches: a file whose
+source did not change keeps the summaries the code it calls still supports.
+The summaries are set aside, and the run summarizes every file, when a
+checked file declares something else (a new function, another type or
+default; moving code or editing bodies does not count), when the set of
+checked files changes, when a dependency file changes, when the command runs
+from another directory, or when a dependency file was modified in the last
+two seconds. Findings are the same with or without them.
+
 Cross-file flow follows dependencies even on a first run. Recursive groups
 are analyzed under bounded work limits; summaries that do not settle are
 left unresolved.
@@ -73,7 +83,7 @@ These apply to both `analyse` and `fix`:
 | `--comparison-style regular\|yoda` | Preferred operand order for comparison rules and their quick-fixes. |
 | `--config DIR` | Start the search for the [project root](./configuration#project-root) here. |
 | `--exclude a,b` | Extra directories to skip, as `exclude` in `custos.json`. |
-| `--no-cache` | Do not reuse or save the [declarations of dependencies](#paths) between runs. |
+| `--no-cache` | Do not reuse or save the [declarations of dependencies and cross-file summaries](#paths) between runs. |
 | `--flow-order` | Summarize cross-file flow in the [order the last run saved](#paths): a scheduling hint for dependency discovery. |
 | `--parse-once` | Parse each analysed file once and keep its syntax tree until it is analysed, instead of parsing it again in each phase. Faster (about 5–15% on large projects) at the cost of memory (about 40% more at peak); findings are the same. |
 | `--cpuprofile FILE` | Write a Go CPU profile of the analysis to FILE (for `go tool pprof`). |

@@ -13,7 +13,7 @@ summarize the same responsibilities.
 | Root | Responsibilities |
 |---|---|
 | `internal/php` | `syntax`: lexer, parser, arena AST, traversal and positions; `version`: PHP 5.3–8.5; `phpdoc`: doc tags and type expressions. |
-| `internal/semantic` | `names`, `types`, `index`, `infer` and embedded `stubs`: resolution, declarations, inheritance, inference and narrowing. |
+| `internal/semantic` | `names`, `types`, `index`, `infer` and embedded `stubs`: resolution, declarations, inheritance, inference and narrowing; `wire`: the binary form semantic values take in caches kept between runs. |
 | `internal/semantic/flow` | Bounded file-local value and state analysis (possible values, origins, integer ranges, receiver state) and immutable project-local callable summaries, exposed through `Context.Flow()`. |
 | `internal/inspection` | `analysis`: dispatch, context and suppressions; `meta`: independent rule facts and descriptions; `catalogue`: explicit constructors; `rules`: one package per lowercase inspection ID. |
 | `internal/inspection/astquery` | Lexical queries over nodes and tokens, plus exact source-edit builders. Written names do not imply resolved symbols. |
@@ -93,6 +93,25 @@ a file whose source is unchanged, a recorded summary those contracts still
 support instead of summarizing it. `TestRecordedUpdateOracle` compares each
 update with a full build (`CUSTOS_ORACLE_CORPUS` as above;
 `CUSTOS_ORACLE_EDITS` picks the edited files).
+
+The command line keeps these steps between runs in the project's cache
+directory, next to the symbol cache, and records a build's steps to save
+them. A summary also depends on the project index and on the dependency
+files the vendor provider summarizes, which no contract records, so the
+saved steps are taken only while those are unchanged: the key holds the
+binary, the options, the working directory, the vendor directory and the
+size and modification time of every file indexed without being analysed
+(a run in which one changed within the racy window neither takes nor saves
+steps), and every analysed file must declare what it declared
+(`index.Fingerprint`, which ignores positions as an update does). A file
+whose source is unchanged then takes its saved steps as priors. The flow
+types are written by a hand-written codec (`flow/wire.go`, on
+`semantic/wire`) that keeps nil slices and maps distinct from empty ones,
+so a decoded summary is `reflect.DeepEqual` to the one encoded;
+`TestWireFields` lists every field it writes and fails when one is added,
+and summaries still holding a syntax node are refused, not encoded.
+`TestFlowCacheOracle` compares cached runs with runs without the cache
+after edits (`CUSTOS_ORACLE_CORPUS` and `CUSTOS_ORACLE_EDITS` as above).
 
 `Engine.WithIndex` and `Engine.WithFlow` return configured copies; published
 engines are never reconfigured in place. Project indexes are built in memory.

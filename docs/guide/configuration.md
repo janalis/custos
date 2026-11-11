@@ -145,6 +145,16 @@ value. Other functions and methods documented with `@phpstan-assert` or
 `@psalm-assert` refine inferred types, but those rules do not take their
 documentation as proof.
 
+## Cache
+
+`analyse` and `fix` keep, between runs, the declarations of the files they
+index without checking them and the cross-file summaries of the checked
+files, under `custos` in the user cache directory or in `$CUSTOS_CACHE_DIR`.
+A change to the configuration that changes what a run checks or how
+(`php`, `shortOpenTag`, `flow.assertions`, `paths`, `exclude`) sets the
+affected parts aside; findings are the same with or without the cache. See
+[Paths](./cli#paths) for what invalidates it, and `--no-cache` to bypass it.
+
 ## In the language server
 
 `custos lsp` reads the same `custos.json`, found from the first workspace
