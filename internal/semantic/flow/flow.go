@@ -749,15 +749,43 @@ type Options struct {
 
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
-	sharing         *sharingFlags
-	recordSites     map[recordSite]uint32
-	declarations    declarationCache
-	classKeys       map[string]string
+	sharing     *sharingFlags
+	recordSites map[recordSite]uint32
+	options     Options
+	file        *syntax.File
+	types       *infer.Env
+	scopes      map[syntax.Node]*scopeResult
+	declarationCaches
+	summaryResolver
+	globalsState
+}
+
+// declarationCaches holds what the Env learned of the declarations the code
+// reaches.
+type declarationCaches struct {
+	declarations declarationCache
+	classKeys    map[string]string
+	arrowNames   map[*syntax.ArrowFunction]captureNames
+	// overridden caches, per receiver class and method, whether a class of
+	// the project replaces the method (see replaced).
+	overridden map[[2]string]cachedAnswer
+	// extendedBy caches whether a class of the project extends a class.
+	extendedBy map[string]bool
+	// properties caches, per class and property name, whether reading the
+	// property of the object itself runs no code (see backed).
+	properties map[[2]string]cachedAnswer
+	// kindOf caches what each declared type read admits (see kinds).
+	kindOf map[string]uint8
+	// statics caches, per scope, what its code does to each of its static
+	// variables (see declared).
+	statics map[syntax.Node]map[string]static
+}
+
+// summaryResolver holds what the Env needs to answer the contracts of other
+// functions: the snapshot, the summaries being computed, and what each
+// computation read.
+type summaryResolver struct {
 	invocationDepth int
-	arrowNames      map[*syntax.ArrowFunction]captureNames
-	options         Options
-	file            *syntax.File
-	types           *infer.Env
 	snapshot        *Snapshot
 	// consulted records the contracts read while summaries are extracted.
 	consulted map[string]bool
@@ -772,10 +800,14 @@ type Env struct {
 	reading     []map[string]bool
 	globalReads map[string]bool
 	staticReads map[syntax.Node]map[string]bool
-	scopes      map[syntax.Node]*scopeResult
 	localBodies map[string]syntax.Node
 	// nested holds the functions nestedSpares is looking into.
 	nested map[syntax.Node]bool
+}
+
+// globalsState holds what the Env learned of the globals the file's
+// functions write.
+type globalsState struct {
 	// global caches the file's function-bound global names once scanned, and
 	// globalTaint the request data those functions write to them.
 	global       map[string]bool
@@ -783,19 +815,6 @@ type Env struct {
 	writers      map[globalWriter]bool
 	globalsKnown bool
 	globalsReady bool
-	// overridden caches, per receiver class and method, whether a class of
-	// the project replaces the method (see replaced).
-	overridden map[[2]string]cachedAnswer
-	// extendedBy caches whether a class of the project extends a class.
-	extendedBy map[string]bool
-	// properties caches, per class and property name, whether reading the
-	// property of the object itself runs no code (see backed).
-	properties map[[2]string]cachedAnswer
-	// kindOf caches what each declared type read admits (see kinds).
-	kindOf map[string]uint8
-	// statics caches, per scope, what its code does to each of its static
-	// variables (see declared).
-	statics map[syntax.Node]map[string]static
 }
 
 type scopeResult struct {
@@ -917,7 +936,7 @@ func New(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Option
 		snapshot = nil
 	}
 	types = types.WithOptions(infer.Options{Assertions: options.Assertions})
-	return &Env{options: options, file: file, types: types, snapshot: snapshot, scopes: map[syntax.Node]*scopeResult{}}
+	return &Env{options: options, file: file, types: types, summaryResolver: summaryResolver{snapshot: snapshot}, scopes: map[syntax.Node]*scopeResult{}}
 }
 
 // Value returns the joined value of an expression at its execution point.
