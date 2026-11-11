@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +23,7 @@ func fixture(t *testing.T) (string, []string) {
 		t.Fatal(err)
 	}
 	write(t, filepath.Join(root, "corpora", "c.version"), "1.0\n")
-	findings(t, root, "b.php:1:1: info: Two. [RuleB] (fixable)\na.php:1:1: info: One. [RuleA]\n")
+	report(t, root, two, one)
 	return root, []string{"-corpora", "c", "-bin", bin, "-dir", filepath.Join(root, "corpora"), "-out", filepath.Join(root, "records")}
 }
 
@@ -36,11 +37,43 @@ func write(t *testing.T, path, body string) {
 	}
 }
 
-// findings sets what the stand-in custos reports on corpus "c".
+// findings sets what the stand-in custos prints on corpus "c".
 func findings(t *testing.T, root, out string) {
 	t.Helper()
 	write(t, filepath.Join(root, "corpora", "c", "out.txt"), out)
 }
+
+// report has the stand-in custos report fs, as its JSON output does
+// (lower-case keys, an analysis and files section corpusdiff ignores).
+func report(t *testing.T, root string, fs ...finding) {
+	t.Helper()
+	list := make([]map[string]any, len(fs))
+	for i, f := range fs {
+		list[i] = map[string]any{
+			"path": f.Path, "line": f.Line, "column": f.Column, "endLine": f.EndLine, "endColumn": f.EndColumn,
+			"rule": f.Rule, "severity": f.Severity, "message": f.Message, "fixable": f.Fixable,
+		}
+	}
+	b, err := json.Marshal(map[string]any{"analysis": map[string]any{"complete": true}, "files": []string{}, "findings": list})
+	if err != nil {
+		t.Fatal(err)
+	}
+	findings(t, root, string(b))
+}
+
+// one and two are findings the stand-in reports; two's message spans two
+// lines and its fix is offered.
+var (
+	one    = finding{Path: "a.php", Line: 1, Column: 1, EndLine: 1, EndColumn: 4, Rule: "RuleA", Severity: "info", Message: "One."}
+	two    = finding{Path: "b.php", Line: 1, Column: 1, EndLine: 2, EndColumn: 3, Rule: "RuleB", Severity: "warning", Message: "Two\nlines.", Fixable: true}
+	oneAt2 = finding{Path: "a.php", Line: 2, Column: 1, EndLine: 2, EndColumn: 4, Rule: "RuleA", Severity: "info", Message: "One."}
+)
+
+const (
+	oneLine    = "a.php:1:1-1:4: info: One. [RuleA]"
+	twoLine    = `b.php:1:1-2:3: warning: Two\nlines. [RuleB] (fixable)`
+	oneAt2Line = "a.php:2:1-2:4: info: One. [RuleA]"
+)
 
 func runWith(args ...string) (int, string, string) {
 	var stdout, stderr bytes.Buffer
@@ -54,15 +87,14 @@ func TestRecordThenCompare(t *testing.T) {
 		t.Fatalf("record: %d %q", code, out)
 	}
 	record, _ := os.ReadFile(filepath.Join(root, "records", "c.txt"))
-	if string(record) != "# c 1.0\na.php:1:1: info: One. [RuleA]\nb.php:1:1: info: Two. [RuleB] (fixable)\n" {
+	if string(record) != "# c 1.0\n"+oneLine+"\n"+twoLine+"\n" {
 		t.Fatalf("record: %q", record)
 	}
 	if code, out, _ := runWith(args...); code != 0 || out != "c 1.0: 2 findings, unchanged\n" {
 		t.Fatalf("unchanged: %d %q", code, out)
 	}
-	// One finding moves and one appears twice; the summary line is no
-	// finding.
-	findings(t, root, "a.php:2:1: info: One. [RuleA]\nb.php:1:1: info: Two. [RuleB] (fixable)\nb.php:1:1: info: Two. [RuleB] (fixable)\n\n1 file(s) analysed: 3 info\n")
+	// One finding moves and one appears twice.
+	report(t, root, oneAt2, two, two)
 	code, out, _ := runWith(args...)
 	diff := filepath.Join(root, "records", "c.diff")
 	want := "c 1.0: 1 findings removed, 2 added (" + diff + ")\n  RuleA: -1 +1\n  RuleB: -0 +1\n"
@@ -70,11 +102,11 @@ func TestRecordThenCompare(t *testing.T) {
 		t.Fatalf("changed: %d %q", code, out)
 	}
 	text, _ := os.ReadFile(diff)
-	if string(text) != "- a.php:1:1: info: One. [RuleA]\n+ a.php:2:1: info: One. [RuleA]\n+ b.php:1:1: info: Two. [RuleB] (fixable)\n" {
+	if string(text) != "- "+oneLine+"\n+ "+oneAt2Line+"\n+ "+twoLine+"\n" {
 		t.Fatalf("diff: %q", text)
 	}
 	// Back to the record: the difference file goes.
-	findings(t, root, "a.php:1:1: info: One. [RuleA]\nb.php:1:1: info: Two. [RuleB] (fixable)\n")
+	report(t, root, one, two)
 	if code, _, _ := runWith(args...); code != 0 {
 		t.Fatal("not unchanged again")
 	}
@@ -85,7 +117,7 @@ func TestRecordThenCompare(t *testing.T) {
 
 func TestNoFindings(t *testing.T) {
 	root, args := fixture(t)
-	findings(t, root, "")
+	report(t, root)
 	if code, out, _ := runWith(append(args, "-record")...); code != 0 || out != "c 1.0: 0 findings recorded\n" {
 		t.Fatalf("record: %d %q", code, out)
 	}
@@ -105,6 +137,7 @@ func TestErrors(t *testing.T) {
 		{"not installed", func(root string) { os.Remove(filepath.Join(root, "corpora", "c.version")) }, false, "not installed"},
 		{"custos fails", func(root string) { write(t, filepath.Join(root, "corpora", "c", "rc"), "3") }, true, "custos: exit status 3: failure"},
 		{"no record", func(string) {}, false, "no record"},
+		{"output not JSON", func(root string) { findings(t, root, "a.php:1:1: info: One. [RuleA]") }, true, "custos output:"},
 		{"other version", func(root string) { write(t, filepath.Join(root, "records", "c.txt"), "# c 0.9\n") }, false, "recorded on another version (c 0.9), installed 1.0"},
 		{"custos fails", func(root string) {
 			write(t, filepath.Join(root, "records", "c.txt"), "# c 1.0\n")

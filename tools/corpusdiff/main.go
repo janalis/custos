@@ -11,6 +11,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -77,21 +78,42 @@ func (c corpus) version() (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
-// findings runs custos on the corpus and returns its findings, sorted:
-// the lines that end with a rule ID (not the summary line).
+// finding is one finding of custos's JSON output.
+type finding struct {
+	Path                             string
+	Line, Column, EndLine, EndColumn int
+	Rule, Severity, Message          string
+	Fixable                          bool
+}
+
+// String renders f on one line, its range in full and the line breaks of
+// its message escaped, ending with its rule ID.
+func (f finding) String() string {
+	fixable := ""
+	if f.Fixable {
+		fixable = " (fixable)"
+	}
+	return fmt.Sprintf("%s:%d:%d-%d:%d: %s: %s [%s]%s", f.Path, f.Line, f.Column, f.EndLine, f.EndColumn, f.Severity,
+		strings.ReplaceAll(f.Message, "\n", `\n`), f.Rule, fixable)
+}
+
+// findings runs custos on the corpus and returns its findings, one line
+// each (see finding.String), sorted.
 func (c corpus) findings() ([]string, error) {
-	cmd := exec.Command(c.bin, "analyse", "-all", "-no-cache", "-fail-on", "never", "src")
+	cmd := exec.Command(c.bin, "analyse", "-all", "-no-cache", "-fail-on", "never", "-format", "json", "src")
 	cmd.Dir = c.dir
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("custos: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
-	var lines []string
-	for line := range strings.SplitSeq(stdout.String(), "\n") {
-		if ruleOf.MatchString(line) {
-			lines = append(lines, line)
-		}
+	var out struct{ Findings []finding }
+	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
+		return nil, fmt.Errorf("custos output: %w", err)
+	}
+	lines := make([]string, len(out.Findings))
+	for i, f := range out.Findings {
+		lines[i] = f.String()
 	}
 	slices.Sort(lines)
 	return lines, nil
