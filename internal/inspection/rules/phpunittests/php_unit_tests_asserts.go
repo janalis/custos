@@ -653,10 +653,10 @@ func putContains(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (p
 	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 1, len(args)+1, ctx.Text(inner[0]), ctx.Text(inner[1]), putOpt(ctx, args, 1))}, true
 }
 
-// putVersionKnown reports a PHPUnit version that is configured or detected
-// rather than assumed.
+// putVersionKnown reports a PHPUnit version that is configured (as a
+// version) or detected rather than assumed.
 func putVersionKnown(ctx *analysis.Context) bool {
-	if ctx.OptionSet("PHP_UNIT_VERSION") {
+	if _, ok := putConfiguredVersion(ctx); ok {
 		return true
 	}
 	_, detected := phpunit.DetectedPHPUnitVersion(ctx)

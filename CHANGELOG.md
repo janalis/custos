@@ -12,6 +12,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   version is only assumed, not configured or detected: those methods no
   longer exist from PHPUnit 10. The call is still reported, and the message
   names both the PHPUnit 9.1 method and the one it replaced.
+- PhpUnitTests treats a `PHP_UNIT_VERSION` that names no version as unset:
+  the version is taken from the installed PHPUnit when it is indexed, and
+  is otherwise unknown, not PHPUnit 8.
 
 ## [0.1.11] - 2026-11-09
 
