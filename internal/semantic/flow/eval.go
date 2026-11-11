@@ -244,43 +244,11 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.ArrayDimFetch:
 		v = e.evalArrayDimFetch(n, f, r, depth)
 	case *syntax.Array:
-		v.deep = true
-		for _, item := range n.Items {
-			if item == nil {
-				continue
-			}
-			e.eval(item.Key, f, r, depth+1)
-			value := e.eval(item.Value, f, r, depth+1)
-			v = merge(v, value)
-			if item.ByRef || item.Unpack && !e.completeSpread(value) {
-				v.Complete = false
-			}
-			if item.Unpack && !value.plain {
-				// An object spread into the array is iterated.
-				e.implicit(x, f, r)
-			}
-			if item.ByRef {
-				f.alias(rootVariable(item.Value), aliasAny)
-			}
-		}
-		v.Expr = x
-		v.elements = e.literalElements(n, r)
+		v = e.evalArray(n, f, r, depth)
 	case *syntax.PropertyFetch:
 		v = e.evalPropertyFetch(n, f, r, depth)
 	case *syntax.InterpolatedString:
-		// Each part is converted to text before the next one is read.
-		for i, part := range n.Parts {
-			value := e.eval(part, f, r, depth+1)
-			if !value.plain {
-				e.implicit(x, f, r)
-			}
-			if i == 0 {
-				v = value
-			} else {
-				v = merge(v, value)
-			}
-		}
-		v.Expr = x
+		v = e.evalInterpolatedString(n, f, r, depth)
 	case *syntax.Closure:
 		v = e.evalClosure(n, f, r, depth)
 	case *syntax.ArrowFunction:
