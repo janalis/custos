@@ -242,106 +242,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.Match:
 		v = e.evalMatch(n, f, r, depth)
 	case *syntax.ArrayDimFetch:
-		if name := assigned(n); external(name) {
-			e.eval(n.Var, f, r, depth+1)
-			e.eval(n.Dim, f, r, depth+1)
-			v = e.request(name, n, f)
-			break
-		}
-		v = e.eval(n.Var, f, r, depth+1)
-		if conditional(n.Var) {
-			indexed := clone(f)
-			e.eval(n.Dim, &indexed, r, depth+1)
-			*f = rejoin(*f, indexed, r)
-		} else {
-			e.eval(n.Dim, f, r, depth+1)
-		}
-		if !v.plain {
-			// An offset of an object is read by a method of its class.
-			e.implicit(x, f, r)
-		}
-		// An element is no object when its array holds none.
-		base := v.deep
-		v.Expr = x
-		v.Identity = 0
-		// What is known of the array says nothing of its element.
-		v.NonFalse, v.NonNull = false, false
-		root := n.Var
-		levels := 1
-		for {
-			fetch, ok := root.(*syntax.ArrayDimFetch)
-			if !ok {
-				break
-			}
-			root = fetch.Var
-			levels++
-		}
-		// What an element of the uploads table is depends on how deep it sits.
-		whole := v.upload
-		v.upload = 0
-		v = projectValues(v)
-		if v.scalars {
-			// An element of such an array is one of its values.
-			v.scalars = false
-			v.Safe |= everyContext
-		}
-		if slot, constant := arrayKey(n.Dim); constant {
-			if own, tracked := r.values.at(n.Var).elements.lookup(slot); tracked {
-				v = resourceElement(x, own, f, r)
-				v.Expr = x
-				v.plain, v.deep = own.plain, own.deep
-			}
-		}
-		if variable, ok := root.(*syntax.Variable); ok {
-			key, known := literalText(n.Dim)
-			if variable.NameExpr == nil && !external(variable.Name) {
-				own, tracked := Value{}, false
-				if slot, constant := arrayKey(n.Dim); constant && levels == 1 {
-					own, tracked = f.vars.value(variable.Name).elements.lookup(slot)
-				}
-				switch {
-				case tracked:
-					// The element's own last write decides what it holds.
-					v = resourceElement(x, own, f, r)
-					v.Expr = x
-				case whole == uploadEntry && known && uploadField(key):
-					// The server chooses these fields of an uploaded file.
-					v = Value{Expr: x, Complete: true}
-				case whole == uploadTable:
-					v.upload = uploadEntry
-				case variable.Name == "GLOBALS" && levels == 1 && known && (r.global || r.globalNames[key]):
-					// The entry is the variable of that name.
-					held := f.vars.value(key)
-					v = Value{Complete: held.Complete, Sources: held.Sources, Safe: held.Safe, Expr: x}
-				}
-			}
-			if f.matched(requestElement(x)) {
-				// A switch found the element equal to a fixed text.
-				v = Value{Complete: true, Expr: x, matched: true}
-			}
-			if variable.Name == "_FILES" && levels == 1 {
-				v.upload = uploadEntry
-			}
-			if variable.Name == "_SERVER" {
-				if !known {
-					v = Value{Expr: x}
-				} else if !(strings.HasPrefix(key, "HTTP_") || key == "REQUEST_URI" || key == "QUERY_STRING" || key == "PHP_SELF" || key == "PATH_INFO" || strings.HasPrefix(key, "PHP_AUTH_")) {
-					v = Value{Expr: x, Complete: true}
-				}
-			}
-			// The fields of an entry are one level below it; deeper values
-			// are what their field holds (a list of names, of sizes).
-			if variable.Name == "_FILES" && levels == 2 && known {
-				switch key {
-				case "tmp_name", "error", "size":
-					v = Value{Expr: x, Complete: true}
-				case "name", "type", "full_path":
-				default:
-					v = Value{Expr: x}
-				}
-			}
-		}
-		v.plain, v.deep = base, base
+		v = e.evalArrayDimFetch(n, f, r, depth)
 	case *syntax.Array:
 		v.deep = true
 		for _, item := range n.Items {
@@ -365,29 +266,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v.Expr = x
 		v.elements = e.literalElements(n, r)
 	case *syntax.PropertyFetch:
-		e.eval(n.Var, f, r, depth+1)
-		if conditional(n) {
-			// The name is not evaluated when the object is null.
-			read := clone(f)
-			e.computed(n.Name, &read, r, depth)
-			*f = rejoin(*f, read, r)
-		} else {
-			e.computed(n.Name, f, r, depth)
-		}
-		// A magic method or a hook may read the property. One that is
-		// read as declared holds what its type admits.
-		v = Value{}
-		if r.idle() {
-			break
-		}
-		if !e.backed(n) {
-			e.implicit(x, f, r)
-			break
-		}
-		property := e.types.Index.FindProperty(e.types.ClassFQN(syntax.EnclosingClass(n)), n.Name.(*syntax.Identifier).Value, e.types.PHP)
-		if kind := e.kinds(property.Type, ""); kind&(kindKnown|kindObject|kindOpaque) == kindKnown {
-			v.plain, v.deep = true, kind&kindArray == 0
-		}
+		v = e.evalPropertyFetch(n, f, r, depth)
 	case *syntax.InterpolatedString:
 		// Each part is converted to text before the next one is read.
 		for i, part := range n.Parts {
