@@ -41,6 +41,15 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 					}
 					return
 				}
+				// An elseif arm runs once the earlier conditions of its
+				// chain failed: they guard it as an enclosing chain would.
+				if arm, ok := p.(*syntax.ElseIf); ok && syntax.UnwrapParens(arm.Cond) == binary && protectedBranch(ctx, arm.Body) {
+					owner := arm.Parent().(*syntax.If)
+					if !earlierArmTests(ctx, owner, arm) && !forwardedProxyGuarded(ctx, owner) && !forwardedProxyDecided(ctx, binary) {
+						ctx.ReportNode(binary, message)
+					}
+					return
+				}
 			}
 		}
 	}
@@ -91,6 +100,23 @@ func forwardedProxyDecided(ctx *analysis.Context, cmp syntax.Expr) bool {
 		}
 		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") || t.OnlyOf("false") }
 	})
+}
+
+// earlierArmTests reports whether a condition of chain before arm may
+// validate the proxy boundary.
+func earlierArmTests(ctx *analysis.Context, chain *syntax.If, arm *syntax.ElseIf) bool {
+	if forwardedProxyTest(ctx, chain.Cond) {
+		return true
+	}
+	for _, earlier := range chain.ElseIfs {
+		if earlier == arm {
+			break
+		}
+		if forwardedProxyTest(ctx, earlier.Cond) {
+			return true
+		}
+	}
+	return false
 }
 
 // forwardedProxyChain reports whether any condition of the if chain may

@@ -44,6 +44,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- UntrustedForwardedClientAddress reports a forwarded-address comparison
+  written as the condition of an `elseif` arm; it only looked at `if`
+  conditions. The earlier conditions of the chain count as proxy guards.
 - MkdirRaceCondition no longer reports a silenced `@mkdir()` that only runs
   once `is_dir()` returned false when the guard is an early exit
   (`if (is_dir($d)) { return; }`), an `else` or `elseif` arm, or a
