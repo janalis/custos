@@ -34,6 +34,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Arithmetic operators on a `\GMP` or `\BcMath\Number` operand, and shift
+  and bitwise operators on a `\GMP` operand, are typed as that object
+  instead of an int or a number, so type-based rules no longer treat the
+  result as a scalar.
 - Generic arguments given to a trait by an `@use` tag on the `use`
   statement inside the class (`/** @use EnumeratesValues<TKey, TValue> */`),
   as Laravel writes them, are now read; only the class's own doc was. The

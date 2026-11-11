@@ -96,6 +96,9 @@ func (e *Env) numeric(a, b syntax.Expr) types.Type {
 }
 
 func (e *Env) binaryType(n *syntax.Binary) types.Type {
+	if t, ok := e.overloaded(n.Op.Kind, n.Left, n.Right); ok {
+		return t
+	}
 	switch n.Op.Kind {
 	case syntax.TPipe:
 		return e.pipeType(n.Left, n.Right)
@@ -127,6 +130,9 @@ func (e *Env) binaryType(n *syntax.Binary) types.Type {
 }
 
 func (e *Env) compoundType(n *syntax.Assign) types.Type {
+	if t, ok := e.overloaded(n.Op.Kind, n.Var, n.Value); ok {
+		return t
+	}
 	switch n.Op.Kind {
 	case syntax.TConcatEqual:
 		return types.String
@@ -164,6 +170,38 @@ func (e *Env) compoundType(n *syntax.Assign) types.Type {
 		return types.Int
 	}
 }
+
+// overloaded types an operator whose operand is an object overloading it:
+// \GMP answers arithmetic, shift and bitwise operators with a \GMP, and
+// \BcMath\Number answers arithmetic operators with a \BcMath\Number (both
+// classes are final), whatever the other operand.
+func (e *Env) overloaded(op syntax.TokenKind, a, b syntax.Expr) (types.Type, bool) {
+	var classes []string
+	switch op {
+	case syntax.TPlus, syntax.TMinus, syntax.TMul, syntax.TDiv, syntax.TMod, syntax.TPow,
+		syntax.TPlusEqual, syntax.TMinusEqual, syntax.TMulEqual, syntax.TDivEqual, syntax.TModEqual, syntax.TPowEqual:
+		classes = overloadingArithmetic
+	case syntax.TSl, syntax.TSr, syntax.TAmpersand, syntax.TBar, syntax.TCaret,
+		syntax.TSlEqual, syntax.TSrEqual, syntax.TAndEqual, syntax.TOrEqual, syntax.TXorEqual:
+		classes = overloadingBitwise
+	default:
+		return types.Type{}, false
+	}
+	for _, x := range [2]syntax.Expr{a, b} {
+		t := e.TypeOf(x)
+		for _, c := range classes {
+			if t.OnlyOf(c) {
+				return t, true
+			}
+		}
+	}
+	return types.Type{}, false
+}
+
+var (
+	overloadingArithmetic = []string{`\GMP`, `\BcMath\Number`}
+	overloadingBitwise    = []string{`\GMP`}
+)
 
 // bitwise types `&`, `|`, `^`: a string when both operands are strings
 // (PHP operates on the bytes), else an int; unknown when both may be strings.
