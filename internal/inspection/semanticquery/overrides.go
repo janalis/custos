@@ -88,7 +88,7 @@ func descendantMethods(ix *index.Index, fqn string, ver phpversion.Version, budg
 			if !ix.AncestorsComplete(child, ver) {
 				out.Complete = false
 			}
-			composed := composedTraits(ix, c, ver)
+			var composed map[string]bool
 			for _, ancestor := range ix.Ancestors(child, ver) {
 				if !charge() {
 					return out
@@ -107,6 +107,9 @@ func descendantMethods(ix *index.Index, fqn string, ver phpversion.Version, budg
 					}
 				}
 				if ancestor.Kind == syntax.KindTrait {
+					if composed == nil {
+						composed = composedTraits(ix, c, ver)
+					}
 					own := composed[strings.ToLower(strings.TrimPrefix(ancestor.FQN, `\`))]
 					for name := range ancestor.Methods {
 						if !charge() {
@@ -142,7 +145,8 @@ func descendantMethods(ix *index.Index, fqn string, ver phpversion.Version, budg
 }
 
 // composedTraits returns the traits c composes, directly or through other
-// traits, lower-case and without a leading backslash.
+// traits, lower-case and without a leading backslash: by the name c uses
+// and, for a class_alias, by the name it declares.
 func composedTraits(ix *index.Index, c *index.Class, ver phpversion.Version) map[string]bool {
 	composed := map[string]bool{}
 	queue := slices.Clone(c.Traits)
@@ -154,6 +158,7 @@ func composedTraits(ix *index.Index, c *index.Class, ver phpversion.Version) map
 		}
 		composed[name] = true
 		if trait := ix.Class(name, ver); trait != nil {
+			composed[strings.ToLower(strings.TrimPrefix(trait.FQN, `\`))] = true
 			queue = append(queue, trait.Traits...)
 		}
 	}

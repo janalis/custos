@@ -178,6 +178,9 @@ func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Op
 		}
 	}
 	b.Snapshot = b.compose(ctx, snapshot, against, ix, tree)
+	// The earlier build's steps are no longer needed: the build now
+	// published must not keep them alive.
+	b.priors = nil
 	return b
 }
 
@@ -341,11 +344,13 @@ func (b *FlowBuild) restep(next *FlowBuild, dirty []int, against []*flow.Snapsho
 		return
 	}
 	next.steps, next.hashes = slices.Clone(b.steps), slices.Clone(b.hashes)
+	edited := make([]bool, len(b.files))
 	for _, i := range dirty {
-		next.hashes[i] = maphash.Bytes(sourceSeed, next.sources[b.files[i]])
+		next.hashes[i], edited[i] = maphash.Bytes(sourceSeed, next.sources[b.files[i]]), true
 	}
 	for i, r := range next.results {
-		if r != b.results[i] {
+		// The steps of an edited file describe its former source.
+		if r != b.results[i] || edited[i] {
 			next.steps[i] = nil
 			if r != nil {
 				next.steps[i] = []flowStep{{r, r.Basis(against[i])}}
@@ -779,8 +784,9 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 	}
 	_ = parallel(ctx, len(work), summaryWorkers(runtime.GOMAXPROCS(0)), func(j int) {
 		i := work[j]
-		if r := b.reuse(i, snapshot); r != nil {
-			b.results[i] = r
+		var basis *flow.Snapshot
+		if step, ok := b.reuse(i, snapshot); ok {
+			b.results[i], basis = step.result, step.against
 		} else if file := tree(i); file != nil {
 			// The file's first summary starts from the first one the
 			// earlier build made, if any, which read the same contracts
@@ -795,7 +801,12 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 		}
 		against[i] = snapshot
 		if b.steps != nil && b.results[i] != nil {
-			b.steps[i] = append(b.steps[i], flowStep{b.results[i], b.results[i].Basis(snapshot)})
+			// A reused summary keeps the basis it was recorded with: it
+			// answers what it consulted as snapshot does.
+			if basis == nil {
+				basis = b.results[i].Basis(snapshot)
+			}
+			b.steps[i] = append(b.steps[i], flowStep{b.results[i], basis})
 		}
 		if b.traced && b.results[i] != nil {
 			b.trace(i)
@@ -817,18 +828,19 @@ func (b *FlowBuild) seed(earlier *FlowBuild, readable []bool) {
 	}
 }
 
-// reuse returns a summary of file i an earlier build made from the same
-// source that is current against snapshot, nil when there is none.
-func (b *FlowBuild) reuse(i int, snapshot *flow.Snapshot) *flow.File {
+// reuse returns a step an earlier build made of file i from the same
+// source whose summary is current against snapshot; ok is false when there
+// is none.
+func (b *FlowBuild) reuse(i int, snapshot *flow.Snapshot) (step flowStep, ok bool) {
 	if len(b.priors) == 0 {
-		return nil
+		return flowStep{}, false
 	}
 	for _, step := range b.priors[i] {
 		if step.result.Current(step.against, snapshot) {
-			return step.result
+			return step, true
 		}
 	}
-	return nil
+	return flowStep{}, false
 }
 
 // resultsOf returns the current summaries of the files of work.

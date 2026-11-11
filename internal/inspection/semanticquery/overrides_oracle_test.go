@@ -140,6 +140,9 @@ class Base { use Inherited; function base(){} }
 class Child extends Base { use Own; }
 class GrandChild extends Child { use Inherited; }
 class Diamond extends Base { use Tagged, Deep; }
+trait Real { function aliased(){} }
+class_alias('Real', 'Alias');
+class Aliasing extends Base { use Alias; }
 `), syntax.Options{})))
 		// Unavailable before 8.0, late() leaves the child's @method tag
 		// to answer for it.

@@ -77,6 +77,9 @@ func TestRecordedUpdateOracle(t *testing.T) {
 		if !ok {
 			t.Fatalf("%s: update refused", e.path)
 		}
+		if next.priors != nil {
+			t.Fatalf("%s: the update keeps the earlier build's steps", e.path)
+		}
 		srcs := make([][]byte, len(files))
 		for i, path := range files {
 			srcs[i] = sources[path]
@@ -162,9 +165,12 @@ func TestRecordedUpdateWithoutSummaries(t *testing.T) {
 		}
 		return old(f, ix, v, s, o, prior, earlier)
 	}
+	// The build dropped the file's summary (as one that never settles),
+	// not the steps it recorded of its former source.
+	build.results[build.at[paths["shell.php"]]] = nil
 	build = updateLikeFull(t, build, paths["shell.php"], "<?php function shell($c) { exec($c); }", ix, nil)
 	if build.steps[build.at[paths["shell.php"]]] != nil {
-		t.Fatal("a crashed summary was recorded")
+		t.Fatal("steps of the former source kept")
 	}
 	build = updateLikeFull(t, build, paths["ping.php"], "<?php function ping($n) { if ($n) { pong(helper($n)); } shell($n); }", ix, nil)
 	if build.results[build.at[paths["shell.php"]]] != nil || build.steps[len(files)-1] != nil {
