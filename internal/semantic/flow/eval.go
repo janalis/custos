@@ -216,52 +216,11 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	v := Value{Complete: true, Expr: x}
 	switch n := x.(type) {
 	case *syntax.Variable:
-		if n.NameExpr != nil {
-			// The name may be the one of any variable, which a reference
-			// to it or a callee given it can then write.
-			if name := e.eval(n.NameExpr, f, r, depth+1); !name.plain {
-				// An object given for the name is converted to text.
-				e.implicit(x, f, r)
-			}
-			f.definite = false
-			v = Value{}
-			if assignment, target := n.Parent().(*syntax.Assign); !target || assignment.Var != n || assignment.Op.Kind != syntax.TEqual {
-				e.observeParameters(n, f, r)
-			}
-			if name, known := literalText(n.NameExpr); known && external(name) {
-				v = e.request(name, n, f)
-			}
-		} else if external(n.Name) {
-			v = e.request(n.Name, n, f)
-		} else {
-			var tracked bool
-			if v, tracked = f.vars.lookup(n.Name); !tracked {
-				// A variable nothing assigned is null, and the globals table
-				// is an array. The session table is whatever the application
-				// put there.
-				v.plain, v.deep = n.Name == "GLOBALS" || f.definite && importable(n.Name), f.definite && importable(n.Name)
-				if spread := f.vars.value(imported); importable(n.Name) && tainted(spread) {
-					// An import of request data may have created the variable.
-					v = Value{Sources: spread.Sources, Safe: spread.Safe}
-				}
-			}
-			v.tested, v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull, v.entry = nil, nil, false, false, false, false, false
-		}
+		v = e.evalVariable(n, f, r, depth)
 	case *syntax.Paren:
 		v = e.eval(n.Expr, f, r, depth+1)
 	case *syntax.Assign:
-		if n.Op.Kind == syntax.TCoalesceEqual {
-			// The offsets of the target are always evaluated; the right
-			// side runs only when the target is null.
-			e.operands(n.Var, f, r, depth+1)
-			assigned := clone(f)
-			v = e.assign(n, &assigned, r, depth, true)
-			*f = rejoin(*f, assigned, r)
-			f.unmatchAll(r)
-			break
-		}
-		v = e.assign(n, f, r, depth, false)
-		f.unmatchAll(r)
+		v = e.evalAssign(n, f, r, depth)
 	case *syntax.FuncCall:
 		if _, named := n.Name.(*syntax.Name); !named {
 			// A callee expression runs first: an invoked closure literal
@@ -462,30 +421,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			v.Safe |= everyContext
 		}
 	case *syntax.IncDec:
-		v = e.eval(n.Var, f, r, depth+1)
-		if target, ok := n.Var.(*syntax.Variable); ok && target.NameExpr == nil {
-			// The stepped variable holds the step applied to a known value,
-			// which a reader can evaluate, and nothing provable otherwise.
-			// Before PHP 8.3 a step leaves an object, or an array, as it is.
-			strict := e.types.PHP.AtLeast(phpversion.PHP83)
-			next := Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe, plain: v.plain || strict, deep: v.deep || strict}
-			delta := int64(1)
-			if n.Op.Kind == syntax.TDec {
-				delta = -1
-			}
-			next.interval = arithmetic(syntax.TPlus, v, integerValue(delta))
-			if v.Expr != nil {
-				next.Expr = x
-			}
-			f.write(r, target.Name, next)
-			if n.Prefix {
-				v = next
-				v.Expr = x
-			}
-		} else {
-			kill(n.Var, f, r)
-			v = Value{}
-		}
+		v = e.evalIncDec(n, f, r, depth)
 	case *syntax.Ternary:
 		cond := e.eval(n.Cond, f, r, depth+1)
 		if truth, known := constantTruth(n.Cond); known {
