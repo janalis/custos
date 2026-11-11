@@ -6,6 +6,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/types"
 )
 
 // UndeclaredEverywhere reports whether none of the class-likes (or, with
@@ -85,8 +86,10 @@ type existenceKey struct{}
 // when one of the class-likes or functions fqns exists: the file asks for
 // one of them by name (function_exists, is_callable, class_exists,
 // interface_exists, trait_exists or enum_exists with a literal name or a
-// `::class` fetch), or a condition enclosing n checks existence, an
-// extension or the PHP version (a conditional declaration or guarded code).
+// `::class` fetch), a condition enclosing n checks existence, an extension
+// or the PHP version (a conditional declaration or guarded code), or the
+// conditions guarding n narrow the result of such a check made earlier in
+// its scope (an early exit, a short circuit, a switch or match arm).
 func ExistenceChecked(ctx *analysis.Context, n syntax.Node, fqns ...string) bool {
 	asked := ctx.Shared(existenceKey{}, func() any { return askedNames(ctx) }).(map[string]bool)
 	for _, fqn := range fqns {
@@ -114,6 +117,26 @@ func ExistenceChecked(ctx *analysis.Context, n syntax.Node, fqns ...string) bool
 				return true
 			}
 		}
+	}
+	// An earlier check whose result the conditions guarding n narrow: an
+	// early exit, an else arm, a short circuit.
+	at, ok := n.(syntax.Expr)
+	return ok && NativeEarlierCallProves(ctx, at, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		if !runtimeDependentCall(ctx, x) {
+			return types.Unknown, nil
+		}
+		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") || t.OnlyOf("false") }
+	})
+}
+
+// runtimeDependentCall reports whether x is a condition check call or a
+// comparison reading a PHP version constant or calling one.
+func runtimeDependentCall(ctx *analysis.Context, x syntax.Expr) bool {
+	switch x := x.(type) {
+	case *syntax.FuncCall:
+		return conditionChecks[ctx.GlobalFunctionName(x)]
+	case *syntax.Binary:
+		return runtimeDependent(ctx, x)
 	}
 	return false
 }

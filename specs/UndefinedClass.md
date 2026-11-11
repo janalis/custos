@@ -47,7 +47,12 @@ unless every Composer dependency is installed.
   `interface_exists()`, `trait_exists()` or `enum_exists()` (a literal name
   or a `::class` fetch), or a name inside a branch whose condition checks
   existence, a loaded extension, a constant's definition or the PHP version
-  (a conditional declaration or guarded code).
+  (a conditional declaration or guarded code), or that such a check guards
+  by its result: an earlier early exit
+  (`if (!extension_loaded('x')) { return; }`), a short circuit
+  (`defined('X') or die()`), an else arm, or a `switch (true)` case or
+  `match (true)` arm. A check whose result guards nothing (stored and left
+  unread) does not count.
 - E3. A namespaced name in a namespace that a PHP extension uses (such as
   `MongoDB\` or `Swoole\`), and a name under a PSR-4 or PSR-0 prefix whose
   code the analysis did not read: a directory outside the analysed paths,

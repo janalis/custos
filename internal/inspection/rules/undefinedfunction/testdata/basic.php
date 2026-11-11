@@ -15,3 +15,10 @@ local_helper();
 strlen('x');
 \strlen('x');
 array_map(null, []);
+
+// A check whose result does not guard the call.
+function unguarded()
+{
+    $loaded = extension_loaded('acme');
+    <error descr="Fix the name or install the package declaring App\Acme\start().">Acme\start</error>($loaded);
+}

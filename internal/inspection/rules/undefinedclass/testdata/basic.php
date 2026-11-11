@@ -23,3 +23,10 @@ interface Reader extends <error descr="Fix the name or install the package decla
 $known = new User();
 $known = new \ArrayObject();
 echo User::class;
+
+// A check whose result does not guard the code.
+function unguarded()
+{
+    $loaded = extension_loaded('acme');
+    return new <error descr="Fix the name or install the package declaring App\Unguarded.">Unguarded</error>($loaded);
+}

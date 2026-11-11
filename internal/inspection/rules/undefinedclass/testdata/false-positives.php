@@ -69,3 +69,35 @@ $name::create();
 // self, static and parent.
 class Base { public static function make() { return new static(); } }
 class Child extends Base { public static function make() { return parent::make() ?? new self(); } }
+
+// Guarded by an early exit.
+function nativeHandle()
+{
+    if (!extension_loaded('acme')) {
+        return null;
+    }
+    return new \Acme\Native\Handle();
+}
+function futureFeature()
+{
+    if (PHP_VERSION_ID < 90000) {
+        throw new \LogicException('PHP 9 needed');
+    }
+    return \Php9\Feature::create();
+}
+function boot()
+{
+    defined('ACME_READY') or die();
+    \Acme\Ready\Kernel::boot();
+}
+
+// Inside a switch or match arm about extensions.
+switch (true) {
+    case extension_loaded('acme'):
+        $switched = new \Acme\Switched\Handle();
+        break;
+}
+$matched = match (true) {
+    extension_loaded('acme') => new \Acme\Matched\Handle(),
+    default => null,
+};

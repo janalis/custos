@@ -37,6 +37,31 @@ if (!function_exists('App\polyfilled')) {
 }
 polyfilled();
 
+// Guarded by an early exit, or inside a switch or match arm.
+function nativeStart()
+{
+    if (!extension_loaded('acme')) {
+        return;
+    }
+    \Acme\Native\start();
+}
+function futureStart()
+{
+    if (PHP_VERSION_ID < 90000) {
+        return;
+    }
+    \Php9\start();
+}
+switch (true) {
+    case defined('ACME'):
+        \Acme\Switched\start();
+        break;
+}
+$matched = match (true) {
+    extension_loaded('acme') => \Acme\Matched\start(),
+    default => null,
+};
+
 // Dynamic calls and names in strings.
 $fn = 'undefined_by_string';
 $fn();
