@@ -5,6 +5,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `analyse` and `fix` are faster on projects with large classes in
+  dependency cycles: the cross-file summaries no longer rebuild their
+  collection each round, and a file summarized again keeps the summaries
+  of the methods that no changed contract reaches. Runs on the `src` of
+  laravel, composer and guzzle take about 15%, 11% and 7% less time.
+
 ### Fixed
 
 - PhpUnitTests no longer rewrites to `assertRegExp()`, `assertNotRegExp()`,

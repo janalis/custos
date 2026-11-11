@@ -74,6 +74,17 @@ An inspection implementing `analysis.SemanticRule` makes the runner build the
 project index first; one implementing `analysis.FlowRule` requests
 project-local callable summaries.
 
+Project-local summaries reach a fixed point over rounds: a file is
+summarized again when a contract it read changed. Each summary records, per
+callable, the contracts it read, and a file summarized again keeps the
+summaries of the callables that no changed contract reaches, directly or
+through another callable of the file. Every cache that reads contracts
+while building file-wide state must replay those reads to later readers,
+as the globals, static and overrides caches do, or such a callable could
+be kept wrongly. `TestResummaryOracle` in `internal/project` compares each
+of these summaries with a full one; set `CUSTOS_ORACLE_CORPUS` to a
+project directory to run it over that project's `src`.
+
 `Engine.WithIndex` and `Engine.WithFlow` return configured copies; published
 engines are never reconfigured in place. Project indexes are built in memory.
 The LSP builds its workspace index in the background and publishes

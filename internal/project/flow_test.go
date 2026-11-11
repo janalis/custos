@@ -233,7 +233,7 @@ func TestFlowOscillatingFileIsDropped(t *testing.T) {
 	t.Cleanup(func() { extractFlow = old })
 	var mu sync.Mutex
 	calls := 0
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
 		if f.Path == flip {
 			mu.Lock()
 			calls++
@@ -243,7 +243,7 @@ func TestFlowOscillatingFileIsDropped(t *testing.T) {
 				f = alternate
 			}
 		}
-		return old(f, ix, v, s, o)
+		return old(f, ix, v, s, o, prior, earlier)
 	}
 	build := BuildFlow(context.Background(), []string{flip, reader}, nil, opt, ix, flow.Options{})
 	if calls != maxSummaries || build.results[0] != nil || build.results[1] != nil {
@@ -278,9 +278,9 @@ func TestFlowBuildOrdered(t *testing.T) {
 	var extracted atomic.Int64
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
 		extracted.Add(1)
-		return old(f, ix, v, s, o)
+		return old(f, ix, v, s, o, prior, earlier)
 	}
 	plain := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
 	order := plain.Order()

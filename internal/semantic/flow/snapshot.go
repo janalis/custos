@@ -73,6 +73,10 @@ type File struct {
 	// answered: a snapshot gives the same answers while the file alone
 	// declares them.
 	served map[string]bool
+	// callables records, per callable key, the contracts its summary read
+	// and how they were answered (see readAny), so that Resummarize can
+	// keep the summaries no changed contract reaches.
+	callables map[string]map[string]uint8
 }
 
 // Reads returns the summary keys (as File.Summaries lists them) of the
@@ -111,7 +115,7 @@ func (f *File) Current(earlier, s *Snapshot) bool {
 		}
 		before, had := earlier.lookup(name)
 		now, has := s.lookup(name)
-		if had != has || !reflect.DeepEqual(before, now) {
+		if had != has || had && !sameSummary(&before, &now) {
 			return false
 		}
 	}
@@ -310,6 +314,10 @@ func (s *Snapshot) rebuild() {
 	}
 }
 
+// sameSummary compares two contracts through pointers, so that comparing
+// them copies neither.
+func sameSummary(a, b *Summary) bool { return reflect.DeepEqual(a, b) }
+
 // held is the contract a snapshot that is no overlay holds for name itself,
 // as lookup answers it; nil when lookup would answer otherwise.
 func (s *Snapshot) held(name string) *Summary {
@@ -420,10 +428,12 @@ func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapsho
 func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) (*Env, *File) {
 	e, order := summaryInventory(file, types, snapshot, options)
 	s := e.summarizing
+	s.track = map[string]map[string]uint8{}
 	out := s.out
 	for _, n := range order {
 		e.summarize(n)
 	}
+	out.callables = s.track
 	e.summarizing = nil
 	out.consulted, e.consulted = e.consulted, nil
 	for key, read := range e.answers {
@@ -506,6 +516,10 @@ type summarizing struct {
 	declared     map[string][]syntax.Node
 	names        map[syntax.Node]string
 	state        map[syntax.Node]uint8
+	// track records what each callable read (see File.callables); stack
+	// holds the callables being summarized, innermost last.
+	track map[string]map[string]uint8
+	stack []string
 }
 
 const (
@@ -520,6 +534,9 @@ func (e *Env) summarize(n syntax.Node) {
 		return
 	}
 	s.state[n] = summaryBegun
+	if s.track != nil {
+		defer e.tracking(s, s.names[n])()
+	}
 	if s.dependencies != nil {
 		reads := e.begin()
 		defer func() { e.end(reads); s.dependencies[n] = reads }()
@@ -727,6 +744,9 @@ func (e *Env) contract(name string) (Summary, bool) {
 	summary, ok, own := e.serve(key)
 	if !own {
 		summary, ok = e.snapshot.lookup(key)
+	}
+	if state := e.summarizing; state != nil && len(state.stack) > 0 {
+		state.answered(key, own)
 	}
 	if state := e.summarizing; state != nil && state.dependencies != nil {
 		// Local workers publish into one immutable view. Stable own and external

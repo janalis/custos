@@ -50,11 +50,11 @@ func countSummaries(t *testing.T) map[string]int {
 	counts := map[string]int{}
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
 		mu.Lock()
 		counts[f.Path]++
 		mu.Unlock()
-		return old(f, ix, v, s, o)
+		return old(f, ix, v, s, o, prior, earlier)
 	}
 	return counts
 }
@@ -108,9 +108,9 @@ func TestFlowUpdateRescopesRecursion(t *testing.T) {
 	// not show: every file is summarized again.
 	missed := build.results[build.at[paths["ping.php"]]]
 	inner := extractFlow
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
 		extractFlow = inner
-		inner(f, ix, v, s, o) // counted
+		inner(f, ix, v, s, o, prior, earlier) // counted
 		return missed
 	}
 	clear(counts)
@@ -133,11 +133,11 @@ func TestFlowUpdateRescopeFallsBack(t *testing.T) {
 			// leaves what it declares unknown.
 			old := extractFlow
 			t.Cleanup(func() { extractFlow = old })
-			extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+			extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
 				if f.Path == paths["shell.php"] {
 					return nil
 				}
-				return old(f, ix, v, s, o)
+				return old(f, ix, v, s, o, prior, earlier)
 			}
 			next := updateLikeFull(t, build, paths["shell.php"], "<?php function shell($c) { exec($c); }", ix, nil)
 			// Nor does the next one tell it.
@@ -175,11 +175,11 @@ func TestFlowUpdateRescopeWithoutSummaries(t *testing.T) {
 	opt := syntax.Options{Version: phpversion.Default}
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
 		if f.Path == paths["shell.php"] {
 			return nil
 		}
-		return old(f, ix, v, s, o)
+		return old(f, ix, v, s, o, prior, earlier)
 	}
 	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
 	counts := countSummaries(t)
@@ -269,11 +269,11 @@ func TestFlowUpdateRecordsFirstSummaries(t *testing.T) {
 	opt := syntax.Options{Version: phpversion.Default}
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
 		if f.Path == paths["user.php"] {
 			return nil
 		}
-		return old(f, ix, v, s, o)
+		return old(f, ix, v, s, o, prior, earlier)
 	}
 	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
 	extractFlow = old

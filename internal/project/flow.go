@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 )
@@ -214,7 +215,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	probe := make([]*flow.File, len(dirty))
 	_ = parallel(context.Background(), len(dirty), summaryWorkers(runtime.GOMAXPROCS(0)), func(j int) {
 		if file := tree(dirty[j]); file != nil {
-			probe[j] = extractFlow(file, ix, b.opt.Version, b.Snapshot, b.options)
+			probe[j] = extractFlow(file, ix, b.opt.Version, b.Snapshot, b.options, nil, nil)
 		}
 	}, nil)
 	for j, i := range dirty {
@@ -707,7 +708,7 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 	_ = parallel(ctx, len(work), summaryWorkers(runtime.GOMAXPROCS(0)), func(j int) {
 		if file := tree(work[j]); file != nil {
 			i := work[j]
-			b.results[i] = extractFlow(file, ix, b.opt.Version, snapshot, b.options)
+			b.results[i] = extractFlow(file, ix, b.opt.Version, snapshot, b.options, b.results[i], against[i])
 			against[i] = snapshot
 			if b.traced && b.results[i] != nil {
 				b.trace(i)
@@ -772,6 +773,13 @@ func (b *FlowBuild) unsettled(snapshot *flow.Snapshot, against []*flow.Snapshot)
 	}
 }
 
-// extractFlow is flow.Extract; tests replace it to simulate a crash. A file
-// whose summaries crash keeps none: calls into it read as unresolved.
-var extractFlow = flow.Extract
+// extractFlow summarizes a file, again when prior holds its summaries
+// computed against earlier (see flow.Reextract); tests replace it to
+// simulate a crash. A file whose summaries crash keeps none: calls into it
+// read as unresolved.
+var extractFlow = func(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *flow.Snapshot, options flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
+	if prior != nil && earlier != nil {
+		return flow.Reextract(file, ix, php, snapshot, options, prior, earlier)
+	}
+	return flow.Extract(file, ix, php, snapshot, options)
+}
