@@ -231,7 +231,7 @@ func callMatches(x syntax.Expr, name string) bool {
 	}
 	c := unsilenced(x) // `@f()` is f()'s result
 	switch c.(type) {
-	case *syntax.FuncCall, *syntax.MethodCall, *syntax.Binary:
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.Binary:
 	default:
 		return false
 	}
@@ -358,7 +358,7 @@ func (e *Env) onlyAssign(name string, at, scope syntax.Node) *syntax.Assign {
 // (parenthesised or silenced) or a local holding it where it is read.
 func (e *Env) holds(value, c syntax.Expr, scope syntax.Node, hops int) bool {
 	switch v := unsilenced(value).(type) {
-	case *syntax.FuncCall, *syntax.MethodCall, *syntax.Binary:
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.Binary:
 		return v == c
 	case *syntax.Variable:
 		if hops >= maxHolderHops || v.Name == "" || v.NameExpr != nil {

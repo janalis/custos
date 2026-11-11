@@ -6,6 +6,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Validate the trusted proxy boundary before trusting forwarded addresses."
@@ -35,7 +36,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 		if forwardedServerKey(ctx, fetch) == "HTTP_X_FORWARDED_FOR" {
 			for p := binary.Parent(); p != nil; p = p.Parent() {
 				if branch, ok := p.(*syntax.If); ok && branch.Cond != nil && syntax.UnwrapParens(branch.Cond) == binary && protectedBranch(ctx, branch.Body) {
-					if !forwardedProxyGuarded(ctx, branch) {
+					if !forwardedProxyGuarded(ctx, branch) && !forwardedProxyDecided(ctx, binary) {
 						ctx.ReportNode(binary, message)
 					}
 					return
@@ -77,6 +78,19 @@ func forwardedProxyGuarded(ctx *analysis.Context, branch *syntax.If) bool {
 		}
 	}
 	return false
+}
+
+// forwardedProxyDecided reports whether the result of an earlier test that
+// may validate the proxy boundary is known where cmp runs: the conditions
+// guarding cmp (a short-circuit exit such as `knownProxy() or exit;`, or a
+// test of the local holding the result) decide it.
+func forwardedProxyDecided(ctx *analysis.Context, cmp syntax.Expr) bool {
+	return semanticquery.NativeEarlierCallProves(ctx, cmp, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		if !forwardedProxyTest(ctx, x) {
+			return types.Unknown, nil
+		}
+		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") || t.OnlyOf("false") }
+	})
 }
 
 // forwardedProxyChain reports whether any condition of the if chain may
