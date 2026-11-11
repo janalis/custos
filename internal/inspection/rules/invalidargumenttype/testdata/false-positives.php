@@ -114,3 +114,29 @@ class Hooks
 class Ledger { public function post(int $amount) {} }
 class Journal extends Ledger { public function post(int $value) {} }
 function book(Ledger $l) { $l->post(amount: 'x'); }
+
+// A method called on $this in a closure: the closure may be bound to
+// another object, whose method takes other types.
+class Builder
+{
+    public function where(int $n) {}
+    public function macro()
+    {
+        $scope = function () { $this->where('x'); };
+        $arrow = fn () => $this->where('x');
+    }
+}
+
+// A null default makes the parameter nullable, however it is spelled.
+class Defaults
+{
+    public function plain(int $x = null) {}
+    public function qualified(int $x = \null) {}
+    public function upper(int $x = NULL) {}
+}
+function defaults(Defaults $d)
+{
+    $d->plain(null);
+    $d->qualified(null);
+    $d->upper(null);
+}

@@ -51,8 +51,8 @@ Reported:
   reference, captured by reference, a `global` or `static` local, or passed
   where it may be written by reference.
 - Every declaration of D1 has a native type on the parameter, and that
-  type accepts no value of the argument's type. A null default makes the
-  parameter type nullable.
+  type accepts no value of the argument's type. A null default (`null` or
+  `\null`, in any case) makes the parameter type nullable.
 - Without `declare(strict_types=1)` in the calling file, PHP converts
   scalars to the scalar type expected: only values that no conversion
   accepts count (arrays, objects, null for a type without null).
@@ -81,7 +81,8 @@ Reported:
   PHP declares in some version (a polyfill), classes declared more than
   once.
 - An override in a subtype that accepts the value.
-- `$this` read inside a closure or arrow function, which may run bound
+- `$this` read inside a closure or arrow function, as an argument or
+  as the receiver of the method called, since the closure may run bound
   to another object.
 - PHP's own functions below PHP 8.0, functions of extensions not
   bundled with PHP, and the builtins whose stub declares other parameter

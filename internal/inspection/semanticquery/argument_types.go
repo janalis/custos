@@ -81,7 +81,7 @@ type argumentCheckKey struct{}
 
 func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentMismatch {
 	args := bindableArgs(call)
-	if len(args) == 0 {
+	if len(args) == 0 || reboundReceiver(call) {
 		return nil
 	}
 	callee, ok := ResolveCallee(ctx, call)
@@ -202,6 +202,14 @@ func reboundThis(x syntax.Expr) bool {
 	return found
 }
 
+// reboundReceiver reports whether call is a method call whose receiver
+// reads $this in a closure or an arrow function: the method may be another
+// object's.
+func reboundReceiver(call syntax.Node) bool {
+	c, ok := call.(*syntax.MethodCall)
+	return ok && reboundThis(c.Var)
+}
+
 // bindAll returns the parameter b binds to in each target; false when it
 // binds to none in one of them, or to a by-reference parameter.
 func bindAll(targets []CallTarget, b boundArg) ([]index.Param, bool) {
@@ -320,10 +328,10 @@ func (c *argumentCheck) nativeRejects(targets []CallTarget, params []index.Param
 	return true
 }
 
-// declaredType parses a declared parameter type; a null default makes it
-// nullable.
+// declaredType parses a declared parameter type; a null default (`null` or
+// `\null`, in any case) makes it nullable.
 func (c *argumentCheck) declaredType(text, def string) types.Type {
-	k := declaredKey{text, strings.EqualFold(def, "null")}
+	k := declaredKey{text, strings.EqualFold(strings.TrimPrefix(def, `\`), "null")}
 	if t, ok := c.declared[k]; ok {
 		return t
 	}
