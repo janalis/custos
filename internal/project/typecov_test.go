@@ -102,6 +102,9 @@ func TestTypeCoverage(t *testing.T) {
 					cause := ""
 					if v, ok := e.(*syntax.Variable); ok {
 						cause = defCause(v, env)
+						if cause == "param-untyped-closure" && os.Getenv("CUSTOS_TYPECOV_ORIGIN") != "" {
+							cause += "<-" + closureContext(syntax.EnclosingVariableScope(v), env)
+						}
 						causes[cause]++
 					}
 					if mc, ok := e.(*syntax.MethodCall); ok && os.Getenv("CUSTOS_TYPECOV_ORIGIN") != "" {
@@ -366,4 +369,48 @@ func mcallCause(mc *syntax.MethodCall, env *infer.Env, ix *index.Index) string {
 		return "template"
 	}
 	return "declared=" + m.Return + "|doc=" + m.DocReturn
+}
+
+// closureContext names where the closure or arrow function fn is written:
+// the call it is an argument of (with the receiver's class for a method
+// call), or the construct holding it.
+func closureContext(fn syntax.Node, env *infer.Env) string {
+	if fn == nil {
+		return "none"
+	}
+	arg, ok := fn.Parent().(*syntax.Arg)
+	if !ok {
+		return fmt.Sprintf("%T", fn.Parent())
+	}
+	call := arg.Parent()
+	if _, ok := call.(*syntax.ArgList); ok {
+		call = call.Parent()
+	}
+	switch c := call.(type) {
+	case *syntax.FuncCall:
+		if nm, ok := c.Name.(*syntax.Name); ok {
+			return "fcall:" + strings.ToLower(nm.Value)
+		}
+	case *syntax.MethodCall:
+		recv := env.TypeOf(c.Var)
+		owner := "?"
+		if cs := recv.Classes(); len(cs) > 0 {
+			owner = cs[0]
+			if args := recv.TypeArgs(cs[0]); len(args) > 0 {
+				owner += "<" + args[len(args)-1].String() + ">"
+			}
+		} else if !recv.IsUnknown() {
+			owner = recv.String()
+		}
+		if id, ok := c.Name.(*syntax.Identifier); ok {
+			return "mcall:" + owner + "->" + id.Value
+		}
+	case *syntax.StaticCall:
+		if id, ok := c.Name.(*syntax.Identifier); ok {
+			return "scall:" + id.Value
+		}
+	case *syntax.New:
+		return "new"
+	}
+	return fmt.Sprintf("arg-of:%T", call)
 }

@@ -77,7 +77,8 @@ func (c corpus) version() (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
-// findings runs custos on the corpus and returns its findings, sorted.
+// findings runs custos on the corpus and returns its findings, sorted:
+// the lines that end with a rule ID (not the summary line).
 func (c corpus) findings() ([]string, error) {
 	cmd := exec.Command(c.bin, "analyse", "-all", "-no-cache", "-fail-on", "never", "src")
 	cmd.Dir = c.dir
@@ -86,9 +87,11 @@ func (c corpus) findings() ([]string, error) {
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("custos: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
-	lines := strings.Split(strings.TrimRight(stdout.String(), "\n"), "\n")
-	if lines[0] == "" {
-		lines = nil
+	var lines []string
+	for line := range strings.SplitSeq(stdout.String(), "\n") {
+		if ruleOf.MatchString(line) {
+			lines = append(lines, line)
+		}
 	}
 	slices.Sort(lines)
 	return lines, nil
@@ -191,10 +194,7 @@ func byRule(removed, added []string) []string {
 	counts := map[string]*count{}
 	tally := func(lines []string, add bool) {
 		for _, line := range lines {
-			rule := "(unknown rule)"
-			if m := ruleOf.FindStringSubmatch(line); m != nil {
-				rule = m[1]
-			}
+			rule := ruleOf.FindStringSubmatch(line)[1]
 			if counts[rule] == nil {
 				counts[rule] = &count{}
 			}

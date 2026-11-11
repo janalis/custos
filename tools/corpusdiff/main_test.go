@@ -60,16 +60,17 @@ func TestRecordThenCompare(t *testing.T) {
 	if code, out, _ := runWith(args...); code != 0 || out != "c 1.0: 2 findings, unchanged\n" {
 		t.Fatalf("unchanged: %d %q", code, out)
 	}
-	// One finding moves, one appears twice, one has no rule.
-	findings(t, root, "a.php:2:1: info: One. [RuleA]\nb.php:1:1: info: Two. [RuleB] (fixable)\nb.php:1:1: info: Two. [RuleB] (fixable)\nnoise\n")
+	// One finding moves and one appears twice; the summary line is no
+	// finding.
+	findings(t, root, "a.php:2:1: info: One. [RuleA]\nb.php:1:1: info: Two. [RuleB] (fixable)\nb.php:1:1: info: Two. [RuleB] (fixable)\n\n1 file(s) analysed: 3 info\n")
 	code, out, _ := runWith(args...)
 	diff := filepath.Join(root, "records", "c.diff")
-	want := "c 1.0: 1 findings removed, 3 added (" + diff + ")\n  (unknown rule): -0 +1\n  RuleA: -1 +1\n  RuleB: -0 +1\n"
+	want := "c 1.0: 1 findings removed, 2 added (" + diff + ")\n  RuleA: -1 +1\n  RuleB: -0 +1\n"
 	if code != 1 || out != want {
 		t.Fatalf("changed: %d %q", code, out)
 	}
 	text, _ := os.ReadFile(diff)
-	if string(text) != "- a.php:1:1: info: One. [RuleA]\n+ a.php:2:1: info: One. [RuleA]\n+ b.php:1:1: info: Two. [RuleB] (fixable)\n+ noise\n" {
+	if string(text) != "- a.php:1:1: info: One. [RuleA]\n+ a.php:2:1: info: One. [RuleA]\n+ b.php:1:1: info: Two. [RuleB] (fixable)\n" {
 		t.Fatalf("diff: %q", text)
 	}
 	// Back to the record: the difference file goes.
