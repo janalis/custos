@@ -60,3 +60,10 @@ str_repeat('-', 3);
 /** @param string ...$names */
 function greetAll(...$names) { listNames($names); }
 function listNames(array $names) {}
+
+// An array tag on a variadic parameter may type the collected array or
+// each value: neither is assumed.
+/** @param string[] ...$names */
+function greet(...$names) { foreach ($names as $n) { strlen($n); } }
+/** @param array<int, string> ...$rows */
+function rows(...$rows) { foreach ($rows as $row) { strlen($row); } }

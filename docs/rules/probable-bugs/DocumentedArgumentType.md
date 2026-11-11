@@ -63,6 +63,9 @@ Reported:
   lengths and literal string values. `@param positive-int` accepts any
   integer.
 - Every exception of InvalidArgumentType.
+- Values read from a variadic parameter whose `@param` type is an array
+  or iterable (`@param string[] ...$names`): the tag may type the collected
+  array or each value, so the values have no PHPDoc type.
 
 ## Fix
 

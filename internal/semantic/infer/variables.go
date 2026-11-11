@@ -1029,6 +1029,21 @@ func collected(t types.Type) types.Type {
 	return types.Of(atoms...)
 }
 
+// variadicDoc is the array a variadic parameter holds, from its tag type t.
+// A tag without an array type (`string ...$names`) types each collected
+// value. An array or iterable tag (`string[] ...$names`) is ambiguous: the
+// PHPStan and Psalm convention reads it as each value's type, while much
+// code writes the collected array. Either guess is wrong for some code and
+// would report its correct uses, so such a tag gives an unknown type.
+func variadicDoc(t types.Type) types.Type {
+	for _, a := range t.Atoms() {
+		if a == "array" || a == "iterable" || strings.HasSuffix(a, "[]") {
+			return types.Unknown
+		}
+	}
+	return collected(t) // unknown stays unknown
+}
+
 func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 	at := p.Span().Start
 	declared := e.declaredParam(p)
@@ -1048,9 +1063,8 @@ func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 	}
 	if doc != "" {
 		dt := e.docType(doc, e.resolverFor(scope, at))
-		if p.Variadic && !dt.IsUnknown() {
-			// The tag of a variadic parameter types each collected value.
-			dt = collected(dt)
+		if p.Variadic {
+			dt = variadicDoc(dt)
 		}
 		if narrowed, ok := e.narrowerDoc(declared, dt); ok {
 			return narrowed
