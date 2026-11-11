@@ -698,7 +698,9 @@ type evaluatedCall struct {
 }
 
 // finishCall applies the same contracts to written and resolved callable calls;
-// prepared argument values are never evaluated a second time.
+// prepared argument values are never evaluated a second time. It merges the
+// arguments into the result, hands the call to the handler of its callee
+// kind, then settles states and references. The epilogue stays inline.
 func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCall, f *frame, r *scopeResult) Value {
 	receiver, rv, followed, closedFollowed, values, written := input.receiver, input.receiverValue, input.followed, input.closedFollowed, input.values, input.written
 	f.unmatchAll(r)
@@ -718,7 +720,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		r.callIndex[n] = len(r.calls)
 		r.calls = append(r.calls, c)
 	}
-	v := Value{Complete: true, Expr: n.(syntax.Expr)}
+	out := callOutcome{value: Value{Complete: true, Expr: n.(syntax.Expr)}}
 	// A PHP function that edits text makes, of matched labels and literals,
 	// text of the program.
 	labels, texts := 0, 0
@@ -743,17 +745,17 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		} else if a.written() {
 			texts++
 		}
-		v = merge(v, a)
+		out.value = merge(out.value, a)
 	}
 	derived := builtin && edits(name) && labels > 0 && labels+texts == len(values)
-	v.Expr = n.(syntax.Expr)
-	v.Identity = 0
+	out.value.Expr = n.(syntax.Expr)
+	out.value.Identity = 0
 	// Arrays of numbers put together make one; anything else does not.
-	v.upload, v.scalars = 0, v.scalars && builtin && (name == "array_merge" || name == "array_replace")
-	bound, boundOK := e.bind(n, values)
+	out.value.upload, out.value.scalars = 0, out.value.scalars && builtin && (name == "array_merge" || name == "array_replace")
+	out.bound, out.boundOK = e.bind(n, values)
 	first := Value{}
-	if boundOK && len(bound) > 0 {
-		first = bound[0]
+	if out.boundOK && len(out.bound) > 0 {
+		first = out.bound[0]
 	} else if call, ok := n.(*syntax.FuncCall); ok && builtin && call.Args != nil {
 		if ordered, known := e.guardArguments(call); known && len(ordered) > 0 && ordered[0] != nil {
 			first = r.values.at(ordered[0])
@@ -761,271 +763,23 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	} else if !builtin && len(values) > 0 {
 		first = values[0]
 	}
-	invoked := false
-	immutablePure := false
-	var invocationStates map[uint32]State
-	if s, ok := e.contract(e.summaryName(n)); ok {
-		r.argumentSensitive = r.argumentSensitive || s.argumentSensitive
-		if boundOK && len(s.defaults) > 0 {
-			bound, boundOK = e.defaultArguments(n, values, s.defaults)
-		}
-		v = Value{Complete: s.Return.Complete, Expr: n.(syntax.Expr), Safe: s.Return.Safe}
-		v = substitute(s.Return, bound, boundOK)
-		v.Expr = n.(syntax.Expr)
-		v.Safe |= s.Return.Safe
-		forwarded := false
-		precise := e.preciseSummaryTarget(n, closedFollowed)
-		if boundOK && s.Fixed && precise {
-			result, states, ok := e.pureReturn(n, s.pure, bound, nil, v, f, r)
-			immutablePure = ok && result.plain && result.deep && pureReadOnlyInputs([]Value{result}, nil)
-			if !ok {
-				result, states, ok = e.forwardedReturn(n, s.forward, bound, f, r)
-			}
-			if ok {
-				v = result
-				v.Expr = n.(syntax.Expr)
-				invocationStates = states
-				invoked = len(states) > 0
-				forwarded = true
-			}
-		}
-		if v.elements != nil && (!s.Fixed || !precise) {
-			v.elements = nil
-		}
-		// An overridable or bodiless target may not be the body that runs:
-		// its return keeps the sources it may yield but proves nothing more.
-		if !precise {
-			v.Complete = false
-		}
-		if boundOK {
-			v.returned = e.bindReturned(n, s.returned, bound)
-		}
-		v.scalars = s.Return.scalars && len(v.Sources) > 0
-		if !forwarded && boundOK && v.Complete && s.Quiet && precise {
-			v, invocationStates = e.instantiateRecord(n, v, bound, f, r)
-			invoked = len(invocationStates) > 0
-		}
-		if boundOK && v.Complete {
-			if identity, states, known := e.instantiateResource(n, s.resource, bound, f, r); known {
-				v.Identity = identity
-				invoked, invocationStates = true, states
-			}
-		}
-		if boundOK && len(s.effects) > 0 && precise {
-			effects := e.resourceEffects(n, s.effects, bound, f, r)
-			if len(effects) > 0 {
-				if invocationStates == nil {
-					invocationStates = effects
-				} else {
-					for id, state := range effects {
-						invocationStates[id] = state
-					}
-				}
-				invoked = true
-			}
-		}
-		if s.Generator {
-			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
-		}
-	} else if !builtin {
-		if returned, states, known := e.invokeCallable(n, values, f, r); known {
-			invoked, invocationStates = true, states
-			v = returned
-			v.Expr = n.(syntax.Expr)
-		} else if returned, known := e.closedReturn(n, values, closedFollowed); known {
-			v = returned
-			v.Expr = n.(syntax.Expr)
-		} else {
-			r.gap("unresolved-dispatch", n.Span())
-			// An unresolved callee may validate or escape its arguments.
-			v = Value{Expr: v.Expr}
-		}
+	if !e.summarizedCall(n, values, closedFollowed, &out, f, r) && !builtin {
+		e.unsummarizedCall(n, values, closedFollowed, &out, f, r)
 	}
 	if builtin {
-		contract := transforms[name]
-		if contract.decodes {
-			v = decodedHTML(v)
-		}
-		if !contract.keepsQuotes {
-			v.Safe &^= HTMLSingleQuoted | HTMLDoubleQuoted
-		}
-		if len(v.Sources) > 0 && scalarResult(result) {
-			v.Safe |= everyContext
-		}
-		switch name {
-		case "extract", "parse_str":
-			if name == "extract" && e.assigns(n, args, f, r) {
-				break
-			}
-			f.definite = false
-			// Each key of the array may replace a local binding of that
-			// name, or create one, with an element of the array.
-			if array, given := passed(args, values, "array", 0); given && name == "extract" || len(values) == 1 {
-				if !given {
-					array = values[0]
-				}
-				if array.scalars {
-					// The variables hold the numbers; the keys name them.
-					array.Safe |= everyContext
-				}
-				// With a skipping or prefixing flag existing variables stay.
-				if flags, chosen := passed(args, values, "flags", 1); !chosen || name != "extract" || !keepsExisting(flags.Expr) {
-					f.unsettle(r, array)
-				}
-				f.importing(array)
-			}
-		case "array_map":
-			// Each element is the callback's result; one array keeps its keys.
-			// A list has the keys PHP numbered it with.
-			if len(values) > 0 && e.scalarCallback(values[0].Expr) && len(v.Sources) > 0 {
-				if len(values) == 2 && !e.list(values[1].Expr) {
-					v.scalars = true
-				} else {
-					v.Safe |= everyContext
-				}
-			}
-		}
-		if len(values) > 0 && values[0].scalars && keepsElements(name) {
-			// The result is that array with fewer elements: the other
-			// arguments only choose among them.
-			v = Value{Complete: v.Complete, Expr: v.Expr, Sources: values[0].Sources, Safe: values[0].Safe, scalars: true}
-		}
-		// Invoking a closure object runs project code like calling it.
-		if name == "__invoke" || name == "call" || e.callbackParameter(n, args, values) {
-			invalidateCallbackRecords(values, f, r)
-			reenter(n, f, r)
-			if e.exposed(f, r) {
-				e.invalidateShared(n, f, r)
-			}
-		} else if e.handed(n, name, args, values) {
-			e.implicit(n, f, r)
-		}
-		v.Safe |= transforms[name].safe
-		switch name {
-		case "htmlspecialchars", "htmlentities":
-			// An unpacked list may pass flags that leave quotes alone.
-			if boundOK && len(bound) > 1 {
-				if flags, given := passed(args, values, "flags", 1); given || absent(args, "flags", 1) {
-					v.Safe |= e.htmlQuoteSafety(flags, !given, r)
-				}
-			}
-		case "json_encode":
-			// A JSON text holds no unescaped slash, so no `</script>`,
-			// unless asked for one without escaping `<` and `>` instead.
-			flags, given := passed(args, values, "flags", 1)
-			bits, known := int64(0), absent(args, "flags", 1)
-			if given && flags.Complete {
-				bits, known = e.htmlFlagBits(flags.Expr, r, 16)
-			}
-			if known && (bits&64 == 0 || bits&1 != 0) {
-				v.Safe |= HTMLScript
-			}
-			// Strings escape CR and LF as `\r` and `\n`; only
-			// JSON_PRETTY_PRINT (128) puts line breaks between members.
-			if known && bits&128 == 0 {
-				v.Safe |= Header
-			}
-		case "http_build_query":
-			// Every key and value is URL-encoded and joined by `=` and the
-			// separator, so no line break unless the numeric prefix or the
-			// separator brings one; an `&` may still start an entity.
-			if plainQueryPart(args, values, "numeric_prefix", 1) && plainQueryPart(args, values, "arg_separator", 2) {
-				v.Safe |= Header
-			}
-		case "number_format":
-			// Digits, a sign and the separators, which PHP chooses unless
-			// they are given.
-			if absent(args, "decimal_separator", 2) && absent(args, "thousands_separator", 3) {
-				v.Safe |= everyContext
-			}
-		case "filter_var":
-			if filter, given := passed(args, values, "filter", 1); given {
-				v.Safe |= e.filtered(filter)
-			}
-		case "quote":
-			if m := e.method(n); m != nil && strings.EqualFold(strings.TrimPrefix(m.Class, `\`), "PDO") {
-				v.Safe |= SQL
-			}
-		case "md5", "sha1", "hash", "hash_hmac":
-			position := 1
-			switch name {
-			case "hash":
-				position = 2
-			case "hash_hmac":
-				position = 3
-			}
-			if boundOK && position < len(bound) {
-				flag := bound[position]
-				if flag.Complete && flag.Expr == nil {
-					v.Safe |= everyContext
-				} else {
-					switch flag := syntax.UnwrapParens(flag.Expr).(type) {
-					case *syntax.ConstFetch:
-						if strings.EqualFold(flag.Name.Value, "false") {
-							v.Safe |= everyContext
-						}
-					case *syntax.Literal:
-						if flag.LitKind == syntax.LitInt && flag.Raw == "0" {
-							v.Safe |= everyContext
-						}
-					}
-				}
-			}
-		case "fopen", "tmpfile", "popen", "curl_init":
-			// A fresh handle: no code ran on it, whatever its arguments
-			// went through.
-			v.Identity, v.Invalidated = n.Span().Start+1, 0
-			if r.allocations == nil {
-				r.allocations = map[uint32]bool{}
-			}
-			r.allocations[v.Identity] = true
-		case "prepare", "query":
-			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
-		}
-		switch name {
-		case "session_start", "session_write_close", "session_commit", "session_abort", "session_destroy":
-			f.setState(sessionID, State{Operation: name, Span: n.Span()})
-		case "http_response_code":
-			f.setState(responseID, State{Operation: name, Span: n.Span()})
-		case "flush", "ob_end_flush":
-			if _, output := f.states[outputID]; output {
-				if _, buffering := f.states[bufferID]; !buffering || name == "ob_end_flush" {
-					f.setState(committedID, State{Operation: name, Span: n.Span()})
-				}
-			}
-			if name == "ob_end_flush" {
-				delete(f.states, bufferID)
-			}
-		case "ob_start":
-			f.setState(bufferID, State{Operation: name, Span: n.Span()})
-		case "ob_end_clean":
-			delete(f.states, bufferID)
-		case "header":
-			if text, known := literalText(first.Expr); known && strings.HasPrefix(strings.ToLower(text), "set-cookie:") {
-				f.setState(cookieID, State{Operation: name, Span: n.Span()})
-			}
-		}
+		e.builtinCall(n, name, args, values, first, result, &out, f, r)
 	} else {
-		e.invalidateEscaped(n, append(values, rv), f, r)
-		if !e.quiet(n, args, values) {
-			reenter(n, f, r)
-		}
-		e.invalidateShared(n, f, r)
-		for id := range f.states {
-			if id >= bufferID {
-				delete(f.states, id)
-			}
-		}
+		e.userCall(n, args, values, rv, f, r)
 	}
 	if builtin && (name == "call_user_func" || name == "call_user_func_array") {
 		if returned, states, known := e.invokeCallable(n, values, f, r); known {
-			v = returned
-			v.Expr = n.(syntax.Expr)
-			invoked, invocationStates = true, states
+			out.value = returned
+			out.value.Expr = n.(syntax.Expr)
+			out.invoked, out.states = true, states
 		}
 	}
-	if v.Identity != 0 && !invoked {
-		f.setState(v.Identity, State{Operation: name, Span: n.Span()})
+	if out.value.Identity != 0 && !out.invoked {
+		f.setState(out.value.Identity, State{Operation: name, Span: n.Span()})
 	}
 	id := rv.Identity
 	if receiver == nil {
@@ -1047,14 +801,14 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 		}
 	}
 	// Supported invocation bindings reject every reference parameter.
-	if !invoked {
+	if !out.invoked {
 		e.invalidateReferences(n, args, f, r)
 	}
 	if args != nil && !input.prepared {
 		e.accepted(n, args, builtin, followed, f)
 	}
-	if invoked {
-		for identity, state := range invocationStates {
+	if out.invoked {
+		for identity, state := range out.states {
 			if state.Operation == "" {
 				delete(f.states, identity)
 			} else {
@@ -1064,29 +818,29 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	}
 	// What PHP itself returns is what it declares. An array one of its
 	// functions returns holds what the function was given.
-	v.matched = derived && len(v.Sources) == 0
+	out.value.matched = derived && len(out.value.Sources) == 0
 	kind := e.kinds(result, documented)
-	v.plain = builtin && kind&(kindKnown|kindObject|kindOpaque) == kindKnown
-	v.deep = v.plain && (kind&kindArray == 0 || e.sealed(n, name, args, r))
-	if immutablePure || builtin && e.keyed(n, name, args) {
-		v.plain, v.deep = true, true
+	out.value.plain = builtin && kind&(kindKnown|kindObject|kindOpaque) == kindKnown
+	out.value.deep = out.value.plain && (kind&kindArray == 0 || e.sealed(n, name, args, r))
+	if out.immutablePure || builtin && e.keyed(n, name, args) {
+		out.value.plain, out.value.deep = true, true
 	}
 	if builtin && name == "array_map" {
 		if mapped, known := e.mappedCallback(n, args, values, f, r); known {
-			v = mapped
+			out.value = mapped
 		}
 	}
 	if builtin && name == "array_filter" {
 		if filtered, known := e.filteredCallback(n, args, values, f, r); known {
-			v = filtered
+			out.value = filtered
 		}
 	}
 	if builtin && name == "array_reduce" {
 		if reduced, known := e.reducedCallback(n, args, values, f, r); known {
-			v = reduced
+			out.value = reduced
 		}
 	}
-	return v
+	return out.value
 }
 
 // keyed reports a PHP function whose result holds no object whatever it is
