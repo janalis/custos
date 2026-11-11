@@ -282,31 +282,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 		v.Expr = x
 	case *syntax.Closure:
-		// The body executes only on invocation, where it can write these names.
-		for _, use := range n.Uses {
-			if use.Var != nil {
-				e.eval(use.Var, f, r, depth+1)
-			}
-			if use.ByRef && use.Var != nil {
-				f.alias(use.Var.Name, aliasHeld)
-				if written := e.holderWrites(n, use.Var.Name); retained(written) {
-					if r.holders == nil {
-						r.holders = map[string]Value{}
-					}
-					r.holders[use.Var.Name] = written
-				}
-			}
-		}
-		e.captureClosure(n, f, r)
-		if _, known := r.closures[n]; known {
-			v.targets = oneCallableTarget(n)
-		}
-	case *syntax.ArrowFunction: // Capture now; execute the body only on invocation.
-		e.observeArrow(n, f, r)
-		e.captureClosure(n, f, r)
-		if _, known := r.closures[n]; known {
-			v.targets = oneCallableTarget(n)
-		}
+		v = e.evalClosure(n, f, r, depth)
+	case *syntax.ArrowFunction:
+		v = e.evalArrowFunction(n, f, r)
 	case *syntax.Yield, *syntax.YieldFrom:
 		e.suspend(x, f, r, depth)
 		// What the consumer sends back is not known.
