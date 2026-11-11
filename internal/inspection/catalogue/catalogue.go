@@ -12,6 +12,7 @@ import (
 	"custos/internal/inspection/rules/ambiguousmethodscallsinarraymapping"
 	"custos/internal/inspection/rules/ambiguousreplacementbackreference"
 	"custos/internal/inspection/rules/appendmodeseekusedforoverwrite"
+	"custos/internal/inspection/rules/argumentcountmismatch"
 	"custos/internal/inspection/rules/argumentunpackingcanbeused"
 	"custos/internal/inspection/rules/arraychunkinvalidsize"
 	"custos/internal/inspection/rules/arraycolumnduplicateindexloss"
@@ -513,6 +514,8 @@ import (
 	"custos/internal/inspection/rules/typeunsafecomparison"
 	"custos/internal/inspection/rules/umasksetterreturnmisread"
 	"custos/internal/inspection/rules/undeclareddynamicproperty"
+	"custos/internal/inspection/rules/undefinedclass"
+	"custos/internal/inspection/rules/undefinedfunction"
 	"custos/internal/inspection/rules/unescapedhtmloutput"
 	"custos/internal/inspection/rules/unicodenormalizationfailureconsumed"
 	"custos/internal/inspection/rules/uninitializedtypedpropertyread"
@@ -707,6 +710,7 @@ func All() []analysis.Rule {
 		abstractclassinstantiation.New(),
 		ambiguousreplacementbackreference.New(),
 		appendmodeseekusedforoverwrite.New(),
+		argumentcountmismatch.New(),
 		arraychunkinvalidsize.New(),
 		arraycolumnduplicateindexloss.New(),
 		arraycolumnmissingfield.New(),
@@ -1065,6 +1069,8 @@ func All() []analysis.Rule {
 		truncationassumedtorewind.New(),
 		umasksetterreturnmisread.New(),
 		undeclareddynamicproperty.New(),
+		undefinedclass.New(),
+		undefinedfunction.New(),
 		unicodenormalizationfailureconsumed.New(),
 		uninitializedtypedpropertyread.New(),
 		unitenumjsonencoding.New(),

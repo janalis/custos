@@ -61,7 +61,9 @@ func (s *Server) buildIndex() {
 		s.abandonIndex(e, generation)
 		return
 	}
-	ix := buildIndexSymbols(cfg.Root, project.IndexSources(cfg.Root, files, paths, cfg.Exclude), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	indexed := project.IndexSources(cfg.Root, files, paths, cfg.Exclude)
+	ix := buildIndexSymbols(cfg.Root, indexed, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	ix.SetWorld(project.ComposerWorld(cfg.Root, paths, indexed))
 	s.mu.Lock()
 	if s.engine != e || s.indexGeneration != generation {
 		s.mu.Unlock()

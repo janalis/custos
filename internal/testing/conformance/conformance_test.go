@@ -140,6 +140,10 @@ type fixtureConfig struct {
 	// directory, plain PHP, conventionally *.inc so they are not fixtures
 	// themselves) whose symbols are indexed next to the fixture.
 	Companions []string `json:"companions"`
+	// CompleteWorld indexes the fixture and its companions as the whole
+	// world the project can load (as with every Composer dependency
+	// installed), so a name they do not declare exists nowhere.
+	CompleteWorld bool `json:"completeWorld"`
 }
 
 // TestOwnFixtures checks each rule package's testdata/*.php (with optional
@@ -200,7 +204,7 @@ func TestOwnFixtures(t *testing.T) {
 					calls = append(calls, rule+"."+c)
 				}
 				fixed, _ := os.ReadFile(base + ".fixed" + ext)
-				req := Request{Path: f, Rules: []string{rule}, PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls}
+				req := Request{Path: f, Rules: []string{rule}, PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls, CompleteWorld: cfg.CompleteWorld}
 				for _, comp := range cfg.Companions {
 					p := filepath.Join(dir, comp)
 					src, err := os.ReadFile(p)

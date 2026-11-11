@@ -42,6 +42,13 @@
     "hasFix": false
   },
   {
+    "id": "ArgumentCountMismatch",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "ArrayChunkInvalidSize",
     "group": "Probable bugs",
     "severity": "error",
@@ -2534,6 +2541,20 @@
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "UndefinedClass",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "UndefinedFunction",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
     "hasFix": false
   },
   {

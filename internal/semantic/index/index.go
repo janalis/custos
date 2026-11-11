@@ -52,6 +52,8 @@ type Index struct {
 	globalsMu         sync.Mutex
 	globals           map[string]bool
 	globalsGeneration uint64
+	// world is what SetWorld recorded; nil when nothing was.
+	world *World
 }
 
 type resolvedMethodKey struct {

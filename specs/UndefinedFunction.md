@@ -1,0 +1,101 @@
+---
+id: UndefinedFunction
+group: Probable bugs
+kind: semantic
+needs: [names, index, stubs, composer]
+php: { min: "", max: "" }
+---
+
+# UndefinedFunction
+
+## Summary
+
+Report a call to a function that nothing declares: not the project, not an
+installed Composer package and not PHP or a known extension. Such a call
+throws an `Error` when it runs; the name usually has a typo or lacks its
+`use function` import. The rule needs a complete view of the code the
+project can load, so it reports nothing unless every Composer dependency is
+installed.
+
+## Detection
+
+- D1. A call to a function written as a name (`foo()`, `\Lib\foo()`,
+  `Lib\foo()`), resolved with the file's namespace and imports. An
+  unqualified call in a namespace may reach the namespaced function or the
+  global one; neither may exist.
+- D2. No function of that name is declared by the analysed project, its
+  installed packages, PHP or the extensions the stubs describe, at any PHP
+  version.
+- D3. The project's world is complete: `composer.json` and the vendor
+  directory's `composer/installed.json` exist; every package the project
+  requires, suggests or requires for development is installed (or replaced
+  or provided by an installed package); every installed package that
+  autoloads code was indexed; and every classmap and files entry of the
+  project's own autoload configuration lies under the analysed paths.
+
+## Exceptions (no report)
+
+- E1. A project without Composer metadata, or whose installed packages do
+  not match its requirements (D3): a function may come from code that was
+  not seen.
+- E2. A file that asks for the function by name with `function_exists()` or
+  `is_callable()` (a literal name), or a call inside a branch whose
+  condition checks existence, a loaded extension, a constant's definition or
+  the PHP version (a conditional declaration or guarded code).
+- E3. A namespaced name in a namespace that a PHP extension uses (such as
+  `MongoDB\` or `Swoole\`), and a namespaced name under a PSR-4 or PSR-0
+  prefix that the project autoloads from a directory outside the analysed
+  paths.
+- E4. A global name whose leading word, up to its first underscore, starts
+  no function PHP or a known extension declares (`newext_open()`): it may
+  belong to an extension the stubs lack. A global name without an
+  underscore, or with the prefix of a known family (`str_contians()`), is
+  still reported.
+- E5. Dynamic calls (`$fn()`, `call_user_func('foo')`) and names in strings.
+
+## Report
+
+- Range: the function name.
+- Severity: error.
+- Message: `Fix the name or install the package declaring Lib\foo().` (the
+  global name for an unqualified call).
+
+## Fix
+
+None: the intended function cannot be guessed.
+
+## Options
+
+None.
+
+## PHP versions
+
+All versions. A function PHP declares in another version than the
+configured one counts as declared; other rules report version mismatches.
+
+## Examples
+
+```php
+<?php
+namespace App;
+
+<error descr="Fix the name or install the package declaring str_contians().">str_contians</error>('haystack', 'needle');
+<error descr="Fix the name or install the package declaring App\Util\slugify().">Util\slugify</error>('Title');
+```
+
+Guarded calls are not reported:
+
+```php
+<?php
+if (function_exists('apcu_fetch')) {
+    apcu_fetch('key');
+}
+if (function_exists('my_optional_helper')) {
+    my_optional_helper();
+}
+```
+
+## Divergences
+
+Native custos rule. No upstream inspection or fixture comparison applies.
+These conditions are independently specified and examples are original.

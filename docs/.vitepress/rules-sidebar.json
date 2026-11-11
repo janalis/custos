@@ -540,6 +540,10 @@
             "link": "/rules/probable-bugs/AppendModeSeekUsedForOverwrite"
           },
           {
+            "text": "ArgumentCountMismatch",
+            "link": "/rules/probable-bugs/ArgumentCountMismatch"
+          },
+          {
             "text": "ArrayChunkInvalidSize",
             "link": "/rules/probable-bugs/ArrayChunkInvalidSize"
           },
@@ -2024,6 +2028,14 @@
           {
             "text": "UndeclaredDynamicProperty",
             "link": "/rules/probable-bugs/UndeclaredDynamicProperty"
+          },
+          {
+            "text": "UndefinedClass",
+            "link": "/rules/probable-bugs/UndefinedClass"
+          },
+          {
+            "text": "UndefinedFunction",
+            "link": "/rules/probable-bugs/UndefinedFunction"
           },
           {
             "text": "UnicodeNormalizationFailureConsumed",

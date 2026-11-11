@@ -35,6 +35,9 @@
   "AppendModeSeekUsedForOverwrite": {
     "summary": "Use an overwrite-capable stream mode."
   },
+  "ArgumentCountMismatch": {
+    "summary": "Report a call that leaves a required parameter without an argument, and a\ncall to a PHP function or method that passes more arguments than it\ndeclares. Since PHP 7.1 a missing argument throws an `ArgumentCountError`\nfor functions of the project, and PHP's own functions reject both missing\nand extra arguments."
+  },
   "ArgumentUnpackingCanBeUsed": {
     "phpMin": "5.6",
     "summary": "Since PHP 5.6, `call_user_func_array('fn', $args)` with a literal function\nname can be written as a direct call with argument unpacking, `fn(...$args)`,\nwhich is faster and easier to read and analyse.",
@@ -1955,6 +1958,12 @@
     "phpMin": "8.2",
     "summary": "Detect assigning a missing instance property on a resolved PHP 8.2+ class with a complete known hierarchy.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UndefinedClass": {
+    "summary": "Report a class, interface, trait or enum name that nothing declares, used\nwhere PHP must load it: not the project, not an installed Composer package\nand not PHP or a known extension. Such code throws an `Error` when it runs;\nthe name usually has a typo or a missing `use` import. The rule needs a\ncomplete view of the code the project can load, so it reports nothing\nunless every Composer dependency is installed."
+  },
+  "UndefinedFunction": {
+    "summary": "Report a call to a function that nothing declares: not the project, not an\ninstalled Composer package and not PHP or a known extension. Such a call\nthrows an `Error` when it runs; the name usually has a typo or lacks its\n`use function` import. The rule needs a complete view of the code the\nproject can load, so it reports nothing unless every Composer dependency is\ninstalled."
   },
   "UnescapedHtmlOutput": {
     "summary": "Detect request-derived text emitted into proven HTML text nodes, script or style element text, or classified attribute values without the escaping that context needs.",

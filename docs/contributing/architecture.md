@@ -122,6 +122,27 @@ context-dependent member lookup.
 Source positions remain `uint32` byte offsets; diagnostic items use rune
 columns and LSP uses UTF-16 columns.
 
+### The index world
+
+A missing declaration proves nothing by itself: the index may simply not
+hold the file that declares it. `Index.World` says how much of the project's
+loadable code the index holds. The project layer (`project.ComposerWorld`
+for the CLI and the LSP, the snapshot's captured metadata for MCP) sets it
+before freezing the index, and layers over that index report the same
+world. It is complete only when `composer.json` and the vendor directory's
+`composer/installed.json` exist, every package the project requires,
+requires for development or suggests is installed (or replaced or
+provided), every installed package that autoloads code has indexed files,
+no vendor file was skipped, and every classmap and files entry of the
+project's autoload configuration lies in the indexed paths. PSR-4 and PSR-0
+prefixes whose directories lie outside them (or in the test directories the
+vendor walk skips) are listed as blind. `Index.DynamicAliases` reports a
+`class_alias()` with computed names, and `Index.BuiltinPrefixes` the
+namespaces and leading words PHP extensions use. Rules ask
+`semanticquery.UndeclaredEverywhere`, which combines them, rather than
+reading the world directly; fixtures opt in with the `completeWorld`
+sidecar key.
+
 A `diagnostic.Fix` builds exact edits lazily. Fixing depends on an `Analyzer`
 interface returning findings for a parsed file. It selects one fix per finding,
 keeps multi-edit fixes together, rejects ambiguous insertion conflicts and

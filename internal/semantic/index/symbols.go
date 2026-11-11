@@ -426,6 +426,9 @@ type FileSymbols struct {
 	// ClassAliases lists the class_alias(original, alias) calls of the
 	// file with literal names: [alias FQN, original FQN].
 	ClassAliases [][2]string `json:"aliases,omitempty"`
+	// DynamicAliases is set when the file calls class_alias() with names
+	// the index cannot read: it may declare any class name.
+	DynamicAliases bool `json:"dynAliases,omitempty"`
 	// ClassAliasFallbacks records the namespaced function candidate for each
 	// provisional alias, keyed by its position in ClassAliases.
 	ClassAliasFallbacks map[int]string `json:"aliasFallbacks,omitempty"`

@@ -55,6 +55,10 @@ type Snapshot struct {
 	root          *os.Root
 	cache         *VendorCache
 	vendorSymbols map[string]*index.FileSymbols
+	// installed is Composer's vendor/composer/installed.json at capture
+	// (nil when absent), read for the index world (see composerWorld). It
+	// changes only with the installed packages, which VendorDigest covers.
+	installed []byte
 }
 
 // FileStat is the cheap identity of an input between two hash checks.
@@ -179,6 +183,9 @@ func capture(ctx context.Context, root *os.Root, rules []analysis.Rule, paths []
 		}
 	}
 	s.Files, s.OwnFiles, s.Vendor, s.Stats = l.selected, l.php, l.vendor, l.stats
+	if composer, ok := s.Sources["composer.json"]; ok {
+		s.installed, _ = ReadConfined(root, installedJSON(composer), MaxSnapshotBytes)
+	}
 	s.Skipped, s.SkippedCount = l.skipped, l.skippedCount
 	if err := s.readVendor(ctx, extractVendor); err != nil {
 		return nil, err
@@ -646,6 +653,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 		s.Index.DropStaleInferred(symbols)
 	}
 	s.Index.LinkTypeAliases()
+	s.Index.SetWorld(s.world())
 	s.Index.Freeze()
 	s.Engine = s.Engine.WithIndex(s.Index)
 
@@ -706,4 +714,33 @@ func OverlaySnapshot(ctx context.Context, s *Snapshot, name string, src []byte) 
 	s.Symbols = nil
 	s.Index = index.New(stubs.Index())
 	return AnalyzeSnapshot(ctx, s)
+}
+
+// installedJSON is the path of the installed.json Composer writes into the
+// vendor directory composer.json configures.
+func installedJSON(composer []byte) string {
+	return path.Join(vendorDirBytes(composer), "composer", "installed.json")
+}
+
+// world derives the index world from the captured Composer metadata. Its
+// paths are relative to the project root, like the snapshot's.
+func (s *Snapshot) world() index.World {
+	// A skipped vendor file may declare any name.
+	if s.installed == nil || s.SkippedCount > 0 {
+		return index.World{}
+	}
+	composer := s.Sources["composer.json"]
+	// composerWorld reads composer.json, then the installed.json it names.
+	read := func(name string) ([]byte, error) {
+		if name == "composer.json" {
+			return composer, nil
+		}
+		return s.installed, nil
+	}
+	scope := s.Paths
+	if len(scope) == 0 {
+		scope = s.Config.Paths
+	}
+	indexed := append(append([]string{}, s.OwnFiles...), s.Vendor...)
+	return composerWorld(read, scope, indexed)
 }

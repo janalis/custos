@@ -23,6 +23,9 @@ type Request struct {
 	// Companions are extra project files (path -> clean source) whose
 	// symbols are visible to the analysed file.
 	Companions map[string][]byte
+	// CompleteWorld marks the indexed files as everything the project can
+	// load (see index.World).
+	CompleteWorld bool
 }
 
 // Finding is one reported problem, as seen by the harness.

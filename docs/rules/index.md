@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **578 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **581 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -178,6 +178,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [AbstractClassInstantiation](./probable-bugs/AbstractClassInstantiation) | native | error | on |  | any |
 | [AmbiguousReplacementBackreference](./probable-bugs/AmbiguousReplacementBackreference) | native | warning | off | ✓ | any |
 | [AppendModeSeekUsedForOverwrite](./probable-bugs/AppendModeSeekUsedForOverwrite) | native | warning | on |  | any |
+| [ArgumentCountMismatch](./probable-bugs/ArgumentCountMismatch) | native | error | off |  | any |
 | [ArrayChunkInvalidSize](./probable-bugs/ArrayChunkInvalidSize) | native | error | on |  | any |
 | [ArrayColumnDuplicateIndexLoss](./probable-bugs/ArrayColumnDuplicateIndexLoss) | native | warning | on |  | any |
 | [ArrayColumnMissingField](./probable-bugs/ArrayColumnMissingField) | native | warning | off |  | any |
@@ -536,6 +537,8 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [TruncationAssumedToRewind](./probable-bugs/TruncationAssumedToRewind) | native | warning | on |  | any |
 | [UmaskSetterReturnMisread](./probable-bugs/UmaskSetterReturnMisread) | native | warning | off |  | any |
 | [UndeclaredDynamicProperty](./probable-bugs/UndeclaredDynamicProperty) | native | warning | on |  | PHP ≥ 8.2 |
+| [UndefinedClass](./probable-bugs/UndefinedClass) | native | error | off |  | any |
+| [UndefinedFunction](./probable-bugs/UndefinedFunction) | native | error | off |  | any |
 | [UnicodeNormalizationFailureConsumed](./probable-bugs/UnicodeNormalizationFailureConsumed) | native | warning | on |  | PHP ≥ 5.3 |
 | [UninitializedTypedPropertyRead](./probable-bugs/UninitializedTypedPropertyRead) | native | error | on |  | PHP ≥ 7.4 |
 | [UnitEnumJsonEncoding](./probable-bugs/UnitEnumJsonEncoding) | native | error | on |  | PHP ≥ 8.1 |
