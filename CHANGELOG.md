@@ -36,6 +36,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- VariableFunctionsUsage no longer rewrites `call_user_func([$cb, 'm'])`
+  into `$cb->m()` when `$cb` is typed `callable`: a callable may be a class
+  name, which the direct call cannot take.
 - UnlinkFailureReportedAsSuccess no longer reports the deletion of a
   `tempnam()` file when the namespace declares its own `tempnam()` (a test
   double).
