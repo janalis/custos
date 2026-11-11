@@ -98,6 +98,42 @@ func BenchmarkDescendantTraitMethods(b *testing.B) {
 	}
 }
 
+// A base class composing many traits, as an ORM model does, with many
+// descendants that compose none: the walk looks up none of the traits'
+// methods for them (reference: every one).
+func BenchmarkDescendantInheritedTraits(b *testing.B) {
+	var source strings.Builder
+	source.WriteString(`<?php class Base{`)
+	for t := range 10 {
+		fmt.Fprintf(&source, "use T%d;", t)
+	}
+	source.WriteString(`}`)
+	for t := range 10 {
+		fmt.Fprintf(&source, "trait T%d{", t)
+		for m := range 30 {
+			fmt.Fprintf(&source, "function m%d_%d(){}", t, m)
+		}
+		source.WriteString(`}`)
+	}
+	for i := range 100 {
+		fmt.Fprintf(&source, "class Child%d extends Base{function own%d(){}}", i, i)
+	}
+	ix := index.New(nil)
+	ix.Add(index.Extract(syntax.Parse("model.php", []byte(source.String()), syntax.Options{})))
+	b.Run("composed", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			descendantMethods(ix, "Base", 0, 65536)
+		}
+	})
+	b.Run("reference", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			descendantMethodsLookingUpAll(ix, "Base", 0, 65536)
+		}
+	})
+}
+
 func TestDescendantMethodsCycle(t *testing.T) {
 	f := syntax.Parse("x.php", []byte(`<?php class A extends B { function m() {} } class B extends A {}`), syntax.Options{})
 	ix := index.New(stubs.Index())

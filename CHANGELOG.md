@@ -18,6 +18,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   an edit to `Str.php` takes about 0.3 s instead of 2.2 s, and to the
   Eloquent `Model.php` about 0.6 s instead of 2.4 s. The server keeps up
   to about 30 MB more on a project of that size.
+- The language server reports findings faster in a class with many
+  descendants that inherits many trait methods: ReturnTypeCanBeDeclared no
+  longer looks up, for each descendant, the trait methods it only inherits.
+  Each edit to laravel's Eloquent `Model.php` takes about 60% less time
+  to analyze.
 
 ### Fixed
 
