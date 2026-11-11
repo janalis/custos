@@ -2,7 +2,6 @@ package flow
 
 import (
 	"maps"
-	"strings"
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
@@ -149,24 +148,42 @@ func (f *File) differing(earlier, s *Snapshot, first bool) map[string]bool {
 	var out map[string]bool
 	mine := s != nil && s.base == nil && s.files[f.Path] == f
 	for name := range f.consulted {
-		key := strings.ToLower(name)
+		// Folded once: the keys of most contracts are their lower-case names.
+		key := names.Fold(name)
 		if mine && f.served[key] && s.alone(f.Path, key) {
 			continue
 		}
-		if held := s.held(name); held != nil && held == earlier.held(name) {
+		// Contracts both snapshots hold are compared where they are held.
+		if was, is := earlier.held(key), s.held(key); was != nil && is != nil {
+			if was != is && !sameSummary(was, is) {
+				out = differs(out, key)
+				if first {
+					return out
+				}
+			}
 			continue
 		}
-		before, had := earlier.lookup(name)
-		now, has := s.lookup(name)
-		if had != has || had && !sameSummary(&before, &now) {
-			if out == nil {
-				out = map[string]bool{}
-			}
-			out[key] = true
+		before, had := earlier.lookup(key)
+		now, has := s.lookup(key)
+		if had != has || had && !sameValues(before, now) {
+			out = differs(out, key)
 			if first {
 				return out
 			}
 		}
 	}
+	return out
+}
+
+// sameValues is sameSummary for two copies: only the comparisons made pay
+// for moving them to the heap.
+func sameValues(a, b Summary) bool { return sameSummary(&a, &b) }
+
+// differs adds key to the differing keys out.
+func differs(out map[string]bool, key string) map[string]bool {
+	if out == nil {
+		out = map[string]bool{}
+	}
+	out[key] = true
 	return out
 }
