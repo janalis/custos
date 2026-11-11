@@ -105,6 +105,10 @@ func (f *File) Current(earlier, s *Snapshot) bool {
 		if key := strings.ToLower(name); mine && f.served[key] && s.alone(f.Path, key) {
 			continue
 		}
+		if held := s.held(name); held != nil && held == earlier.held(name) {
+			// Replace kept the very contract: nothing to compare.
+			continue
+		}
 		before, had := earlier.lookup(name)
 		now, has := s.lookup(name)
 		if had != has || !reflect.DeepEqual(before, now) {
@@ -298,6 +302,15 @@ func (s *Snapshot) rebuild() {
 			s.summaries[name] = &summary
 		}
 	}
+}
+
+// held is the contract a snapshot that is no overlay holds for name itself,
+// as lookup answers it; nil when lookup would answer otherwise.
+func (s *Snapshot) held(name string) *Summary {
+	if s == nil || s.base != nil {
+		return nil
+	}
+	return s.summaries[names.Fold(name)]
 }
 
 func (s *Snapshot) lookup(name string) (Summary, bool) {

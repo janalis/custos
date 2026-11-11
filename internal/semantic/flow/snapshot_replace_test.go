@@ -108,3 +108,48 @@ func BenchmarkSnapshotRound(b *testing.B) {
 		}
 	})
 }
+
+// After Replace, a file reading a contract that was kept stays current and
+// one reading a contract that changed does not.
+func TestSnapshotReplaceCurrent(t *testing.T) {
+	a := &File{Path: "a", Summaries: map[string]Summary{"kept": {}, "changed": {}}}
+	before := NewSnapshotWithOptions(Options{}, a)
+	after := before.Replace([]*File{a}, []*File{{Path: "a", Summaries: map[string]Summary{"kept": {}, "changed": {Generator: true}}}})
+	after = after.Replace(nil, nil)
+	for name, want := range map[string]bool{"kept": true, "changed": false} {
+		reader := &File{Path: "r", consulted: map[string]bool{name: true}}
+		if got := reader.Current(before, after); got != want {
+			t.Errorf("reader of %s: Current=%v want %v", name, got, want)
+		}
+	}
+	kept := &File{Path: "r", consulted: map[string]bool{"changed": true}}
+	if !kept.Current(after, after.Replace(nil, nil)) {
+		t.Error("a contract Replace kept is current")
+	}
+}
+
+// A reader of 40 contracts checked against the next round's snapshot, as
+// compose's outdated check does: Replace keeps each contract's pointer.
+func BenchmarkCurrentAfterReplace(b *testing.B) {
+	files := make([]*File, 200)
+	consulted := map[string]bool{}
+	for i := range files {
+		f := &File{Path: fmt.Sprint(i), Summaries: map[string]Summary{}}
+		for j := range 10 {
+			name := fmt.Sprint("ns\\c", i, "::m", j)
+			f.Summaries[name] = Summary{defaults: make([]Value, 2), Sinks: make([]Sink, 1)}
+			if len(consulted) < 40 && j == 0 {
+				consulted[name] = true
+			}
+		}
+		files[i] = f
+	}
+	before := NewSnapshotWithOptions(Options{}, files...)
+	after := before.Replace(files[199:], []*File{{Path: "199"}})
+	reader := &File{Path: "r", consulted: consulted}
+	for b.Loop() {
+		if !reader.Current(before, after) {
+			b.Fatal("stale")
+		}
+	}
+}
