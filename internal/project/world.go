@@ -38,12 +38,36 @@ func ComposerWorld(root string, scope, indexed []string, skipped Skipped) index.
 	return composerWorld(read, rel(scope), rel(indexed), Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
 }
 
-// WorldInput reports whether path is a file ComposerWorld reads under
-// root: composer.json, or the installed.json of the vendor directory it
+// WorldInputs returns the files ComposerWorld reads under root:
+// composer.json, and the installed.json of the vendor directory it
 // configures.
-func WorldInput(root, path string) bool {
-	path = filepath.Clean(path)
-	return path == filepath.Join(root, "composer.json") || path == filepath.Join(root, vendorDir(root), "composer", "installed.json")
+func WorldInputs(root string) (composer, installed string) {
+	return filepath.Join(root, "composer.json"), filepath.Join(root, vendorDir(root), "composer", "installed.json")
+}
+
+// composerWorldKeys are the composer.json keys ComposerWorld reads.
+var composerWorldKeys = []string{"autoload", "autoload-dev", "require", "require-dev", "suggest"}
+
+// ComposerWorldKey summarizes the part of root's composer.json that
+// ComposerWorld reads (autoload, requirements, suggestions, vendor
+// directory): two files with the same key give the same world. An
+// unreadable file gives "", one that is not JSON its whole text.
+func ComposerWorldKey(root string) string {
+	b, err := safeio.ReadFile(filepath.Join(root, "composer.json"), 4*config.MaxFileSize)
+	if err != nil {
+		return ""
+	}
+	var all map[string]any
+	if json.Unmarshal(b, &all) != nil {
+		return "invalid:" + string(b)
+	}
+	picked := map[string]any{"vendor-dir": vendorDirBytes(b)}
+	for _, k := range composerWorldKeys {
+		picked[k] = all[k]
+	}
+	// Maps marshal with sorted keys: the key ignores formatting and order.
+	out, _ := json.Marshal(picked)
+	return string(out)
 }
 
 // composerManifest is the part of composer.json and of an installed

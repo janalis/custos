@@ -51,6 +51,7 @@ func (s *Server) buildIndex() {
 	// It runs on its own goroutine, outside the request guards.
 	defer s.guard("index", func() { s.abandonIndex(e, generation) })
 	start := time.Now()
+	worldKey := project.ComposerWorldKey(cfg.Root)
 	var paths []string
 	for _, p := range cfg.Paths {
 		paths = append(paths, filepath.Join(cfg.Root, p))
@@ -70,8 +71,13 @@ func (s *Server) buildIndex() {
 		s.mu.Unlock()
 		return
 	}
+	// The disk holds no unsaved edit: index the open buffers again, under
+	// the lock so that no edit lands in between.
+	for _, d := range s.docs {
+		addSource(ix, cfg, d.path, d.text)
+	}
 	s.engine = e.WithIndex(ix)
-	s.index = ix
+	s.index, s.worldKey = ix, worldKey
 	s.indexing = false
 	queued := s.pending
 	s.pending = nil
@@ -108,13 +114,11 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 	}
 	// The index world follows Composer's metadata: build the index again,
 	// which reads every other change from disk too.
-	for _, ch := range changes {
-		if cfg != nil && project.WorldInput(cfg.Root, uriToPath(ch.URI)) {
-			if s.beginIndexing() {
-				go s.buildIndex()
-			}
-			return
+	if cfg != nil && s.worldChanged(cfg.Root, changes) {
+		if s.beginIndexing() {
+			go s.buildIndex()
 		}
+		return
 	}
 	s.mu.Lock()
 	if s.indexing {
@@ -149,6 +153,28 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 		s.refreshFlow()
 		s.reanalyzeAll()
 	}
+}
+
+// worldChanged reports whether changes touch what the index world reads:
+// the vendor directory's installed.json, or the part of composer.json
+// project.ComposerWorldKey summarizes (another field, such as the
+// description, changes nothing).
+func (s *Server) worldChanged(root string, changes []fileChange) bool {
+	composer, installed := project.WorldInputs(root)
+	for _, ch := range changes {
+		switch filepath.Clean(uriToPath(ch.URI)) {
+		case installed:
+			return true
+		case composer:
+			s.mu.Lock()
+			key := s.worldKey
+			s.mu.Unlock()
+			if project.ComposerWorldKey(root) != key {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // indexDoc refreshes the index entry of an open document from its buffer.
