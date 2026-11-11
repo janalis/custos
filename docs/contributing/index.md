@@ -56,6 +56,7 @@ code compiles.
 | `make bench` / `make fuzz` | Benchmarks (`-benchmem`), with the language server's edit-latency budget enforced, and a short fuzz run of every fuzz target. |
 | `make compare` / `make compare-doc` | Compare custos with other PHP tools on the projects of `bench/competitors.json` (needs PHP with `ast` and `pcntl`, Composer and git; `TOOL=` / `CORPUS=` filter), or only regenerate `docs/guide/benchmark.md` and the README comparison from `bench/results.json` and `bench/features.json`. The weekly `benchmark` workflow bumps versions, reruns it and opens a pull request. |
 | `make corpus-baseline` / `make corpus-diff` | Record the findings of every rule on the pinned benchmark corpora, then compare a later build with the record: added and removed findings are listed by rule and written to `.cache/corpus-diff/`. `CORPORA=` filters. |
+| `make typecov` | Measure the share of expressions whose inferred type is unknown on the benchmark corpora, by kind and cause (`.cache/typecov/run.summary`; `TYPECOV=` takes `root=srcdir` pairs separated by `;`). |
 | `make fixcheck` | Apply every quick-fix on the projects in `CUSTOS_CORPUS` and require the result to still parse, and each fix to remove its finding. |
 | `make stubs` | Rebuild the embedded PHP builtin symbol index from phpstorm-stubs. |
 

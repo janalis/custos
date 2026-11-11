@@ -9,7 +9,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
 
-.PHONY: architecture coverage fixcheck corpus-baseline corpus-diff stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
+.PHONY: architecture coverage fixcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -133,6 +133,15 @@ corpus-baseline: build
 
 corpus-diff: build
 	$(GO) run ./tools/corpusdiff -corpora "$(CORPORA)"
+
+# Share of expressions whose inferred type is unknown on the corpora, by
+# kind and cause (TYPECOV: root=srcdir pairs separated by ';'). Writes
+# .cache/typecov/run.summary and run.unknown.tsv.
+CORPORA_DIR = $(CURDIR)/.cache/bench/corpora
+TYPECOV ?= $(CORPORA_DIR)/guzzle=src;$(CORPORA_DIR)/composer=src;$(CORPORA_DIR)/laravel=src
+typecov:
+	mkdir -p .cache/typecov
+	CUSTOS_TYPECOV="$(TYPECOV)" CUSTOS_TYPECOV_OUT="$(CURDIR)/.cache/typecov/run" $(GO) test ./internal/project -run '^TestTypeCoverage$$' -count=1 -timeout 30m
 
 architecture:
 	$(GO) run ./tools/architecture
