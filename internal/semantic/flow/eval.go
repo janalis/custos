@@ -3307,15 +3307,19 @@ func (e *Env) backed(n *syntax.PropertyFetch) bool {
 		return false
 	}
 	at := [2]string{e.types.ClassFQN(within), name.Value}
-	known, read := e.properties[at]
-	if !read {
-		if e.properties == nil {
-			e.properties = map[[2]string]bool{}
-		}
-		known = e.declares(at[0], at[1])
-		e.properties[at] = known
+	if known, read := e.properties[at]; read {
+		// The answer may have read whether a subclass declares __get.
+		e.depend(known.reads)
+		return known.holds
 	}
-	return known
+	if e.properties == nil {
+		e.properties = map[[2]string]cachedAnswer{}
+	}
+	reads := e.begin()
+	holds := e.declares(at[0], at[1])
+	e.end(reads)
+	e.properties[at] = cachedAnswer{holds: holds, reads: reads}
+	return holds
 }
 
 // declares is backed for a class and the name of a property.

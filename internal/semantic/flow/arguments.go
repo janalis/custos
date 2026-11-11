@@ -829,22 +829,23 @@ func (e *Env) overrides(receiver, method, declaring string) bool {
 		// The answer read the contracts of the subclasses: so does
 		// whatever reads it again.
 		e.depend(known.reads)
-		return known.replaced
+		return known.holds
 	}
 	if e.overridden == nil {
-		e.overridden = map[[2]string]overriddenAnswer{}
+		e.overridden = map[[2]string]cachedAnswer{}
 	}
 	reads := e.begin()
 	replaced := e.override(receiver, method, declaring)
 	e.end(reads)
-	e.overridden[at] = overriddenAnswer{replaced: replaced, reads: reads}
+	e.overridden[at] = cachedAnswer{holds: replaced, reads: reads}
 	return replaced
 }
 
-// overriddenAnswer is a cached overrides answer with the contracts it read.
-type overriddenAnswer struct {
-	replaced bool
-	reads    map[string]bool
+// cachedAnswer is a cached yes-or-no answer with the contracts computing it
+// read: whatever reads the answer again depends on them too.
+type cachedAnswer struct {
+	holds bool
+	reads map[string]bool
 }
 
 func (e *Env) override(receiver, method, declaring string) bool {

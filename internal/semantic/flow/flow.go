@@ -785,12 +785,12 @@ type Env struct {
 	globalsReady bool
 	// overridden caches, per receiver class and method, whether a class of
 	// the project replaces the method (see replaced).
-	overridden map[[2]string]overriddenAnswer
+	overridden map[[2]string]cachedAnswer
 	// extendedBy caches whether a class of the project extends a class.
 	extendedBy map[string]bool
 	// properties caches, per class and property name, whether reading the
 	// property of the object itself runs no code (see backed).
-	properties map[[2]string]bool
+	properties map[[2]string]cachedAnswer
 	// kindOf caches what each declared type read admits (see kinds).
 	kindOf map[string]uint8
 	// statics caches, per scope, what its code does to each of its static
