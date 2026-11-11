@@ -499,6 +499,9 @@
   "DocumentedArgumentType": {
     "summary": "Report an argument that breaks a parameter's contract when PHPDoc is taken\ninto account: the `@param` type of a project function rejects it, or the\ndeclared type rejects a value whose type only PHPDoc describes. PHP may run\nsuch a call, but the code and its documentation disagree. Mismatches the\ncode alone proves are InvalidArgumentType's."
   },
+  "DocumentedPropertyAssignment": {
+    "summary": "Report a value stored in a property that breaks the property's contract\nwhen PHPDoc is taken into account: the `@var` type of the property rejects\nit, or the declared type rejects a value whose type only PHPDoc describes.\nPHP may run such an assignment, but the code and its documentation\ndisagree. Mismatches the code alone proves are InvalidPropertyAssignment's."
+  },
   "DocumentedReturnType": {
     "summary": "Report a returned value that breaks the function's return contract when\nPHPDoc is taken into account: the `@return` type rejects it, or the\ndeclared return type rejects a value whose type only PHPDoc describes. PHP\nmay run such a `return`, but the code and its documentation disagree.\nMismatches the code alone proves are InvalidReturnType's."
   },
@@ -906,6 +909,9 @@
   },
   "InvalidArgumentType": {
     "summary": "Report an argument that the parameter's declared type can never accept,\njudging the argument only by what the code itself shows. PHP throws a\n`TypeError` when such a call runs. Mismatches that rest on PHPDoc are left\nto DocumentedArgumentType."
+  },
+  "InvalidPropertyAssignment": {
+    "summary": "Report a value stored in a typed property whose declared type can never\naccept it, judging the value only by what the code itself shows. PHP throws\na `TypeError` when such an assignment runs. Mismatches that rest on PHPDoc\nare left to DocumentedPropertyAssignment."
   },
   "InvalidReturnType": {
     "summary": "Report a returned value that the function's declared return type can never\naccept, judging the value only by what the code itself shows. PHP throws a\n`TypeError` when such a `return` runs. Mismatches that rest on PHPDoc are\nleft to DocumentedReturnType."

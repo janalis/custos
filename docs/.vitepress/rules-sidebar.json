@@ -920,6 +920,10 @@
             "link": "/rules/probable-bugs/DocumentedArgumentType"
           },
           {
+            "text": "DocumentedPropertyAssignment",
+            "link": "/rules/probable-bugs/DocumentedPropertyAssignment"
+          },
+          {
             "text": "DocumentedReturnType",
             "link": "/rules/probable-bugs/DocumentedReturnType"
           },
@@ -1258,6 +1262,10 @@
           {
             "text": "InvalidArgumentType",
             "link": "/rules/probable-bugs/InvalidArgumentType"
+          },
+          {
+            "text": "InvalidPropertyAssignment",
+            "link": "/rules/probable-bugs/InvalidPropertyAssignment"
           },
           {
             "text": "InvalidReturnType",

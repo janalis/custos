@@ -2929,5 +2929,19 @@
     "severity": "warning",
     "enabledByDefault": true,
     "hasFix": false
+  },
+  {
+    "id": "DocumentedPropertyAssignment",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "InvalidPropertyAssignment",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
   }
 ]

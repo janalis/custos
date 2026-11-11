@@ -139,6 +139,7 @@ import (
 	"custos/internal/inspection/rules/disallowwritingintostaticproperties"
 	"custos/internal/inspection/rules/disconnectedforeachinstruction"
 	"custos/internal/inspection/rules/documentedargumenttype"
+	"custos/internal/inspection/rules/documentedpropertyassignment"
 	"custos/internal/inspection/rules/documentedreturntype"
 	"custos/internal/inspection/rules/domappendmovesnodeunexpectedly"
 	"custos/internal/inspection/rules/domcrossdocumentappend"
@@ -244,6 +245,7 @@ import (
 	"custos/internal/inspection/rules/intltimezoneoffsetmillisecondsusedasseconds"
 	"custos/internal/inspection/rules/intltwelvehourfieldusedfortwentyfourhourtime"
 	"custos/internal/inspection/rules/invalidargumenttype"
+	"custos/internal/inspection/rules/invalidpropertyassignment"
 	"custos/internal/inspection/rules/invalidreturntype"
 	"custos/internal/inspection/rules/inversetriginvalidrealdomain"
 	"custos/internal/inspection/rules/invertedifelseconstructs"
@@ -806,6 +808,7 @@ func All() []analysis.Rule {
 		deflatestreamneverfinished.New(),
 		directoryiteratordotentries.New(),
 		documentedargumenttype.New(),
+		documentedpropertyassignment.New(),
 		documentedreturntype.New(),
 		domappendmovesnodeunexpectedly.New(),
 		domcrossdocumentappend.New(),
@@ -888,6 +891,7 @@ func All() []analysis.Rule {
 		intltimezoneoffsetmillisecondsusedasseconds.New(),
 		intltwelvehourfieldusedfortwentyfourhourtime.New(),
 		invalidargumenttype.New(),
+		invalidpropertyassignment.New(),
 		invalidreturntype.New(),
 		inversetriginvalidrealdomain.New(),
 		isoweekcalendaryearmismatch.New(),

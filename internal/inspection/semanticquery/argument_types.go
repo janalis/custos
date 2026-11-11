@@ -88,14 +88,7 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 	if !ok {
 		return nil
 	}
-	check := ctx.Shared(argumentCheckKey{}, func() any {
-		classes := NewIndexRelations(ctx.Index(), ctx.PHP)
-		return &argumentCheck{
-			weak:     types.AcceptContext{Classes: classes, Strict: syntax.StrictTypes(ctx.File)},
-			strict:   types.AcceptContext{Classes: classes, Strict: true},
-			declared: map[declaredKey]types.Type{},
-		}
-	}).(*argumentCheck)
+	check := fileTypeCheck(ctx)
 	// Every declaration must reject an argument, the nominal one first:
 	// listing the overrides is left to the arguments it rejects.
 	nominal := []CallTarget{{Params: callee.Params, Builtin: callee.Builtin}}
@@ -141,6 +134,19 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 		out = append(out, m)
 	}
 	return out
+}
+
+// fileTypeCheck returns the acceptance state of the file of ctx, shared by
+// the checks of arguments and property writes.
+func fileTypeCheck(ctx *analysis.Context) *argumentCheck {
+	return ctx.Shared(argumentCheckKey{}, func() any {
+		classes := NewIndexRelations(ctx.Index(), ctx.PHP)
+		return &argumentCheck{
+			weak:     types.AcceptContext{Classes: classes, Strict: syntax.StrictTypes(ctx.File)},
+			strict:   types.AcceptContext{Classes: classes, Strict: true},
+			declared: map[declaredKey]types.Type{},
+		}
+	}).(*argumentCheck)
 }
 
 // bindableArgs lists the arguments of call that bind to a known parameter:
@@ -283,14 +289,24 @@ func (c *argumentCheck) rejected(targets []CallTarget, params []index.Param, giv
 // The index keeps no integer range, string length or literal value of a
 // PHPDoc type (see Type.DocString), so those are never compared.
 func (c *argumentCheck) docRejects(t CallTarget, p index.Param, native, given types.Type) bool {
-	if t.Builtin || p.Variadic || p.DocType == "" || p.Gen != "" || strings.Contains(p.DocType, `\~`) {
+	if t.Builtin || p.Variadic || p.Gen != "" {
 		return false
 	}
-	doc := c.declaredType(p.DocType, p.Default)
+	return c.docTypeRejects(p.DocType, p.Default, native, given, c.at(t))
+}
+
+// docTypeRejects reports whether PHPDoc type text, made nullable by a null
+// default def, rejects given in acceptance context at; never for a type
+// naming templates or one the native type rejects (a stale tag).
+func (c *argumentCheck) docTypeRejects(text, def string, native, given types.Type, at types.AcceptContext) bool {
+	if text == "" || strings.Contains(text, `\~`) {
+		return false
+	}
+	doc := c.declaredType(text, def)
 	if !native.IsUnknown() && types.AllRejected(native, doc, c.strict) {
 		return false
 	}
-	return types.AllRejected(doc, given, c.at(t))
+	return types.AllRejected(doc, given, at)
 }
 
 // nativeRejects reports whether every target's native parameter type

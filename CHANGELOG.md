@@ -23,6 +23,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   argument typed only by PHPDoc. Both follow PHP's weak-mode conversions
   outside `declare(strict_types=1)` and check PHP's own functions from PHP
   8.0, except those whose stubs declare other parameter types than PHP.
+- InvalidPropertyAssignment (error) and DocumentedPropertyAssignment
+  (warning), both off by default, report a value stored in a property
+  whose type can never accept it, through plain and compound assignments
+  and `??=`. The first judges the value by the code alone, where PHP would
+  throw a `TypeError`; the second also checks `@var` types and values typed
+  only by PHPDoc. Both stay silent on hooked properties, classes with
+  `__set`, writes the scope cannot perform and readonly writes that may be
+  re-initializations.
 - InvalidReturnType (error) and DocumentedReturnType (warning), both off
   by default, report a returned value the function's own return type can
   never accept, closures and arrow functions included. The first judges
