@@ -1,6 +1,8 @@
 package index
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"custos/internal/php/syntax"
@@ -84,5 +86,24 @@ func TestSameDeclarationsIgnoresDigest(t *testing.T) {
 	a, b := &FileSymbols{Path: "a.php", Digest: 1}, &FileSymbols{Path: "a.php", Digest: 2}
 	if !SameDeclarations(a, b) || a.Digest != 1 || b.Digest != 2 {
 		t.Fatal("digest compared or cleared")
+	}
+}
+
+// Fingerprint runs on every analysed file when indexing (the flow cache)
+// and on every editor update (SameDeclarations).
+func BenchmarkFingerprint(b *testing.B) {
+	var src strings.Builder
+	src.WriteString("<?php namespace App;\n")
+	for c := range 20 {
+		fmt.Fprintf(&src, "/** @template T */ class C%d extends Base implements I { public int $p%d = 1; const K%d = 'v';\n", c, c, c)
+		for m := range 15 {
+			fmt.Fprintf(&src, "/** @param array<int, T> $a @return list<string> */ public function m%d(array $a, ?int $b = null): array { return []; }\n", m)
+		}
+		src.WriteString("}\n")
+	}
+	fs := extract(b, "big.php", src.String())
+	b.ReportAllocs()
+	for b.Loop() {
+		Fingerprint(fs)
 	}
 }

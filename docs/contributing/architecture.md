@@ -100,9 +100,9 @@ them. A summary also depends on the project index and on the dependency
 files the vendor provider summarizes, which no contract records, so the
 saved steps are taken only while those are unchanged: the key holds the
 binary, the options, the working directory, the vendor directory and the
-size and modification time of every file indexed without being analysed
+size and modification time of every file indexed without being analyzed
 (a run in which one changed within the racy window neither takes nor saves
-steps), and every analysed file must declare what it declared
+steps), and every analyzed file must declare what it declared
 (`index.Fingerprint`, which ignores positions as an update does). A file
 whose source is unchanged then takes its saved steps as priors. The flow
 types are written by a hand-written codec (`flow/wire.go`, on

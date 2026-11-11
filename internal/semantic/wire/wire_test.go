@@ -165,3 +165,30 @@ func BenchmarkWriter(b *testing.B) {
 		}
 	}
 }
+
+// A corrupt length cannot make a small input allocate much: Make and
+// MakeMap charge the decoded memory against the input's size and fail the
+// reader past it.
+func TestAllocationBudget(t *testing.T) {
+	r := NewReader(make([]byte, 4), nil)
+	if s := Make[int64](r, 8); len(s) != 8 || r.Err() != nil {
+		t.Fatalf("within budget: %d %v", len(s), r.Err())
+	}
+	if s := Make[[64]byte](r, 1000); s != nil || r.Err() == nil {
+		t.Fatal("past the budget: allocated")
+	}
+	if m := MakeMap[string, int](r, 1); m == nil || len(m) != 0 {
+		t.Fatal("a failed reader still returns a usable map")
+	}
+	r = NewReader(make([]byte, 4), nil)
+	if m := MakeMap[string, int](r, 2); m == nil || r.Err() != nil {
+		t.Fatalf("map within budget: %v", r.Err())
+	}
+	if m := MakeMap[string, [4096]byte](r, 1000); len(m) != 0 || r.Err() == nil {
+		t.Fatal("map past the budget")
+	}
+	r = NewReader(make([]byte, 1), nil)
+	if s := Make[struct{}](r, 64); len(s) != 64 {
+		t.Fatal("zero-size elements are charged a byte each")
+	}
+}

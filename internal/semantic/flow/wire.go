@@ -184,7 +184,7 @@ func NewDecoder(b []byte, options Options) (*Decoder, error) {
 		return nil, wire.ErrCorrupt
 	}
 	sums := wire.NewReader(rest[start:start+int(size)], table)
-	d := &Decoder{summaries: make([]Summary, count), options: options}
+	d := &Decoder{summaries: wire.Make[Summary](sums, int(count)), options: options}
 	for i := range d.summaries {
 		d.summaries[i] = decodeSummary(sums)
 	}
@@ -216,7 +216,7 @@ func (d *Decoder) File() *File {
 	}
 	f := &File{options: d.options, Path: r.String()}
 	if n, isNil := r.Len(); !isNil {
-		f.Summaries = make(map[string]Summary, n)
+		f.Summaries = wire.MakeMap[string, Summary](r, n)
 		for range n {
 			key := r.String()
 			f.Summaries[key] = *d.ref(r.Uint())
@@ -226,12 +226,12 @@ func (d *Decoder) File() *File {
 	f.held = r.Strings()
 	f.served = decodeFlags(r)
 	if n, isNil := r.Len(); !isNil {
-		f.callables = make(map[string]map[string]uint8, n)
+		f.callables = wire.MakeMap[string, map[string]uint8](r, n)
 		for range n {
 			key := r.String()
 			var reads map[string]uint8
 			if m, isNil := r.Len(); !isNil {
-				reads = make(map[string]uint8, m)
+				reads = wire.MakeMap[string, uint8](r, m)
 				for range m {
 					read := r.String()
 					reads[read] = uint8(r.Uint())
@@ -251,7 +251,7 @@ func (d *Decoder) Snapshot() *Snapshot {
 	}
 	s := &Snapshot{options: d.options}
 	if n, isNil := r.Len(); !isNil {
-		s.summaries = make(map[string]*Summary, n)
+		s.summaries = wire.MakeMap[string, *Summary](r, n)
 		for range n {
 			key := r.String()
 			var summary *Summary
@@ -262,7 +262,7 @@ func (d *Decoder) Snapshot() *Snapshot {
 		}
 	}
 	if n, isNil := r.Len(); !isNil {
-		s.shared = make(map[string]int, n)
+		s.shared = wire.MakeMap[string, int](r, n)
 		for range n {
 			key := r.String()
 			s.shared[key] = int(r.Int())
@@ -284,7 +284,7 @@ func decodeFlags(r *wire.Reader) map[string]bool {
 	if isNil {
 		return nil
 	}
-	m := make(map[string]bool, n)
+	m := wire.MakeMap[string, bool](r, n)
 	for range n {
 		key := r.String()
 		m[key] = r.Bool()
@@ -343,7 +343,7 @@ func decodeSummary(r *wire.Reader) Summary {
 		s.resource = decodeResource(r)
 	}
 	if n, isNil := r.Len(); !isNil {
-		s.effects = make([]resourceEffect, n)
+		s.effects = wire.Make[resourceEffect](r, n)
 		for i := range s.effects {
 			x := &s.effects[i]
 			r.Bools(&x.onTrue, &x.checked)
@@ -357,7 +357,7 @@ func decodeSummary(r *wire.Reader) Summary {
 	s.Return = decodeValue(r)
 	s.Sinks = decodeSinks(r)
 	if n, isNil := r.Len(); !isNil {
-		s.ByRef = make(map[int]Value, n)
+		s.ByRef = wire.MakeMap[int, Value](r, n)
 		for range n {
 			i := int(r.Int())
 			s.ByRef[i] = decodeValue(r)
@@ -416,7 +416,7 @@ func decodeParams(r *wire.Reader) []pureParam {
 	if isNil {
 		return nil
 	}
-	out := make([]pureParam, n)
+	out := wire.Make[pureParam](r, n)
 	for i := range out {
 		p := &out[i]
 		p.name = r.String()
@@ -476,7 +476,7 @@ func decodeExpr(r *wire.Reader) *pureExpr {
 	r.Bools(&x.weakArguments, &x.projects, &x.appendKey, &x.stopGuard, &x.prepared, &literal, &left, &right, &other, &call)
 	x.kind = uint8(r.Uint())
 	if n, isNil := r.Len(); !isNil {
-		x.destruct = make([]pureField, n)
+		x.destruct = wire.Make[pureField](r, n)
 		for i := range x.destruct {
 			x.destruct[i] = pureField{name: r.String(), key: r.String()}
 		}
@@ -499,7 +499,7 @@ func decodeExpr(r *wire.Reader) *pureExpr {
 		x.call = decodePure(r)
 	}
 	if n, isNil := r.Len(); !isNil {
-		x.args = make([]*pureExpr, n)
+		x.args = wire.Make[*pureExpr](r, n)
 		for i := range x.args {
 			if r.Bool() {
 				x.args[i] = decodeExpr(r)
@@ -611,7 +611,7 @@ func decodeIndexParams(r *wire.Reader) []index.Param {
 	if isNil {
 		return nil
 	}
-	out := make([]index.Param, n)
+	out := wire.Make[index.Param](r, n)
 	for i := range out {
 		p := &out[i]
 		p.Name, p.Type, p.DocType = r.String(), r.String(), r.String()
@@ -641,7 +641,7 @@ func encodeSinkClass(w *wire.Writer, c *sinkClass) {
 func decodeSinkClass(r *wire.Reader) *sinkClass {
 	c := &sinkClass{Final: r.Bool(), Kind: syntax.ClassKind(r.Uint()), Modifiers: r.String(), Extends: r.Strings(), Traits: r.Strings()}
 	if n, isNil := r.Len(); !isNil {
-		c.Methods = make(map[string]sinkMethod, n)
+		c.Methods = wire.MakeMap[string, sinkMethod](r, n)
 		for range n {
 			name := r.String()
 			c.Methods[name] = sinkMethod{Count: int(r.Int()), Modifiers: r.String(), Parameters: decodeIndexParams(r)}
@@ -668,7 +668,7 @@ func decodeSinks(r *wire.Reader) []Sink {
 	if isNil {
 		return nil
 	}
-	out := make([]Sink, n)
+	out := wire.Make[Sink](r, n)
 	for i := range out {
 		s := &out[i]
 		s.Name = r.String()
@@ -692,7 +692,7 @@ func decodeValues(r *wire.Reader) []Value {
 	if isNil {
 		return nil
 	}
-	out := make([]Value, n)
+	out := wire.Make[Value](r, n)
 	for i := range out {
 		out[i] = decodeValue(r)
 	}
@@ -804,14 +804,14 @@ func decodeValue(r *wire.Reader) Value {
 	if targets {
 		v.targets = &callableSet{}
 		if n, isNil := r.Len(); !isNil {
-			v.targets.items = make([]syntax.Expr, n)
+			v.targets.items = wire.Make[syntax.Expr](r, n)
 		}
 	}
 	if interval {
 		v.interval = &intInterval{lo: r.Int(), hi: r.Int()}
 	}
 	if n, isNil := r.Len(); !isNil {
-		v.Sources = make([]Source, n)
+		v.Sources = wire.Make[Source](r, n)
 		for i := range v.Sources {
 			s := &v.Sources[i]
 			s.Kind, s.Path = r.String(), r.String()
@@ -824,7 +824,7 @@ func decodeValue(r *wire.Reader) Value {
 		e := &elementSet{}
 		r.Bools(&e.hasResources, &e.whole, &e.optional)
 		if n, isNil := r.Len(); !isNil {
-			e.items = make(map[string]Value, n)
+			e.items = wire.MakeMap[string, Value](r, n)
 			for range n {
 				key := r.String()
 				e.items[key] = decodeValue(r)
@@ -839,7 +839,7 @@ func decodeValue(r *wire.Reader) Value {
 		o := &originSet{}
 		r.Bools(&o.full, &o.compressed, &o.other)
 		if n, isNil := r.Len(); !isNil {
-			o.items = make([]Origin, n)
+			o.items = wire.Make[Origin](r, n)
 			for i := range o.items {
 				r.Bools(&o.items[i].NonFalse, &o.items[i].NonNull)
 			}

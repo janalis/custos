@@ -57,9 +57,12 @@ source did not change keeps the summaries the code it calls still supports.
 The summaries are set aside, and the run summarizes every file, when a
 checked file declares something else (a new function, another type or
 default; moving code or editing bodies does not count), when the set of
-checked files changes, when a dependency file changes, when the command runs
-from another directory, or when a dependency file was modified in the last
-two seconds. Findings are the same with or without them.
+checked files changes, when a file read for its declarations but not
+checked changes (a dependency, or a project file outside the checked
+paths), when the command runs from another directory, or when such a file
+was modified in the last two seconds. One set of summaries is kept per
+project and settings: runs over different paths replace each other's.
+Findings are the same with or without them.
 
 Cross-file flow follows dependencies even on a first run. Recursive groups
 are analyzed under bounded work limits; summaries that do not settle are

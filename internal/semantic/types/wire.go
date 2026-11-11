@@ -81,7 +81,7 @@ func DecodeType(r *wire.Reader) Type {
 		t.element = &element
 	}
 	if n, isNil := r.Len(); !isNil {
-		t.gen = make([]genEntry, n)
+		t.gen = wire.Make[genEntry](r, n)
 		for i := range t.gen {
 			t.gen[i] = genEntry{atom: r.String(), args: decodeTypes(r)}
 		}
@@ -132,7 +132,7 @@ func decodeArrayInfo(r *wire.Reader) *arrayInfo {
 	r.Bools(&a.shape, &a.sealed, &a.nonEmpty, &pattern, &elem)
 	a.key = uint8(r.Uint())
 	if n, isNil := r.Len(); !isNil {
-		a.keys = make([]ShapeKey, n)
+		a.keys = wire.Make[ShapeKey](r, n)
 		for i := range a.keys {
 			a.keys[i] = ShapeKey{Name: r.String(), Type: DecodeType(r), Optional: r.Bool()}
 		}
@@ -159,7 +159,7 @@ func decodeTypes(r *wire.Reader) []Type {
 	if isNil {
 		return nil
 	}
-	out := make([]Type, n)
+	out := wire.Make[Type](r, n)
 	for i := range out {
 		out[i] = DecodeType(r)
 	}
@@ -179,7 +179,7 @@ func decodeRanges(r *wire.Reader) []IntRange {
 	if isNil {
 		return nil
 	}
-	out := make([]IntRange, n)
+	out := wire.Make[IntRange](r, n)
 	for i := range out {
 		out[i] = IntRange{Lo: r.Int(), Hi: r.Int()}
 	}

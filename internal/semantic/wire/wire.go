@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"unsafe"
 )
 
 // MaxDepth bounds the nesting a Writer or Reader follows: deeper values are
@@ -152,11 +153,50 @@ type Reader struct {
 	strings []string
 	err     error
 	depth   int
+	// alloc is the memory, in bytes, the decoded data may still take (see
+	// Make): a corrupt length cannot make a small input allocate much.
+	alloc int
+}
+
+// allocPerByte bounds the memory decoded data takes per input byte. A
+// summary of a few hundred bytes encodes in a few dozen, so valid input
+// stays far below it; corrupt input fails instead of exhausting memory.
+const allocPerByte = 64
+
+// Make returns a slice of n elements of T, charging their memory to r: nil,
+// with r failed, past what r's input can hold.
+func Make[T any](r *Reader, n int) []T {
+	var zero T
+	if !r.charge(n, int(unsafe.Sizeof(zero))) {
+		return nil
+	}
+	return make([]T, n)
+}
+
+// MakeMap returns a map sized for n entries, charging their memory to r: an
+// empty map, with r failed, past what r's input can hold.
+func MakeMap[K comparable, V any](r *Reader, n int) map[K]V {
+	var k K
+	var v V
+	if !r.charge(n, int(unsafe.Sizeof(k))+int(unsafe.Sizeof(v))+8) {
+		return map[K]V{}
+	}
+	return make(map[K]V, n)
+}
+
+// charge takes n elements of size bytes from r's allocation budget.
+func (r *Reader) charge(n, size int) bool {
+	if r.err != nil || n > r.alloc/max(size, 1) {
+		r.Fail()
+		return false
+	}
+	r.alloc -= n * max(size, 1)
+	return true
 }
 
 // NewReader returns a reader of buf whose strings come from table.
 func NewReader(buf []byte, table []string) *Reader {
-	return &Reader{buf: buf, strings: table}
+	return &Reader{buf: buf, strings: table, alloc: allocPerByte * len(buf)}
 }
 
 // ReadStrings reads a string table Strings.Append wrote at the start of buf

@@ -61,26 +61,30 @@ func Open(rules []analysis.Rule, opt Options) (*Project, error) {
 // AnalyzeReport indexes project and vendor declarations, reuses read sources,
 // and releases lazy edit closures after analysis. Results retain input order.
 func (p *Project) AnalyzeReport() []diagnostic.FileResult {
-	engine, sources, trees := p.prepare(p.Options.ParseOnce)
+	engine, sources, trees, saved := p.prepare(p.Options.ParseOnce)
+	defer saved()
 	return runSources(engine, p.Files, sources, trees, p.Options.Parse, true)
 }
 
 // PrepareFixes computes changes without writing; the adapter owns writes.
 func (p *Project) PrepareFixes() []PreparedFix {
-	engine, sources, _ := p.prepare(false)
+	engine, sources, _, saved := p.prepare(false)
+	defer saved()
 	return PrepareFixes(engine, p.Files, sources, p.Options.Parse)
 }
 
 // prepare attaches the project index and flow snapshot the engine needs. It
 // returns the project sources the index read (nil where unread), so analysis
 // and fixes see the same bytes without reading each file again, and, with
-// keepTrees, the syntax trees it parsed of them (see Options.ParseOnce).
+// keepTrees, the syntax trees it parsed of them (see Options.ParseOnce). The
+// flow steps are saved while the files are analysed: saved waits until they
+// are.
 // Files that rules request by name, such as composer.json, are analysed but
 // never indexed or summarized as PHP.
-func (p *Project) prepare(keepTrees bool) (*analysis.Engine, [][]byte, []*syntax.File) {
-	engine := p.Engine
+func (p *Project) prepare(keepTrees bool) (engine *analysis.Engine, sources [][]byte, trees []*syntax.File, saved func()) {
+	engine, saved = p.Engine, func() {}
 	if !engine.NeedsIndex() {
-		return engine, nil, nil
+		return engine, nil, nil, saved
 	}
 	scope := p.Options.Scope
 	if len(scope) == 0 {
@@ -121,12 +125,16 @@ func (p *Project) prepare(keepTrees bool) (*analysis.Engine, [][]byte, []*syntax
 			_ = cache.SaveFlowOrder(build.Order(), options)
 		}
 		// The cache only saves time: a failure to write it changes no result.
-		_ = steps.save(build)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			_ = steps.save(build)
+		}()
+		saved = func() { <-done }
 		preparedFlow(build)
 		engine = engine.WithFlow(build.Snapshot)
 	}
-	sources := make([][]byte, len(p.Files))
-	var trees []*syntax.File
+	sources = make([][]byte, len(p.Files))
 	if keepTrees {
 		trees = make([]*syntax.File, len(p.Files))
 	}
@@ -136,7 +144,7 @@ func (p *Project) prepare(keepTrees bool) (*analysis.Engine, [][]byte, []*syntax
 			trees[i] = parsed[j]
 		}
 	}
-	return engine, sources, trees
+	return engine, sources, trees, saved
 }
 
 // AnalyzeBuffer analyzes supplied bytes without reading the filesystem.
