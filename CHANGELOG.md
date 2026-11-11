@@ -11,8 +11,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   class names nothing declares. They report only when the project's world
   is complete: Composer's packages all installed and indexed, every
   required `ext-*` described by the stubs, and nothing the analysis skips
-  (excluded, hidden or vendor test directories, files too large to
-  analyze) able to declare the name. Existence, extension and version
+  (excluded, hidden, symlinked or vendor test directories, files too large
+  to analyze) able to declare the name. Existence, extension and version
   checks guarding the code, early exits included, keep them silent, and
   the language server follows `composer.json` and `installed.json`
   changes.

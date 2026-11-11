@@ -159,7 +159,7 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 			files[d] = true
 		}
 	}
-	g := newGaps(indexed, skipped)
+	g := newGaps(indexed, skipped, vendor)
 	w := index.World{Complete: true}
 	inScope := func(p string) bool {
 		for _, s := range scope {
@@ -266,10 +266,12 @@ type gaps struct {
 	indexed, dir, file map[string]bool
 	// dirs and files list the skipped directories and files, sorted.
 	dirs, files []string
+	// vendor is the vendor directory, which its own walk reads.
+	vendor string
 }
 
-func newGaps(indexed []string, skipped Skipped) *gaps {
-	g := &gaps{indexed: map[string]bool{}, dir: map[string]bool{}, file: map[string]bool{}}
+func newGaps(indexed []string, skipped Skipped, vendor string) *gaps {
+	g := &gaps{indexed: map[string]bool{}, dir: map[string]bool{}, file: map[string]bool{}, vendor: path.Clean(filepath.ToSlash(vendor))}
 	for _, f := range indexed {
 		g.indexed[path.Clean(f)] = true
 	}
@@ -288,10 +290,14 @@ func newGaps(indexed []string, skipped Skipped) *gaps {
 	return g
 }
 
-// within reports whether p (clean) is, or lies in, a skipped directory.
+// within reports whether p (clean) is, or lies in, a skipped directory. A
+// directory skipped by the project walk that holds the vendor directory
+// (vendor-dir lib/vendor, lib excluded) does not count for vendor paths:
+// the vendor walk reads them.
 func (g *gaps) within(p string) bool {
+	inVendor := p == g.vendor || strings.HasPrefix(p, g.vendor+"/")
 	for {
-		if g.dir[p] {
+		if g.dir[p] && !(inVendor && strings.HasPrefix(g.vendor, p+"/")) {
 			return true
 		}
 		parent := path.Dir(p)

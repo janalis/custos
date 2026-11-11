@@ -144,3 +144,77 @@ func sortedCopy(list []string) []string {
 	sort.Strings(out)
 	return out
 }
+
+// A symlinked directory is not followed, by the project walk or the vendor
+// walk: what it holds is unseen.
+func TestWorldSkipsSymlinks(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "composer.json"), `{"require": {"acme/lib": "*"}, "autoload": {"psr-4": {"App\\": "src/"}}}`)
+	writeFile(t, filepath.Join(root, "vendor", "composer", "installed.json"), `{"packages": [{"name": "acme/lib", "autoload": {"psr-4": {"Acme\\Lib\\": "src/"}}}]}`)
+	writeFile(t, filepath.Join(root, "vendor", "acme", "lib", "src", "Client.php"), `<?php namespace Acme\Lib; class Client {}`)
+	writeFile(t, filepath.Join(root, "shared", "Legacy", "Foo.php"), `<?php namespace App\Linked; class Foo {}`)
+	writeFile(t, filepath.Join(root, "shared", "Lib", "Bar.php"), `<?php namespace Acme\Lib\Linked; class Bar {}`)
+	main := filepath.Join(root, "src", "main.php")
+	writeFile(t, main, `<?php
+new \App\Linked\Foo();
+new \Acme\Lib\Linked\Bar();
+new \Acme\Lib\Client();
+new \Acme\Lib\Missing();
+new \App\Missing();
+`)
+	for link, target := range map[string]string{
+		filepath.Join(root, "src", "Linked"):                          filepath.Join("..", "shared", "Legacy"),
+		filepath.Join(root, "vendor", "acme", "lib", "src", "Linked"): filepath.Join("..", "..", "..", "..", "shared", "Lib"),
+	} {
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := undefinedClasses(t, root, main, []string{filepath.Join(root, "src")}, nil)
+	want := []string{"Fix the name or install the package declaring Acme\\Lib\\Missing.", "Fix the name or install the package declaring App\\Missing."}
+	if !slices.Equal(got, want) {
+		t.Fatalf("reported %q, want %q", got, want)
+	}
+}
+
+// An excluded directory holding the vendor directory leaves the packages
+// to the vendor walk: they stay seen, what else it holds does not.
+func TestWorldSkipsAroundVendor(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "composer.json"), `{"require": {"acme/http": "*"}, "autoload": {"psr-4": {"App\\": "src/", "Old\\": "lib/old/"}}, "config": {"vendor-dir": "lib/vendor"}}`)
+	writeFile(t, filepath.Join(root, "lib", "vendor", "composer", "installed.json"), `{"packages": [{"name": "acme/http", "autoload": {"psr-4": {"Acme\\Http\\": "src/"}}}]}`)
+	writeFile(t, filepath.Join(root, "lib", "vendor", "acme", "http", "src", "Client.php"), `<?php namespace Acme\Http; class Client {}`)
+	writeFile(t, filepath.Join(root, "lib", "old", "Thing.php"), `<?php namespace Old; class Thing {}`)
+	main := filepath.Join(root, "src", "main.php")
+	writeFile(t, main, `<?php
+new \Acme\Http\Client();
+new \Old\Thing();
+new \Acme\Http\Missing();
+new \App\Missing();
+`)
+	got := undefinedClasses(t, root, main, []string{root}, []string{"lib"})
+	want := []string{"Fix the name or install the package declaring Acme\\Http\\Missing.", "Fix the name or install the package declaring App\\Missing."}
+	if !slices.Equal(got, want) {
+		t.Fatalf("reported %q, want %q", got, want)
+	}
+}
+
+// undefinedClasses runs UndefinedClass on the project at root and returns
+// the sorted messages it reports in file.
+func undefinedClasses(t *testing.T, root, file string, paths, exclude []string) []string {
+	t.Helper()
+	opt := syntax.Options{Version: phpversion.PHP84}
+	p, err := Open([]analysis.Rule{undefinedclass.New()}, Options{Root: root, Paths: paths, Exclude: exclude, Parse: opt, Analysis: analysis.Config{PHP: phpversion.PHP84, EnableAll: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, result := range p.AnalyzeReport() {
+		if result.Path == file {
+			for _, f := range result.Findings {
+				got = append(got, f.Message)
+			}
+		}
+	}
+	return sortedCopy(got)
+}

@@ -58,8 +58,8 @@ installed.
   `MongoDB\` or `Swoole\`), and a namespaced name under a PSR-4 or PSR-0
   prefix whose code the analysis did not read: a directory outside the
   analyzed paths, or, below it, a directory or a file left out (excluded
-  by the configuration, hidden, a test directory of a package, or too
-  large to analyze).
+  by the configuration, hidden, symlinked, a test directory of a package,
+  or too large to analyze).
 - E4. A global name whose leading word, up to its first underscore, starts
   no function PHP or a known extension declares (`newext_open()`): it may
   belong to an extension the stubs lack. A global name without an

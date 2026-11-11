@@ -72,6 +72,13 @@ func discoverSkipping(paths, exclude, patterns []string, skipped *Skipped) ([]st
 				}
 				return nil
 			}
+			// A symlinked directory is never entered: what it holds is unseen.
+			if skipped != nil && d.Type()&fs.ModeSymlink != 0 {
+				if info, err := os.Stat(p); err == nil && info.IsDir() {
+					skipped.Dirs = append(skipped.Dirs, p)
+					return nil
+				}
+			}
 			if (strings.HasSuffix(p, ".php") && !declarationOnly(d.Name()) || matchesAny(d.Name(), patterns)) && (d.Type()&fs.ModeSymlink == 0 || linkInside(root, p)) {
 				out = append(out, p)
 			} else if skipped != nil && loadable(d.Name()) {
