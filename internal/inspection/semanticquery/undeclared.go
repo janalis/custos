@@ -14,12 +14,16 @@ import (
 // file (see index.World), and no candidate may lie where the index cannot
 // see: a namespace the project autoloads from unindexed directories, a
 // namespace a PHP extension uses, a global function whose leading word no
-// builtin function uses (an extension the stubs lack), or, for a global
-// class, a project that calls class_alias() with computed names.
+// builtin function uses (an extension the stubs lack); no class-like may be
+// when the project calls class_alias() with computed names.
 func UndeclaredEverywhere(ctx *analysis.Context, function bool, fqns ...string) bool {
 	ix := ctx.Index()
 	world := ix.World()
 	if len(fqns) == 0 || !world.Complete {
+		return false
+	}
+	// A class_alias() with computed names may declare any class name.
+	if !function && ix.DynamicAliases() {
 		return false
 	}
 	prefixes := ix.BuiltinPrefixes()
@@ -42,8 +46,6 @@ func UndeclaredEverywhere(ctx *analysis.Context, function bool, fqns ...string) 
 			if word, _, ok := strings.Cut(lower, "_"); ok && !prefixes.Words[word] {
 				return false
 			}
-		} else if ix.DynamicAliases() {
-			return false
 		}
 	}
 	return true

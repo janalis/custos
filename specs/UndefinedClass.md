@@ -53,8 +53,9 @@ unless every Composer dependency is installed.
   configuration, hidden, a test directory of a package, or too large to
   analyse). Below a PSR-4 directory only the namespace of what was left
   out is concerned.
-- E4. A global name when an indexed file calls `class_alias()` with computed
-  names, which may declare any global alias (framework facades).
+- E4. Any name when an indexed file calls `class_alias()` with computed
+  names, which may declare any alias, global (framework facades) or
+  namespaced.
 - E5. Names PHP does not load: `instanceof` and `catch` (they compare
   names; libraries use them for optional dependencies), parameter, return
   and property types (checked only against a value, and used for optional
