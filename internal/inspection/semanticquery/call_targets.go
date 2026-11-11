@@ -2,10 +2,12 @@ package semanticquery
 
 import (
 	"path"
+	"slices"
 	"strings"
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 )
 
@@ -73,8 +75,9 @@ func CallTargets(ctx *analysis.Context, call syntax.Node, callee Callee, trusted
 			if !ok {
 				return "", nil, false
 			}
-			if name == "" {
-				name = n
+			if all == nil {
+				name, all = n, ts
+				continue
 			}
 			all = append(all, ts...)
 		}
@@ -134,57 +137,106 @@ func (r targetResolver) construction(c *syntax.New, callee Callee) (string, []Ca
 
 // methodTargets lists method name as class cls resolves it and, with
 // overrides, as every indexed subtype of cls resolves it, since the
-// runtime object may be any of them.
+// runtime object may be any of them. Callers must not modify the targets.
 func (r targetResolver) methodTargets(cls, name string, overrides bool) (string, []CallTarget, bool) {
 	ix := r.ctx.Index()
-	c := ix.Class(cls, r.ctx.PHP)
+	key := methodTargetsKey{
+		class:     strings.ToLower(strings.TrimPrefix(cls, `\`)),
+		name:      strings.ToLower(name),
+		overrides: overrides,
+		ver:       r.ctx.PHP,
+	}
+	t := ix.Memo(key, func() any { return resolveMethodTargets(ix, cls, name, overrides, r.ctx.PHP) }).(methodTargets)
+	if !t.ok {
+		return "", nil, false
+	}
+	for _, m := range t.builtin {
+		if !r.trustedMethod(m) {
+			return "", nil, false
+		}
+	}
+	return t.label, t.targets, true
+}
+
+// methodTargetsKey keys the method targets of a class in the index memo:
+// they only depend on the declarations of the index, the trust of builtin
+// declarations aside.
+type methodTargetsKey struct {
+	class, name string
+	overrides   bool
+	ver         phpversion.Version
+}
+
+// methodTargets is what methodTargets lists before the builtin
+// declarations among the targets are checked for trust.
+type methodTargets struct {
+	label   string
+	targets []CallTarget
+	// builtin lists the builtin declarations among targets, each once.
+	builtin []*index.Method
+	ok      bool
+}
+
+// resolveMethodTargets lists the targets of methodTargets.
+func resolveMethodTargets(ix *index.Index, cls, name string, overrides bool, ver phpversion.Version) methodTargets {
+	c := ix.Class(cls, ver)
 	// A trait method runs in the classes using the trait, which may declare
 	// the callee themselves.
 	if c == nil || c.Kind == syntax.KindTrait {
-		return "", nil, false
+		return methodTargets{}
 	}
-	m, ok := r.method(cls, name)
+	m, ok := certainMethod(ix, cls, name, ver)
 	if !ok {
-		return "", nil, false
+		return methodTargets{}
 	}
-	label := strings.TrimPrefix(m.Class, `\`) + "::" + m.Name
-	targets := []CallTarget{{Params: m.Params, Builtin: m.Builtin}}
-	if !overrides || m.Visibility == index.Private || m.Final || c.Final {
-		return label, targets, true
-	}
-	seen := map[string]bool{}
-	queue := []string{cls}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, child := range ix.ChildrenAll(cur) {
-			k := strings.ToLower(strings.TrimPrefix(child, `\`))
-			if seen[k] {
-				continue
-			}
-			seen[k] = true
-			sub, ok := r.method(child, name)
-			if !ok {
-				return "", nil, false
-			}
-			targets = append(targets, CallTarget{Params: sub.Params, Builtin: sub.Builtin})
-			queue = append(queue, child)
+	out := methodTargets{label: strings.TrimPrefix(m.Class, `\`) + "::" + m.Name, ok: true}
+	add := func(m *index.Method) {
+		out.targets = append(out.targets, CallTarget{Params: m.Params, Builtin: m.Builtin})
+		if m.Builtin && !slices.Contains(out.builtin, m) {
+			out.builtin = append(out.builtin, m)
 		}
 	}
-	return label, targets, true
+	add(m)
+	if overrides && m.Visibility != index.Private && !m.Final && !c.Final {
+		d := certainDescendants(ix, cls, ver)
+		if !d.certain {
+			return methodTargets{}
+		}
+		for _, child := range d.classes {
+			sub, ok := certainMember(ix, child, name, ver)
+			if !ok {
+				return methodTargets{}
+			}
+			add(sub)
+		}
+	}
+	// Callers append the targets of several receivers: never in place.
+	out.targets = slices.Clip(out.targets)
+	return out
 }
 
-// method resolves name on class cls when that declaration is certain: the
-// class and the one declaring the method are declared once, every ancestor
-// is indexed, and neither a `@method` tag nor a magic handler serves it.
-func (r targetResolver) method(cls, name string) (*index.Method, bool) {
-	ix := r.ctx.Index()
-	ver := r.ctx.PHP
-	if len(ix.ClassDecls(cls, ver)) != 1 || !HierarchyResolved(ix, cls, ver) {
+// certainMethod resolves name on class cls when that declaration is
+// certain: the class is certain (see certainClass) and so is the member
+// (see certainMember).
+func certainMethod(ix *index.Index, cls, name string, ver phpversion.Version) (*index.Method, bool) {
+	if !certainClass(ix, cls, ver) {
 		return nil, false
 	}
+	return certainMember(ix, cls, name, ver)
+}
+
+// certainClass reports whether class cls is declared once and every
+// ancestor is indexed.
+func certainClass(ix *index.Index, cls string, ver phpversion.Version) bool {
+	return len(ix.ClassDecls(cls, ver)) == 1 && HierarchyResolved(ix, cls, ver)
+}
+
+// certainMember resolves name on certain class cls when the class declaring
+// it is declared once and neither a `@method` tag nor a magic handler
+// serves it. A builtin declaration must still be trusted.
+func certainMember(ix *index.Index, cls, name string, ver phpversion.Version) (*index.Method, bool) {
 	m := ix.FindMethod(cls, name, ver)
-	if m == nil || m.Magic || len(ix.ClassDecls(m.Class, ver)) != 1 || m.Builtin && !r.trustedMethod(m) {
+	if m == nil || m.Magic || len(ix.ClassDecls(m.Class, ver)) != 1 {
 		return nil, false
 	}
 	// A method the caller cannot see is handed to __call or __callStatic.
@@ -192,6 +244,48 @@ func (r targetResolver) method(cls, name string) (*index.Method, bool) {
 		return nil, false
 	}
 	return m, true
+}
+
+// descendants lists the indexed subtypes of a class, each once, and
+// whether every one of them is certain (see certainClass).
+type descendants struct {
+	classes []string
+	certain bool
+}
+
+// descendantsKey keys certainDescendants in the index memo.
+type descendantsKey struct {
+	class string
+	ver   phpversion.Version
+}
+
+// certainDescendants lists the indexed subtypes of class cls, which every
+// method of cls shares: a frozen index computes them once per class and
+// version.
+func certainDescendants(ix *index.Index, cls string, ver phpversion.Version) descendants {
+	key := descendantsKey{class: strings.ToLower(strings.TrimPrefix(cls, `\`)), ver: ver}
+	return ix.Memo(key, func() any {
+		out := descendants{certain: true}
+		seen := map[string]bool{}
+		queue := []string{cls}
+		for len(queue) > 0 {
+			cur := queue[0]
+			queue = queue[1:]
+			for _, child := range ix.ChildrenAll(cur) {
+				k := strings.ToLower(strings.TrimPrefix(child, `\`))
+				if seen[k] {
+					continue
+				}
+				seen[k] = true
+				if !certainClass(ix, child, ver) {
+					return descendants{}
+				}
+				out.classes = append(out.classes, child)
+				queue = append(queue, child)
+			}
+		}
+		return out
+	}).(descendants)
 }
 
 // trustedMethod reports whether builtin method m is trusted.
