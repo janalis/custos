@@ -11,3 +11,11 @@ function capture(callable $register) {
     $register(function () use ($plain) {});
     <error descr="Destructuring a value that is not an array.">[$x] = $plain</error>;
 }
+
+// A parameter a by-reference closure may replace is not proven unread.
+function reloaded($value) {
+    $value = load_value();
+    $refresh = function () use (&$value) { $value = load_value(); };
+    $refresh();
+    return $value;
+}
