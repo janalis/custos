@@ -97,12 +97,23 @@ type fileChange struct {
 // Changes arriving while the initial index is built are queued and replayed.
 func (s *Server) watchedFilesChanged(changes []fileChange) {
 	s.mu.Lock()
-	bl := baselinePath(s.cfg)
+	cfg := s.cfg
 	s.mu.Unlock()
+	bl := baselinePath(cfg)
 	for _, ch := range changes {
 		if bl != "" && filepath.Clean(uriToPath(ch.URI)) == bl {
 			s.reloadBaseline()
 			break
+		}
+	}
+	// The index world follows Composer's metadata: build the index again,
+	// which reads every other change from disk too.
+	for _, ch := range changes {
+		if cfg != nil && project.WorldInput(cfg.Root, uriToPath(ch.URI)) {
+			if s.beginIndexing() {
+				go s.buildIndex()
+			}
+			return
 		}
 	}
 	s.mu.Lock()

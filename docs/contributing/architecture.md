@@ -124,31 +124,30 @@ columns and LSP uses UTF-16 columns.
 
 ### The index world
 
-A missing declaration proves nothing by itself: the index may simply not
-hold the file that declares it. `Index.World` says how much of the project's
-loadable code the index holds. The project layer (`project.ComposerWorld`
-for the CLI and the LSP, the snapshot's captured metadata for MCP) sets it
-before freezing the index, and layers over that index report the same
-world. It is complete only when `composer.json` and the vendor directory's
-`composer/installed.json` exist, every package the project requires,
-requires for development or suggests is installed (or replaced or
-provided), every installed package that autoloads code has indexed files,
-no vendor file was skipped, every required `ext-*` is one the stubs describe
-(`stubs.Extensions`), every classmap entry (the project's or a
-package's) was read whole and every files entry was read. PSR-4 and PSR-0
-prefixes whose directories lie outside the indexed paths or in a skipped
-directory are listed as blind, and so are, below a PSR-4 directory, the
-namespaces of what was skipped. "Skipped" is recorded by the walks
-themselves (`project.Skipped`: excluded, hidden and vendor test
-directories, declaration-only and non-`.php` loadable files) and by the
-indexing (files too large or unreadable), so the world never re-derives
-discovery's rules. `Index.DynamicAliases` reports a
-`class_alias()` with computed names, and `Index.BuiltinPrefixes` the
-namespaces and leading words (of functions and of class-likes) PHP extensions
-use. Rules ask
-`semanticquery.UndeclaredEverywhere`, which combines them, rather than
-reading the world directly; fixtures opt in with the `completeWorld`
-sidecar key.
+A missing declaration proves nothing by itself: the index may simply not hold
+the file that declares it. `Index.World` says how much of the project's
+loadable code the index holds. The project layer (`project.ComposerWorld` for
+the CLI and the LSP, the snapshot's captured metadata for MCP) sets it before
+freezing the index (the LSP builds its index again when `composer.json` or the
+vendor directory's `installed.json` changes), and layers over that index report
+the same world. It is complete only when `composer.json` and the vendor
+directory's `composer/installed.json` exist, every package the project
+requires, requires for development or suggests is installed (or replaced or
+provided), every installed package that autoloads code has indexed files, no
+vendor file was skipped, every required `ext-*` is one the stubs describe
+(`stubs.Extensions`), every classmap entry (the project's or a package's) was
+read whole and every files entry was read. PSR-4 and PSR-0 prefixes whose
+directories lie outside the indexed paths or in a skipped directory are listed
+as blind, and so are, below a PSR-4 directory, the namespaces of what was
+skipped. "Skipped" is recorded by the walks themselves (`project.Skipped`:
+excluded, hidden and vendor test directories, declaration-only and non-`.php`
+loadable files) and by the indexing (files too large or unreadable), so the
+world never re-derives discovery's rules. `Index.DynamicAliases` reports a
+`class_alias()` with computed names, and `Index.BuiltinPrefixes` the namespaces
+and leading words (of functions and of class-likes) PHP extensions use. Rules
+ask `semanticquery.UndeclaredEverywhere`, which combines them, rather than
+reading the world directly; fixtures opt in with the `completeWorld` sidecar
+key.
 
 A `diagnostic.Fix` builds exact edits lazily. Fixing depends on an `Analyzer`
 interface returning findings for a parsed file. It selects one fix per finding,

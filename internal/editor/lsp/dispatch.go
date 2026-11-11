@@ -18,8 +18,9 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 		if s.watchDynamic {
 			// Ask the client to report PHP file changes so the project index
 			// follows edits made outside open buffers (git checkout, codegen…),
-			// and baseline changes so regenerating it takes effect.
-			watchers := []any{map[string]any{"globPattern": "**/*.php"}}
+			// baseline changes so regenerating it takes effect, and Composer
+			// metadata changes so the index world follows installs.
+			watchers := []any{map[string]any{"globPattern": "**/*.php"}, map[string]any{"globPattern": "**/composer.json"}, map[string]any{"globPattern": "**/installed.json"}}
 			s.mu.Lock()
 			if p := baselinePath(s.cfg); p != "" {
 				watchers = append(watchers, map[string]any{"globPattern": "**/" + filepath.Base(p)})

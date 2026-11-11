@@ -38,6 +38,14 @@ func ComposerWorld(root string, scope, indexed []string, skipped Skipped) index.
 	return composerWorld(read, rel(scope), rel(indexed), Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
 }
 
+// WorldInput reports whether path is a file ComposerWorld reads under
+// root: composer.json, or the installed.json of the vendor directory it
+// configures.
+func WorldInput(root, path string) bool {
+	path = filepath.Clean(path)
+	return path == filepath.Join(root, "composer.json") || path == filepath.Join(root, vendorDir(root), "composer", "installed.json")
+}
+
 // composerManifest is the part of composer.json and of an installed
 // package's entry the world needs.
 type composerManifest struct {
