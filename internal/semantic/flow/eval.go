@@ -196,6 +196,10 @@ func remember(r *scopeResult, n syntax.Node, f frame) {
 	}
 }
 
+// eval evaluates an expression on the frame: it charges the budget, hands the
+// expression to the handler of its family, then normalizes what it yields by
+// kind and records it. The epilogue stays inline: passing the value to a
+// helper copies it on every evaluation and measurably slows the hot path.
 func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	if x == nil {
 		return Value{Complete: true}
