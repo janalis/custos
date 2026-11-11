@@ -85,15 +85,13 @@ func Resummarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, option
 	consulted := e.consulted
 	// The answers of the kept callables join those just read, for out
 	// only: e keeps the answers it was given.
-	answers := maps.Clone(e.answers)
+	answers := make(map[string]answer, len(e.answers))
+	maps.Copy(answers, e.answers)
 	for key := range kept {
 		for read, bits := range prior.callables[key] {
 			consulted[read] = true
 			if bits&(readOwn|readHeld) == 0 {
 				continue
-			}
-			if answers == nil {
-				answers = map[string]answer{}
 			}
 			got := answers[read]
 			got.held = got.held || bits&readHeld != 0
@@ -113,7 +111,8 @@ func (f *File) unreached(earlier, s *Snapshot, state *summarizing) map[string]bo
 	if f == nil || f.callables == nil || f.options != state.out.options || f.Path != state.out.Path || snapshotOptions(earlier) != f.options {
 		return nil
 	}
-	reached := f.changed(earlier, s)
+	reached := map[string]bool{}
+	maps.Copy(reached, f.differing(earlier, s, false))
 	for key, declared := range state.declared {
 		if _, made := f.callables[key]; !made || len(declared) != 1 {
 			reached[key] = true
@@ -140,15 +139,6 @@ func (f *File) unreached(earlier, s *Snapshot, state *summarizing) map[string]bo
 		}
 	}
 	return kept
-}
-
-// changed returns the keys of the contracts f consulted that differ
-// between earlier and s.
-func (f *File) changed(earlier, s *Snapshot) map[string]bool {
-	if changed := f.differing(earlier, s, false); changed != nil {
-		return changed
-	}
-	return map[string]bool{}
 }
 
 // differing returns the keys of the contracts f consulted that differ
