@@ -1020,15 +1020,20 @@ func (e *Env) bindAtClass(t types.Type, n syntax.Node) types.Type {
 	return t.BindRelative(self, parent, self)
 }
 
+// collected is the array a variadic parameter of element type t holds.
+func collected(t types.Type) types.Type {
+	atoms := make([]string, 0, len(t.Atoms()))
+	for _, a := range t.Atoms() {
+		atoms = append(atoms, a+"[]")
+	}
+	return types.Of(atoms...)
+}
+
 func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 	at := p.Span().Start
 	declared := e.declaredParam(p)
 	if p.Variadic && !declared.IsUnknown() {
-		atoms := make([]string, 0, len(declared.Atoms()))
-		for _, a := range declared.Atoms() {
-			atoms = append(atoms, a+"[]")
-		}
-		declared = types.Of(atoms...)
+		declared = collected(declared)
 	}
 	if lit, ok := p.Default.(*syntax.ConstFetch); ok && strings.EqualFold(lit.Name.Value, "null") && !declared.IsUnknown() {
 		declared = types.Union(declared, types.Null)
@@ -1043,6 +1048,10 @@ func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 	}
 	if doc != "" {
 		dt := e.docType(doc, e.resolverFor(scope, at))
+		if p.Variadic && !dt.IsUnknown() {
+			// The tag of a variadic parameter types each collected value.
+			dt = collected(dt)
+		}
 		if narrowed, ok := e.narrowerDoc(declared, dt); ok {
 			return narrowed
 		}

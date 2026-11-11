@@ -229,10 +229,10 @@ func acceptAtom(expected Type, e string, actual Type, a string, ctx AcceptContex
 	case "iterable":
 		return acceptIterable(expected, actual, a, ctx)
 	case "callable":
-		switch a {
-		case "callable":
+		switch {
+		case a == "callable":
 			return Yes
-		case "string", "array", "object", "iterable":
+		case a == "string", a == "array", a == "object", a == "iterable", strings.HasSuffix(a, "[]"):
 			return Maybe // a function name, a [class, method] pair, an invokable object
 		}
 		return No
@@ -493,9 +493,16 @@ func acceptClass(e, a string, ctx AcceptContext) Verdict {
 	case Maybe:
 		return Maybe
 	}
-	// A subclass of a may still extend or implement e, unless a is final
-	// or both are classes (single inheritance).
-	if ctx.Classes.IsFinal(a) || !ctx.Classes.IsInterface(e) && !ctx.Classes.IsInterface(a) {
+	// A subclass of a may still be e, extend it or implement it, unless a
+	// is final, or both are classes (single inheritance) and e does not
+	// extend a.
+	if ctx.Classes.IsFinal(a) {
+		return No
+	}
+	if ctx.Classes.IsSubtype(e, a) == Yes {
+		return Maybe // a value declared as a may be an e
+	}
+	if !ctx.Classes.IsInterface(e) && !ctx.Classes.IsInterface(a) {
 		return No
 	}
 	return Maybe
