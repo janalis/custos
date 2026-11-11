@@ -1,6 +1,7 @@
 package types
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -26,6 +27,55 @@ var pseudo = map[string][]string{
 	"open-resource": {"resource"}, "empty": {"mixed"}, "number": {"int", "float"},
 	"no-return": {"never"}, "noreturn": {"never"}, "never-return": {"never"}, "never-returns": {"never"},
 	"key-of": {"mixed"}, "value-of": {"mixed"}, "int-mask": {"int"}, "int-mask-of": {"int"},
+}
+
+// refined gives the pseudo-types whose values a range describes: int
+// ranges, and strings of at least one byte (a non-falsy string also is not
+// "0", which the lengths do not tell).
+func refined(low string) (Type, bool) {
+	const lo, hi = math.MinInt64, math.MaxInt64
+	switch low {
+	case "positive-int":
+		return Ints(IntRange{1, hi}), true
+	case "negative-int":
+		return Ints(IntRange{lo, -1}), true
+	case "non-positive-int":
+		return Ints(IntRange{lo, 0}), true
+	case "non-negative-int":
+		return Ints(IntRange{0, hi}), true
+	case "non-zero-int":
+		return Ints(IntRange{lo, -1}, IntRange{1, hi}), true
+	case "non-empty-string", "non-falsy-string", "truthy-string", "numeric-string",
+		"non-empty-literal-string", "non-empty-lowercase-string":
+		return StringLengths(IntRange{1, hi}), true
+	}
+	return Type{}, false
+}
+
+// intRange parses the arguments of `int<lo, hi>`: integers, or min and max
+// for an unbounded end. ok is false for anything else.
+func intRange(args string) (IntRange, bool) {
+	if !strings.HasPrefix(args, "<") || matchingClose(args) != len(args)-1 {
+		return IntRange{}, false
+	}
+	bounds := splitTop(args[1:len(args)-1], ',')
+	if len(bounds) != 2 {
+		return IntRange{}, false
+	}
+	bound := func(s string, unbounded string, end int64) (int64, bool) {
+		s = strings.TrimSpace(s)
+		if strings.EqualFold(s, unbounded) {
+			return end, true
+		}
+		v, err := strconv.ParseInt(s, 10, 64)
+		return v, err == nil
+	}
+	l, okL := bound(bounds[0], "min", math.MinInt64)
+	h, okH := bound(bounds[1], "max", math.MaxInt64)
+	if !okL || !okH || l > h {
+		return IntRange{}, false
+	}
+	return IntRange{l, h}, true
 }
 
 // Limits on PHPDoc type parsing. Doc comments come from analysed (possibly
@@ -103,6 +153,13 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	t := Of(atoms...)
 	if len(infos) > 0 {
 		t = t.withInfo(unionInfo(infos))
+	}
+	// Values of refined members, while every int or string member has some.
+	if rs := unionInts(pts); rs != nil {
+		t = t.withInts(rs)
+	}
+	if rs := unionLens(pts); rs != nil {
+		t = t.withLens(rs)
 	}
 	return t.withGen(unionGen(t, pts)).withInter(unionInter(pts)).withUnionElements(pts)
 }
@@ -230,7 +287,10 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		}
 		return Of(atom).WithTypeArgs(atom, p.callableSignature(args, resolve, depth))
 	case "int":
-		return Int // int<0, max>
+		if r, ok := intRange(args); ok {
+			return Ints(r)
+		}
+		return Int
 	case "class-string", "interface-string":
 		// class-string<Foo>: a string carrying the class as generic
 		// argument (bound by method templates, see ClassString).
@@ -248,6 +308,9 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 			if fqn := resolve("!" + base); fqn != "" && !strings.ContainsAny(fqn, "!=~") {
 				return Of(`\` + fqn)
 			}
+		}
+		if t, ok := refined(low); ok {
+			return t
 		}
 		return Of(ps...)
 	}
