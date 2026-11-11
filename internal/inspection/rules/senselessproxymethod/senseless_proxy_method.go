@@ -120,7 +120,7 @@ func (senselessProxyMethod) Check(ctx *analysis.Context, n syntax.Node) {
 				if !astquery.EquivalentFoldNames(ctx.File, p.Default, pmDecl.Params[i].Default) {
 					return
 				}
-			} else if astquery.SquashWhitespace(ctx.Text(p.Default)) != astquery.SquashWhitespace(pp.Default) {
+			} else if squashWhitespace(ctx.Text(p.Default)) != squashWhitespace(pp.Default) {
 				return
 			}
 		}
@@ -161,7 +161,7 @@ func (senselessProxyMethod) Check(ctx *analysis.Context, n syntax.Node) {
 		for _, t := range mineTags {
 			found := false
 			for _, o := range parentTags {
-				if t.Name == o.Name && astquery.SquashWhitespace(t.Text) == astquery.SquashWhitespace(o.Text) {
+				if t.Name == o.Name && squashWhitespace(t.Text) == squashWhitespace(o.Text) {
 					found = true
 					break
 				}
@@ -297,4 +297,10 @@ func spmTraitProvides(ctx *analysis.Context, c *index.Class, name string, seen m
 // spmParamType is the comparable native type of an indexed parameter.
 func spmParamType(p index.Param) string {
 	return strings.ToLower(p.Type)
+}
+
+// squashWhitespace drops all whitespace from s, to compare two pieces of code
+// written with different spacing.
+func squashWhitespace(s string) string {
+	return strings.Join(strings.Fields(s), "")
 }

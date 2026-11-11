@@ -44,27 +44,3 @@ func TestSingleStringLiteralNumber(t *testing.T) {
 		t.Fatal("a number literal is not a string")
 	}
 }
-
-func TestConstantStringWithReferences(t *testing.T) {
-	for _, tc := range []struct {
-		expr  string
-		found bool
-	}{
-		{"<<<'END'\n/a/\nEND", true},
-		{"<<<END\n/a/\nEND", true},
-		{"<<<END\n/$x/\nEND", false},
-		{`'a'`, true},
-		{`123`, false},
-		{`$flag ? 'a' : 'b'`, false},
-		{`$flag ? 'a' : 123`, true},
-	} {
-		f := Parse(t, "<?php function f() { probe("+tc.expr+"); }")
-		if got := ConstantStringWithReferences(f, ProbeArg(f), nil); (got != nil) != tc.found {
-			t.Fatalf("%s: %v", tc.expr, got)
-		}
-	}
-	f := Parse(t, `<?php function f() { $x = 'a'; $x .= 'b'; probe($x); }`)
-	if ConstantStringWithReferences(f, ProbeArg(f), nil) != nil {
-		t.Fatal("unstable string")
-	}
-}

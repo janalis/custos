@@ -7,5 +7,7 @@ function patterns(string $s, bool $ci)
     }
     $plain = 'abc';
     $plain .= 'def';
-    return [preg_match($re, $s), preg_match('#' . $plain . '#', $s), preg_split([$re], $s)];
+    // Two possible patterns: neither is the one checked.
+    $either = $ci ? '/[0-9]+/' : '/[0-9]+/i';
+    return [preg_match($re, $s), preg_match('#' . $plain . '#', $s), preg_split([$re], $s), preg_match($either, $s)];
 }

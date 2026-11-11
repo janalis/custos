@@ -293,3 +293,39 @@ func use() { sq.Single(); sq.Inner(); _ = sq.Limit; _ = local.Field }
 		t.Fatalf("%v", problems)
 	}
 }
+
+// The syntax and flow query packages are held to the same rule, each name
+// counted in its own package: a name both declare is two queries.
+func TestSingleRuleQueriesPerPackage(t *testing.T) {
+	root := layout(t)
+	write(t, root, "internal/inspection/astquery/query.go", `package astquery
+func Walk() {}
+`)
+	write(t, root, "internal/inspection/flowquery/query.go", `package flowquery
+func Walk() {}
+`)
+	write(t, root, "internal/inspection/rules/one/use.go", `package one
+import (
+	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
+)
+func use() { astquery.Walk(); flowquery.Walk() }
+`)
+	write(t, root, "internal/inspection/rules/two/use.go", `package two
+import "custos/internal/inspection/flowquery"
+func use() { flowquery.Walk() }
+`)
+	problems, err := check(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var single []string
+	for _, p := range problems {
+		if strings.Contains(p, "is used only by") {
+			single = append(single, p)
+		}
+	}
+	if len(single) != 1 || !strings.HasPrefix(single[0], "internal/inspection/astquery/query.go: Walk is used only by internal/inspection/rules/one") {
+		t.Fatalf("%v", single)
+	}
+}
