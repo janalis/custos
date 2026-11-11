@@ -85,6 +85,15 @@ be kept wrongly. `TestResummaryOracle` in `internal/project` compares each
 of these summaries with a full one; set `CUSTOS_ORACLE_CORPUS` to a
 project directory to run it over that project's `src`.
 
+An edit within a recursion makes the language server's build summarize
+files from none again, as a full build would, since the fixed point can
+depend on where it starts. Its builds (`BuildFlowRecorded`) record every
+summary they make with the contracts it read, and such a rebuild takes, for
+a file whose source is unchanged, a recorded summary those contracts still
+support instead of summarizing it. `TestRecordedUpdateOracle` compares each
+update with a full build (`CUSTOS_ORACLE_CORPUS` as above;
+`CUSTOS_ORACLE_EDITS` picks the edited files).
+
 `Engine.WithIndex` and `Engine.WithFlow` return configured copies; published
 engines are never reconfigured in place. Project indexes are built in memory.
 The LSP builds its workspace index in the background and publishes

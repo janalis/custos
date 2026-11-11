@@ -107,6 +107,29 @@ func (f *File) Current(earlier, s *Snapshot) bool {
 	return len(f.differing(earlier, s, true)) == 0
 }
 
+// Basis returns the part of s that summaries extracted under s read: a
+// snapshot that, for every contract f consulted, holds and looks up what s
+// does, and so serves as earlier to Current and Reextract in place of s.
+// It keeps far less than s alive.
+func (f *File) Basis(s *Snapshot) *Snapshot {
+	if s == nil || s.base != nil {
+		return s
+	}
+	out := &Snapshot{options: s.options, summaries: make(map[string]*Summary, len(f.consulted))}
+	for name := range f.consulted {
+		key := names.Fold(name)
+		if v, ok := s.summaries[key]; ok {
+			out.summaries[key] = v
+		} else if n := s.shared[key]; n > 0 {
+			if out.shared == nil {
+				out.shared = map[string]int{}
+			}
+			out.shared[key] = n
+		}
+	}
+	return out
+}
+
 // Snapshot is an immutable project-local summary collection. WithFile and
 // WithoutFile return copies; readers never observe mutations or need locks.
 //

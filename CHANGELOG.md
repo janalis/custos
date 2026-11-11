@@ -12,6 +12,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   collection each round, and a file summarized again keeps the summaries
   of the methods that no changed contract reaches. Runs on the `src` of
   laravel, composer and guzzle take about 15%, 11% and 7% less time.
+- The language server updates cross-file summaries much faster after an
+  edit within a dependency cycle: files whose source did not change keep
+  the summaries their contracts still support. In laravel, the update after
+  an edit to `Str.php` takes about 0.3 s instead of 2.2 s, and to the
+  Eloquent `Model.php` about 0.7 s instead of 2.4 s. The server keeps about
+  20 MB more on a project of that size.
 
 ### Fixed
 

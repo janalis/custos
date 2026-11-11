@@ -292,7 +292,7 @@ func (s *Server) refreshFlow() {
 	}
 	// Compose every unsaved dependency in the same bounded fixed point.
 	if builder == nil {
-		builder = project.BuildFlowOrdered
+		builder = project.BuildFlowRecorded
 	}
 	// Dependency contracts are summarized on demand against this index.
 	build := builder(context.Background(), files, sources, opt, ix, project.WithVendorFlow(cfg.Root, ix, opt, cfg.Flow), order)
