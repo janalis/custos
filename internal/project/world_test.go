@@ -115,9 +115,13 @@ func TestComposerWorldGaps(t *testing.T) {
 		Files: []string{"vendor/acme/http/src/Big.php", "src/api.stub.php"},
 	}
 	w := composerWorld(reader(files), []string{"src", "lib"}, indexed, skipped)
-	want := []string{`app\legacy\`, `app\tests\`, `acme\old\`, `acme\http\big`, `acme\http\tests\`, `acme\http\testing\`}
-	if !w.Complete || !slices.Equal(sortedCopy(w.Blind), sortedCopy(want)) {
+	want := []string{`app\legacy\`, `app\tests\`, `acme\old\`, `acme\http\tests\`, `acme\http\testing\`}
+	if !w.Complete || !slices.Equal(sortedCopy(w.Blind), sortedCopy(want)) || !slices.Equal(w.Names, []string{`acme\http\big`}) {
 		t.Fatalf("world: %+v", w)
+	}
+	// A skipped file hides its own class, not the names it starts.
+	if !w.Unseen(`Acme\Http\Big`) || w.Unseen(`Acme\Http\BigQuerry`) || w.Unseen(`Acme\Http\Big\Part`) {
+		t.Fatalf("unseen: %+v", w)
 	}
 	// The project root as a PSR-4 directory.
 	root := map[string]string{"composer.json": `{"autoload": {"psr-4": {"App\\": ""}}}`, "vendor/composer/installed.json": `{"packages": []}`}

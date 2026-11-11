@@ -182,13 +182,13 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 			for prefix, raw := range mapping {
 				for _, d := range dirs(raw) {
 					d = path.Join(dir, d)
-					var blind []string
+					var blind, names []string
 					if own && !inScope(d) || g.within(d) {
 						blind = []string{""}
 					} else {
-						blind = g.psr(d)
+						blind, names = g.psr(d)
 					}
-					if len(blind) == 0 {
+					if len(blind)+len(names) == 0 {
 						continue
 					}
 					// A fallback directory or a PSR-0 prefix of class names
@@ -196,11 +196,15 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 					if prefix == "" || !strings.HasSuffix(prefix, `\`) {
 						return false
 					}
+					if !psr4 {
+						// PSR-0 maps underscores to directories too.
+						blind, names = []string{""}, nil
+					}
 					for _, sub := range blind {
-						if !psr4 {
-							sub = "" // PSR-0 maps underscores to directories too
-						}
 						w.Blind = append(w.Blind, strings.ToLower(prefix+sub))
+					}
+					for _, name := range names {
+						w.Names = append(w.Names, strings.ToLower(prefix+name))
 					}
 				}
 			}
@@ -323,24 +327,23 @@ func (g *gaps) holds(p string) bool {
 	return g.file[p] || len(dirs)+len(files) > 0
 }
 
-// psr returns the name prefixes, relative to the namespace a PSR directory
-// p (clean) maps, that may name what the walks left out below it: for a
-// skipped directory, its path with backslashes and a trailing one; for a
-// skipped file a PSR autoloader can load (*.php or *.hh named after a
-// class), its path without the extension.
-func (g *gaps) psr(p string) []string {
+// psr returns, relative to the namespace a PSR directory p (clean) maps,
+// what may name what the walks left out below it: the namespace prefixes
+// of skipped directories (their paths with backslashes and a trailing
+// one), and the class names of skipped files a PSR autoloader can load
+// (*.php or *.hh named after a class: their paths without the extension).
+func (g *gaps) psr(p string) (prefixes, names []string) {
 	dirs, files, prefix := g.under(p)
 	ns := func(rel string) string { return strings.ReplaceAll(strings.TrimPrefix(rel, prefix), "/", `\`) }
-	var out []string
 	for _, d := range dirs {
-		out = append(out, ns(d)+`\`)
+		prefixes = append(prefixes, ns(d)+`\`)
 	}
 	for _, f := range files {
 		ext := path.Ext(f)
 		name := strings.TrimSuffix(f, ext)
 		if (ext == ".php" || ext == ".hh") && !strings.Contains(path.Base(name), ".") {
-			out = append(out, ns(name))
+			names = append(names, ns(name))
 		}
 	}
-	return out
+	return prefixes, names
 }
