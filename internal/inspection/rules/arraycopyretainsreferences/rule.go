@@ -24,7 +24,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	dim, ok := write.Var.(*syntax.ArrayDimFetch)
-	if !ok || variable(dim.Var) == "" {
+	if !ok || astquery.VariableName(dim.Var) == "" {
 		return
 	}
 	stmt, ok := write.Parent().(*syntax.ExprStmt)
@@ -40,7 +40,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	copy, ok := copyStmt.Expr.(*syntax.Assign)
-	if !ok || copy.ByRef || copy.Op.Kind != syntax.TEqual || variable(copy.Var) != variable(dim.Var) || variable(copy.Value) == "" || variable(copy.Var) == variable(copy.Value) {
+	if !ok || copy.ByRef || copy.Op.Kind != syntax.TEqual || astquery.VariableName(copy.Var) != astquery.VariableName(dim.Var) || astquery.VariableName(copy.Value) == "" || astquery.VariableName(copy.Var) == astquery.VariableName(copy.Value) {
 		return
 	}
 	prev, ok = astquery.PrevStmtNoDoc(ctx.File, copyStmt)
@@ -52,11 +52,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ref, ok := refStmt.Expr.(*syntax.Assign)
-	if !ok || !ref.ByRef || variable(ref.Var) == "" {
+	if !ok || !ref.ByRef || astquery.VariableName(ref.Var) == "" {
 		return
 	}
 	element, ok := ref.Value.(*syntax.ArrayDimFetch)
-	if !ok || variable(element.Var) != variable(copy.Value) {
+	if !ok || astquery.VariableName(element.Var) != astquery.VariableName(copy.Value) {
 		return
 	}
 	key, known := semanticquery.NativeArrayKey(ctx, dim.Dim)
@@ -73,23 +73,15 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	initial, ok := initStmt.Expr.(*syntax.Assign)
-	if !ok || initial.ByRef || variable(initial.Var) != variable(copy.Value) || semanticquery.NativeArray(ctx, initial.Value) == nil {
+	if !ok || initial.ByRef || astquery.VariableName(initial.Var) != astquery.VariableName(copy.Value) || semanticquery.NativeArray(ctx, initial.Value) == nil {
 		return
 	}
 	read, ok := astquery.NextEcho(ctx.File, stmt).(*syntax.ArrayDimFetch)
-	if !ok || variable(read.Var) != variable(copy.Value) {
+	if !ok || astquery.VariableName(read.Var) != astquery.VariableName(copy.Value) {
 		return
 	}
 	observed, rk := semanticquery.NativeArrayKey(ctx, read.Dim)
 	if rk && observed == key {
 		ctx.ReportNode(write, message)
 	}
-}
-
-func variable(e syntax.Expr) string {
-	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
-	if !ok {
-		return ""
-	}
-	return v.Name
 }

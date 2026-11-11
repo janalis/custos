@@ -10,3 +10,13 @@ func PlainVariableName(e syntax.Node) (string, bool) {
 	}
 	return v.Name, true
 }
+
+// VariableName is PlainVariableName through parentheses: the name of a
+// simple `$name` variable, "" for anything else.
+func VariableName(e syntax.Node) string {
+	if x, ok := e.(syntax.Expr); ok {
+		e = syntax.UnwrapParens(x)
+	}
+	name, _ := PlainVariableName(e)
+	return name
+}
