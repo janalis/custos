@@ -44,6 +44,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- MkdirRaceCondition no longer reports a silenced `@mkdir()` that only runs
+  once `is_dir()` returned false when the guard is an early exit
+  (`if (is_dir($d)) { return; }`), an `else` or `elseif` arm, or a
+  short-circuit operand (`is_dir($d) || @mkdir($d);`).
 - VariableFunctionsUsage no longer rewrites `call_user_func([$cb, 'm'])`
   into `$cb->m()` when `$cb` is typed `callable`: a callable may be a class
   name, which the direct call cannot take.
