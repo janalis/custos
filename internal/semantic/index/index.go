@@ -65,7 +65,7 @@ type resolvedMethodEntry struct {
 }
 
 const (
-	maxResolvedMethods        = 4096
+	maxResolvedMethods        = 1 << 16
 	maxResolvedMethodKeyBytes = 1024
 )
 
@@ -608,7 +608,9 @@ func (ix *Index) FindMethod(class, name string, ver phpversion.Version) *Method 
 	ix.methodMu.Lock()
 	// A concurrent writer may have invalidated this lookup while it resolved.
 	if ix.generation() == generation {
-		// The bound keeps a long-lived editor index small.
+		// The bound keeps a long-lived editor index small (about 12 MB
+		// full). At 4096 entries, the summaries after an edit to laravel's
+		// Eloquent Model emptied it over a thousand times.
 		if ix.methods == nil || ix.methodGeneration != generation || len(ix.methods) >= maxResolvedMethods {
 			ix.methods = make(map[resolvedMethodKey]resolvedMethodEntry)
 			ix.methodGeneration = generation

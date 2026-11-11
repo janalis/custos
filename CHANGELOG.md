@@ -16,8 +16,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   edit within a dependency cycle: files whose source did not change keep
   the summaries their contracts still support. In laravel, the update after
   an edit to `Str.php` takes about 0.3 s instead of 2.2 s, and to the
-  Eloquent `Model.php` about 0.7 s instead of 2.4 s. The server keeps about
-  20 MB more on a project of that size.
+  Eloquent `Model.php` about 0.6 s instead of 2.4 s. The server keeps up
+  to about 30 MB more on a project of that size.
 
 ### Fixed
 
