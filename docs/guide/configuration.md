@@ -53,6 +53,12 @@ directory itself. The start directory is the `--config` directory if given,
 else the first path on the command line (its directory, for a file), else
 the current directory.
 
+The PHP version, the `vendor/` declarations and the PHPUnit version are read
+from that root. When `composer.json` sits in a subdirectory (`src/`), run
+custos from there, or pass that directory as `--config`. Otherwise custos
+uses the default PHP version, does not see the types declared in `vendor/`,
+and offers no quick-fix for the PHPUnit assertions renamed in 9.1.
+
 ## Validation
 
 custos stops with a configuration error ([exit code](./cli#exit-codes) `2`)

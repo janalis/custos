@@ -5,6 +5,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- PhpUnitTests no longer rewrites to `assertRegExp()`, `assertNotRegExp()`,
+  `assertFileNotExists()` or `assertDirectoryNotExists()` when the PHPUnit
+  version is only assumed, not configured or detected: those methods no
+  longer exist from PHPUnit 10. The call is still reported, and the message
+  names both the PHPUnit 9.1 method and the one it replaced.
+
 ## [0.1.11] - 2026-11-09
 
 ### Added
