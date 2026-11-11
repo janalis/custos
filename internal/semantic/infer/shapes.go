@@ -451,6 +451,7 @@ const (
 	mutUnset                  // unset($x) / unset($x[…])
 	mutPointer                // passed to an internal-pointer function (next, prev, end, each, reset)
 	mutCall                   // any call (recorded under anyCall): may change properties of $this
+	mutRuns                   // a call that may run project code (see runsCode)
 )
 
 // anyCall is the mutations key listing every call of the scope.
@@ -473,6 +474,9 @@ type mutation struct {
 	call syntax.Expr // mutCallArg: the call
 	arg  *syntax.Arg // mutCallArg: the argument
 	idx  int         // mutCallArg: argument position
+	// alias marks the mutRef of a `global` or `static` statement, which
+	// binds the local outside the scope's own references.
+	alias bool
 }
 
 // mutations returns the operations that may change variable name in scope
@@ -624,12 +628,12 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 				}
 			case *syntax.Global:
 				for _, x := range n.Vars {
-					add(x, mutation{span: n.Span(), kind: mutRef})
+					add(x, mutation{span: n.Span(), kind: mutRef, alias: true})
 				}
 			case *syntax.StaticStmt:
 				for _, sv := range n.Vars {
 					if sv.Var != nil {
-						add(sv.Var, mutation{span: n.Span(), kind: mutRef})
+						add(sv.Var, mutation{span: n.Span(), kind: mutRef, alias: true})
 					}
 				}
 			case *syntax.FuncCall:

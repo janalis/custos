@@ -230,6 +230,55 @@ When a fix requires native type evidence, use `Env.Native()` to exclude user
 PHPDoc. Unsupported operations, escaped values and exhausted analysis budgets
 must discard definite facts rather than authorize a finding or fix.
 
+### Native and proven types
+
+`Env.Native()` ignores user PHPDoc and index-time inferred types, and its
+narrowing facts are proofs: a condition on a property stops holding after a
+call that may run project code, and a condition on an aliased local (a
+reference, a `global` or `static` local, a by-reference parameter) after any
+write or call that may reach it. A local read still takes the type of its
+reaching definitions, so `$a = 1; unknown_fn($a);` types `$a` as `int` there.
+
+`Env.ProvenTypeOf(x)` (the `Env.Proven()` environment) is the stricter
+contract a check needs before calling a value wrong. Over the native rules, a
+local read is unknown when, between its reaching definitions and the read:
+
+- it, or one of its elements, is passed to a callee that takes it by
+  reference or that cannot be resolved (an unknown function, a callable
+  variable, a method of an unknown receiver, a class held in a string);
+- it is bound by reference (either side of `=&`, a by-reference `foreach`
+  over it or into it, a by-reference closure capture anywhere in the scope,
+  an array holding a reference to it) and a write or a call that
+  may run project code occurs;
+- it is a `global` or `static` local, a by-reference parameter or a variable
+  of the file's top-level scope, and a call that may run project code or a
+  write to `$GLOBALS` occurs.
+
+A call may run project code unless it resolves to a builtin function without
+a callable parameter. `extract()`, one-argument `parse_str()`, `$$name`
+writes, `eval()` and `include` already make the locals defined before them
+unknown in every environment. Properties need nothing more: native property
+types are their declarations, and native narrowing of a property ends at the
+next call. Code run implicitly (magic methods, destructors, autoloaders,
+property hooks) is not modelled. The proven environment has its own caches:
+use it only for the values a check is about to report, after the default or
+native environment already found a candidate.
+
+`types.Accepts(expected, actual, ctx)` answers whether a value of `actual`
+may be passed where `expected` is declared: `Yes`, `No`, or `Maybe` whenever
+the answer depends on what the types do not show (unknown, `mixed`,
+templates, `static`/`self`, unresolved classes, weak-mode scalar coercion,
+null to a builtin's scalar parameter outside strict mode, value refinements
+against a value without facts). `AllRejected` (every member rejected) and
+`SomeRejected` (at least one member rejected, such as a nullable value where
+null is not allowed) split definite from possible mismatches. The types
+package cannot see the index: `semanticquery.AcceptContext` supplies the
+strict mode of the file and index-backed class relations
+(`semanticquery.IndexRelations`). A known non-subtype is rejected only when
+the actual class is final or both are classes; an interface the actual class
+does not implement stays `Maybe`, since a subclass may implement it. Pair
+`Accepts` with `ProvenTypeOf` for proven findings.
+
 ## Flow and project summaries
 
 Published call histories preserve source order. Their node index is rebuilt after

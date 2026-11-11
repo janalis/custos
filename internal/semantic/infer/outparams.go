@@ -550,6 +550,9 @@ func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
 			}
 			prior := e.TypeOf(v)
 			if e.native && unresolved {
+				if e.proven {
+					return types.Unknown // the callee may write it (see ProvenTypeOf)
+				}
 				// The callee may be unknown and take it by reference: what
 				// conditions proved about it before the call does not hold.
 				prior = e.definedType(v)

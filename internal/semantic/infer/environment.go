@@ -107,6 +107,10 @@ type Env struct {
 	// nativeTwin caches the native Env of this one.
 	native     bool
 	nativeTwin *Env
+	// proven: a native Env whose local reads exclude unseen writes (see
+	// Proven); provenTwin caches the proven Env of a native one.
+	proven     bool
+	provenTwin *Env
 }
 
 // Native returns an Env over the same file and index whose types ignore
@@ -135,6 +139,7 @@ func (e *Env) WithOptions(options Options) *Env {
 	}
 	configured := NewEnv(e.File, e.Names, e.Index, e.PHP, options)
 	configured.native = e.native
+	configured.proven = e.proven
 	configured.gapOwner = e.gapRoot()
 	return configured
 }

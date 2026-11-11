@@ -76,6 +76,9 @@ type scopeVars struct {
 	// name changes (see condAt).
 	shared, refs map[string]bool
 	pairs        []refPair
+	// runs caches runsCode once runsDone is set.
+	runs     []mutation
+	runsDone bool
 }
 
 // widenElem unions the element type el of the array read by n with every
@@ -399,7 +402,7 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	if read != nil {
 		e.noteDynRead(read, clob, undef)
 	}
-	if clob {
+	if clob || e.proven && e.unproven(sv, fwd, back, name, use, scope) {
 		return types.Unknown
 	}
 	ts := make([]types.Type, 0, len(fwd)+len(back))
