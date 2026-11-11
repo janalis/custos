@@ -2,9 +2,6 @@
 package datelasterrorsfalseunchecked
 
 import (
-	"slices"
-	"strings"
-
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -62,93 +59,112 @@ func silentProbe(fetch *syntax.ArrayDimFetch) bool {
 
 // afterFailedParse reports a getLastErrors() call that only runs once a date
 // parse failed (E8): a failed parse always records an error, so the call
-// returns an array. Two shapes are read: the call in the first statement of
-// the body of an `if` that holds when the parse failed, or in the statement
-// right after an `if` whose condition holds when it succeeded and whose body
-// never falls through.
+// returns an array. The conditions guarding the call must prove that an
+// earlier parse returned false (an if or elseif arm, an early exit, a
+// short-circuit operand, or a test of the local holding the result), and no
+// other parse may run between that parse and the call.
 func afterFailedParse(ctx *analysis.Context, call *syntax.StaticCall) bool {
-	stmt, block := enclosingStatement(call)
-	if block == nil {
+	stmt := enclosingStatement(call)
+	if stmt == nil {
 		return false
 	}
-	if parsesAgain(ctx, stmt, call) {
-		return false // the call may report another parse
-	}
-	i := slices.IndexFunc(block.Stmts, func(s syntax.Stmt) bool { return syntax.Node(s) == stmt })
-	if i == 0 {
-		guard, ok := block.Parent().(*syntax.If)
-		return ok && syntax.Node(guard.Body) == syntax.Node(block) && failed(ctx, guard.Cond, false)
-	}
-	prev, ok := block.Stmts[i-1].(*syntax.If)
-	return ok && len(prev.ElseIfs) == 0 && prev.Else == nil && syntax.Terminates(prev.Body) && failed(ctx, prev.Cond, true)
+	return semanticquery.NativeEarlierCallProves(ctx, call, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		if !parseCall(ctx, x) || parsesAgain(ctx, stmt, x, call) {
+			return types.Unknown, nil
+		}
+		// A parsed date is always truthy: success is modelled as true.
+		return types.Bool, func(t types.Type) bool { return t.OnlyOf("false") }
+	})
 }
 
-// parsesAgain reports a date parse in stmt other than call: a parsing call,
-// or constructing a date (or an object of a class it cannot resolve).
-func parsesAgain(ctx *analysis.Context, stmt syntax.Node, call *syntax.StaticCall) bool {
+// parsesAgain reports a date parse other than first and call that may run
+// between them: in stmt, the statement holding call; written between them,
+// outside a branch that never falls through to call; or anywhere in a loop
+// around call that first is not in. A parse is a parsing call or
+// constructing a date (or an object of a class it cannot resolve).
+func parsesAgain(ctx *analysis.Context, stmt syntax.Node, first syntax.Expr, call *syntax.StaticCall) bool {
+	from, to := first.Span().End, call.Span().Start
+	var loops []syntax.Node
+	for n := call.Parent(); n != nil && !syntax.IsFuncLike(n); n = n.Parent() {
+		switch n.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			if !within(first, n) {
+				loops = append(loops, n)
+			}
+		}
+	}
+	relevant := func(n syntax.Node) bool {
+		if within(n, stmt) || n.Span().Start >= from && n.Span().End <= to {
+			return true
+		}
+		for _, l := range loops {
+			if within(n, l) {
+				return true
+			}
+		}
+		return false
+	}
 	found := false
-	syntax.Inspect(stmt, func(n syntax.Node) bool {
+	scope := syntax.EnclosingVariableScope(call)
+	visit := func(n syntax.Node) bool {
+		if found || n == syntax.Node(first) || n == syntax.Node(call) || n != scope && syntax.IsFuncLike(n) {
+			return false
+		}
+		if s, ok := n.(syntax.Stmt); ok && len(loops) == 0 && n.Span().Start >= from && !within(call, n) && leavingBranch(s) {
+			return false // never falls through to call
+		}
+		if !relevant(n) {
+			return true
+		}
 		switch x := n.(type) {
 		case *syntax.New:
 			c := semanticquery.NativeNewClass(ctx, x)
-			found = found || c == nil || ctx.Index().IsSubtype(c.FQN, "DateTimeInterface", ctx.PHP)
+			found = c == nil || ctx.Index().IsSubtype(c.FQN, "DateTimeInterface", ctx.PHP)
 		case syntax.Expr:
-			found = found || x != syntax.Expr(call) && parse(ctx, x)
+			found = parseCall(ctx, x)
 		}
 		return !found
-	})
+	}
+	if scope != nil {
+		syntax.Inspect(scope, visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
+	}
 	return found
 }
 
-// enclosingStatement returns the statement holding n directly in a block,
-// and that block; nil past a function or closure.
-func enclosingStatement(n syntax.Node) (syntax.Node, *syntax.Block) {
+// within reports whether n lies inside outer (or is outer).
+func within(n, outer syntax.Node) bool {
+	return n.Span().Start >= outer.Span().Start && n.Span().End <= outer.Span().End
+}
+
+// leavingBranch reports whether s is the body of an if, elseif or else arm
+// that never falls through.
+func leavingBranch(s syntax.Stmt) bool {
+	switch s.Parent().(type) {
+	case *syntax.If, *syntax.ElseIf, *syntax.Else:
+		return syntax.Terminates(s)
+	}
+	return false
+}
+
+// enclosingStatement returns the statement holding n directly in a block;
+// nil past a function or closure.
+func enclosingStatement(n syntax.Node) syntax.Node {
 	for {
 		parent := n.Parent()
-		switch p := parent.(type) {
+		switch parent.(type) {
 		case nil, *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction:
-			return nil, nil
+			return nil
 		case *syntax.Block:
-			return n, p
+			return n
 		}
 		n = parent
 	}
 }
 
-// failed reports whether condition c, holding (or failing, when
-// succeeded), means a date parse failed: `!parse`, `false === parse`,
-// `parse === false` (or, when succeeded, the parse tested for truth or
-// `false !== parse`), where parse is a parsing call returning false on
-// failure, possibly assigned.
-func failed(ctx *analysis.Context, c syntax.Expr, succeeded bool) bool {
-	c = syntax.UnwrapParens(c)
-	if !succeeded {
-		if u, ok := c.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
-			return parse(ctx, u.Expr)
-		}
-		if b, ok := c.(*syntax.Binary); ok && b.Op.Kind == syntax.TIsIdentical {
-			return isFalse(b.Left) && parse(ctx, b.Right) || isFalse(b.Right) && parse(ctx, b.Left)
-		}
-		return false
-	}
-	if b, ok := c.(*syntax.Binary); ok && b.Op.Kind == syntax.TIsNotIdentical {
-		return isFalse(b.Left) && parse(ctx, b.Right) || isFalse(b.Right) && parse(ctx, b.Left)
-	}
-	return parse(ctx, c)
-}
-
-func isFalse(x syntax.Expr) bool {
-	c, ok := syntax.UnwrapParens(x).(*syntax.ConstFetch)
-	return ok && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "false")
-}
-
-// parse reports a date parsing call that returns false on failure, possibly
-// as the value of a plain assignment.
-func parse(ctx *analysis.Context, x syntax.Expr) bool {
-	x = syntax.UnwrapParens(x)
-	if a, ok := x.(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef {
-		x = syntax.UnwrapParens(a.Value)
-	}
+// parseCall reports a date parsing call that returns false on failure.
+func parseCall(ctx *analysis.Context, x syntax.Expr) bool {
 	if semanticquery.NativeDateStatic(ctx, x, "createFromFormat") != nil {
 		return true
 	}
