@@ -19,7 +19,7 @@ import (
 
 // Every summary computed again in compose comes out as a full summary of
 // the file would: the same contracts, read from the same keys. A project
-// given by CUSTOS_ORACLE_CORPUS (its src directory is analysed) is checked
+// given by CUSTOS_ORACLE_CORPUS (its src directory is analyzed) is checked
 // instead of the fixture.
 func TestResummaryOracle(t *testing.T) {
 	root, paths := oracleFixture(t)

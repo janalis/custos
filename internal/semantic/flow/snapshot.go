@@ -104,22 +104,7 @@ func (f *File) Current(earlier, s *Snapshot) bool {
 	if f.options != snapshotOptions(earlier) || f.options != snapshotOptions(s) {
 		return false
 	}
-	mine := s != nil && s.base == nil && s.files[f.Path] == f
-	for name := range f.consulted {
-		if key := strings.ToLower(name); mine && f.served[key] && s.alone(f.Path, key) {
-			continue
-		}
-		if held := s.held(name); held != nil && held == earlier.held(name) {
-			// Replace kept the very contract: nothing to compare.
-			continue
-		}
-		before, had := earlier.lookup(name)
-		now, has := s.lookup(name)
-		if had != has || had && !sameSummary(&before, &now) {
-			return false
-		}
-	}
-	return true
+	return len(f.differing(earlier, s, true)) == 0
 }
 
 // Snapshot is an immutable project-local summary collection. WithFile and
@@ -433,10 +418,17 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 	for _, n := range order {
 		e.summarize(n)
 	}
-	out.callables = s.track
+	finish(e, out, e.answers)
+	return e, out
+}
+
+// finish publishes on out what summarizing it read: the contracts consulted
+// and, from answers, which the snapshot held and which the file served.
+func finish(e *Env, out *File, answers map[string]answer) {
+	out.callables = e.summarizing.track
 	e.summarizing = nil
 	out.consulted, e.consulted = e.consulted, nil
-	for key, read := range e.answers {
+	for key, read := range answers {
 		switch {
 		case read.held:
 			out.held = append(out.held, key)
@@ -447,7 +439,6 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 		}
 	}
 	slices.Sort(out.held)
-	return e, out
 }
 
 // summaryInventory builds declaration metadata without following callable bodies.

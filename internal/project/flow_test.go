@@ -240,7 +240,8 @@ func TestFlowOscillatingFileIsDropped(t *testing.T) {
 			odd := calls%2 == 0
 			mu.Unlock()
 			if odd {
-				f = alternate
+				// Another source: summaries of this one tell nothing.
+				f, prior, earlier = alternate, nil, nil
 			}
 		}
 		return old(f, ix, v, s, o, prior, earlier)

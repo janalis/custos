@@ -25,7 +25,7 @@ function h1() { global $v; return $v; }
 function h2() { global $v; return $v; }
 `
 
-func resummarizeFiles(t *testing.T) (*index.Index, *syntax.File, *syntax.File, *syntax.File) {
+func resummarizeFiles(t testing.TB) (*index.Index, *syntax.File, *syntax.File, *syntax.File) {
 	t.Helper()
 	parse := func(path, src string) *syntax.File {
 		f := syntax.Parse(path, []byte("<?php "+src), syntax.Options{Version: phpversion.Max})
@@ -91,4 +91,25 @@ func assertSameFile(t *testing.T, got, want *File) {
 	if !slices.Equal(sorted(got.Consulted()), sorted(want.Consulted())) || !slices.Equal(got.Reads(), want.Reads()) {
 		t.Fatalf("reads differ: %v %v / %v %v", got.Consulted(), got.Reads(), want.Consulted(), want.Reads())
 	}
+}
+
+// A file summarized again after one contract it read changed, whole and
+// keeping the callables the change does not reach.
+func BenchmarkReextract(b *testing.B) {
+	ix, x, before, after := resummarizeFiles(b)
+	php := phpversion.Max
+	e1 := Extract(before, ix, php, nil, Options{})
+	prior := Extract(x, ix, php, NewSnapshot(e1), Options{})
+	earlier := NewSnapshot(e1, prior)
+	now := earlier.Replace([]*File{e1}, []*File{Extract(after, ix, php, earlier, Options{})})
+	b.Run("whole", func(b *testing.B) {
+		for b.Loop() {
+			Extract(x, ix, php, now, Options{})
+		}
+	})
+	b.Run("again", func(b *testing.B) {
+		for b.Loop() {
+			Reextract(x, ix, php, now, Options{}, prior, earlier)
+		}
+	})
 }

@@ -2,7 +2,6 @@ package flow
 
 import (
 	"maps"
-	"slices"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -83,38 +82,26 @@ func Resummarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, option
 	for _, n := range order {
 		e.summarize(n)
 	}
-	out.callables = s.track
-	e.summarizing = nil
 	consulted := e.consulted
-	e.consulted = nil
-	// The answers of the kept callables join those just read.
-	answers := make(map[string]answer, len(e.answers))
-	maps.Copy(answers, e.answers)
-	e.answers = answers
+	// The answers of the kept callables join those just read, for out
+	// only: e keeps the answers it was given.
+	answers := maps.Clone(e.answers)
 	for key := range kept {
 		for read, bits := range prior.callables[key] {
 			consulted[read] = true
 			if bits&(readOwn|readHeld) == 0 {
 				continue
 			}
-			got := e.answers[read]
+			if answers == nil {
+				answers = map[string]answer{}
+			}
+			got := answers[read]
 			got.held = got.held || bits&readHeld != 0
 			got.own = got.own || bits&readOwn != 0
-			e.answers[read] = got
+			answers[read] = got
 		}
 	}
-	out.consulted = consulted
-	for key, read := range e.answers {
-		switch {
-		case read.held:
-			out.held = append(out.held, key)
-		case out.served == nil:
-			out.served = map[string]bool{key: true}
-		default:
-			out.served[key] = true
-		}
-	}
-	slices.Sort(out.held)
+	finish(e, out, answers)
 	return e, out
 }
 
@@ -156,9 +143,20 @@ func (f *File) unreached(earlier, s *Snapshot, state *summarizing) map[string]bo
 }
 
 // changed returns the keys of the contracts f consulted that differ
-// between earlier and s, as Current compares them.
+// between earlier and s.
 func (f *File) changed(earlier, s *Snapshot) map[string]bool {
-	out := map[string]bool{}
+	if changed := f.differing(earlier, s, false); changed != nil {
+		return changed
+	}
+	return map[string]bool{}
+}
+
+// differing returns the keys of the contracts f consulted that differ
+// between earlier and s, only the first one when first is set. A contract
+// the file alone serves itself, while s holds these very summaries, is
+// unchanged; one both snapshots hold through the same pointer is too.
+func (f *File) differing(earlier, s *Snapshot, first bool) map[string]bool {
+	var out map[string]bool
 	mine := s != nil && s.base == nil && s.files[f.Path] == f
 	for name := range f.consulted {
 		key := strings.ToLower(name)
@@ -171,7 +169,13 @@ func (f *File) changed(earlier, s *Snapshot) map[string]bool {
 		before, had := earlier.lookup(name)
 		now, has := s.lookup(name)
 		if had != has || had && !sameSummary(&before, &now) {
+			if out == nil {
+				out = map[string]bool{}
+			}
 			out[key] = true
+			if first {
+				return out
+			}
 		}
 	}
 	return out
