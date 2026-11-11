@@ -29,6 +29,7 @@ type common struct {
 	profile   string
 	noCache   bool
 	flowOrder bool
+	parseOnce bool
 	// rules lists the rules the command may run; nil runs every registered
 	// rule.
 	rules func() []analysis.Rule
@@ -60,6 +61,7 @@ func newCommon(name string, stderr io.Writer) *common {
 	c.fs.StringVar(&c.profile, "cpuprofile", "", "write a CPU profile to this file")
 	c.fs.BoolVar(&c.noCache, "no-cache", false, "do not reuse or save the declarations of dependencies between runs")
 	c.fs.BoolVar(&c.flowOrder, "flow-order", false, "use the last saved cross-file summary order as a scheduling hint")
+	c.fs.BoolVar(&c.parseOnce, "parse-once", false, "keep each analysed file's syntax tree between phases: faster, more memory")
 	return c
 }
 
@@ -130,7 +132,7 @@ func (c *common) prepare(args []string) (*setup, error) {
 	if c.rules != nil {
 		rules = c.rules
 	}
-	p, err := project.Open(rules(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Cache: c.cacheDir(), FlowOrder: c.flowOrder || cfg.FlowOrder, Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
+	p, err := project.Open(rules(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Cache: c.cacheDir(), FlowOrder: c.flowOrder || cfg.FlowOrder, ParseOnce: c.parseOnce || cfg.ParseOnce, Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
 	if err != nil {
 		return nil, err
 	}

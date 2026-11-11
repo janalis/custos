@@ -5,6 +5,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `--parse-once` (or `"parseOnce": true` in `custos.json`) parses each
+  analysed file once and keeps its syntax tree from indexing until its
+  analysis, instead of parsing it again in each phase. On laravel's `src`
+  a run takes about 5–15% less time for about 40% more memory at peak.
+  Findings are the same.
+
 ### Changed
 
 - `analyse` and `fix` are faster on projects with large classes in

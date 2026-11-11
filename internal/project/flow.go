@@ -102,7 +102,7 @@ const maxWaves = 16
 // dependency order during composition; the supplied order is only a hint
 // that can avoid early repeated summaries.
 func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *FlowBuild {
-	return buildFlow(ctx, files, srcs, opt, ix, options, order, nil, false)
+	return buildFlow(ctx, files, srcs, opt, ix, options, order, nil, false, nil)
 }
 
 // BuildFlowRecorded is BuildFlowOrdered keeping every summary it makes, so
@@ -112,13 +112,15 @@ func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt sy
 // build on every pause in editing, takes it; it costs memory a single run
 // does not spend.
 func BuildFlowRecorded(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *FlowBuild {
-	return buildFlow(ctx, files, srcs, opt, ix, options, order, nil, true)
+	return buildFlow(ctx, files, srcs, opt, ix, options, order, nil, true, nil)
 }
 
 // buildFlow is BuildFlowOrdered taking, for each file whose source is the
 // one earlier read, the summaries earlier made of it as priors, and
-// recording its own steps when record is set.
-func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int, earlier *FlowBuild, record bool) *FlowBuild {
+// recording its own steps when record is set. A file with a tree in trees
+// (parsed from its source in srcs) is summarized from it instead of being
+// parsed again.
+func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int, earlier *FlowBuild, record bool, trees []*syntax.File) *FlowBuild {
 	// Sources are read once. Each summary parses its file again and keeps
 	// no tree: compose then holds the trees of the files being summarized,
 	// not those of every file, which take about ten times their source. A
@@ -157,6 +159,9 @@ func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Op
 		b.seed(earlier, readable)
 	}
 	tree := func(i int) *syntax.File {
+		if i < len(trees) && trees[i] != nil {
+			return trees[i]
+		}
 		if !readable[i] {
 			return nil
 		}
@@ -284,7 +289,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 		for i, path := range b.files {
 			srcs[i] = next.sources[path]
 		}
-		return buildFlow(context.Background(), b.files, srcs, b.opt, ix, b.options, b.order, b, b.steps != nil), true
+		return buildFlow(context.Background(), b.files, srcs, b.opt, ix, b.options, b.order, b, b.steps != nil, nil), true
 	}
 	against := make([]*flow.Snapshot, len(b.files))
 	for i := range against {
@@ -415,7 +420,7 @@ func (b *FlowBuild) rescope(sources map[string][]byte, dirty []int, probe []*flo
 	if len(files) == len(b.files) {
 		return nil
 	}
-	part := buildFlow(context.Background(), files, srcs, b.opt, ix, b.options, b.order, b, b.steps != nil)
+	part := buildFlow(context.Background(), files, srcs, b.opt, ix, b.options, b.order, b, b.steps != nil, nil)
 	for k, i := range at {
 		declares[i] = part.declares[k]
 	}

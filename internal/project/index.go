@@ -113,13 +113,28 @@ func BuildIndexKeep(files []string, keep int, opt syntax.Options, options infer.
 // files past keep from cache while they are unchanged, records the others
 // in it, and saves it.
 func BuildIndexCached(files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache) (*index.Index, [][]byte) {
+	ix, srcs, _ := buildIndex(files, keep, opt, options, cache, false)
+	return ix, srcs
+}
+
+// buildIndex is BuildIndexCached also returning, with keepTrees, the syntax
+// trees of the first keep files (nil where unread or crashed).
+func buildIndex(files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache, keepTrees bool) (*index.Index, [][]byte, []*syntax.File) {
 	ix := index.New(stubs.Index())
 	ix.DeferTypeAliases()
 	results := make([]*index.FileSymbols, len(files))
 	srcs := make([][]byte, keep)
-	// indexOne isolates crashes of its own.
+	var trees []*syntax.File
+	if keepTrees {
+		trees = make([]*syntax.File, keep)
+	}
+	// indexOne and indexTree isolate crashes of their own.
 	_ = parallel(context.Background(), len(files), 0, func(i int) {
-		if i < keep {
+		switch {
+		case i < keep && keepTrees:
+			results[i], srcs[i], trees[i] = indexTree(files[i], opt, options)
+			return
+		case i < keep:
 			results[i], srcs[i] = indexOne(files[i], opt, options)
 			return
 		}
@@ -139,7 +154,7 @@ func BuildIndexCached(files []string, keep int, opt syntax.Options, options infe
 		}
 	}
 	ix.LinkTypeAliases()
-	return ix, srcs
+	return ix, srcs, trees
 }
 
 // extract is ExtractSymbols; tests replace it to simulate a crash.
@@ -160,6 +175,21 @@ func indexOne(path string, opt syntax.Options, options infer.Options) (fs *index
 		return nil, nil
 	}
 	return extract(path, src, opt, options), src
+}
+
+// indexTree is indexOne keeping the file's syntax tree.
+func indexTree(path string, opt syntax.Options, options infer.Options) (fs *index.FileSymbols, src []byte, tree *syntax.File) {
+	defer func() {
+		if recover() != nil {
+			fs, tree = nil, nil
+		}
+	}()
+	src, err := ReadSource(path)
+	if err != nil {
+		return nil, nil, nil
+	}
+	tree = syntax.ParseBest(path, src, opt)
+	return extractTree(tree, opt, options), src, tree
 }
 
 // indexCached is indexOne for a file whose source is not kept: its
@@ -186,7 +216,12 @@ func indexCached(path string, opt syntax.Options, options infer.Options, cache *
 // (infer.AnnotateReturns). Before adding the result to a project index,
 // call DropStaleInferred on it once the project symbols are known.
 func ExtractSymbols(path string, src []byte, opt syntax.Options, options infer.Options) *index.FileSymbols {
-	f := syntax.ParseBest(path, src, opt)
+	return extractTree(syntax.ParseBest(path, src, opt), opt, options)
+}
+
+// extractTree is ExtractSymbols for a file already parsed; tests replace it
+// to simulate a crash.
+var extractTree = func(f *syntax.File, opt syntax.Options, options infer.Options) *index.FileSymbols {
 	fs := index.Extract(f)
 	fs.Digest = index.Digest(f)
 	infer.AnnotateReturns(f, fs, stubs.Index(), opt.Version, options)

@@ -124,7 +124,7 @@ func Run(e *analysis.Engine, files []string, opt syntax.Options) []diagnostic.Fi
 // RunSources is Run with sources already read (srcs[i] for files[i]; a nil
 // or missing entry is read from disk), e.g. by BuildIndexKeep.
 func RunSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options) []diagnostic.FileResult {
-	return runSources(e, files, srcs, opt, false)
+	return runSources(e, files, srcs, nil, opt, false)
 }
 
 // RunReport is RunSources for reporting only: each finding keeps its fix
@@ -132,10 +132,12 @@ func RunSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Op
 // hold the file's syntax tree and semantic data alive until the end of
 // the run (gigabytes on large legacy trees with many findings).
 func RunReport(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options) []diagnostic.FileResult {
-	return runSources(e, files, srcs, opt, true)
+	return runSources(e, files, srcs, nil, opt, true)
 }
 
-func runSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options, report bool) []diagnostic.FileResult {
+// runSources analyses files from their trees where given (each released
+// once analysed), else from srcs or disk.
+func runSources(e *analysis.Engine, files []string, srcs [][]byte, trees []*syntax.File, opt syntax.Options, report bool) []diagnostic.FileResult {
 	results := make([]diagnostic.FileResult, len(files))
 	// AnalyzeBuffer isolates crashes of its own; nothing else here can fail.
 	_ = parallel(context.Background(), len(files), 0, func(i int) {
@@ -143,7 +145,12 @@ func runSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Op
 		if i < len(srcs) {
 			src = srcs[i]
 		}
-		results[i] = analyzeFile(e, files[i], src, opt)
+		if i < len(trees) && trees[i] != nil {
+			results[i] = analyzeSource(e, files[i], src, opt, trees[i])
+			trees[i] = nil
+		} else {
+			results[i] = analyzeFile(e, files[i], src, opt)
+		}
 		if report {
 			dropEdits(results[i].Findings)
 		}
