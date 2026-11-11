@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -120,9 +121,11 @@ func (f *File) Current(earlier, s *Snapshot) bool {
 // so it does not rebuild the collection: the result overlays the file on its
 // base and answers lookups from both.
 type Snapshot struct {
-	options   Options
-	files     map[string]*File
-	summaries map[string]Summary
+	options Options
+	files   map[string]*File
+	// summaries points at the contracts so that a copy of the map (see
+	// Replace) copies no Summary: values this large are stored out of line.
+	summaries map[string]*Summary
 	// shared counts the files declaring a name more than one file declares.
 	// Such a name is ambiguous and has no entry in summaries.
 	shared map[string]int
@@ -146,7 +149,7 @@ func NewSnapshot(files ...*File) *Snapshot {
 
 // NewSnapshotWithOptions preserves runtime assumptions even for empty snapshots.
 func NewSnapshotWithOptions(options Options, files ...*File) *Snapshot {
-	s := &Snapshot{options: options, files: map[string]*File{}, summaries: map[string]Summary{}}
+	s := &Snapshot{options: options, files: map[string]*File{}, summaries: map[string]*Summary{}}
 	for _, f := range files {
 		if f != nil && f.options == options {
 			s.files[f.Path] = f
@@ -208,6 +211,76 @@ func (s *Snapshot) flat() *Snapshot {
 	return n
 }
 
+// Replace returns the snapshot NewSnapshotWithOptions would build from its
+// files with each file of prev replaced by the file of next at the same
+// position (nil removes it, as a file with other options does). Only the
+// names of these files are counted again: a fixed point that summarizes a
+// few files per round does not re-add the contracts of every other file.
+func (s *Snapshot) Replace(prev, next []*File) *Snapshot {
+	f := s.flat()
+	n := &Snapshot{options: f.options, files: maps.Clone(f.files), summaries: maps.Clone(f.summaries), shared: maps.Clone(f.shared)}
+	// A name left to a single file whose summary is not at hand yet.
+	pending := map[string]bool{}
+	count := func(name string) int {
+		if _, ok := n.summaries[name]; ok || pending[name] {
+			return 1
+		}
+		return n.shared[name]
+	}
+	drop := func(old *File) {
+		delete(n.files, old.Path)
+		for name := range old.Summaries {
+			switch c := count(name); c {
+			case 1:
+				delete(n.summaries, name)
+				delete(pending, name)
+			case 2:
+				delete(n.shared, name)
+				pending[name] = true
+			default:
+				n.shared[name] = c - 1
+			}
+		}
+	}
+	for _, old := range prev {
+		if old != nil && n.files[old.Path] == old {
+			drop(old)
+		}
+	}
+	for _, file := range next {
+		if file == nil || file.options != n.options {
+			continue
+		}
+		if old := n.files[file.Path]; old != nil {
+			drop(old)
+		}
+		n.files[file.Path] = file
+		for name, summary := range file.Summaries {
+			switch c := count(name); c {
+			case 0:
+				n.summaries[name] = &summary
+			case 1:
+				delete(n.summaries, name)
+				delete(pending, name)
+				if n.shared == nil {
+					n.shared = map[string]int{}
+				}
+				n.shared[name] = 2
+			default:
+				n.shared[name] = c + 1
+			}
+		}
+	}
+	for name := range pending {
+		for _, file := range n.files {
+			if summary, ok := file.Summaries[name]; ok {
+				n.summaries[name] = &summary
+			}
+		}
+	}
+	return n
+}
+
 func (s *Snapshot) rebuild() {
 	for _, f := range s.files {
 		for name, summary := range f.Summaries {
@@ -222,7 +295,7 @@ func (s *Snapshot) rebuild() {
 				s.shared[name]++
 				continue
 			}
-			s.summaries[name] = summary
+			s.summaries[name] = &summary
 		}
 	}
 }
@@ -234,10 +307,13 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 	name = names.Fold(name)
 	if s.base == nil {
 		v, ok := s.summaries[name]
-		if !ok && s.shared[name] == 0 && s.options.Vendor != nil {
-			return s.options.Vendor.lookup(name)
+		if !ok {
+			if s.shared[name] == 0 && s.options.Vendor != nil {
+				return s.options.Vendor.lookup(name)
+			}
+			return Summary{}, false
 		}
-		return v, ok
+		return *v, true
 	}
 	// A name has a contract when exactly one file declares it, counting the
 	// overlaid file instead of the one it replaces.
@@ -262,7 +338,7 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 	case inOwn || declaring != 1:
 		return Summary{}, false
 	case !inReplaced:
-		return s.base.summaries[name], true
+		return *s.base.summaries[name], true
 	}
 	// The replaced file shared the name with one other file, which now
 	// declares it alone.

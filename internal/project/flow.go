@@ -597,8 +597,16 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 					break
 				}
 				names := b.declared(work)
+				prev := make([]*flow.File, len(work))
+				for k, i := range work {
+					prev[k] = b.results[i]
+				}
 				b.summarize(ctx, work, snapshot, against, ix, tree)
-				next := flow.NewSnapshotWithOptions(b.options, b.results...)
+				fresh := make([]*flow.File, len(work))
+				for k, i := range work {
+					fresh[k] = b.results[i]
+				}
+				next := snapshot.Replace(prev, fresh)
 				// Only the files of work changed: the other contracts are
 				// those of snapshot.
 				if snapshot.EqualFor(next, b.declared(work, names...)) {
