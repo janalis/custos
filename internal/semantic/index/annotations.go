@@ -61,20 +61,39 @@ func (x *extractor) generics(c *Class, d *phpdoc.Doc, at uint32) {
 	for _, p := range d.TemplateParams() {
 		c.Templates = append(c.Templates, Template{Name: p.Name, Bound: x.docTypeStr(p.Bound, at), Default: x.docTypeStr(p.Default, at)})
 	}
+	x.supers(c, d, at, false)
+}
+
+// requireTags name the requirements of a trait; superTags give generic
+// arguments to a parent, an interface or a trait.
+var (
+	requireTags = map[string]bool{
+		"require-extends": true, "phpstan-require-extends": true, "psalm-require-extends": true,
+		"require-implements": true, "phpstan-require-implements": true, "psalm-require-implements": true,
+	}
+	superTags = map[string]bool{
+		"extends": true, "template-extends": true, "phpstan-extends": true, "psalm-extends": true,
+		"implements": true, "template-implements": true, "phpstan-implements": true, "psalm-implements": true,
+		"use": true, "template-use": true, "phpstan-use": true, "psalm-use": true,
+	}
+)
+
+// supers records the generic arguments d gives to the parents, interfaces
+// and traits of c, and the requirements of a trait; d is the doc of a
+// trait use statement (`/** @use T<Foo> */ use T;`) when traitUse is set,
+// which gives only @use.
+func (x *extractor) supers(c *Class, d *phpdoc.Doc, at uint32, traitUse bool) {
 	for _, t := range d.Tags {
-		switch strings.ToLower(t.Name) {
-		case "require-extends", "phpstan-require-extends", "psalm-require-extends",
-			"require-implements", "phpstan-require-implements", "psalm-require-implements":
-			if typ, _ := phpdoc.SplitType(t.Text); c.Kind == syntax.KindTrait && typ != "" {
+		name := strings.ToLower(t.Name)
+		if requireTags[name] {
+			if typ, _ := phpdoc.SplitType(t.Text); !traitUse && c.Kind == syntax.KindTrait && typ != "" {
 				if fqn := x.r.Class(typ, at); fqn != "" {
 					c.Requires = append(c.Requires, strings.TrimPrefix(fqn, `\`))
 				}
 			}
 			continue
-		case "extends", "template-extends", "phpstan-extends", "psalm-extends",
-			"implements", "template-implements", "phpstan-implements", "psalm-implements",
-			"use", "template-use", "phpstan-use", "psalm-use":
-		default:
+		}
+		if !superTags[name] || traitUse && !strings.HasSuffix(name, "use") {
 			continue
 		}
 		typ, _ := phpdoc.SplitType(t.Text)

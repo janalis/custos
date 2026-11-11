@@ -78,6 +78,9 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 			for _, t := range m.Traits {
 				c.Traits = append(c.Traits, x.r.Class(t.Value, m.Span().Start))
 			}
+			if d := x.doc(m); d != nil {
+				x.supers(c, d, m.Span().Start, true)
+			}
 			for _, a := range m.Adaptations {
 				adapt := TraitAdaptation{Method: a.Method.Value}
 				if a.Trait != nil {

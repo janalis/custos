@@ -26,6 +26,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Generic arguments given to a trait by an `@use` tag on the `use`
+  statement inside the class (`/** @use EnumeratesValues<TKey, TValue> */`),
+  as Laravel writes them, are now read; only the class's own doc was. The
+  trait's methods then return, and pass to callbacks, the class's element
+  type, which can add ReturnTypeCanBeDeclared suggestions.
 - PhpUnitTests no longer rewrites to `assertRegExp()`, `assertNotRegExp()`,
   `assertFileNotExists()` or `assertDirectoryNotExists()` when the PHPUnit
   version is only assumed, not configured or detected: those methods no
