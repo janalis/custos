@@ -33,8 +33,10 @@ unless every Composer dependency is installed.
   development is installed (or replaced or provided by an installed
   package); every installed package that autoloads code was indexed; every
   classmap entry, of the project or of a package, was read whole (under
-  the analysed paths, with no directory or loadable file left out); and
-  every files entry was read.
+  the analysed paths, with no directory or loadable file left out); every
+  files entry was read; and every PHP extension the project requires,
+  suggests or requires for development, or an installed package requires
+  (`ext-…`), is one the stubs describe.
 
 ## Exceptions (no report)
 
@@ -52,7 +54,12 @@ unless every Composer dependency is installed.
   or, below it, a directory or a file left out (excluded by the
   configuration, hidden, a test directory of a package, or too large to
   analyse). Below a PSR-4 directory only the namespace of what was left
-  out is concerned.
+  out is concerned. A global name whose leading word (up to its first
+  underscore or its second capitalized word, an acronym counting as one
+  word: `Sphinx` of `SphinxClient`, `PDO` of `PDOStatement`) starts no
+  class-like PHP or a known extension declares (`Yac`, `SphinxClient`): it
+  may belong to an extension the stubs lack. A global name with the leading
+  word of a known class (`DateTim`) is still reported.
 - E4. Any name when an indexed file calls `class_alias()` with computed
   names, which may declare any alias, global (framework facades) or
   namespaced.

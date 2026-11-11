@@ -22,7 +22,7 @@ func worldFiles() map[string]string {
 		}`,
 		"vendor/composer/installed.json": `{"packages": [
 			{"name": "acme/http", "install-path": "../acme/http", "autoload": {"psr-4": {"Acme\\Http\\": "src/", "Acme\\Http\\Testing\\": "tests/"}}, "provide": {"psr/log-implementation": "1.0"}},
-			{"name": "acme/test", "autoload": {"classmap": ["src/"]}, "replace": {"acme/old": "*"}},
+			{"name": "acme/test", "autoload": {"classmap": ["src/"]}, "replace": {"acme/old": "*"}, "require": {"ext-pdo_mysql": "*", "ext-zend-opcache": "*", "ext-mysqlnd": "*", "ext-SimpleXML": "*", "ext-opcache": "*"}},
 			{"name": "acme/assets"}
 		], "dev": true}`,
 	}
@@ -69,18 +69,21 @@ func TestComposerWorldComplete(t *testing.T) {
 
 func TestComposerWorldIncomplete(t *testing.T) {
 	for name, edit := range map[string]func(map[string]string){
-		"no composer.json":     func(f map[string]string) { delete(f, "composer.json") },
-		"broken composer.json": func(f map[string]string) { f["composer.json"] = "{" },
-		"not installed":        func(f map[string]string) { delete(f, "vendor/composer/installed.json") },
-		"broken installed":     func(f map[string]string) { f["vendor/composer/installed.json"] = "{" },
-		"missing requirement":  func(f map[string]string) { f["composer.json"] = `{"require": {"acme/other": "*"}}` },
-		"missing dev":          func(f map[string]string) { f["composer.json"] = `{"require-dev": {"acme/other": "*"}}` },
-		"missing suggestion":   func(f map[string]string) { f["composer.json"] = `{"suggest": {"acme/other": "*"}}` },
-		"fallback directory":   func(f map[string]string) { f["composer.json"] = `{"autoload": {"psr-4": {"": "other/"}}}` },
-		"class name prefix":    func(f map[string]string) { f["composer.json"] = `{"autoload": {"psr-0": {"Acme_": "other/"}}}` },
-		"classmap out":         func(f map[string]string) { f["composer.json"] = `{"autoload": {"classmap": ["other/"]}}` },
-		"files out":            func(f map[string]string) { f["composer.json"] = `{"autoload-dev": {"files": ["other/x.php"]}}` },
-		"package not indexed":  func(f map[string]string) { addPackage(f, `{"name": "acme/lost", "autoload": {"files": ["f.php"]}}`) },
+		"no composer.json":         func(f map[string]string) { delete(f, "composer.json") },
+		"broken composer.json":     func(f map[string]string) { f["composer.json"] = "{" },
+		"not installed":            func(f map[string]string) { delete(f, "vendor/composer/installed.json") },
+		"broken installed":         func(f map[string]string) { f["vendor/composer/installed.json"] = "{" },
+		"missing requirement":      func(f map[string]string) { f["composer.json"] = `{"require": {"acme/other": "*"}}` },
+		"missing dev":              func(f map[string]string) { f["composer.json"] = `{"require-dev": {"acme/other": "*"}}` },
+		"missing suggestion":       func(f map[string]string) { f["composer.json"] = `{"suggest": {"acme/other": "*"}}` },
+		"extension the stubs lack": func(f map[string]string) { f["composer.json"] = `{"require": {"ext-phalcon": "*"}}` },
+		"suggested extension":      func(f map[string]string) { f["composer.json"] = `{"suggest": {"ext-yac": "*"}}` },
+		"package extension":        func(f map[string]string) { addPackage(f, `{"name": "acme/x", "require": {"ext-sphinx": "*"}}`) },
+		"fallback directory":       func(f map[string]string) { f["composer.json"] = `{"autoload": {"psr-4": {"": "other/"}}}` },
+		"class name prefix":        func(f map[string]string) { f["composer.json"] = `{"autoload": {"psr-0": {"Acme_": "other/"}}}` },
+		"classmap out":             func(f map[string]string) { f["composer.json"] = `{"autoload": {"classmap": ["other/"]}}` },
+		"files out":                func(f map[string]string) { f["composer.json"] = `{"autoload-dev": {"files": ["other/x.php"]}}` },
+		"package not indexed":      func(f map[string]string) { addPackage(f, `{"name": "acme/lost", "autoload": {"files": ["f.php"]}}`) },
 		"package fallback in tests": func(f map[string]string) {
 			addPackage(f, `{"name": "acme/x", "install-path": "../acme/http", "autoload": {"psr-4": {"": "tests/"}}}`)
 		},

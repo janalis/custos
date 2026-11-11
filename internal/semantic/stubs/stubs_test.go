@@ -39,14 +39,14 @@ func BenchmarkDecode(b *testing.B) {
 }
 
 func TestDecodeErrors(t *testing.T) {
-	if _, err := decode([]byte("not gzip")); err == nil {
+	if _, _, err := decode([]byte("not gzip")); err == nil {
 		t.Error("non-gzip data must fail")
 	}
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
 	_, _ = zw.Write([]byte("not gob"))
 	_ = zw.Close()
-	if _, err := decode(buf.Bytes()); err == nil {
+	if _, _, err := decode(buf.Bytes()); err == nil {
 		t.Error("non-gob payload must fail")
 	}
 	defer func() {
@@ -55,6 +55,17 @@ func TestDecodeErrors(t *testing.T) {
 		}
 	}()
 	must(decode([]byte("x")))
+}
+
+func TestExtensions(t *testing.T) {
+	for _, ext := range []string{"json", "zend-opcache", "simplexml", "pdo", "mongodb"} {
+		if !Extensions()[ext] {
+			t.Errorf("extension %s missing", ext)
+		}
+	}
+	if Extensions()["phalcon"] {
+		t.Error("phalcon has no stubs")
+	}
 }
 
 func TestVersionedBuiltinMetadata(t *testing.T) {

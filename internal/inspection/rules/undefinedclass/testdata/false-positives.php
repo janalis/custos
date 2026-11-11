@@ -12,6 +12,10 @@ $member = new Member();
 $list = new \SplObjectStorage();
 $frame = new \Imagick();
 $old = new \HttpRequest();
+// A global name whose leading word no builtin class uses: an extension the
+// stubs lack.
+$cache = new \Yac();
+$search = new \SphinxClient();
 // A namespace an extension uses may hold classes the stubs lack.
 $doc = new \MongoDB\BSON\Document();
 

@@ -83,6 +83,9 @@ type BuiltinPrefixes struct {
 	// Words holds the leading word, up to the first underscore (lower
 	// case), of every global builtin function whose name has one.
 	Words map[string]bool
+	// ClassWords holds the leading word (see ClassWord) of every global
+	// builtin class-like.
+	ClassWords map[string]bool
 }
 
 type builtinPrefixesKey struct{}
@@ -94,12 +97,16 @@ func (ix *Index) BuiltinPrefixes() BuiltinPrefixes {
 		b = b.base
 	}
 	return b.Memo(builtinPrefixesKey{}, func() any {
-		p := BuiltinPrefixes{Namespaces: map[string]bool{}, Words: map[string]bool{}}
+		p := BuiltinPrefixes{Namespaces: map[string]bool{}, Words: map[string]bool{}, ClassWords: map[string]bool{}}
 		locked := b.rlock()
 		defer b.runlock(locked)
-		for k := range b.classes {
+		for k, c := range b.classes {
 			if ns, _, ok := strings.Cut(k, `\`); ok {
 				p.Namespaces[ns] = true
+			} else {
+				for _, decl := range c {
+					p.ClassWords[ClassWord(decl.FQN)] = true
+				}
 			}
 		}
 		for k := range b.functions {
@@ -111,4 +118,25 @@ func (ix *Index) BuiltinPrefixes() BuiltinPrefixes {
 		}
 		return p
 	}).(BuiltinPrefixes)
+}
+
+// ClassWord returns, lower case, the leading word of a global class name:
+// up to its first underscore or the start of its second word in camel case,
+// an acronym counting as one word (`Spl` of SplObjectStorage, `pdo` of
+// PDOStatement, `date` of DateTime).
+func ClassWord(name string) string {
+	upper := func(c byte) bool { return 'A' <= c && c <= 'Z' }
+	for i := 1; i < len(name); i++ {
+		switch c := name[i]; {
+		case c == '_':
+			return strings.ToLower(name[:i])
+		case !upper(c):
+		case !upper(name[i-1]):
+			return strings.ToLower(name[:i])
+		case i+1 < len(name) && !upper(name[i+1]) && name[i+1] != '_':
+			// The last capital of an acronym starts the next word.
+			return strings.ToLower(name[:i])
+		}
+	}
+	return strings.ToLower(name)
 }

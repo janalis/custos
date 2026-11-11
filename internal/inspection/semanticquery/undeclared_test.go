@@ -31,7 +31,7 @@ func TestUndeclaredEverywhereBlind(t *testing.T) {
 	ix := index.New(stubs.Index())
 	ix.SetWorld(index.World{Complete: true, Blind: []string{`app\tests\`}})
 	ix.Freeze()
-	f := Parse(t, `<?php new \App\Tests\Helper(); new \App\Missing(); new \Missing();`)
+	f := Parse(t, `<?php new \App\Tests\Helper(); new \App\Missing(); new \DateTim(); new \Yac();`)
 	if got := e.WithIndex(ix).Analyze(f); len(got) != 2 || Text(f, nodeAt(f, got[0].Span)) != `\App\Missing` {
 		t.Fatalf("findings: %+v", got)
 	}

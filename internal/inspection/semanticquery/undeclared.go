@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/index"
 )
 
 // UndeclaredEverywhere reports whether none of the class-likes (or, with
@@ -14,7 +15,9 @@ import (
 // file (see index.World), and no candidate may lie where the index cannot
 // see: a namespace the project autoloads from unindexed directories, a
 // namespace a PHP extension uses, a global function whose leading word no
-// builtin function uses (an extension the stubs lack); no class-like may be
+// builtin function uses or a global class-like whose leading word (see
+// index.ClassWord) no builtin class-like uses (an extension the stubs
+// lack); no class-like may be
 // when the project calls class_alias() with computed names.
 func UndeclaredEverywhere(ctx *analysis.Context, function bool, fqns ...string) bool {
 	ix := ctx.Index()
@@ -46,6 +49,8 @@ func UndeclaredEverywhere(ctx *analysis.Context, function bool, fqns ...string) 
 			if word, _, ok := strings.Cut(lower, "_"); ok && !prefixes.Words[word] {
 				return false
 			}
+		} else if !prefixes.ClassWords[index.ClassWord(fqn)] {
+			return false
 		}
 	}
 	return true

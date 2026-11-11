@@ -8,6 +8,14 @@ import (
 	"custos/internal/semantic/stubs"
 )
 
+func TestClassWord(t *testing.T) {
+	for name, want := range map[string]string{"SplObjectStorage": "spl", "PDOStatement": "pdo", "PDO": "pdo", "DateTime": "date", "Zend_Db": "zend", "XML_Parser": "xml", "Yac": "yac", "stdClass": "std"} {
+		if got := index.ClassWord(name); got != want {
+			t.Errorf("ClassWord(%s) = %s, want %s", name, got, want)
+		}
+	}
+}
+
 func TestWorldLayers(t *testing.T) {
 	project := index.New(stubs.Index())
 	if project.World().Complete {

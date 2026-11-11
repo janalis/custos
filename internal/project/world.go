@@ -10,6 +10,7 @@ import (
 	"custos/internal/platform/safeio"
 	"custos/internal/project/config"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/stubs"
 )
 
 // ComposerWorld derives what the index knows of the project's world (see
@@ -132,6 +133,18 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 			}
 		}
 	}
+	// An extension the stubs lack may declare any name.
+	platform := []map[string]string{root.Require, root.RequireDev, root.Suggest}
+	for _, p := range packages {
+		platform = append(platform, p.Require)
+	}
+	for _, require := range platform {
+		for name := range require {
+			if ext, ok := strings.CutPrefix(strings.ToLower(name), "ext-"); ok && !knownExtension(ext) {
+				return index.World{}
+			}
+		}
+	}
 	files := map[string]bool{}
 	for _, f := range indexed {
 		for d := path.Dir(f); d != "." && d != "/" && !files[d]; d = path.Dir(d) {
@@ -218,6 +231,21 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 		}
 	}
 	return w
+}
+
+// knownExtension reports whether the stubs describe the extension a
+// Composer platform requirement names (lower case, after `ext-`). PDO
+// drivers belong to PDO, mysqlnd declares nothing of its own.
+func knownExtension(name string) bool {
+	switch {
+	case strings.HasPrefix(name, "pdo_"):
+		name = "pdo"
+	case name == "opcache":
+		name = "zend-opcache"
+	case name == "mysqlnd":
+		return true
+	}
+	return stubs.Extensions()[strings.ReplaceAll(name, " ", "-")]
 }
 
 // gaps answers where the walks for the index left something out (paths

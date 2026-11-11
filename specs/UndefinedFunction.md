@@ -32,7 +32,9 @@ installed.
   or provided by an installed package); every installed package that
   autoloads code was indexed; every classmap entry, of the project or of a
   package, was read whole (under the analysed paths, with no directory or
-  loadable file left out); and every files entry was read.
+  loadable file left out); every files entry was read; and every PHP
+  extension the project requires, suggests or requires for development, or
+  an installed package requires (`ext-…`), is one the stubs describe.
 
 ## Exceptions (no report)
 
