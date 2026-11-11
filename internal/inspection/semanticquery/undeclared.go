@@ -10,7 +10,7 @@ import (
 )
 
 // UndeclaredEverywhere reports whether none of the class-likes (or, with
-// function, functions) fqns can be declared anywhere the analysed file may
+// function, functions) fqns can be declared anywhere the analyzed file may
 // run. Every candidate must be missing from the index (stubs, project and
 // vendor, at any PHP version), the index world must be complete for the
 // file (see index.World), and no candidate may lie where the index cannot
@@ -18,8 +18,8 @@ import (
 // namespace a PHP extension uses, a global function whose leading word no
 // builtin function uses or a global class-like whose leading word (see
 // index.ClassWord) no builtin class-like uses (an extension the stubs
-// lack); no class-like may be
-// when the project calls class_alias() with computed names.
+// lack). A class-like is never reported undeclared when the project calls
+// class_alias() with computed names, which may declare any class name.
 func UndeclaredEverywhere(ctx *analysis.Context, function bool, fqns ...string) bool {
 	ix := ctx.Index()
 	world := ix.World()
@@ -88,8 +88,9 @@ type existenceKey struct{}
 // interface_exists, trait_exists or enum_exists with a literal name or a
 // `::class` fetch), a condition enclosing n checks existence, an extension
 // or the PHP version (a conditional declaration or guarded code), or the
-// conditions guarding n narrow the result of such a check made earlier in
-// its scope (an early exit, a short circuit, a switch or match arm).
+// conditions guarding n narrow the result of a check made earlier in its
+// scope (an early exit, a short circuit, a switch or match arm) that
+// concerns one of fqns (see guardsAny).
 func ExistenceChecked(ctx *analysis.Context, n syntax.Node, fqns ...string) bool {
 	asked := ctx.Shared(existenceKey{}, func() any { return askedNames(ctx) }).(map[string]bool)
 	for _, fqn := range fqns {
@@ -122,23 +123,104 @@ func ExistenceChecked(ctx *analysis.Context, n syntax.Node, fqns ...string) bool
 	// early exit, an else arm, a short circuit.
 	at, ok := n.(syntax.Expr)
 	return ok && NativeEarlierCallProves(ctx, at, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
-		if !runtimeDependentCall(ctx, x) {
+		if !guardsAny(ctx, x, fqns) {
 			return types.Unknown, nil
 		}
 		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") || t.OnlyOf("false") }
 	})
 }
 
-// runtimeDependentCall reports whether x is a condition check call or a
-// comparison reading a PHP version constant or calling one.
-func runtimeDependentCall(ctx *analysis.Context, x syntax.Expr) bool {
-	switch x := x.(type) {
-	case *syntax.FuncCall:
-		return conditionChecks[ctx.GlobalFunctionName(x)]
-	case *syntax.Binary:
-		return runtimeDependent(ctx, x)
+// guardsAny reports whether x, a call or a comparison, checks something
+// that may decide whether one of fqns exists: the PHP version (a version
+// constant, version_compare(), phpversion() without argument), the
+// existence of one of fqns by literal name or `::class` fetch, or an
+// extension named like the leading word of one of fqns (extension_loaded()
+// or phpversion() with its name, defined() with a constant whose leading
+// word it is).
+func guardsAny(ctx *analysis.Context, x syntax.Expr, fqns []string) bool {
+	switch x.(type) {
+	case *syntax.FuncCall, *syntax.Binary:
+	default:
+		return false
+	}
+	found := false
+	syntax.Inspect(x, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.FuncCall:
+			found = guardsCall(ctx, n, fqns)
+		case *syntax.ConstFetch:
+			found = versionConstants[strings.ToLower(strings.TrimPrefix(n.Name.Value, `\`))]
+		}
+		return !found
+	})
+	return found
+}
+
+// guardsCall is guardsAny for one call.
+func guardsCall(ctx *analysis.Context, call *syntax.FuncCall, fqns []string) bool {
+	fn := ctx.GlobalFunctionName(call)
+	subject, named := checkedName(ctx, call)
+	switch {
+	case fn == "version_compare", fn == "phpversion" && call.Args != nil && len(call.Args.Args) == 0:
+		return true
+	case fn == "method_exists": // the other existence checks are askedNames'
+		if named {
+			for _, fqn := range fqns {
+				if strings.EqualFold(subject, strings.TrimPrefix(fqn, `\`)) {
+					return true
+				}
+			}
+		}
+	case fn == "extension_loaded", fn == "phpversion", fn == "defined":
+		if named {
+			word, _, _ := strings.Cut(subject, "_")
+			for _, fqn := range fqns {
+				if leading := leadingWords(fqn); leading[subject] || leading[word] {
+					return true
+				}
+			}
+		}
 	}
 	return false
+}
+
+// leadingWords are, lower case, the words an extension declaring fqn
+// likely starts its name with: the first namespace segment of a namespaced
+// name, else the word before an underscore and the first word of a
+// CamelCase name.
+func leadingWords(fqn string) map[string]bool {
+	fqn = strings.TrimPrefix(fqn, `\`)
+	if ns, _, namespaced := strings.Cut(fqn, `\`); namespaced {
+		return map[string]bool{strings.ToLower(ns): true}
+	}
+	word, _, _ := strings.Cut(strings.ToLower(fqn), "_")
+	return map[string]bool{word: true, index.ClassWord(fqn): true}
+}
+
+// checkedName is, lower case and without a leading backslash, the name
+// the first argument of call gives as a literal string or a `::class`
+// fetch.
+func checkedName(ctx *analysis.Context, call *syntax.FuncCall) (string, bool) {
+	if call.Args == nil || len(call.Args.Args) == 0 {
+		return "", false
+	}
+	arg, ok := call.Args.Args[0].(*syntax.Arg)
+	if !ok || arg.Value == nil {
+		return "", false
+	}
+	switch v := arg.Value.(type) {
+	case *syntax.Literal:
+		if s, ok := syntax.LiteralStringValue(v); ok {
+			return strings.ToLower(strings.TrimPrefix(s, `\`)), true
+		}
+	case *syntax.ClassConstFetch:
+		name, named := v.Class.(*syntax.Name)
+		id, ok := v.Name.(*syntax.Identifier)
+		if named && ok && strings.EqualFold(id.Value, "class") {
+			return strings.ToLower(ctx.Names().Class(name.Value, name.Span().Start)), true
+		}
+	}
+	return "", false
 }
 
 // askedNames collects, lower case, the names the file's existence checks
@@ -146,24 +228,9 @@ func runtimeDependentCall(ctx *analysis.Context, x syntax.Expr) bool {
 func askedNames(ctx *analysis.Context) map[string]bool {
 	asked := map[string]bool{}
 	syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
-		call, ok := n.(*syntax.FuncCall)
-		if !ok || call.Args == nil || len(call.Args.Args) == 0 || !existenceChecks[ctx.GlobalFunctionName(call)] {
-			return true
-		}
-		arg, ok := call.Args.Args[0].(*syntax.Arg)
-		if !ok || arg.Value == nil {
-			return true
-		}
-		switch v := arg.Value.(type) {
-		case *syntax.Literal:
-			if s, ok := syntax.LiteralStringValue(v); ok {
-				asked[strings.ToLower(strings.TrimPrefix(s, `\`))] = true
-			}
-		case *syntax.ClassConstFetch:
-			name, named := v.Class.(*syntax.Name)
-			id, ok := v.Name.(*syntax.Identifier)
-			if named && ok && strings.EqualFold(id.Value, "class") {
-				asked[strings.ToLower(ctx.Names().Class(name.Value, name.Span().Start))] = true
+		if call, ok := n.(*syntax.FuncCall); ok && existenceChecks[ctx.GlobalFunctionName(call)] {
+			if name, ok := checkedName(ctx, call); ok {
+				asked[name] = true
 			}
 		}
 		return true

@@ -43,7 +43,7 @@ Reported:
   of a class constant access other than `::class`; a parent class, an
   implemented or extended interface; a used trait. Names resolve with the
   file's namespace and imports; `self`, `static` and `parent` are skipped.
-- No class-like of that name is declared by the analysed project, its
+- No class-like of that name is declared by the analyzed project, its
   installed packages, PHP or the extensions the stubs describe, at any PHP
   version, directly or through a `class_alias()` call with literal names.
 - D3. The project's world is complete, as for `UndefinedFunction`:
@@ -52,7 +52,7 @@ Reported:
   development is installed (or replaced or provided by an installed
   package); every installed package that autoloads code was indexed; every
   classmap entry, of the project or of a package, was read whole (under
-  the analysed paths, with no directory or loadable file left out); every
+  the analyzed paths, with no directory or loadable file left out); every
   files entry was read; and every PHP extension the project requires,
   suggests or requires for development, or an installed package requires
   (`ext-…`), is one the stubs describe.
@@ -70,14 +70,18 @@ Reported:
   by its result: an earlier early exit
   (`if (!extension_loaded('x')) { return; }`), a short circuit
   (`defined('X') or die()`), an else arm, or a `switch (true)` case or
-  `match (true)` arm. A check whose result guards nothing (stored and left
-  unread) does not count.
+  `match (true)` arm. Such an earlier check counts only when it checks the
+  PHP version, the name itself (`method_exists()` included), or an
+  extension or constant whose name or leading word is the leading word of
+  the name (`extension_loaded('acme')`, `defined('ACME_READY')` for
+  `Acme\Handle` or `AcmeHandle`). A check whose result guards nothing
+  (stored and left unread) does not count.
 - A namespaced name in a namespace that a PHP extension uses (such as
   `MongoDB\` or `Swoole\`), and a name under a PSR-4 or PSR-0 prefix whose
-  code the analysis did not read: a directory outside the analysed paths,
+  code the analysis did not read: a directory outside the analyzed paths,
   or, below it, a directory or a file left out (excluded by the
   configuration, hidden, a test directory of a package, or too large to
-  analyse). Below a PSR-4 directory only the namespace of what was left
+  analyze). Below a PSR-4 directory only the namespace of what was left
   out is concerned. A global name whose leading word (up to its first
   underscore or its second capitalized word, an acronym counting as one
   word: `Sphinx` of `SphinxClient`, `PDO` of `PDOStatement`) starts no

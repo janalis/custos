@@ -30,3 +30,15 @@ function unguarded()
     $loaded = extension_loaded('acme');
     return new <error descr="Fix the name or install the package declaring App\Unguarded.">Unguarded</error>($loaded);
 }
+
+// An earlier check about another value, name or extension.
+function run($cb)
+{
+    if (!is_callable($cb)) {
+        throw new \InvalidArgumentException();
+    }
+    if (!class_exists(\Vendor\Other\Thing::class) || !defined('OTHER_READY') || !extension_loaded('other')) {
+        return null;
+    }
+    return new <error descr="Fix the name or install the package declaring App\Missingg.">Missingg</error>($cb);
+}

@@ -90,6 +90,13 @@ function boot()
     defined('ACME_READY') or die();
     \Acme\Ready\Kernel::boot();
 }
+function bridge()
+{
+    if (!method_exists(\Vendor\Bridge\Loader::class, 'load')) {
+        return;
+    }
+    \Vendor\Bridge\Loader::load();
+}
 
 // Inside a switch or match arm about extensions.
 switch (true) {

@@ -52,6 +52,20 @@ function futureStart()
     }
     \Php9\start();
 }
+function laterStart()
+{
+    if (version_compare(PHP_VERSION, '9.0', '<') || phpversion() < 9) {
+        return;
+    }
+    \Php9\later();
+}
+function pdoStart()
+{
+    if (phpversion('pdo_acme') === false) {
+        return;
+    }
+    pdo_acme_open();
+}
 switch (true) {
     case defined('ACME'):
         \Acme\Switched\start();

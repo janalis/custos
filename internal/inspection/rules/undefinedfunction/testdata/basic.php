@@ -22,3 +22,12 @@ function unguarded()
     $loaded = extension_loaded('acme');
     <error descr="Fix the name or install the package declaring App\Acme\start().">Acme\start</error>($loaded);
 }
+
+// An earlier check about another value, name or extension.
+function run($cb)
+{
+    if (!is_callable($cb) || !function_exists('other_start') || !method_exists($cb, 'run')) {
+        return;
+    }
+    <error descr="Fix the name or install the package declaring App\Acme\stop().">Acme\stop</error>($cb);
+}
