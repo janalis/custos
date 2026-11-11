@@ -23,6 +23,13 @@ versions follow [Semantic Versioning](https://semver.org/).
   argument typed only by PHPDoc. Both follow PHP's weak-mode conversions
   outside `declare(strict_types=1)` and check PHP's own functions from PHP
   8.0, except those whose stubs declare other parameter types than PHP.
+- InvalidReturnType (error) and DocumentedReturnType (warning), both off
+  by default, report a returned value the function's own return type can
+  never accept, closures and arrow functions included. The first judges
+  the value by the code alone; the second takes PHPDoc into account: a
+  `@return` type, or a value typed only by PHPDoc. Generators, `void` and
+  `never`, `self` and `static` in traits, templates and inherited
+  declarations are left alone.
 - `ArgumentCountMismatch` (off by default) reports a call that leaves a
   required parameter without an argument, and a call passing more arguments
   than a PHP function or method declares. Overrides in subtypes that accept

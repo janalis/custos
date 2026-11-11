@@ -688,6 +688,13 @@
     "hasFix": false
   },
   {
+    "id": "DocumentedReturnType",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "DomAppendMovesNodeUnexpectedly",
     "group": "Probable bugs",
     "severity": "warning",
@@ -1280,6 +1287,13 @@
   },
   {
     "id": "InvalidArgumentType",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "InvalidReturnType",
     "group": "Probable bugs",
     "severity": "error",
     "enabledByDefault": false,

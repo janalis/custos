@@ -920,6 +920,10 @@
             "link": "/rules/probable-bugs/DocumentedArgumentType"
           },
           {
+            "text": "DocumentedReturnType",
+            "link": "/rules/probable-bugs/DocumentedReturnType"
+          },
+          {
             "text": "DomAppendMovesNodeUnexpectedly",
             "link": "/rules/probable-bugs/DomAppendMovesNodeUnexpectedly"
           },
@@ -1254,6 +1258,10 @@
           {
             "text": "InvalidArgumentType",
             "link": "/rules/probable-bugs/InvalidArgumentType"
+          },
+          {
+            "text": "InvalidReturnType",
+            "link": "/rules/probable-bugs/InvalidReturnType"
           },
           {
             "text": "InverseTrigInvalidRealDomain",
