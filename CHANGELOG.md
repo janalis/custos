@@ -15,6 +15,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The NestedPositiveIfStatements quick-fix writes `elseif` instead of
+  `else if` in a file that uses `elseif` more often than `else if`.
 - `analyse` and `fix` are faster on projects with large classes in
   dependency cycles: the cross-file summaries no longer rebuild their
   collection each round, and a file summarized again keeps the summaries
