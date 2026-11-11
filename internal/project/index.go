@@ -61,6 +61,15 @@ func absolute(path string) string {
 	return abs
 }
 
+// absoluteFrom is absolute for a caller that already knows the working
+// directory cwd, without asking the system for it again.
+func absoluteFrom(cwd, path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	return filepath.Join(cwd, path)
+}
+
 // vendorDir returns composer.json's `config.vendor-dir` (Joomla:
 // `libraries/vendor`) when it is a path inside root, else "vendor".
 func vendorDir(root string) string {
