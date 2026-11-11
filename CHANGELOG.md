@@ -36,6 +36,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- UnlinkFailureReportedAsSuccess no longer reports the deletion of a
+  `tempnam()` file when the namespace declares its own `tempnam()` (a test
+  double).
 - FileReadFailureUnchecked no longer reports `unserialize()` or
   `json_decode()` of a read compared by `assertSame` with an expected value
   typed as neither false nor null (`array $expected`, an object, `[]`), or by

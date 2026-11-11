@@ -27,6 +27,10 @@ Identify discarded unlink call immediately followed by unconditional return true
   `tempnam()` call, the deletion cleans up after the function's own work,
   and the returned success is that of this work, not of the deletion. Once
   the variable is reassigned to another path, the deletion is reported again.
+  An unqualified `tempnam()` call counts even when the namespace declares a
+  function of that name (a test double replacing PHP's in tests); a call
+  naming the namespaced function explicitly, or one imported under that
+  name, does not.
 
 ## Fix
 
