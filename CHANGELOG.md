@@ -36,6 +36,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- FileReadFailureUnchecked no longer reports `unserialize()` or
+  `json_decode()` of a read compared by `assertSame` with an expected value
+  typed as neither false nor null (`array $expected`, an object, `[]`), or by
+  `assertEquals` with a non-empty array or an object: the failure value
+  fails the assertion.
 - Arithmetic operators on a `\GMP` or `\BcMath\Number` operand, and shift
   and bitwise operators on a `\GMP` operand, are typed as that object
   instead of an int or a number, so type-based rules no longer treat the
