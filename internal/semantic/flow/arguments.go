@@ -826,13 +826,25 @@ func (e *Env) replaced(receiver string, m *index.Method) bool {
 func (e *Env) overrides(receiver, method, declaring string) bool {
 	at := [2]string{strings.ToLower(receiver), strings.ToLower(declaring + "::" + method)}
 	if known, ok := e.overridden[at]; ok {
-		return known
+		// The answer read the contracts of the subclasses: so does
+		// whatever reads it again.
+		e.depend(known.reads)
+		return known.replaced
 	}
 	if e.overridden == nil {
-		e.overridden = map[[2]string]bool{}
+		e.overridden = map[[2]string]overriddenAnswer{}
 	}
-	e.overridden[at] = e.override(receiver, method, declaring)
-	return e.overridden[at]
+	reads := e.begin()
+	replaced := e.override(receiver, method, declaring)
+	e.end(reads)
+	e.overridden[at] = overriddenAnswer{replaced: replaced, reads: reads}
+	return replaced
+}
+
+// overriddenAnswer is a cached overrides answer with the contracts it read.
+type overriddenAnswer struct {
+	replaced bool
+	reads    map[string]bool
 }
 
 func (e *Env) override(receiver, method, declaring string) bool {
