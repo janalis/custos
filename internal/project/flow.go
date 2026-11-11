@@ -597,16 +597,9 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 					break
 				}
 				names := b.declared(work)
-				prev := make([]*flow.File, len(work))
-				for k, i := range work {
-					prev[k] = b.results[i]
-				}
+				prev := b.resultsOf(work)
 				b.summarize(ctx, work, snapshot, against, ix, tree)
-				fresh := make([]*flow.File, len(work))
-				for k, i := range work {
-					fresh[k] = b.results[i]
-				}
-				next := snapshot.Replace(prev, fresh)
+				next := snapshot.Replace(prev, b.resultsOf(work))
 				// Only the files of work changed: the other contracts are
 				// those of snapshot.
 				if snapshot.EqualFor(next, b.declared(work, names...)) {
@@ -721,6 +714,15 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 			}
 		}
 	}, nil)
+}
+
+// resultsOf returns the current summaries of the files of work.
+func (b *FlowBuild) resultsOf(work []int) []*flow.File {
+	out := make([]*flow.File, len(work))
+	for k, i := range work {
+		out[k] = b.results[i]
+	}
+	return out
 }
 
 // summaryWorkers is the number of files summarized side by side on cores

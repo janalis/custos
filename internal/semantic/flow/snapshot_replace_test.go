@@ -65,6 +65,14 @@ func TestSnapshotReplaceSamePath(t *testing.T) {
 	fresh := &File{Path: "p", Summaries: map[string]Summary{"c": {}}}
 	got := NewSnapshotWithOptions(Options{}, old, keep).Replace(nil, []*File{fresh})
 	assertSameSnapshot(t, "same path", got, NewSnapshotWithOptions(Options{}, keep, fresh))
+	// One with other options removes the file at its path, as a rebuild
+	// leaves it out.
+	foreign := &File{options: Options{Assertions: true}, Path: "p", Summaries: map[string]Summary{"c": {}}}
+	got = NewSnapshotWithOptions(Options{}, old, keep).Replace(nil, []*File{foreign})
+	assertSameSnapshot(t, "other options", got, NewSnapshotWithOptions(Options{}, keep, foreign))
+	// A nil snapshot is the empty one, as for lookups.
+	var none *Snapshot
+	assertSameSnapshot(t, "nil", none.Replace(nil, []*File{keep}), NewSnapshotWithOptions(Options{}, keep))
 }
 
 func assertSameSnapshot(t *testing.T, label string, got, want *Snapshot) {

@@ -64,8 +64,9 @@ func absolute(path string) string {
 // absoluteFrom is absolute for a caller that already knows the working
 // directory cwd, without asking the system for it again.
 func absoluteFrom(cwd, path string) string {
-	if filepath.IsAbs(path) {
-		return filepath.Clean(path)
+	// A Windows volume-relative path (C:foo) is left to absolute.
+	if filepath.IsAbs(path) || filepath.VolumeName(path) != "" {
+		return absolute(path)
 	}
 	return filepath.Join(cwd, path)
 }

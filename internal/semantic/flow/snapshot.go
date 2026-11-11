@@ -221,6 +221,9 @@ func (s *Snapshot) flat() *Snapshot {
 // names of these files are counted again: a fixed point that summarizes a
 // few files per round does not re-add the contracts of every other file.
 func (s *Snapshot) Replace(prev, next []*File) *Snapshot {
+	if s == nil {
+		s = NewSnapshotWithOptions(Options{})
+	}
 	f := s.flat()
 	n := &Snapshot{options: f.options, files: maps.Clone(f.files), summaries: maps.Clone(f.summaries), shared: maps.Clone(f.shared)}
 	// A name left to a single file whose summary is not at hand yet.
@@ -252,11 +255,14 @@ func (s *Snapshot) Replace(prev, next []*File) *Snapshot {
 		}
 	}
 	for _, file := range next {
-		if file == nil || file.options != n.options {
+		if file == nil {
 			continue
 		}
 		if old := n.files[file.Path]; old != nil {
 			drop(old)
+		}
+		if file.options != n.options {
+			continue
 		}
 		n.files[file.Path] = file
 		for name, summary := range file.Summaries {
