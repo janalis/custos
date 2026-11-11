@@ -24,6 +24,7 @@
   "ignores": [
     "**/node_modules/**",
     ".cache/**",
+    ".claude/worktrees/**",
     "bin/**",
     "dist/**",
     "docs/.vitepress/cache/**",

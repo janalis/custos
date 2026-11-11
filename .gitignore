@@ -14,3 +14,5 @@
 /docs/.vitepress/cache/
 /docs/.vitepress/dist/
 /.claude/skills
+# checkouts that agent sessions work in
+/.claude/worktrees/

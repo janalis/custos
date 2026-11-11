@@ -5,6 +5,7 @@
   "Exclude": [
     "^ARCHITECTURE-PLAN\\.md$",
     "^\\.cache/",
+    "^\\.claude/worktrees/",
     "^bin/",
     "^dist/",
     "^docs/node_modules/",
