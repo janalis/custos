@@ -496,6 +496,9 @@
     "summary": "A statement inside a `foreach` body that uses no loop variable and nothing the\nloop body changes produces the same effect on every iteration; it most likely\nbelongs before or after the loop. Optionally (off by default) the rule also\npoints at objects instantiated on every iteration that could be built once and\ncloned.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_CLONE | bool | false | Reports object creation on every iteration. |"
   },
+  "DocumentedArgumentType": {
+    "summary": "Report an argument that breaks a parameter's contract when PHPDoc is taken\ninto account: the `@param` type of a project function rejects it, or the\ndeclared type rejects a value whose type only PHPDoc describes. PHP may run\nsuch a call, but the code and its documentation disagree. Mismatches the\ncode alone proves are InvalidArgumentType's."
+  },
   "DomAppendMovesNodeUnexpectedly": {
     "summary": "Clone the node when preserving its existing parent. This inspection is disabled by default; enabling it selects the stated policy.",
     "options": "None. Use normal rule configuration to enable or disable the inspection."
@@ -897,6 +900,9 @@
     "phpMin": "5.5",
     "summary": "Use the 24-hour calendar field.",
     "fix": true
+  },
+  "InvalidArgumentType": {
+    "summary": "Report an argument that the parameter's declared type can never accept,\njudging the argument only by what the code itself shows. PHP throws a\n`TypeError` when such a call runs. Mismatches that rest on PHPDoc are left\nto DocumentedArgumentType."
   },
   "InverseTrigInvalidRealDomain": {
     "summary": "Keep the inverse trigonometric argument within minus one and one.",

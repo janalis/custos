@@ -1,28 +1,11 @@
 package argumentcountmismatch
 
 import (
-	"path"
 	"strings"
 
+	"custos/internal/inspection/semanticquery"
 	phpversion "custos/internal/php/version"
 )
-
-// bundledStubs lists the stub directories of extensions bundled with PHP
-// whose parameter counts were compared with the engine's reflection (PHP
-// 8.5, every bundled extension loaded). The stubs of other extensions
-// document their API, not the counts PHP enforces.
-var bundledStubs = map[string]bool{
-	"Core": true, "FFI": true, "PDO": true, "Phar": true, "Reflection": true, "SPL": true,
-	"SimpleXML": true, "bcmath": true, "bz2": true, "calendar": true, "ctype": true, "curl": true,
-	"date": true, "dba": true, "dom": true, "exif": true, "fileinfo": true, "filter": true,
-	"ftp": true, "gd": true, "gettext": true, "gmp": true, "hash": true, "iconv": true, "intl": true,
-	"json": true, "ldap": true, "libxml": true, "mbstring": true, "mysqli": true, "odbc": true,
-	"openssl": true, "pcntl": true, "pcre": true, "pgsql": true, "posix": true, "random": true,
-	"readline": true, "session": true, "shmop": true, "soap": true, "sockets": true, "sodium": true,
-	"sqlite3": true, "standard": true, "sysvmsg": true, "sysvsem": true, "sysvshm": true,
-	"tidy": true, "tokenizer": true, "uri": true, "xml": true, "xmlreader": true, "xmlwriter": true,
-	"xsl": true, "zip": true, "zlib": true,
-}
 
 // driftedStubs lists the builtins of bundled directories whose stub
 // declares other parameter counts than PHP does: overloaded signatures
@@ -72,5 +55,5 @@ var driftedStubs = map[string]bool{
 // hand and the stubs model them only roughly.
 func trustedBuiltin(file, callee string, ver phpversion.Version) bool {
 	callee = strings.ToLower(strings.TrimPrefix(callee, `\`))
-	return ver >= phpversion.PHP80 && bundledStubs[path.Base(path.Dir(file))] && !driftedStubs[callee]
+	return ver >= phpversion.PHP80 && semanticquery.BundledStub(file) && !driftedStubs[callee]
 }

@@ -7,6 +7,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- InvalidArgumentType (error) and DocumentedArgumentType (warning), both
+  off by default, report an argument the parameter type can never accept.
+  The first judges the argument by the code alone, where PHP would throw a
+  `TypeError`; the second takes PHPDoc into account: a `@param` type, or an
+  argument typed only by PHPDoc. Both follow PHP's weak-mode conversions
+  outside `declare(strict_types=1)` and check PHP's own functions from PHP
+  8.0, except those whose stubs declare other parameter types than PHP.
 - `ArgumentCountMismatch` (off by default) reports a call that leaves a
   required parameter without an argument, and a call passing more arguments
   than a PHP function or method declares. Overrides in subtypes that accept

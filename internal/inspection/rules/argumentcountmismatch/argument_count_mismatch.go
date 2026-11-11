@@ -20,12 +20,6 @@ func (rule) Kinds() []syntax.NodeKind {
 
 func (rule) Semantic() {}
 
-// target is one declaration a call may bind to.
-type target struct {
-	params  []index.Param
-	builtin bool
-}
-
 // written is what a call passes: its positional arguments and the names
 // of its named ones.
 type written struct {
@@ -55,22 +49,24 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	name, targets, ok := resolve(ctx, n, callee)
+	name, targets, ok := semanticquery.CallTargets(ctx, n, callee, func(file, callee string) bool {
+		return trustedBuiltin(file, callee, ctx.PHP)
+	})
 	if !ok {
 		return
 	}
-	missing, _ := bind(targets[0].params, args)
+	missing, _ := bind(targets[0].Params, args)
 	limit := 0
 	for _, t := range targets {
-		lacking, bound := bind(t.params, args)
+		lacking, bound := bind(t.Params, args)
 		if !bound {
 			return
 		}
 		if len(lacking) == 0 {
 			missing = nil
 		}
-		accepted, capped := maximum(t.params)
-		if !t.builtin || !capped {
+		accepted, capped := maximum(t.Params)
+		if !t.Builtin || !capped {
 			limit = -1
 		} else if limit >= 0 {
 			limit = max(limit, accepted)

@@ -916,6 +916,10 @@
             "link": "/rules/probable-bugs/DirectoryIteratorDotEntries"
           },
           {
+            "text": "DocumentedArgumentType",
+            "link": "/rules/probable-bugs/DocumentedArgumentType"
+          },
+          {
             "text": "DomAppendMovesNodeUnexpectedly",
             "link": "/rules/probable-bugs/DomAppendMovesNodeUnexpectedly"
           },
@@ -1246,6 +1250,10 @@
           {
             "text": "IntlTwelveHourFieldUsedForTwentyFourHourTime",
             "link": "/rules/probable-bugs/IntlTwelveHourFieldUsedForTwentyFourHourTime"
+          },
+          {
+            "text": "InvalidArgumentType",
+            "link": "/rules/probable-bugs/InvalidArgumentType"
           },
           {
             "text": "InverseTrigInvalidRealDomain",

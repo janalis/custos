@@ -138,6 +138,7 @@ import (
 	"custos/internal/inspection/rules/directoryiteratordotentries"
 	"custos/internal/inspection/rules/disallowwritingintostaticproperties"
 	"custos/internal/inspection/rules/disconnectedforeachinstruction"
+	"custos/internal/inspection/rules/documentedargumenttype"
 	"custos/internal/inspection/rules/domappendmovesnodeunexpectedly"
 	"custos/internal/inspection/rules/domcrossdocumentappend"
 	"custos/internal/inspection/rules/domelementvaluecontainsbareampersand"
@@ -241,6 +242,7 @@ import (
 	"custos/internal/inspection/rules/intlgregorianmonthoffbyone"
 	"custos/internal/inspection/rules/intltimezoneoffsetmillisecondsusedasseconds"
 	"custos/internal/inspection/rules/intltwelvehourfieldusedfortwentyfourhourtime"
+	"custos/internal/inspection/rules/invalidargumenttype"
 	"custos/internal/inspection/rules/inversetriginvalidrealdomain"
 	"custos/internal/inspection/rules/invertedifelseconstructs"
 	"custos/internal/inspection/rules/iscountablecanbeused"
@@ -801,6 +803,7 @@ func All() []analysis.Rule {
 		decompressionfailureconsumed.New(),
 		deflatestreamneverfinished.New(),
 		directoryiteratordotentries.New(),
+		documentedargumenttype.New(),
 		domappendmovesnodeunexpectedly.New(),
 		domcrossdocumentappend.New(),
 		domelementvaluecontainsbareampersand.New(),
@@ -881,6 +884,7 @@ func All() []analysis.Rule {
 		intlgregorianmonthoffbyone.New(),
 		intltimezoneoffsetmillisecondsusedasseconds.New(),
 		intltwelvehourfieldusedfortwentyfourhourtime.New(),
+		invalidargumenttype.New(),
 		inversetriginvalidrealdomain.New(),
 		isoweekcalendaryearmismatch.New(),
 		issetargumentexistence.New(),

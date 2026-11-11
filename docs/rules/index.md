@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **581 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **583 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -269,6 +269,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [DecompressionFailureConsumed](./probable-bugs/DecompressionFailureConsumed) | native | warning | on |  | PHP ≥ 5.3 |
 | [DeflateStreamNeverFinished](./probable-bugs/DeflateStreamNeverFinished) | native | warning | off |  | PHP ≥ 7.0 |
 | [DirectoryIteratorDotEntries](./probable-bugs/DirectoryIteratorDotEntries) | native | warning | on |  | any |
+| [DocumentedArgumentType](./probable-bugs/DocumentedArgumentType) | native | warning | off |  | any |
 | [DomAppendMovesNodeUnexpectedly](./probable-bugs/DomAppendMovesNodeUnexpectedly) | native | warning | off |  | any |
 | [DomCrossDocumentAppend](./probable-bugs/DomCrossDocumentAppend) | native | error | on |  | any |
 | [DomElementValueContainsBareAmpersand](./probable-bugs/DomElementValueContainsBareAmpersand) | native | warning | on |  | any |
@@ -349,6 +350,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [IntlGregorianMonthOffByOne](./probable-bugs/IntlGregorianMonthOffByOne) | native | warning | off |  | PHP ≥ 5.5 |
 | [IntlTimezoneOffsetMillisecondsUsedAsSeconds](./probable-bugs/IntlTimezoneOffsetMillisecondsUsedAsSeconds) | native | warning | on | ✓ | PHP ≥ 5.5 |
 | [IntlTwelveHourFieldUsedForTwentyFourHourTime](./probable-bugs/IntlTwelveHourFieldUsedForTwentyFourHourTime) | native | warning | on | ✓ | PHP ≥ 5.5 |
+| [InvalidArgumentType](./probable-bugs/InvalidArgumentType) | native | error | off |  | any |
 | [InverseTrigInvalidRealDomain](./probable-bugs/InverseTrigInvalidRealDomain) | native | warning | on |  | any |
 | [IsoWeekCalendarYearMismatch](./probable-bugs/IsoWeekCalendarYearMismatch) | native | warning | on | ✓ | any |
 | [IssetArgumentExistence](./probable-bugs/IssetArgumentExistence) | EA | warning | on |  | any |
