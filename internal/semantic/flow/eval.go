@@ -213,7 +213,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		// It may also throw, which ends the function here.
 		leaving(f, r)
 	}
-	v := Value{Complete: true, Expr: x}
+	var v Value
 	switch n := x.(type) {
 	case *syntax.Variable:
 		v = e.evalVariable(n, f, r, depth)
@@ -258,49 +258,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		// What the consumer sends back is not known.
 		v = Value{}
 	case *syntax.Eval, *syntax.Include:
-		f.definite = false
-		f.related = nil
-		f.resetVars()
-		f.states = nil
-		v = Value{}
-		if r.complete {
-			r.cut = x.Span().Start
-		}
-		r.complete = false
-		r.gap("dynamic-code", x.Span())
+		v = evalDynamicCode(x, f, r)
 	default:
-		first := true
-		syntax.Children(x, func(child syntax.Node) {
-			if expr, ok := child.(syntax.Expr); ok {
-				cv := e.eval(expr, f, r, depth+1)
-				if first {
-					v = cv
-					first = false
-				} else {
-					v = merge(v, cv)
-				}
-			}
-		})
-		v.Expr = x
-		switch n := x.(type) {
-		case *syntax.Instanceof, *syntax.Isset, *syntax.Empty:
-			v.Safe |= everyContext
-		case *syntax.Literal, *syntax.StringPart, *syntax.ConstFetch, *syntax.MagicConst, *syntax.Name, *syntax.Identifier, *syntax.Throw:
-		case *syntax.Print, *syntax.Exit:
-			// The operand is converted to text.
-			if !first && !v.plain {
-				e.implicit(x, f, r)
-			}
-		case *syntax.ClassConstFetch:
-			// `X::class` is the name written: nothing is loaded for it,
-			// nor for a constant of a class that is loaded.
-			if !className(n) && !r.idle() && !e.loaded(n) {
-				e.implicit(x, f, r)
-			}
-		default:
-			// A class loads on first use, and `clone` runs a method.
-			e.implicit(x, f, r)
-		}
+		v = e.evalOther(x, f, r, depth)
 	}
 	// What the expression yields is no object when it computes a number, a
 	// boolean, text, an array or a function; one that hands a value on
