@@ -7,6 +7,19 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `ArgumentCountMismatch` (off by default) reports a call that leaves a
+  required parameter without an argument, and a call passing more arguments
+  than a PHP function or method declares. Overrides in subtypes that accept
+  the call, unpacked or unknown named arguments, magic methods and, before
+  PHP 8.0, PHP's own functions are left alone.
+- `UndefinedFunction` and `UndefinedClass` (off by default) report a
+  function, or a class loaded by `new`, a static access, `extends`,
+  `implements` or `use`, that neither the project, its installed Composer
+  packages nor PHP declares. They report only when every package the project
+  requires, requires for development or suggests is installed and indexed,
+  and skip names guarded by existence or version checks, names of
+  extensions the stubs lack, and names PHP does not load (`instanceof`,
+  `catch`, types, `::class`, attributes).
 - `--parse-once` (or `"parseOnce": true` in `custos.json`) parses each
   analysed file once and keeps its syntax tree from indexing until its
   analysis, instead of parsing it again in each phase. On laravel's `src`
@@ -44,6 +57,23 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- UntrustedForwardedClientAddress takes a proxy check that leaves on
+  failure (`knownProxy($ip) or exit;`) or whose stored result is tested
+  (`$trusted = knownProxy($ip); if (!$trusted) { return; }`) as a guard.
+- ForgottenDebugOutput no longer reports a debug function called after
+  `function_exists()` confirmed it through an early exit
+  (`if (!function_exists('f')) { return; }`), an `else` arm, a
+  short-circuit operand or a stored result.
+- DateLastErrorsFalseUnchecked no longer reports `getLastErrors()` read
+  after a failed parse when the failure is known from an `else` or `elseif`
+  arm, a short-circuit operand (`DateTime::createFromFormat(…) ?: throw …`),
+  a stored result, or statements between them that parse nothing.
+- JsonEncodingApiUsage takes a result tested as an operand of `&&`, `||`,
+  `and` or `or` (`$data || throw …;`, `if ($ready && $data)`) as a
+  handled failure.
+- TransactionEarlyReturn accepts a `finally` cleanup written as
+  `$pdo->inTransaction() && $pdo->rollBack();` (or `!… || …`) or as the
+  `else` arm of `if (!$pdo->inTransaction())`.
 - UntrustedForwardedClientAddress reports a forwarded-address comparison
   written as the condition of an `elseif` arm; it only looked at `if`
   conditions. The earlier conditions of the chain count as proxy guards.

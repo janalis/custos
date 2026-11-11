@@ -16,6 +16,7 @@ import (
 	"custos/internal/platform/safeio"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/wire"
 )
 
 // The flow steps cache keeps, between runs, every summary the last flow
@@ -158,7 +159,7 @@ func (s *flowSteps) decode(b []byte, srcs [][]byte, options flow.Options) (*Flow
 		same := r.String() == string(s.sums[i][:]) && srcs[i] != nil
 		current = current && same
 		n, _ := r.Len()
-		steps := make([]flowStep, n)
+		steps := wire.Make[flowStep](r, n)
 		for k := range steps {
 			steps[k] = flowStep{d.File(), d.Snapshot()}
 		}
