@@ -50,9 +50,12 @@ Reported:
   `composer.json` and the vendor directory's `composer/installed.json`
   exist; every package the project requires, suggests or requires for
   development is installed (or replaced or provided by an installed
-  package); every installed package that autoloads code was indexed; and
-  every classmap and files entry of the project's own autoload
-  configuration lies under the analysed paths.
+  package); every installed package that autoloads code was indexed; every
+  classmap entry, of the project or of a package, was read whole (under
+  the analysed paths, with no directory or loadable file left out); every
+  files entry was read; and every PHP extension the project requires,
+  suggests or requires for development, or an installed package requires
+  (`ext-…`), is one the stubs describe.
 
 ## Exceptions (no report)
 
@@ -63,12 +66,27 @@ Reported:
   `interface_exists()`, `trait_exists()` or `enum_exists()` (a literal name
   or a `::class` fetch), or a name inside a branch whose condition checks
   existence, a loaded extension, a constant's definition or the PHP version
-  (a conditional declaration or guarded code).
+  (a conditional declaration or guarded code), or that such a check guards
+  by its result: an earlier early exit
+  (`if (!extension_loaded('x')) { return; }`), a short circuit
+  (`defined('X') or die()`), an else arm, or a `switch (true)` case or
+  `match (true)` arm. A check whose result guards nothing (stored and left
+  unread) does not count.
 - A namespaced name in a namespace that a PHP extension uses (such as
-  `MongoDB\` or `Swoole\`), and a name under a PSR-4 or PSR-0 prefix that
-  the project autoloads from a directory outside the analysed paths.
-- A global name when an indexed file calls `class_alias()` with computed
-  names, which may declare any global alias (framework facades).
+  `MongoDB\` or `Swoole\`), and a name under a PSR-4 or PSR-0 prefix whose
+  code the analysis did not read: a directory outside the analysed paths,
+  or, below it, a directory or a file left out (excluded by the
+  configuration, hidden, a test directory of a package, or too large to
+  analyse). Below a PSR-4 directory only the namespace of what was left
+  out is concerned. A global name whose leading word (up to its first
+  underscore or its second capitalized word, an acronym counting as one
+  word: `Sphinx` of `SphinxClient`, `PDO` of `PDOStatement`) starts no
+  class-like PHP or a known extension declares (`Yac`, `SphinxClient`): it
+  may belong to an extension the stubs lack. A global name with the leading
+  word of a known class (`DateTim`) is still reported.
+- Any name when an indexed file calls `class_alias()` with computed
+  names, which may declare any alias, global (framework facades) or
+  namespaced.
 - Names PHP does not load: `instanceof` and `catch` (they compare
   names; libraries use them for optional dependencies), parameter, return
   and property types (checked only against a value, and used for optional

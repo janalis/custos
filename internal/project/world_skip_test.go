@@ -110,7 +110,7 @@ func TestIndexUnread(t *testing.T) {
 	if err := os.Chmod(locked, 0); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(locked, 0o755)
+	defer func() { _ = os.Chmod(locked, 0o755) }()
 	if _, skipped := IndexSourcesSkipping(root, nil, nil, nil); !slices.Equal(skipped.Dirs, []string{filepath.Join(root, "vendor")}) {
 		t.Fatalf("unreadable vendor: %v", skipped.Dirs)
 	}

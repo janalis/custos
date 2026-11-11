@@ -47,8 +47,11 @@ Reported:
   directory's `composer/installed.json` exist; every package the project
   requires, suggests or requires for development is installed (or replaced
   or provided by an installed package); every installed package that
-  autoloads code was indexed; and every classmap and files entry of the
-  project's own autoload configuration lies under the analysed paths.
+  autoloads code was indexed; every classmap entry, of the project or of a
+  package, was read whole (under the analysed paths, with no directory or
+  loadable file left out); every files entry was read; and every PHP
+  extension the project requires, suggests or requires for development, or
+  an installed package requires (`ext-…`), is one the stubs describe.
 
 ## Exceptions (no report)
 
@@ -58,11 +61,18 @@ Reported:
 - A file that asks for the function by name with `function_exists()` or
   `is_callable()` (a literal name), or a call inside a branch whose
   condition checks existence, a loaded extension, a constant's definition or
-  the PHP version (a conditional declaration or guarded code).
+  the PHP version (a conditional declaration or guarded code), or that such a
+  check guards by its result: an earlier early exit
+  (`if (!extension_loaded('x')) { return; }`), a short circuit
+  (`defined('X') or die()`), an else arm, or a `switch (true)` case or
+  `match (true)` arm. A check whose result guards nothing (stored and left
+  unread) does not count.
 - A namespaced name in a namespace that a PHP extension uses (such as
   `MongoDB\` or `Swoole\`), and a namespaced name under a PSR-4 or PSR-0
-  prefix that the project autoloads from a directory outside the analysed
-  paths.
+  prefix whose code the analysis did not read: a directory outside the
+  analysed paths, or, below it, a directory or a file left out (excluded
+  by the configuration, hidden, a test directory of a package, or too
+  large to analyse).
 - A global name whose leading word, up to its first underscore, starts
   no function PHP or a known extension declares (`newext_open()`): it may
   belong to an extension the stubs lack. A global name without an

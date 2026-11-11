@@ -7,6 +7,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- UndefinedFunction and UndefinedClass (off by default) report calls and
+  class names nothing declares. They report only when the project's world
+  is complete: Composer's packages all installed and indexed, every
+  required `ext-*` described by the stubs, and nothing the analysis skips
+  (excluded, hidden or vendor test directories, files too large to
+  analyse) able to declare the name. Existence, extension and version
+  checks guarding the code, early exits included, keep them silent, and
+  the language server follows `composer.json` and `installed.json`
+  changes.
 - InvalidArgumentType (error) and DocumentedArgumentType (warning), both
   off by default, report an argument the parameter type can never accept.
   The first judges the argument by the code alone, where PHP would throw a
