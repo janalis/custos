@@ -37,10 +37,12 @@ asks `analysis.Context.Suppressed` (the engine's suppression comments,
 built once per file and reused when filtering findings) and, when it is
 suppressed, whether it repeats another itself. The same question covers
 the baseline: the adapters (the CLI, the language server, MCP snapshots)
-hand the engine `baseline.Covers` through `analysis.Engine.WithRecorded`
-before analysis, and `--generate-baseline` hands it a predicate recording
+hand the engine `baseline.Recorder` through `analysis.Engine.WithRecorded`
+before analysis, and `--generate-baseline` hands it one recording
 everything, so a generated baseline holds every access and a later added
-access is new. `Covers` consumes no count (see the spec's known limit).
+access is new. A file's recorder is built on the first question and
+indexes its lines once (keys as `FilterFindings` builds them); it
+consumes no count (see the spec's known limit).
 
 ## NullPointerException
 

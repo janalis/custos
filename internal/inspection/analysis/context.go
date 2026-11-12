@@ -48,6 +48,10 @@ type Context struct {
 	// skipped; skippedNow those of this run, and relied the checks
 	// RuleChecks told running (see Engine.AnalyzeResult).
 	skipped, skippedNow, relied map[ruleCheck]bool
+	// recorded tells the findings of the file the engine's baseline
+	// records (see Engine.WithRecorded), set on first use (recordedSet).
+	recorded    func(diagnostic.Finding) bool
+	recordedSet bool
 	// sup holds the file's suppression comments, built on first use.
 	sup *suppressions
 }
@@ -172,7 +176,16 @@ func (c *Context) RuleBool(id, name string) bool {
 // report can tell that it is silenced.
 func (c *Context) Suppressed(rule string, span syntax.Span, message string) bool {
 	f := diagnostic.Finding{Rule: rule, Span: span, Message: message}
-	return c.suppressions().suppressed(f) || c.engine.recorded != nil && c.engine.recorded(c.File.Path, c.Src, f)
+	if c.suppressions().suppressed(f) {
+		return true
+	}
+	if !c.recordedSet {
+		c.recordedSet = true
+		if c.engine.recorded != nil {
+			c.recorded = c.engine.recorded(c.File.Path, c.Src)
+		}
+	}
+	return c.recorded != nil && c.recorded(f)
 }
 
 func (c *Context) suppressions() *suppressions {

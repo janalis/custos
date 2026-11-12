@@ -695,7 +695,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 			return nil, fmt.Errorf("%w %s: %w", ErrBaseline, s.Baseline, err)
 		}
 		s.Recorded = bl
-		analyzer = s.Engine.WithRecorded(bl.Covers)
+		analyzer = s.Engine.WithRecorded(bl.Recorder)
 	}
 	results := make([]diagnostic.FileResult, len(s.Files))
 	if err := Each(ctx, len(s.Files), func(i int) {

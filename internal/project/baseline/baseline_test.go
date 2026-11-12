@@ -255,42 +255,83 @@ func TestMovedFindings(t *testing.T) {
 	}
 }
 
-// TestCovers: Covers tells which findings a baseline records without
-// consuming entries: of the finding's rule and message, or of a related
-// rule whatever the message, at its line text taken as FilterFindings
-// takes it (lone CRs included). A relative directory matches relative
-// paths as they are.
-func TestCovers(t *testing.T) {
+// TestRecorder: a file's recorder tells which findings the baseline
+// records without consuming entries: of the finding's rule and message, or
+// of a related rule whatever the message, at its line text taken as
+// FilterFindings takes it (CRLF, LF and lone CR line endings alike). A
+// relative directory matches relative paths as they are; a file without
+// entries has no recorder.
+func TestRecorder(t *testing.T) {
 	b, err := Parse([]byte(`{"version": 1, "entries": [
 		{"path": "a.php", "rule": "R", "message": "m", "line": "$a;", "count": 1},
 		{"path": "a.php", "rule": "R", "message": "m", "line": "", "count": 1},
-		{"path": "a.php", "rule": "NullPointerException", "message": "other", "line": "$n->x();", "count": 1}]}`), "src")
+		{"path": "a.php", "rule": "NullPointerException", "message": "other", "line": "$n->x();", "count": 1},
+		{"path": "cr.php", "rule": "R", "message": "m", "line": "<?php", "count": 1}]}`), "src")
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := []byte("<?php\r\n$a;\n$n->x();\n $a;\r$b;")
 	at := func(rule, msg string, off uint32) diagnostic.Finding {
 		return diagnostic.Finding{Rule: rule, Message: msg, Span: syntax.Span{Start: off, End: off + 1}}
 	}
-	for _, c := range []struct {
-		path string
+	type check struct {
 		f    diagnostic.Finding
 		want bool
+	}
+	for _, c := range []struct {
+		path   string
+		src    string
+		checks []check
 	}{
-		{"src/a.php", at("R", "m", 7), true},
-		{"src/a.php", at("R", "m", 8), true}, // not consumed by the first
-		{"src/a.php", at("R", "other", 7), false},
-		{"src/a.php", at("PossiblyNullAccess", "m", 11), true},
-		{"src/a.php", at("UnnecessarySemicolon", "m", 11), false},
-		{"src/a.php", at("R", "m", 20), false}, // the line runs to the newline: " $a;\r$b;"
-		{"src/a.php", at("R", "m", 25), true},  // after a lone CR: no such line, keyed ""
-		{"src/b.php", at("R", "m", 7), false},
+		{"src/a.php", "<?php\r\n$a;\n$n->x();\n $a;\r$b;", []check{
+			{at("R", "m", 7), true},
+			{at("R", "m", 8), true}, // not consumed by the first
+			{at("R", "other", 7), false},
+			{at("PossiblyNullAccess", "m", 11), true},
+			{at("UnnecessarySemicolon", "m", 11), false},
+			{at("R", "m", 20), false}, // the line runs to the newline: " $a;\r$b;"
+			{at("R", "m", 25), true},  // after a lone CR: no such line, keyed ""
+		}},
+		// CR-only line endings: the first line holds the whole file, the
+		// others key as "".
+		{"src/cr.php", "<?php\r$a;\r$b;", []check{
+			{at("R", "m", 0), false}, // the line is "<?php\r$a;\r$b;"
+			{at("R", "m", 6), false}, // no entry of cr.php keys ""
+		}},
 	} {
-		if got := b.Covers(c.path, src, c.f); got != c.want {
-			t.Errorf("Covers(%s, %+v) = %v, want %v", c.path, c.f, got, c.want)
+		rec := b.Recorder(c.path, []byte(c.src))
+		for _, k := range c.checks {
+			if got := rec(k.f); got != k.want {
+				t.Errorf("%s: recorder(%+v) = %v, want %v", c.path, k.f, got, k.want)
+			}
+			// The same key as FilterFindings, with an entry left.
+			if filtered := len(b.FilterFindings(c.path, []byte(c.src), []diagnostic.Finding{k.f})) == 0; filtered != k.want {
+				t.Errorf("%s: FilterFindings(%+v) covered = %v, recorder %v", c.path, k.f, filtered, k.want)
+			}
 		}
+	}
+	if b.Recorder("src/b.php", []byte("<?php")) != nil {
+		t.Fatal("recorder of a file without entries")
 	}
 	if _, err := Parse([]byte("{"), "."); err == nil {
 		t.Fatal("invalid baseline parsed")
+	}
+}
+
+// BenchmarkRecorder measures the questions a check asks about many
+// findings of one large file the baseline records: the file's lines are
+// indexed once, not once per finding.
+func BenchmarkRecorder(b *testing.B) {
+	bl, err := Parse([]byte(`{"version": 1, "entries": [{"path": "a.php", "rule": "R", "message": "m", "line": "$a;", "count": 1}]}`), ".")
+	if err != nil {
+		b.Fatal(err)
+	}
+	const lines = 50000
+	src := []byte("<?php\n" + strings.Repeat("$a;\n", lines))
+	b.ReportAllocs()
+	for b.Loop() {
+		rec := bl.Recorder("a.php", src)
+		for i := range uint32(lines) {
+			rec(diagnostic.Finding{Rule: "R", Message: "m", Span: syntax.Span{Start: 6 + 4*i, End: 9 + 4*i}})
+		}
 	}
 }

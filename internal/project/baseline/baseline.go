@@ -191,58 +191,51 @@ func rel(dir, path string) string {
 	return filepath.ToSlash(abs)
 }
 
-// Covers reports whether the baseline has an entry for finding f of the
-// file at path, whose source is src: one of its rule and message, or of a
-// related rule (see related), at its line text. Unlike Filter, it consumes
-// no entry, so a check can ask about a finding before the baseline is
-// applied (see analysis.Engine.WithRecorded); a finding sharing its line
-// text and key with another one may then be told covered when the count
-// only covers the other.
-func (b *Baseline) Covers(path string, src []byte, f diagnostic.Finding) bool {
+// Recorder returns, for the file at path whose source is src, whether
+// the baseline has an entry for one of its findings: one of the finding's
+// rule and message, or of a related rule (see related), at its line text,
+// taken as FilterFindings takes it. It returns nil when the file has no
+// entry. Unlike Filter, it consumes no entry, so a check can ask about a
+// finding before the baseline is applied (see analysis.Engine.WithRecorded);
+// a finding sharing its line text and key with another one may then be
+// told covered when the count only covers the other. The file's lines are
+// indexed once, on the first question.
+func (b *Baseline) Recorder(path string, src []byte) func(diagnostic.Finding) bool {
 	p := rel(b.dir, path)
 	if !b.paths[p] {
-		return false
+		return nil
 	}
-	text := lineAt(src, f.Span.Start)
-	if b.counts[key{p, f.Rule, f.Message, text}] > 0 {
-		return true
-	}
-	for _, other := range related()[f.Rule] {
-		if len(b.byLoc[loc{p, other, text}]) > 0 {
+	var text func(uint32) string
+	return func(f diagnostic.Finding) bool {
+		if text == nil {
+			text = lineTexts(src)
+		}
+		t := text(f.Span.Start)
+		if b.counts[key{p, f.Rule, f.Message, t}] > 0 {
 			return true
 		}
+		for _, other := range related()[f.Rule] {
+			if len(b.byLoc[loc{p, other, t}]) > 0 {
+				return true
+			}
+		}
+		return false
 	}
-	return false
 }
 
-// lineAt returns the trimmed text of the line of src holding offset,
-// numbered and split as FilterFindings does it (a lone CR ends a line for
-// the number, not for the text).
-func lineAt(src []byte, offset uint32) string {
-	at := min(int(offset), len(src))
-	line := 0
-	for i := 0; i < at; i++ {
-		switch src[i] {
-		case '\r':
-			if i+1 < len(src) && src[i+1] == '\n' {
-				i++
-			}
-			line++
-		case '\n':
-			line++
+// lineTexts indexes the lines of src once and returns the trimmed text of
+// the line holding an offset: numbered by syntax.LineIndex (a lone CR ends
+// a line) and split on newlines as Filter reads files (so a line after a
+// lone CR keys as the text of the newline-split line of that number).
+func lineTexts(src []byte) func(uint32) string {
+	li := syntax.NewLineIndex(src)
+	lines := strings.Split(string(bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n"))), "\n")
+	return func(offset uint32) string {
+		if l, _ := li.Position(offset); l < len(lines) {
+			return strings.TrimSpace(lines[l])
 		}
+		return ""
 	}
-	for ; line > 0; line-- {
-		i := bytes.IndexByte(src, '\n')
-		if i < 0 {
-			return ""
-		}
-		src = src[i+1:]
-	}
-	if i := bytes.IndexByte(src, '\n'); i >= 0 {
-		src = src[:i]
-	}
-	return strings.TrimSpace(string(src))
 }
 
 // Filter removes items covered by the baseline and returns the rest plus
@@ -291,15 +284,10 @@ func (b *Baseline) Covered(path string, src []byte, findings []diagnostic.Findin
 	if len(findings) == 0 || !b.paths[p] {
 		return nil
 	}
-	li := syntax.NewLineIndex(src)
-	lines := strings.Split(string(bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n"))), "\n")
+	text := lineTexts(src)
 	return b.filter(len(findings), func(i int) key {
 		f := findings[i]
-		text := ""
-		if l, _ := li.Position(f.Span.Start); l < len(lines) {
-			text = strings.TrimSpace(lines[l])
-		}
-		return key{p, f.Rule, f.Message, text}
+		return key{p, f.Rule, f.Message, text(f.Span.Start)}
 	})
 }
 

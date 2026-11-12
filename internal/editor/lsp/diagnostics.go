@@ -55,7 +55,7 @@ func (s *Server) analyzeNow(uri string) {
 	analyzer := e
 	if bl != nil {
 		// Checks see the findings the baseline hides as silenced.
-		analyzer = e.WithRecorded(bl.Covers)
+		analyzer = e.WithRecorded(bl.Recorder)
 	}
 	result := s.guardedAnalysis(path, func() diagnostic.FileResult {
 		return project.AnalyzeBuffer(analyzer, path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
