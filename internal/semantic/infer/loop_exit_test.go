@@ -165,6 +165,7 @@ class X {
 // followed by continue, does.
 func TestBackEdgeLeftFirst(t *testing.T) {
 	checkWith(t, nil, `<?php
+function t($label, $value) {}
 function f(bool $c, array $a) {
     $x = 1;
     while ($c) {

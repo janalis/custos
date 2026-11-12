@@ -127,6 +127,7 @@ function run($r, callable $c, iterable $it, object $o, array $a, E $e, mixed $m)
 func TestCovOutParamsAndWrites(t *testing.T) {
 	checkAnywhere(t, `<?php
 namespace App;
+function t($label, $value) {}
 class Foo { public function go(): void {} }
 function run(string $s, array $arr, bool $c) {
     similar_text('a', 'b', $pct); t('pct', $pct);
@@ -161,7 +162,7 @@ class P {
 preg_match('/a/', 'x', $top); t('top', $top);
 `, map[string]string{
 		"pct": "float", "name": "string", "plain": "array", "ternary": "string[]", "or": "string[]",
-		"ternaryElse": "int<1, 1>|string[]", "while": "string[]", "switch": "string[]", "echo": "string[]",
+		"ternaryElse": "int|string[]", "while": "string[]", "switch": "string[]", "echo": "string[]",
 		"unbraced": "string[]", "pointer": "int<1, 2>", "arrow": "int[]<int<1, 1>>", "dead": "null", "compare": "string[]", "inArrow": "string[]", "ternaryCond": "string[]", "chained": "int[]|null<int<1, 1>>", "mixedOut": "?unknown", "top": "string[]",
 	})
 }

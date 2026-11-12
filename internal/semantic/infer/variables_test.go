@@ -68,6 +68,7 @@ function f() {
 // whatever the variable held.
 func TestCompoundAssignmentReplaces(t *testing.T) {
 	checkAnywhere(t, `<?php
+function t($label, $value) {}
 function f($f, int $i) {
     $h = file_get_contents($f);
     $h .= 'x';
@@ -86,7 +87,7 @@ function f($f, int $i) {
     $r = &$s;
     t('byRef', $r);
 }
-`, map[string]string{"concat": "string", "concatNull": "string", "concatExpr": "string", "plus": "float|int", "byRef": "string<len 1, 1>"})
+`, map[string]string{"concat": "string", "concatNull": "string", "concatExpr": "string", "plus": "float|int", "byRef": "string"})
 }
 
 // Arithmetic is typed when one operand is a number, and stays unknown when

@@ -25,16 +25,16 @@ maybeArchive(<warning descr="Pass Shop\Order|null to $order of Shop\maybeArchive
 // Ranges and lengths count against exact values.
 /** @param positive-int $quantity */
 function restock(int $quantity) {}
-restock(<warning descr="Pass positive-int to $quantity of Shop\restock(), not int.">0</warning>);
-restock(<warning descr="Pass positive-int to $quantity of Shop\restock(), not int.">-2</warning>);
+restock(<warning descr="Pass positive-int to $quantity of Shop\restock(), not 0.">0</warning>);
+restock(<warning descr="Pass positive-int to $quantity of Shop\restock(), not -2.">-2</warning>);
 
 /** @param int<1, 9>|null $digit */
 function dial($digit = null) {}
-dial(<warning descr="Pass int<1, 9>|null to $digit of Shop\dial(), not int.">10</warning>);
+dial(<warning descr="Pass int<1, 9>|null to $digit of Shop\dial(), not 10.">10</warning>);
 
 /** @param non-empty-string $code */
 function redeem(string $code) {}
-redeem(<warning descr="Pass non-empty-string to $code of Shop\redeem(), not string.">''</warning>);
+redeem(<warning descr="Pass non-empty-string to $code of Shop\redeem(), not ''.">''</warning>);
 
 // The native type rejects a value only PHPDoc describes.
 /** @param string $amount */

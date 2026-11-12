@@ -41,7 +41,7 @@ Reported:
 <ul>
 <li>line 7: Pass Order to $order of archive(), not string.</li>
 <li>line 11: Pass int to $cents of charge(), not string.</li>
-<li>line 15: Pass positive-int to $quantity of restock(), not int.</li>
+<li>line 15: Pass positive-int to $quantity of restock(), not 0.</li>
 </ul>
 
 ## Detection

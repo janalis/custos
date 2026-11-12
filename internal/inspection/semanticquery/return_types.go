@@ -20,11 +20,14 @@ type ReturnMismatch struct {
 	// type (see infer.Env.ProvenTypeOf); otherwise the `@return` type
 	// rejects it, or the native type rejects only its PHPDoc-aware type.
 	Proven bool
+	// Values tells that the `@return` type rejects only the exact value
+	// returned: the message shows it.
+	Values bool
 }
 
 // Message is the finding's text: the type to return instead.
 func (m ReturnMismatch) Message() string {
-	return "Return " + declaredTypeName(m.Expected) + " from " + m.Function + ", not " + typeName(m.Given) + "."
+	return "Return " + declaredTypeName(m.Expected) + " from " + m.Function + ", not " + givenName(m.Given, m.Values) + "."
 }
 
 type returnTypesKey struct{ n syntax.Node }
@@ -92,6 +95,7 @@ func returnTypeMismatch(ctx *analysis.Context, n syntax.Node) (ReturnMismatch, b
 		}
 	case !c.doc.IsUnknown() && types.AllRejected(c.docFor(given), given, accept):
 		m.Expected = c.docText
+		m.Values = exactValues(given) && !types.AllRejected(c.wideDoc, given, accept)
 	default:
 		return ReturnMismatch{}, false
 	}

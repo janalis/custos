@@ -26,11 +26,14 @@ type PropertyMismatch struct {
 	// type (see infer.Env.ProvenTypeOf); otherwise a PHPDoc type rejects it,
 	// or the native types reject only its PHPDoc-aware type.
 	Proven bool
+	// Values tells that the PHPDoc type rejects only the exact value
+	// stored: the message shows it.
+	Values bool
 }
 
 // Message is the finding's text: the type to assign instead.
 func (m PropertyMismatch) Message() string {
-	return "Assign " + declaredTypeName(m.Expected) + " to " + m.Property + ", not " + typeName(m.Given) + "."
+	return "Assign " + declaredTypeName(m.Expected) + " to " + m.Property + ", not " + givenName(m.Given, m.Values) + "."
 }
 
 type propertyTypesKey struct{ write syntax.Node }
@@ -115,6 +118,9 @@ func judgeStore(ctx *analysis.Context, w propertyStore, stored func(*infer.Env) 
 		}
 	}
 	m := PropertyMismatch{Value: w.report, Property: label, Expected: expected, Given: given}
+	if p, native := targets[0], check.declaredType(targets[0].Type, ""); !allNative && !types.AllRejected(native, given, check.weak) {
+		m.Values = valuesDecide(check, p.DocType, p.DocValues, propertyDefault(p), native, given, check.weak)
+	}
 	if allNative {
 		proven := stored(ctx.Types().Proven())
 		m.Proven = true

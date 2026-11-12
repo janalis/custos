@@ -84,6 +84,7 @@ class H {
 // either variable changed in between.
 func TestBooleanAliasNarrowing(t *testing.T) {
 	checkAnywhere(t, `<?php
+function t($label, $value) {}
 function f(object|string|null $r, ?int $n, $c) {
     if (($isObject = is_object($r)) && $c) {}
     if ($isObject) { t('true', $r); } else { t('false', $r); }

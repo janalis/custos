@@ -92,3 +92,18 @@ final class Chain
         self::$first = null;
     }
 }
+
+// Writes the reaching definitions do not show leave no exact value.
+final class Shelf
+{
+    /** @var positive-int */
+    public int $n = 1;
+
+    public function viaReference()
+    {
+        $c = 0;
+        $p = &$c;
+        $p = 4;
+        $this->n = $c;
+    }
+}

@@ -294,6 +294,10 @@ func IntValue(v int64) Type {
 	return t
 }
 
+// HasValues reports whether t carries int values or string lengths (see
+// WithoutValues).
+func (t Type) HasValues() bool { return t.ints != nil || t.lens != nil }
+
 // WithoutValues drops the int values and string lengths of t, keeping its
 // atoms and other facts.
 func (t Type) WithoutValues() Type {

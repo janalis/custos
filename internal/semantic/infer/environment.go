@@ -109,7 +109,10 @@ type Env struct {
 	nativeTwin *Env
 	// proven: a native Env whose local reads exclude unseen writes (see
 	// Proven); provenTwin caches the proven Env of a native one.
-	proven     bool
+	proven bool
+	// unseenArgs: while set, a call whose callee is unknown may take its
+	// arguments by reference, as in a native Env (see variableBaseAt).
+	unseenArgs bool
 	provenTwin *Env
 }
 

@@ -41,6 +41,7 @@ function f(\Exception $e, ?array $rows, $c) {
 // (return, throw, exit, break out of the region) reach nothing after.
 func TestExclusiveBranchesAndExits(t *testing.T) {
 	checkAnywhere(t, `<?php
+function t($label, $value) {}
 function f(array|int $c, $cc, int $i) {
     if (is_int($c)) { $c = []; } else { t('else', $c); }
     $v = $cc ? ($i = 'a') : t('ternary', $i);
@@ -121,6 +122,7 @@ function f(array|int $c, $cc, int $i) {
 // assigns it nowhere, may be null.
 func TestPossiblyUndefined(t *testing.T) {
 	checkAnywhere(t, `<?php
+function t($label, $value) {}
 function f($t, $c, array $xs) {
     if ($t) { $r = 'X'; }
     t('maybe', $r);

@@ -55,6 +55,8 @@ code alone proves are InvalidArgumentType's.
 - Severity: warning.
 - Message: `Pass Order to $order of archive(), not string.`, with the
   documented or declared type that rejects the value.
+  The given type names the value itself (`not 0.`, `not ''.`) when only
+  the range or length of the documented type rejects it.
 
 ## Fix
 
@@ -85,7 +87,7 @@ function bill($amount) { charge(<warning descr="Pass int to $cents of charge(), 
 
 /** @param positive-int $quantity */
 function restock(int $quantity) {}
-restock(<warning descr="Pass positive-int to $quantity of restock(), not int.">0</warning>);
+restock(<warning descr="Pass positive-int to $quantity of restock(), not 0.">0</warning>);
 ```
 
 A template, or a variadic parameter whose tag types each value, is not

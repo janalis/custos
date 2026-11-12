@@ -2,6 +2,7 @@ package semanticquery
 
 import (
 	_ "embed"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -55,6 +56,9 @@ type ArgumentMismatch struct {
 	// proven type (see infer.Env.ProvenTypeOf); otherwise a PHPDoc type
 	// rejects it, or the native types reject only its PHPDoc-aware type.
 	Proven bool
+	// Values tells that the PHPDoc type rejects only the exact value of the
+	// argument (an integer range, a non-empty string): the message shows it.
+	Values bool
 }
 
 type argumentTypesKey struct{ call syntax.Node }
@@ -125,6 +129,9 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 			continue
 		}
 		m := ArgumentMismatch{Arg: b.arg, Callee: label, Param: params[0].Name, Expected: expected, Given: given}
+		if nominal, at := check.declaredType(params[0].Type, params[0].Default), check.at(targets[0]); !native && !types.AllRejected(nominal, given, at) {
+			m.Values = valuesDecide(check, params[0].DocType, params[0].DocValues, params[0].Default, nominal, given, at)
+		}
 		// Proven: the native types also reject what the code alone shows.
 		if native {
 			if proven := ctx.Types().ProvenTypeOf(b.arg.Value); check.nativeRejects(targets, params, proven) {
@@ -362,7 +369,47 @@ func (c *argumentCheck) declaredType(text, def string) types.Type {
 
 // Message is the finding's text: the type to pass instead.
 func (m ArgumentMismatch) Message() string {
-	return "Pass " + declaredTypeName(m.Expected) + " to $" + m.Param + " of " + m.Callee + "(), not " + typeName(m.Given) + "."
+	return "Pass " + declaredTypeName(m.Expected) + " to $" + m.Param + " of " + m.Callee + "(), not " + givenName(m.Given, m.Values) + "."
+}
+
+// valuesDecide reports whether the values form of a PHPDoc type rejects
+// given while its plain form does not: the exact value decides.
+func valuesDecide(c *argumentCheck, doc, values, def string, native, given types.Type, at types.AcceptContext) bool {
+	return documented(doc, values, given) != doc && !c.docTypeRejects(doc, def, native, given, at)
+}
+
+// givenName prints the given type of a finding: with its exact values when
+// they decided it (see valueName), coarsely otherwise (see typeName).
+func givenName(t types.Type, values bool) string {
+	if values {
+		return valueName(t)
+	}
+	return typeName(t)
+}
+
+// valueName prints t as typeName does, except that an int member listing
+// single values prints them (`0`, `-1|3`) and an empty string member `”`.
+func valueName(t types.Type) string {
+	atoms := t.Atoms()
+	names := make([]string, len(atoms))
+	for i, a := range atoms {
+		names[i] = strings.TrimPrefix(a, `\`)
+		switch a {
+		case "int":
+			if rs, ok := t.IntRanges(); ok && singleValues(rs) {
+				vs := make([]string, len(rs))
+				for j, r := range rs {
+					vs[j] = strconv.FormatInt(r.Lo, 10)
+				}
+				names[i] = strings.Join(vs, "|")
+			}
+		case "string":
+			if rs, ok := t.StringLengthRanges(); ok && len(rs) == 1 && rs[0] == (types.IntRange{}) {
+				names[i] = "''"
+			}
+		}
+	}
+	return strings.Join(names, "|")
 }
 
 // typeName prints t coarsely: its atoms, without value facts or the

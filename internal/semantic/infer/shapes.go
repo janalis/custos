@@ -729,7 +729,7 @@ func (e *Env) byRefArg(m mutation) bool {
 			return false // no constructor: the arguments are not bound
 		}
 	}
-	if e.native && (unresolved || len(params) == 0) {
+	if (e.native || e.unseenArgs) && (unresolved || len(params) == 0) {
 		return true
 	}
 	for _, ps := range params {

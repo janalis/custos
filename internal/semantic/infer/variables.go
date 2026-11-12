@@ -456,6 +456,14 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	if len(ts)+len(backTs) == 0 {
 		return types.Unknown
 	}
+	// The values of the definitions hold only where no write they do not
+	// show may have replaced them (see ProvenTypeOf): the proven Env makes
+	// such a read unknown, the others keep its atoms.
+	if !partial && !e.proven && carriesValues(ts, backTs) {
+		e.unseenArgs = true
+		partial = e.unproven(sv, fwd, back, name, use, scope)
+		e.unseenArgs = false
+	}
 	if partial {
 		for i := range ts {
 			ts[i] = ts[i].WithoutValues()
@@ -490,6 +498,18 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 		parts = append(parts, e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after))
 	}
 	return types.Union(parts...)
+}
+
+// carriesValues reports whether one of the types carries values.
+func carriesValues(lists ...[]types.Type) bool {
+	for _, l := range lists {
+		for _, t := range l {
+			if t.HasValues() {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // redefinedInLoop reports a use inside one of the definitions of its

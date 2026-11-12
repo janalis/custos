@@ -58,6 +58,8 @@ disagree. Mismatches the code alone proves are InvalidPropertyAssignment's.
 - Severity: warning.
 - Message: `Assign Order|null to Cart::$order, not string.`, with the
   documented or declared type that rejects the value.
+  The given type names the value itself (`not 0.`, `not ''.`) when only
+  the range or length of the documented type rejects it.
 
 ## Fix
 

@@ -31,8 +31,8 @@ final class Cart
         $this->orders = <warning descr="Assign array<int,Shop\Order> to Shop\Cart::$orders, not string[].">['a']</warning>;
         self::$currency = <warning descr="Assign string to Shop\Cart::$currency, not int.">978</warning>;
         // Ranges and lengths count against exact values.
-        $this->page = <warning descr="Assign positive-int to Shop\Cart::$page, not int.">0</warning>;
-        $this->label = <warning descr="Assign non-empty-string to Shop\Cart::$label, not string.">''</warning>;
+        $this->page = <warning descr="Assign positive-int to Shop\Cart::$page, not 0.">0</warning>;
+        $this->label = <warning descr="Assign non-empty-string to Shop\Cart::$label, not ''.">''</warning>;
         // The native type rejects a value only PHPDoc describes.
         $this->total = <warning descr="Assign int to Shop\Cart::$total, not string.">$amount</warning>;
     }

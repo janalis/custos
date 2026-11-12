@@ -90,3 +90,16 @@ class Ticket
         return function () { rewind($this->label); };
     }
 }
+
+// Writes the reaching definitions do not show leave no exact value.
+/** @param non-empty-string $code */
+function claim(string $code) {}
+function viaReference() { $c = 0; $p = &$c; $p = 5; restock($c); }
+function viaArrayReference() { $c = 0; $r = [&$c]; $r[0] = 3; restock($c); }
+function viaElementReference() { $c = 0; $m['x'] = &$c; $m['x'] = 4; restock($c); }
+function viaPropertyReference(\stdClass $obj) { $c = 0; $obj->r = &$c; $obj->r = 4; restock($c); }
+function viaGlobal() { global $stock; $stock = 0; refill(); restock($stock); }
+function refill() { global $stock; $stock = 5; }
+function viaClosure() { $c = 0; $fn = static function (&$x) { $x = 9; }; $fn($c); restock($c); }
+function viaInclude() { $c = 0; include 'stock.php'; restock($c); }
+function viaAppend() { $s = ''; $p = &$s; $p .= 'x'; claim($s); }
