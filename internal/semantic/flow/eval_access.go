@@ -137,3 +137,8 @@ func (e *Env) evalPropertyFetch(n *syntax.PropertyFetch, f *frame, r *scopeResul
 	}
 	return v
 }
+
+// uploadField names the entries of an uploaded file the server chooses.
+func uploadField(key string) bool {
+	return key == "tmp_name" || key == "error" || key == "size"
+}

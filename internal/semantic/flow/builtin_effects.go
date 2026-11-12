@@ -172,3 +172,77 @@ func frameEffects(n syntax.Node, name string, first Value, f *frame) {
 		}
 	}
 }
+
+// assigns applies `extract` given nothing but an array written with literal
+// text keys that name ordinary variables: each is given the element, like an
+// assignment, which releases what the variable held. It reports that it did.
+func (e *Env) assigns(call syntax.Node, list *syntax.ArgList, f *frame, r *scopeResult) bool {
+	if list == nil || len(list.Args) != 1 {
+		return false
+	}
+	arg, ok := list.Args[0].(*syntax.Arg)
+	if !ok || arg.Unpack || arg.Name != nil {
+		return false
+	}
+	array, ok := syntax.UnwrapParens(arg.Value).(*syntax.Array)
+	if !ok {
+		return false
+	}
+	names := make([]string, len(array.Items))
+	for i, item := range array.Items {
+		if item.Key == nil || item.ByRef || item.Unpack {
+			return false
+		}
+		// A request table, `$this` and the globals table are not variables
+		// extract() assigns.
+		key, known := literalText(item.Key)
+		if !known || external(key) || key == "this" || key == "GLOBALS" {
+			return false
+		}
+		names[i] = key
+	}
+	for i, item := range array.Items {
+		e.release(call, names[i], f, r)
+		f.write(r, names[i], r.values.at(item.Value))
+	}
+	return true
+}
+
+// keepsExisting reports an extract() flag under which a variable that already
+// exists is not overwritten.
+func keepsExisting(flag syntax.Expr) bool {
+	if both, ok := syntax.UnwrapParens(flag).(*syntax.Binary); ok && both.Op.Kind == syntax.TBar {
+		// A modifier such as EXTR_REFS is combined with the mode.
+		return keepsExisting(both.Left) || keepsExisting(both.Right)
+	}
+	c, ok := syntax.UnwrapParens(flag).(*syntax.ConstFetch)
+	if !ok || c.Name == nil {
+		return false
+	}
+	switch strings.ToUpper(strings.TrimPrefix(c.Name.Value, `\`)) {
+	case "EXTR_SKIP", "EXTR_PREFIX_SAME", "EXTR_PREFIX_ALL", "EXTR_PREFIX_IF_EXISTS":
+		return true
+	}
+	return false
+}
+
+// scalarCallback reports a callback named by a string literal that is a PHP
+// function returning only numbers, booleans or null.
+func (e *Env) scalarCallback(callback syntax.Expr) bool {
+	name, known := literalText(callback)
+	if !known {
+		return false
+	}
+	f := e.types.Index.Function(strings.TrimPrefix(name, `\`), e.types.PHP)
+	return f != nil && f.Builtin && scalarResult(f.Return)
+}
+
+// importable reports a name an import can create: not a superglobal, the
+// globals table or the object in scope.
+func importable(name string) bool {
+	switch name {
+	case "this", "GLOBALS", "_SESSION", "_ENV":
+		return false
+	}
+	return true
+}
