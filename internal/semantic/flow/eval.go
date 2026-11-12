@@ -663,6 +663,15 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			r.receivers[n] = max(r.receivers[n], followed)
 		}
 	}
+	values, written := e.callArguments(n, args, f, r, depth)
+	return e.finishCall(n, args, &evaluatedCall{receiver: receiver, receiverValue: rv, followed: followed, closedFollowed: closedFollowed, values: values, written: written}, f, r)
+}
+
+// callArguments evaluates the written arguments of a call in order and
+// returns their values with the arguments that are not placeholders. A
+// spread argument, or any argument of a callback-mapping function, keeps the
+// entries it held before a later argument can replace them.
+func (e *Env) callArguments(n syntax.Node, args *syntax.ArgList, f *frame, r *scopeResult, depth int) ([]Value, []*syntax.Arg) {
 	mapping := false
 	if call, ok := n.(*syntax.FuncCall); ok {
 		name, builtin := e.callName(call)
@@ -685,7 +694,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			}
 		}
 	}
-	return e.finishCall(n, args, &evaluatedCall{receiver: receiver, receiverValue: rv, followed: followed, closedFollowed: closedFollowed, values: values, written: written}, f, r)
+	return values, written
 }
 
 type evaluatedCall struct {
