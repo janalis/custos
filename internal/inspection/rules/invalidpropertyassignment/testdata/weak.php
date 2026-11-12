@@ -25,3 +25,16 @@ function update(Account $account, Order $order)
     // A subclass of Order may convert to a string.
     $account->name = $order;
 }
+
+// Destructuring, loops and references convert alike.
+function import(Account $account)
+{
+    [$account->balance, $account->name] = ['1200', 978];
+    foreach ([5 => '7'] as $account->name => $account->balance) {}
+    $amount = '12';
+    $account->balance = &$amount;
+    [<error descr="Assign int to Shop\Account::$balance, not array.">$account->balance</error>] = [[]];
+    foreach ([null] as <error descr="Assign int to Shop\Account::$balance, not null.">$account->balance</error>) {}
+    $none = null;
+    $account->balance = &<error descr="Assign int to Shop\Account::$balance, not null.">$none</error>;
+}

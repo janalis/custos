@@ -1,7 +1,7 @@
 # DocumentedPropertyAssignment implementation notes
 
 The check is shared with InvalidPropertyAssignment (see its NOTES): this
-rule reports the mismatches of `semanticquery.PropertyAssignmentMismatch`
+rule reports the mismatches of `semanticquery.PropertyWriteMismatches`
 that are not proven.
 
 ## Value details
@@ -17,8 +17,9 @@ non-array. A bare template
 
 ## Corpus triage
 
-The corpora (guzzle, composer, laravel) give no proven finding. The six
-documented findings on laravel all store `null` in an untyped property
-whose `@var` omits null: `Model::$resolver`, `Blueprint::$after`,
-`Cloud\Queue::$processingJobStartedAt` and `DateFactory::$callable`
-(three resets). PHP accepts them; the tags are incomplete.
+The corpora (guzzle, composer, laravel) give no finding, the write forms
+beyond assignments included. The five findings laravel gave before
+untyped properties without a default counted as null-initialized all
+stored `null` in such a property whose `@var` omits null
+(`Model::$resolver`, `Blueprint::$after`, `DateFactory::$callable` three
+times); PHP accepts them.

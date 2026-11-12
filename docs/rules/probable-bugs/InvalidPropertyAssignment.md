@@ -40,14 +40,33 @@ Reported:
 
 ## Detection
 
-- An assignment whose target is a property named in the source: an
+- D1. A write whose target is a property named in the source: an
   instance property through an object (`$this->total`, `$order->total`) or
   a static property through a class name, `self`, `parent` or `static`
-  (`self::$cache`). Plain assignments, compound assignments (`.=`, `+=`…)
-  and `??=` count.
-- The stored value is the right-hand side of a plain assignment or of
-  `??=`, and the result of the operation for any other compound
-  assignment.
+  (`self::$cache`). These writes count:
+  - plain assignments, compound assignments (`.=`, `+=`…) and `??=`;
+  - by-reference assignments of a local variable (`$this->total = &$sum`):
+    PHP checks the local's current value when binding;
+  - destructuring (`[$this->from, $this->to] = $range`, `list(…)`, keyed
+    and nested patterns), each item a separate write;
+  - the key and the value a foreach loop binds (`foreach ($rows as
+    $this->key => $this->row)`), the value possibly destructured;
+  - increments and decrements (`$this->hits++`, `--$this->hits`).
+- The stored value is:
+  - the right-hand side of a plain assignment or of `??=`, the result of
+    the operation for any other compound assignment;
+  - the current value of the local bound by reference;
+  - for a destructured item, the value under its key (explicit or
+    positional) of the destructured value: the type the value's shape
+    gives that key, or the element type of a typed array, joined with
+    null when the key may be missing (PHP then stores null); destructuring
+    null or a scalar stores null in every item;
+  - for a foreach value, the element type of the iterated value; for a
+    foreach key, integer or string for an array (the kinds of its literal
+    keys when known), the declared key type of a Traversable;
+  - for `++` and `--`, the operand's value after the operation: `null`
+    incremented becomes an integer, decremented stays null; an integer may
+    become a float; a string may become a number.
 - D3. The written class comes from native declarations only: the object's
   type names only classes, each declared once with every ancestor known.
   The property is the declaration that class resolves, by inheritance or
@@ -70,8 +89,19 @@ Reported:
 - Targets that are not plainly named: dynamic property names
   (`$this->$name`, `$this->{'a'}`, `$cls::$x`, `static::$$name`), nullsafe
   fetches, array element writes (`$this->items[] = …`).
-- By-reference assignments (`$this->p = &$v`) and writes through a
-  reference (`$r = &$this->p; $r = 'x';`).
+- Writes whose stored value cannot be told:
+  - writes through a reference (`$r = &$this->p; $r = 'x';`, or a local
+    bound to the property and written later), by-reference assignments of
+    anything but a local variable (an absent element is created as null),
+    by-reference foreach values and destructured items;
+  - destructuring with a computed key, a key the value's shape does not
+    list, a value of plain `array` type, or an object (ArrayAccess runs
+    code);
+  - foreach loops over an iterator whose key or value type is not
+    declared (it may yield keys of any type);
+  - `++` and `--` on arrays, objects and booleans (PHP fails before
+    storing anything, or leaves the value unchanged), and the overflow of
+    an integer property, which PHP reports with its own error.
 - Properties with hooks, virtual or abstract properties, properties
   declared only by a `@property` tag, undeclared properties, a static
   property written as an instance property or the reverse, and properties
@@ -83,8 +113,10 @@ Reported:
   hierarchy, a non-public property from a closure or arrow function (it may
   run in another scope), and a readonly property other than through
   `$this` in its own class's constructor, where it must be the only write
-  to that property and the property not promoted (otherwise the write may
-  be a re-initialization).
+  to that property (any form of D1) and the property not promoted
+  (otherwise the write may be a re-initialization). A compound
+  assignment, `++`, `--` or a by-reference assignment never initializes a
+  readonly property.
 - Values some of which are accepted: a union with an accepted member,
   `mixed`, `object`, an unknown value, a class that a subclass may turn
   into the expected type, an object with `__toString` for a string

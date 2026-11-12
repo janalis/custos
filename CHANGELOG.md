@@ -35,12 +35,15 @@ versions follow [Semantic Versioning](https://semver.org/).
   8.0, except those whose stubs declare other parameter types than PHP.
 - InvalidPropertyAssignment (error) and DocumentedPropertyAssignment
   (warning), both off by default, report a value stored in a property
-  whose type can never accept it, through plain and compound assignments
-  and `??=`. The first judges the value by the code alone, where PHP would
-  throw a `TypeError`; the second also checks `@var` types, made nullable
-  by a `null` default, and values typed only by PHPDoc. Both stay silent on hooked properties, classes with
-  `__set`, writes the scope cannot perform and readonly writes that may be
-  re-initializations.
+  whose type can never accept it, through plain and compound assignments,
+  `??=`, by-reference assignments of a local, list destructuring
+  (`[$this->a, $this->b] = $pair`), foreach keys and values, and `++`
+  (`null` incremented to an integer). The first judges the value by the
+  code alone, where PHP would throw a `TypeError`; the second also checks
+  `@var` types, made nullable by a `null` default or, on an untyped
+  property, by no default, and values typed only by PHPDoc. Both stay
+  silent on hooked properties, classes with `__set`, writes the scope
+  cannot perform and readonly writes that may be re-initializations.
 - InvalidReturnType (error) and DocumentedReturnType (warning), both off
   by default, report a returned value the function's own return type can
   never accept, closures and arrow functions included. The first judges

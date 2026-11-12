@@ -6,13 +6,15 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
 	"custos/internal/semantic/types"
 )
 
 // PropertyMismatch is an assignment whose value every declaration of the
 // written property rejects.
 type PropertyMismatch struct {
-	// Value is the assigned operand (the right-hand side).
+	// Value is the range reported: the assigned operand (the right-hand
+	// side), the target a destructuring or foreach loop writes, or ++/--.
 	Value syntax.Expr
 	// Property names the nominal declaration (`Class::$name`).
 	Property string
@@ -31,42 +33,67 @@ func (m PropertyMismatch) Message() string {
 	return "Assign " + declaredTypeName(m.Expected) + " to " + m.Property + ", not " + typeName(m.Given) + "."
 }
 
-type propertyTypesKey struct{ assign syntax.Node }
+type propertyTypesKey struct{ write syntax.Node }
 
-// PropertyAssignmentMismatch reports the assignment n (plain, compound or
-// `??=`) to a declared property when every declaration the write may reach
-// (see propertyTargets) rejects the stored value (see types.AllRejected).
-// Cached per assignment for the file.
-func PropertyAssignmentMismatch(ctx *analysis.Context, n syntax.Node) (PropertyMismatch, bool) {
-	m := ctx.Shared(propertyTypesKey{n}, func() any {
-		m, ok := propertyAssignmentMismatch(ctx, n)
-		if !ok {
-			return (*PropertyMismatch)(nil)
+// PropertyWriteMismatches reports the writes node n makes to declared
+// properties when every declaration a write may reach (see
+// propertyTargets) rejects the stored value (see types.AllRejected): an
+// assignment (plain, compound, `??=` or by reference), a destructuring
+// assignment, a foreach loop binding its key or value to properties, or
+// ++/--, the only kinds n may have. Cached per node for the file.
+func PropertyWriteMismatches(ctx *analysis.Context, n syntax.Node) []PropertyMismatch {
+	return ctx.Shared(propertyTypesKey{n}, func() any {
+		switch n := n.(type) {
+		case *syntax.Assign:
+			if m, ok := propertyAssignmentMismatch(ctx, n); ok {
+				return []PropertyMismatch{m}
+			}
+			return destructuringMismatches(ctx, n)
+		case *syntax.Foreach:
+			return foreachMismatches(ctx, n)
 		}
-		return &m
-	}).(*PropertyMismatch)
-	if m == nil {
-		return PropertyMismatch{}, false
-	}
-	return *m, true
+		return incDecMismatches(ctx, n.(*syntax.IncDec))
+	}).([]PropertyMismatch)
 }
 
 func propertyAssignmentMismatch(ctx *analysis.Context, n syntax.Node) (PropertyMismatch, bool) {
 	a, ok := n.(*syntax.Assign)
-	if !ok || a.ByRef || a.Value == nil || !propertyTarget(a.Var) || reboundThis(a) {
+	if !ok || a.Value == nil || !propertyTarget(a.Var) || reboundThis(a) {
 		return PropertyMismatch{}, false
+	}
+	if a.ByRef {
+		return referenceMismatch(ctx, a)
 	}
 	// The stored value: the result of a compound operation, the right-hand
 	// side of a plain assignment or of `??=` (stored only when it runs).
 	stored := syntax.Expr(a)
-	if a.Op.Kind == syntax.TEqual || a.Op.Kind == syntax.TCoalesceEqual {
+	plain := a.Op.Kind == syntax.TEqual || a.Op.Kind == syntax.TCoalesceEqual
+	if plain {
 		stored = a.Value
 	}
-	given := ctx.TypeOf(stored)
+	w := propertyStore{target: a.Var, at: a, report: a.Value, modifies: !plain}
+	return judgeStore(ctx, w, func(env *infer.Env) types.Type { return env.TypeOf(stored) })
+}
+
+// propertyStore is one value stored in the property target names, by the
+// writing node at; report is the range a finding covers; modifies tells a
+// write that cannot initialize a readonly property: it reads the property
+// first (compound assignment, ++/--) or binds a reference.
+type propertyStore struct {
+	target, report syntax.Expr
+	at             syntax.Node
+	modifies       bool
+}
+
+// judgeStore reports store when every declaration it may reach rejects the
+// value typed by stored, run in the PHPDoc-aware environment and, for a
+// finding resting on native types only, in the proven one.
+func judgeStore(ctx *analysis.Context, w propertyStore, stored func(*infer.Env) types.Type) (PropertyMismatch, bool) {
+	given := stored(ctx.Types())
 	if given.IsUnknown() {
 		return PropertyMismatch{}, false
 	}
-	label, targets, ok := writtenProperties(ctx, a)
+	label, targets, ok := writtenProperties(ctx, w)
 	if !ok {
 		return PropertyMismatch{}, false
 	}
@@ -78,7 +105,7 @@ func propertyAssignmentMismatch(ctx *analysis.Context, n syntax.Node) (PropertyM
 		switch {
 		case types.AllRejected(native, given, check.weak):
 			shown = p.Type
-		case check.docTypeRejects(documented(p.DocType, p.DocValues, given), p.Default, native, given, check.weak):
+		case check.docTypeRejects(documented(p.DocType, p.DocValues, given), propertyDefault(p), native, given, check.weak):
 			shown, allNative = documented(p.DocType, p.DocValues, given), false
 		default:
 			return PropertyMismatch{}, false
@@ -87,9 +114,9 @@ func propertyAssignmentMismatch(ctx *analysis.Context, n syntax.Node) (PropertyM
 			expected = shown
 		}
 	}
-	m := PropertyMismatch{Value: a.Value, Property: label, Expected: expected, Given: given}
+	m := PropertyMismatch{Value: w.report, Property: label, Expected: expected, Given: given}
 	if allNative {
-		proven := ctx.Types().ProvenTypeOf(stored)
+		proven := stored(ctx.Types().Proven())
 		m.Proven = true
 		for _, p := range targets {
 			if !types.AllRejected(check.declaredType(p.Type, ""), proven, check.weak) {
@@ -104,13 +131,13 @@ func propertyAssignmentMismatch(ctx *analysis.Context, n syntax.Node) (PropertyM
 	return m, true
 }
 
-// writtenProperties lists the declarations of the property assignment a
-// writes (see propertyTarget), and names the nominal one: an instance property through a
+// writtenProperties lists the declarations of the property store w writes
+// (see propertyTarget), and names the nominal one: an instance property through a
 // receiver whose native type names only classes, or a static property
 // through a named class, `self`, `parent` or `static`.
-func writtenProperties(ctx *analysis.Context, a *syntax.Assign) (string, []*index.Property, bool) {
-	w := propertyWrite{ctx: ctx, assign: a}
-	if t, ok := syntax.UnwrapParens(a.Var).(*syntax.PropertyFetch); ok {
+func writtenProperties(ctx *analysis.Context, s propertyStore) (string, []*index.Property, bool) {
+	w := propertyWrite{ctx: ctx, at: s.at, modifies: s.modifies}
+	if t, ok := syntax.UnwrapParens(s.target).(*syntax.PropertyFetch); ok {
 		// Only native declarations decide which class is written.
 		typ := ctx.Types().ProvenTypeOf(t.Var).Without("null")
 		classes := typ.Classes()
@@ -132,7 +159,7 @@ func writtenProperties(ctx *analysis.Context, a *syntax.Assign) (string, []*inde
 		}
 		return label, all, true
 	}
-	t := syntax.UnwrapParens(a.Var).(*syntax.StaticPropertyFetch)
+	t := syntax.UnwrapParens(s.target).(*syntax.StaticPropertyFetch)
 	name, named := t.Class.(*syntax.Name)
 	if !named {
 		return "", nil, false
@@ -166,10 +193,10 @@ func isThis(x syntax.Expr) bool {
 // propertyWrite is a write to the property name: static or not, through
 // `$this` or not.
 type propertyWrite struct {
-	ctx          *analysis.Context
-	assign       *syntax.Assign
-	name         string
-	static, this bool
+	ctx                    *analysis.Context
+	at                     syntax.Node
+	name                   string
+	static, this, modifies bool
 }
 
 // targets lists the declaration of the property as class cls resolves it
@@ -232,6 +259,15 @@ func (w propertyWrite) declaration(cls string) (*index.Property, bool) {
 	return p, true
 }
 
+// propertyDefault is the default value of p as declared, and `null` for
+// an untyped property declared without one, which PHP starts as null.
+func propertyDefault(p *index.Property) string {
+	if p.Type == "" && p.Default == "" && !p.Promoted {
+		return "null"
+	}
+	return p.Default
+}
+
 // propertyOwner is the class whose objects hold p: the class using the
 // trait that declares it, or the declaring class.
 func propertyOwner(p *index.Property) string {
@@ -245,19 +281,20 @@ func propertyOwner(p *index.Property) string {
 // failing before the type check: p is visible for writing from the
 // enclosing class (code in a closure, which may be bound to another scope,
 // writes public properties only), and a readonly property is initialized
-// once, by the only write in its own class's constructor.
+// once, by the only write in its own class's constructor, which does not
+// read it first.
 func (w propertyWrite) writable(p *index.Property) bool {
 	owner := strings.TrimPrefix(propertyOwner(p), `\`)
 	scope := ""
-	if c := syntax.EnclosingClass(w.assign); c != nil && c.ClassKind != syntax.KindTrait {
+	if c := syntax.EnclosingClass(w.at); c != nil && c.ClassKind != syntax.KindTrait {
 		scope = strings.TrimPrefix(w.ctx.Types().ClassFQN(c), `\`)
 	}
-	switch fn := syntax.EnclosingFuncLike(w.assign).(type) {
+	switch fn := syntax.EnclosingFuncLike(w.at).(type) {
 	case *syntax.Closure, *syntax.ArrowFunction:
 		scope = ""
 	case *syntax.Method:
 		if p.Readonly {
-			return !p.Promoted && w.this && strings.EqualFold(fn.Name.Value, "__construct") &&
+			return !p.Promoted && !w.modifies && w.this && strings.EqualFold(fn.Name.Value, "__construct") &&
 				strings.EqualFold(scope, owner) && onlyWrite(fn, p.Name)
 		}
 	}
@@ -274,17 +311,18 @@ func (w propertyWrite) writable(p *index.Property) bool {
 	return true
 }
 
-// onlyWrite reports whether method fn assigns `$this->name` once.
+// onlyWrite reports whether method fn writes `$this->name` once (see
+// storeTargets).
 func onlyWrite(fn *syntax.Method, name string) bool {
 	writes := 0
 	syntax.Inspect(fn.Body, func(n syntax.Node) bool {
-		if a, ok := n.(*syntax.Assign); ok {
-			if f, ok := syntax.UnwrapParens(a.Var).(*syntax.PropertyFetch); ok && isThis(f.Var) {
+		storeTargets(n, func(x syntax.Expr) {
+			if f, ok := syntax.UnwrapParens(x).(*syntax.PropertyFetch); ok && isThis(f.Var) {
 				if id, ok := f.Name.(*syntax.Identifier); ok && id.Value == name {
 					writes++
 				}
 			}
-		}
+		})
 		return true
 	})
 	return writes == 1

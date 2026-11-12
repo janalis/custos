@@ -47,3 +47,13 @@ final class Box
 
     public function put() { $this->values = <warning descr="Assign array<int,mixed> to Shop\Box::$values, not string.">'x'</warning>; }
 }
+
+// A typed property declared without a default starts uninitialized, not
+// null.
+final class Slot
+{
+    /** @var Order */
+    public ?object $held;
+
+    public function free() { $this->held = <warning descr="Assign Shop\Order to Shop\Slot::$held, not null.">null</warning>; }
+}

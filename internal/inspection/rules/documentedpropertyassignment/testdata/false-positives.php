@@ -76,3 +76,19 @@ final class Link
 
     public function unlink() { $this->prev = null; }
 }
+
+// So does the lack of a default on an untyped property: PHP starts it as
+// null.
+final class Chain
+{
+    /** @var Order */
+    private $next;
+    /** @var Order */
+    private static $first;
+
+    public function cut()
+    {
+        $this->next = null;
+        self::$first = null;
+    }
+}

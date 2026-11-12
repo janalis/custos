@@ -38,11 +38,11 @@ class Cart
         $name = 'count';
         $this->$name = 'x';
         $this->{'count'} = 'x';
-        // By-reference writes and aliases.
-        $value = 'x';
-        $this->count = &$value;
+        // Writes through a reference, and references to elements, which
+        // PHP creates as null when missing.
         $alias = &$this->count;
         $alias = 'x';
+        $this->count = &$this->items[0];
         // Not a property write.
         $this->items[] = 'x';
         $this->items['k'] = 'x';

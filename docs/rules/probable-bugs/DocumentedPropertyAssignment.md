@@ -23,7 +23,7 @@ disagree. Mismatches the code alone proves are InvalidPropertyAssignment's.
 final class Session
 {
     /** @var string */
-    public $token;
+    public $token = '';
 
     public function close()
     {
@@ -40,9 +40,10 @@ Reported:
 
 ## Detection
 
-- Assignments, stored values and property resolution as
-  InvalidPropertyAssignment defines them: the written class still comes
-  from native declarations only.
+- Writes (assignments, by-reference assignments of a local,
+  destructuring, foreach keys and values, `++` and `--`), stored values and
+  property resolution as InvalidPropertyAssignment defines them: the
+  written class still comes from native declarations only.
 - The type of the value is the one PHPDoc-aware inference gives:
   `@param`, `@var` and `@return` tags count.
 - Every declaration the write may reach rejects every value of the
@@ -67,8 +68,11 @@ Reported:
   value whose values are not all known (see D5).
 - Every exception of InvalidPropertyAssignment other than untyped
   properties.
-- `null` stored in a property whose default value is `null`: the
-  default makes its `@var` type nullable, as it does for a parameter.
+- `null` stored in a property whose default value is `null`, or in
+  an untyped property declared without a default, which PHP starts as
+  null: either makes its `@var` type nullable, as a null default does for
+  a parameter. A typed property without a default starts uninitialized,
+  not null, and keeps its `@var` type.
 
 ## Fix
 

@@ -15,12 +15,16 @@ type rule struct{}
 
 func (rule) ID() string { return "DocumentedPropertyAssignment" }
 
-func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign} }
+func (rule) Kinds() []syntax.NodeKind {
+	return []syntax.NodeKind{syntax.KAssign, syntax.KForeach, syntax.KIncDec}
+}
 
 func (rule) Semantic() {}
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if m, ok := semanticquery.PropertyAssignmentMismatch(ctx, n); ok && !m.Proven {
-		ctx.ReportNode(m.Value, m.Message())
+	for _, m := range semanticquery.PropertyWriteMismatches(ctx, n) {
+		if !m.Proven {
+			ctx.ReportNode(m.Value, m.Message())
+		}
 	}
 }
