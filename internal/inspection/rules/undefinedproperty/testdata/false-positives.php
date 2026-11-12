@@ -129,8 +129,6 @@ function contexts(Note $a, Note $b, array $list): void
     // Writes, which may create the property, and checks, which never warn.
     $a->created = 1;
     $a->appended[] = 1;
-    $a->counter++;
-    $a->joined .= 'x';
     $a->defaulted ??= 'x';
     $alias = &$a->aliased;
     unset($b->removed);

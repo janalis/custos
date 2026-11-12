@@ -67,10 +67,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 
 // read reports whether the property fetch f reads the property where PHP
 // warns when it is undeclared: not as (the base of an element written
-// through) an assignment target, a by-reference binding, an unset(), a
-// foreach target or subject iterated by reference, a destructuring target
-// (its keys are read), an increment, an argument that may be taken by
-// reference, nor under isset(), empty() or `??`.
+// through) a plain or `??=` assignment target, a by-reference binding, an
+// unset(), a foreach target or subject iterated by reference, a
+// destructuring target (its keys are read), an argument that may be taken
+// by reference, nor under isset(), empty() or `??` (see silent). Compound
+// assignments and increments read the property, also through an element.
 func read(ctx *analysis.Context, f *syntax.PropertyFetch) bool {
 	if silent(f) {
 		return false
@@ -92,8 +93,12 @@ func read(ctx *analysis.Context, f *syntax.PropertyFetch) bool {
 	}
 	switch p := target.Parent().(type) {
 	case *syntax.Assign:
-		return p.Var != target && !(p.ByRef && p.Value == target)
-	case *syntax.IncDec, *syntax.Unset:
+		if p.Var == target {
+			// A compound assignment reads the property first, `??=` aside.
+			return p.Op.Kind != syntax.TEqual && p.Op.Kind != syntax.TCoalesceEqual
+		}
+		return !(p.ByRef && p.Value == target)
+	case *syntax.Unset:
 		return false
 	case *syntax.Foreach:
 		// Only iterating by reference writes the subject.

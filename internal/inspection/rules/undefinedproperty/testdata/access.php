@@ -36,3 +36,19 @@ function remove(Order $order): void
     // Unsetting below a property creates nothing.
     echo $order-><error descr="Fix the property name: Shop\Order declares no $meta.">meta</error>;
 }
+
+function update(Order $order): void
+{
+    // Compound assignments and increments read the property first.
+    $order-><error descr="Fix the property name: Shop\Order declares no $note.">note</error> .= 'x';
+    $order-><error descr="Fix the property name: Shop\Order declares no $count.">count</error>++;
+    --$order-><error descr="Fix the property name: Shop\Order declares no $count.">count</error>;
+    $order-><error descr="Fix the property name: Shop\Order declares no $sums.">sums</error>[0] += 1;
+    $order-><error descr="Fix the property name: Shop\Order declares no $sums.">sums</error>[0][1]++;
+    // A plain or `??=` assignment does not read it.
+    $order->fresh = 1;
+    $order->fresh .= 'x';
+    $order->lazy ??= 1;
+    $order->cells[0] ??= 1;
+    $order->lines[0] .= 'x';
+}

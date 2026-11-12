@@ -48,10 +48,12 @@ Reported:
   through a class name, `self`, `parent` or `static` (`Cart::$lines`),
   read or written.
 - D2. An instance property counts where it is read: as a value, an
-  operand, an argument PHP passes by value, an array item, the subject a
-  `foreach` iterates by value, a key of a destructuring target
-  (`[$cart->key => $value] = $row`), or the base of an element or property
-  read (`$cart->items[0]`, `$cart->owner->name`).
+  operand, the target of a compound assignment other than `??=` or of an
+  increment or decrement (`$cart->total += 1`, `$cart->lines[0]++`),
+  which read it before writing, an argument PHP passes by value, an array
+  item, the subject a `foreach` iterates by value, a key of a
+  destructuring target (`[$cart->key => $value] = $row`), or the base of
+  an element or property read (`$cart->items[0]`, `$cart->owner->name`).
 - D3. The object's classes come from native declarations only, as
   UndefinedMethod defines them (D2 to D3 there).
 - D4. No class-like in the hierarchy of any of the classes declares a
@@ -66,19 +68,21 @@ Reported:
 
 ## Exceptions (no report)
 
-- E1. Writes to an instance property and accesses that never warn: an
-  assignment target (compound and `??=` assignments included), an element
-  write (`$cart->items[] = 1`), a by-reference binding (`&$cart->total`, an
+- E1. Writes to an instance property and accesses that never warn: the
+  target of a plain or `??=` assignment, also through an element
+  (`$cart->items[] = 1`), a by-reference binding (`&$cart->total`, an
   argument taken by reference or passed to a callee the analysis cannot
   resolve), `unset()` (also of an element or a property below it, as in
-  `unset($cart->meta->key)`), an increment or decrement, a `foreach` target or a
-  subject it iterates by reference, a destructuring target, and a subject of `isset()`, `empty()` or the left
-  operand of `??`, also through elements or properties of it. Static
-  properties are only exempt under `isset()`, `empty()` and `??`.
+  `unset($cart->meta->key)`), a `foreach` target or a subject it iterates
+  by reference, a destructuring target, and a subject of `isset()`,
+  `empty()` or the left operand of `??`, also through elements or
+  properties of it. Static properties are only exempt under `isset()`,
+  `empty()` and `??`.
 - E2. An instance property of a name the analyzed file writes anywhere
   (E1, except an `unset()` of a property below it, which creates
-  nothing): a dynamic property created there may be read elsewhere. This holds
-  at every PHP version, since PHP 8.2 only deprecates dynamic properties.
+  nothing): a dynamic property created there may be read elsewhere. This
+  holds at every PHP version, since PHP 8.2 only deprecates dynamic
+  properties.
 - Dynamic property names (`$cart->$name`, `$cart->{'total'}`,
   `Cart::${'lines'}`) and dynamic class names (`$class::$lines`).
 - The exceptions of UndefinedMethod on receivers, unions, subclasses,
