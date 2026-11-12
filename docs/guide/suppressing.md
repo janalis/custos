@@ -84,7 +84,10 @@ counts its occurrences: a second identical finding on an identical line is
 new. Regenerate the baseline after fixing old findings to keep it small.
 A possible null that NullPointerException recorded and that
 PossiblyNullAccess or PossiblyNullArgument now reports on the same line
-(or the reverse) stays covered, whatever the message.
+(or the reverse) stays covered, whatever the message. PossiblyNullAccess
+reports a value once, after its first reported access; a baseline entry
+of that access does not count as reported, so a later access is reported
+(the baseline you generate records them all).
 
 The file is JSON, sorted so that it diffs well:
 

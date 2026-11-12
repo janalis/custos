@@ -254,3 +254,43 @@ func TestMovedFindings(t *testing.T) {
 		t.Fatalf("FilterFindings: %+v", got)
 	}
 }
+
+// TestCovers: Covers tells which findings a baseline records without
+// consuming entries: of the finding's rule and message, or of a related
+// rule whatever the message, at its line text taken as FilterFindings
+// takes it (lone CRs included). A relative directory matches relative
+// paths as they are.
+func TestCovers(t *testing.T) {
+	b, err := Parse([]byte(`{"version": 1, "entries": [
+		{"path": "a.php", "rule": "R", "message": "m", "line": "$a;", "count": 1},
+		{"path": "a.php", "rule": "R", "message": "m", "line": "", "count": 1},
+		{"path": "a.php", "rule": "NullPointerException", "message": "other", "line": "$n->x();", "count": 1}]}`), "src")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := []byte("<?php\r\n$a;\n$n->x();\n $a;\r$b;")
+	at := func(rule, msg string, off uint32) diagnostic.Finding {
+		return diagnostic.Finding{Rule: rule, Message: msg, Span: syntax.Span{Start: off, End: off + 1}}
+	}
+	for _, c := range []struct {
+		path string
+		f    diagnostic.Finding
+		want bool
+	}{
+		{"src/a.php", at("R", "m", 7), true},
+		{"src/a.php", at("R", "m", 8), true}, // not consumed by the first
+		{"src/a.php", at("R", "other", 7), false},
+		{"src/a.php", at("PossiblyNullAccess", "m", 11), true},
+		{"src/a.php", at("UnnecessarySemicolon", "m", 11), false},
+		{"src/a.php", at("R", "m", 20), false}, // the line runs to the newline: " $a;\r$b;"
+		{"src/a.php", at("R", "m", 25), true},  // after a lone CR: no such line, keyed ""
+		{"src/b.php", at("R", "m", 7), false},
+	} {
+		if got := b.Covers(c.path, src, c.f); got != c.want {
+			t.Errorf("Covers(%s, %+v) = %v, want %v", c.path, c.f, got, c.want)
+		}
+	}
+	if _, err := Parse([]byte("{"), "."); err == nil {
+		t.Fatal("invalid baseline parsed")
+	}
+}

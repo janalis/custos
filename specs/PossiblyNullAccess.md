@@ -75,8 +75,9 @@ not reported.
   when later ones only run after it. The value is a local or a property of
   `$this` (`$this->last`); a later access on it is silent when an earlier
   access on the same value, which D1 to D3 cover and E1 to E9 do not
-  excuse, and which is reported (no suppression comment silences it) or
-  is itself such a repeated access, has run on every path reaching it:
+  excuse, and which is reported (no suppression comment silences it and
+  no baseline entry records it, see below) or is itself such a repeated
+  access, has run on every path reaching it:
   - the earlier access is in a statement before the later one's, or in an
     earlier part of the same expression that is evaluated first (an
     operand, an argument, an array item, the receiver of a call whose
@@ -168,3 +169,12 @@ the accesses this rule reports. A suppression comment naming NullPointerExceptio
 comments written for NullPointerException keep silencing the value. Likewise,
 a baseline entry recorded for NullPointerException covers a finding of this
 rule on the same line, and the reverse.
+
+A baseline counts as a silencing for E10: an access after one the baseline
+records (an entry of this rule with its message, or of NullPointerException,
+on its line text) is reported, as after one a suppression comment silences,
+since it may be code written after the baseline. Generating a baseline
+therefore records every access E10 would leave out, so that analyzing with
+it reports nothing new. Known limit: whether the earlier access is recorded
+ignores entry counts, so when two accesses share the line text, rule and
+message and the baseline counts one, both count as recorded.

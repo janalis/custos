@@ -165,12 +165,14 @@ func (c *Context) RuleBool(id, name string) bool {
 	return ok && boolOption(c.engine.rules[i].options, name)
 }
 
-// Suppressed reports whether a finding of rule at span would be
-// suppressed by a comment of the file (see the suppression comments), so
-// that a check deciding from another finding's report can tell that it is
-// silenced.
-func (c *Context) Suppressed(rule string, span syntax.Span) bool {
-	return c.suppressions().suppressed(diagnostic.Finding{Rule: rule, Span: span})
+// Suppressed reports whether a finding of rule at span with message would
+// be hidden: suppressed by a comment of the file (see the suppression
+// comments) or recorded in the baseline the engine was given (see
+// Engine.WithRecorded), so that a check deciding from another finding's
+// report can tell that it is silenced.
+func (c *Context) Suppressed(rule string, span syntax.Span, message string) bool {
+	f := diagnostic.Finding{Rule: rule, Span: span, Message: message}
+	return c.suppressions().suppressed(f) || c.engine.recorded != nil && c.engine.recorded(c.File.Path, c.Src, f)
 }
 
 func (c *Context) suppressions() *suppressions {

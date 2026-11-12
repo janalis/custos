@@ -116,3 +116,59 @@ func TestConfiguredBaselineMayBeMissing(t *testing.T) {
 		t.Fatalf("missing explicit baseline must fail, got %d", code)
 	}
 }
+
+// TestBaselineShowsRepeatsOfRecordedFindings: an access PossiblyNullAccess
+// leaves out after a reported one on the same value is reported when the
+// baseline records that one, and a generated baseline records it too, so
+// that a later access added on the value is new.
+func TestBaselineShowsRepeatsOfRecordedFindings(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.php")
+	write := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(file, []byte("<?php\nfunction f(?Exception $a) {\n"+body+"}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	analyse := func(extra ...string) []int {
+		t.Helper()
+		_, out, _ := runCLI(t, append(append([]string{"analyse", "--fail-on=never", "--format=json", "--rule", "PossiblyNullAccess"}, extra...), dir)...)
+		var res struct {
+			Findings []struct {
+				Line int `json:"line"`
+			} `json:"findings"`
+		}
+		if err := json.Unmarshal([]byte(out), &res); err != nil {
+			t.Fatalf("bad json: %v\n%s", err, out)
+		}
+		var got []int
+		for _, f := range res.Findings {
+			got = append(got, f.Line)
+		}
+		return got
+	}
+	write("$a->getMessage();\n$a->getCode();\n$a->getLine();\n")
+	if got := analyse(); len(got) != 1 || got[0] != 3 {
+		t.Fatalf("without baseline: lines %v, want [3]", got)
+	}
+	// A baseline recording the first access only shows the next one.
+	bl := filepath.Join(dir, "bl.json")
+	entry := `{"version": 1, "entries": [{"path": "a.php", "rule": "PossiblyNullAccess", "message": "Check this value for null before the access: it is Exception|null.", "line": "$a->getMessage();", "count": 1}]}`
+	if err := os.WriteFile(bl, []byte(entry), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := analyse("--baseline", bl); len(got) != 1 || got[0] != 4 {
+		t.Fatalf("first access recorded: lines %v, want [4]", got)
+	}
+	// A generated baseline records every access and hides them all.
+	if code, _, stderr := runCLI(t, "analyse", "--rule", "PossiblyNullAccess", "--generate-baseline", bl, dir); code != 0 || !strings.Contains(stderr, "3 entries") {
+		t.Fatalf("generate: %d %s", code, stderr)
+	}
+	if got := analyse("--baseline", bl); len(got) != 0 {
+		t.Fatalf("generated baseline: lines %v, want none", got)
+	}
+	write("$a->getMessage();\n$a->getCode();\n$a->getLine();\n$a->getFile();\n")
+	if got := analyse("--baseline", bl); len(got) != 1 || got[0] != 6 {
+		t.Fatalf("access added after the baseline: lines %v, want [6]", got)
+	}
+}

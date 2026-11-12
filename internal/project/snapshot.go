@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	"custos/internal/platform/safeio"
+	"custos/internal/project/baseline"
 	"custos/internal/project/config"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
@@ -48,6 +50,9 @@ type Snapshot struct {
 	Config       *config.Config
 	// Baseline is the captured baseline's key in Sources, "" without one.
 	Baseline string
+	// Recorded is that baseline once analyzed (see AnalyzeSnapshot), its
+	// entries naming files relative to its directory; nil without one.
+	Recorded *baseline.Baseline
 	// Paths are the requested inputs; empty selects the configured paths.
 	Paths    []string
 	Captured time.Time
@@ -620,6 +625,10 @@ func ChangedInputs(ctx context.Context, s *Snapshot) ([]string, error) {
 	return changed, nil
 }
 
+// ErrBaseline marks the error of a snapshot whose captured baseline does
+// not decode.
+var ErrBaseline = errors.New("unreadable baseline")
+
 // AnalyzeSnapshot publishes index and flow copies before producing findings.
 func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 	if s.vendorSymbols == nil && len(s.Vendor) > 0 {
@@ -678,9 +687,19 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 		}
 		s.Engine = s.Engine.WithFlow(BuildFlowSnapshot(ctx, s.OwnFiles, srcs, opt, s.Index, WithVendorFlow(s.Config.Root, s.Index, opt, s.Config.Flow)))
 	}
+	analyzer := s.Engine
+	if s.Baseline != "" {
+		// Checks see the findings the baseline hides as silenced.
+		bl, err := baseline.Parse(s.Sources[s.Baseline], path.Dir(s.Baseline))
+		if err != nil {
+			return nil, fmt.Errorf("%w %s: %w", ErrBaseline, s.Baseline, err)
+		}
+		s.Recorded = bl
+		analyzer = s.Engine.WithRecorded(bl.Covers)
+	}
 	results := make([]diagnostic.FileResult, len(s.Files))
 	if err := Each(ctx, len(s.Files), func(i int) {
-		results[i] = AnalyzeBuffer(s.Engine, s.Files[i], s.Sources[s.Files[i]], opt)
+		results[i] = AnalyzeBuffer(analyzer, s.Files[i], s.Sources[s.Files[i]], opt)
 		dropEdits(results[i].Findings)
 	}); err != nil {
 		return nil, err

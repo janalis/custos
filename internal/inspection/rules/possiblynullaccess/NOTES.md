@@ -35,8 +35,12 @@ not count as uses of a `$this` property, matching
 a `goto` has no repeated access. The earlier access must be reported: `repeatedAccess`
 asks `analysis.Context.Suppressed` (the engine's suppression comments,
 built once per file and reused when filtering findings) and, when it is
-suppressed, whether it repeats another itself. Baseline entries are not
-consulted: a baselined earlier access still hides the later ones.
+suppressed, whether it repeats another itself. The same question covers
+the baseline: the adapters (the CLI, the language server, MCP snapshots)
+hand the engine `baseline.Covers` through `analysis.Engine.WithRecorded`
+before analysis, and `--generate-baseline` hands it a predicate recording
+everything, so a generated baseline holds every access and a later added
+access is new. `Covers` consumes no count (see the spec's known limit).
 
 ## NullPointerException
 

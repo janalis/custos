@@ -60,12 +60,23 @@ func Load(path string) (*Baseline, error) {
 	if err != nil {
 		return nil, err
 	}
-	var f File
-	if err := json.Unmarshal(b, &f); err != nil {
+	abs, _ := filepath.Abs(path)
+	bl, err := Parse(b, filepath.Dir(abs))
+	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
-	abs, _ := filepath.Abs(path)
-	bl := &Baseline{dir: filepath.Dir(abs), counts: map[key]int{}, byLoc: map[loc][]key{}, paths: map[string]bool{}}
+	return bl, nil
+}
+
+// Parse decodes a baseline whose entry paths are relative to dir. A
+// relative dir matches the relative paths of findings against it as they
+// are (the root-relative names of a captured snapshot, say).
+func Parse(data []byte, dir string) (*Baseline, error) {
+	var f File
+	if err := json.Unmarshal(data, &f); err != nil {
+		return nil, err
+	}
+	bl := &Baseline{dir: dir, counts: map[key]int{}, byLoc: map[loc][]key{}, paths: map[string]bool{}}
 	for _, e := range f.Entries {
 		k := key{e.Path, e.Rule, e.Message, e.Line}
 		if bl.counts[k] == 0 {
@@ -165,6 +176,11 @@ func lineText(cache map[string][]string, path string, line int) string {
 }
 
 func rel(dir, path string) string {
+	if !filepath.IsAbs(dir) && !filepath.IsAbs(path) {
+		if r, err := filepath.Rel(dir, path); err == nil {
+			return filepath.ToSlash(r)
+		}
+	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return filepath.ToSlash(path)
@@ -173,6 +189,60 @@ func rel(dir, path string) string {
 		return filepath.ToSlash(r)
 	}
 	return filepath.ToSlash(abs)
+}
+
+// Covers reports whether the baseline has an entry for finding f of the
+// file at path, whose source is src: one of its rule and message, or of a
+// related rule (see related), at its line text. Unlike Filter, it consumes
+// no entry, so a check can ask about a finding before the baseline is
+// applied (see analysis.Engine.WithRecorded); a finding sharing its line
+// text and key with another one may then be told covered when the count
+// only covers the other.
+func (b *Baseline) Covers(path string, src []byte, f diagnostic.Finding) bool {
+	p := rel(b.dir, path)
+	if !b.paths[p] {
+		return false
+	}
+	text := lineAt(src, f.Span.Start)
+	if b.counts[key{p, f.Rule, f.Message, text}] > 0 {
+		return true
+	}
+	for _, other := range related()[f.Rule] {
+		if len(b.byLoc[loc{p, other, text}]) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// lineAt returns the trimmed text of the line of src holding offset,
+// numbered and split as FilterFindings does it (a lone CR ends a line for
+// the number, not for the text).
+func lineAt(src []byte, offset uint32) string {
+	at := min(int(offset), len(src))
+	line := 0
+	for i := 0; i < at; i++ {
+		switch src[i] {
+		case '\r':
+			if i+1 < len(src) && src[i+1] == '\n' {
+				i++
+			}
+			line++
+		case '\n':
+			line++
+		}
+	}
+	for ; line > 0; line-- {
+		i := bytes.IndexByte(src, '\n')
+		if i < 0 {
+			return ""
+		}
+		src = src[i+1:]
+	}
+	if i := bytes.IndexByte(src, '\n'); i >= 0 {
+		src = src[:i]
+	}
+	return strings.TrimSpace(string(src))
 }
 
 // Filter removes items covered by the baseline and returns the rest plus
@@ -199,21 +269,10 @@ func (b *Baseline) Filter(items []diagnostic.Item) ([]diagnostic.Item, int) {
 // taking flagged lines from src (an editor buffer, say) instead of reading
 // the file again. Lines are numbered and split exactly as Filter sees them.
 func (b *Baseline) FilterFindings(path string, src []byte, findings []diagnostic.Finding) []diagnostic.Finding {
-	p := rel(b.dir, path)
-	// Most files have no entry: skip indexing their lines on every analysis.
-	if len(findings) == 0 || !b.paths[p] {
+	covered := b.Covered(path, src, findings)
+	if covered == nil {
 		return findings
 	}
-	li := syntax.NewLineIndex(src)
-	lines := strings.Split(string(bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n"))), "\n")
-	covered := b.filter(len(findings), func(i int) key {
-		f := findings[i]
-		text := ""
-		if l, _ := li.Position(f.Span.Start); l < len(lines) {
-			text = strings.TrimSpace(lines[l])
-		}
-		return key{p, f.Rule, f.Message, text}
-	})
 	out := findings[:0:0]
 	for i, f := range findings {
 		if !covered[i] {
@@ -221,6 +280,27 @@ func (b *Baseline) FilterFindings(path string, src []byte, findings []diagnostic
 		}
 	}
 	return out
+}
+
+// Covered tells which of one file's findings the baseline covers, as
+// FilterFindings filters them; nil when it covers none for lack of
+// entries of the file.
+func (b *Baseline) Covered(path string, src []byte, findings []diagnostic.Finding) []bool {
+	p := rel(b.dir, path)
+	// Most files have no entry: skip indexing their lines on every analysis.
+	if len(findings) == 0 || !b.paths[p] {
+		return nil
+	}
+	li := syntax.NewLineIndex(src)
+	lines := strings.Split(string(bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n"))), "\n")
+	return b.filter(len(findings), func(i int) key {
+		f := findings[i]
+		text := ""
+		if l, _ := li.Position(f.Span.Start); l < len(lines) {
+			text = strings.TrimSpace(lines[l])
+		}
+		return key{p, f.Rule, f.Message, text}
+	})
 }
 
 // Write creates a baseline at path covering items.

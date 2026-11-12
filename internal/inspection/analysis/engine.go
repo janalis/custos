@@ -32,6 +32,22 @@ type Engine struct {
 	files  []int32 // indices of FileRule implementations
 	index  *index.Index
 	flow   *flow.Snapshot
+	// recorded tells which findings a baseline hides (see WithRecorded).
+	recorded Recorded
+}
+
+// Recorded reports whether a baseline records finding f of the file at
+// path, whose source is src.
+type Recorded func(path string, src []byte, f diagnostic.Finding) bool
+
+// WithRecorded returns an engine copy whose checks see the findings
+// recorded tells a baseline hides as silenced (see Context.Suppressed),
+// as they see the findings silenced by a suppression comment. The
+// baseline itself is applied by the caller, after analysis.
+func (e *Engine) WithRecorded(recorded Recorded) *Engine {
+	configured := *e
+	configured.recorded = recorded
+	return &configured
 }
 
 // NewEngine builds an engine from the registered rules and cfg.

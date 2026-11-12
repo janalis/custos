@@ -17,6 +17,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/meta"
+	"custos/internal/inspection/rules/possiblynullaccess"
 	"custos/internal/php/syntax"
 	"custos/internal/project"
 	"custos/internal/project/config"
@@ -838,5 +839,33 @@ func TestGlobalCheckpointCountSupportsRestart(t *testing.T) {
 	s.prune()
 	if len(s.checkpoints) != 1000 {
 		t.Fatalf("retained %d checkpoints", len(s.checkpoints))
+	}
+}
+
+// TestBaselineShowsRepeatsOfRecordedFindings: PossiblyNullAccess reports
+// the access after one the baseline records on the same value, which it
+// leaves out after a reported one; entries name files relative to the
+// baseline's directory.
+func TestBaselineShowsRepeatsOfRecordedFindings(t *testing.T) {
+	root, storage := t.TempDir(), t.TempDir()
+	if err := os.Chmod(storage, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "ci"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(root, "a.php"), "<?php\nfunction f(?Exception $a) {\n$a->getMessage();\n$a->getCode();\n$a->getLine();\n}\n")
+	writeFile(t, filepath.Join(root, "custos.json"), `{"php": "8.2", "baseline": "ci/bl.json", "rules": {"PossiblyNullAccess": {"enabled": true}}}`)
+	writeFile(t, filepath.Join(root, "ci", "bl.json"), `{"version": 1, "entries": [{"path": "../a.php", "rule": "PossiblyNullAccess", "message": "Check this value for null before the access: it is Exception|null.", "line": "$a->getMessage();", "count": 1}]}`)
+	s, err := New(Options{Default: "default", Storage: storage, Workspaces: []Workspace{{ID: "default", Root: root, Readers: []string{"local"}, Writers: []string{"local"}}}}, []analysis.Rule{possiblynullaccess.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+	ctx := context.WithValue(context.WithValue(context.Background(), identityKey{}, "local"), writeScopeKey{}, true)
+	a := invoke(ctx, t, s, "analyze", Input{})
+	cp := s.checkpoints[a["checkpointId"].(string)]
+	if len(cp.Findings) != 1 || cp.Findings[0].Line != 4 {
+		t.Fatalf("findings: %+v", cp.Findings)
 	}
 }

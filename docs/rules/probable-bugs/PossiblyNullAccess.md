@@ -97,8 +97,9 @@ Reported:
   when later ones only run after it. The value is a local or a property of
   `$this` (`$this->last`); a later access on it is silent when an earlier
   access on the same value, which D1 to D3 cover and E1 to E9 do not
-  excuse, and which is reported (no suppression comment silences it) or
-  is itself such a repeated access, has run on every path reaching it:
+  excuse, and which is reported (no suppression comment silences it and
+  no baseline entry records it, see below) or is itself such a repeated
+  access, has run on every path reaching it:
   - the earlier access is in a statement before the later one's, or in an
     earlier part of the same expression that is evaluated first (an
     operand, an argument, an array item, the receiver of a call whose

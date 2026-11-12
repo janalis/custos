@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"custos/internal/inspection/rules/possiblynullaccess"
 	"custos/internal/project/baseline"
 	"custos/internal/project/config"
 )
@@ -84,5 +85,33 @@ func TestBaselineWithoutConfiguration(t *testing.T) {
 	s.watchedFilesChanged([]fileChange{{URI: "file:///w/bl.json", Type: 2}})
 	if baselinePath(nil) != "" || s.baseline != nil {
 		t.Fatal("baseline without configuration")
+	}
+}
+
+// TestBaselineShowsRepeatsOfRecordedFindings: PossiblyNullAccess reports
+// the access after one the baseline records on the same value, which it
+// leaves out after a reported one.
+func TestBaselineShowsRepeatsOfRecordedFindings(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(config.FileName, `{"baseline": "bl.json", "rules": {"PossiblyNullAccess": {"enabled": true}}}`)
+	write("bl.json", `{"version": 1, "entries": [{"path": "a.php", "rule": "PossiblyNullAccess", "message": "Check this value for null before the access: it is Exception|null.", "line": "$a->getMessage();", "count": 1}]}`)
+	useRules(t, possiblynullaccess.New())
+	cl := startServer(t)
+	cl.initialize(map[string]any{"rootUri": "file://" + dir})
+	_ = cl.c.notify("initialized", map[string]any{})
+	uri := "file://" + filepath.Join(dir, "a.php")
+	cl.open(uri, "<?php\nfunction f(?Exception $a) {\n$a->getMessage();\n$a->getCode();\n$a->getLine();\n}\n")
+	p := cl.diagsFor(uri)
+	for len(p.Diagnostics) == 0 { // published again once the project is indexed
+		p = cl.diagsFor(uri)
+	}
+	if len(p.Diagnostics) != 1 || p.Diagnostics[0].Range.Start.Line != 3 {
+		t.Fatalf("diagnostics: %+v", p.Diagnostics)
 	}
 }

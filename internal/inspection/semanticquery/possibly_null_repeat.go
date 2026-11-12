@@ -20,9 +20,10 @@ const maxRepeatScan = 64
 // write, no comparison, no argument. In a loop around n that does not hold
 // the earlier access, no such use anywhere in the loop either. A call
 // between them does not count for a property, as a check of it outlives
-// calls (see possiblyNull). A scope holding a `goto` has no repeated access: it may jump past the
-// earlier one. The earlier access is reported: its finding is not
-// suppressed (see analysis.Context.Suppressed), or it repeats another.
+// calls (see possiblyNull). A scope holding a `goto` has no repeated
+// access: it may jump past the earlier one. The earlier access is
+// reported: its finding is neither suppressed by a comment nor recorded in
+// the baseline (see analysis.Context.Suppressed), or it repeats another.
 func repeatedAccess(ctx *analysis.Context, n syntax.Node, recv syntax.Expr) bool {
 	value := valueKey(recv)
 	if value == "" {
@@ -46,7 +47,7 @@ func repeatedAccess(ctx *analysis.Context, n syntax.Node, recv syntax.Expr) bool
 		if usedBetween(u, c, n, start) {
 			return false // earlier accesses have this use in between too
 		}
-		if a, ok := possiblyNullAccess(ctx, c); ok && (!ctx.Suppressed(possiblyNullAccessRule, a.Receiver.Span()) || repeatedOf(ctx, c)) {
+		if a, ok := possiblyNullAccess(ctx, c); ok && (!ctx.Suppressed(possiblyNullAccessRule, a.Receiver.Span(), a.Message()) || repeatedOf(ctx, c)) {
 			return true
 		}
 	}

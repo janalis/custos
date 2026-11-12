@@ -37,8 +37,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   an `AppendIterator`, though, and a class of the project may override
   the method). PossiblyNullAccess reports a value once: an access that
   only runs after a reported access on the same value is left out, unless
-  a suppression comment silences that one, a loop may change the value
-  before the next iteration, or the function holds a `goto`.
+  a suppression comment or a baseline entry silences that one, a loop may
+  change the value before the next iteration, or the function holds a
+  `goto`; a generated baseline records every access.
   NullPointerException leaves to them what they report when they run in
   the same analysis (not where their check failed), and its
   suppression comments and baseline entries cover them too.

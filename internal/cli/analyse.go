@@ -33,6 +33,29 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 	if !slices.Contains(report.Formats, *format) {
 		return 2, fmt.Errorf("unknown format %q (want one of %s)", *format, strings.Join(report.Formats, ", "))
 	}
+	fromConfig := false
+	if *baselinePath == "" && s.cfg.Baseline != "" {
+		*baselinePath = filepath.Join(s.cfg.Root, s.cfg.Baseline)
+		fromConfig = true
+	}
+	var b *baseline.Baseline
+	switch {
+	case *genBaseline != "":
+		// Every finding is recorded: a check that leaves a finding out
+		// because an earlier one is reported must report it too.
+		s.project.Engine = s.project.Engine.WithRecorded(func(string, []byte, diagnostic.Finding) bool { return true })
+	case *baselinePath != "":
+		b, err = baseline.Load(*baselinePath)
+		if err != nil && fromConfig && errors.Is(err, os.ErrNotExist) {
+			// A baseline named in custos.json that was not generated yet
+			// suppresses nothing (first run); an explicit --baseline must exist.
+			b, err = baseline.Empty(), nil
+		}
+		if err != nil {
+			return 2, err
+		}
+		s.project.Engine = s.project.Engine.WithRecorded(b.Covers)
+	}
 	stop, err := c.startProfile()
 	if err != nil {
 		return 2, err
@@ -49,21 +72,7 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 		fmt.Fprintf(stderr, "custos: baseline %s written (%d entries)\n", *genBaseline, n)
 		return 0, nil
 	}
-	fromConfig := false
-	if *baselinePath == "" && s.cfg.Baseline != "" {
-		*baselinePath = filepath.Join(s.cfg.Root, s.cfg.Baseline)
-		fromConfig = true
-	}
-	if *baselinePath != "" {
-		b, err := baseline.Load(*baselinePath)
-		if err != nil && fromConfig && errors.Is(err, os.ErrNotExist) {
-			// A baseline named in custos.json that was not generated yet
-			// suppresses nothing (first run); an explicit --baseline must exist.
-			b, err = baseline.Empty(), nil
-		}
-		if err != nil {
-			return 2, err
-		}
+	if b != nil {
 		var suppressed int
 		items, suppressed = b.Filter(items)
 		if *stats {
