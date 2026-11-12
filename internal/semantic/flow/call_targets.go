@@ -373,3 +373,41 @@ func (e *Env) below(receiver string, found func(sub string) bool) bool {
 	}
 	return false
 }
+
+// method resolves the declaration a method call names through `$this` or a
+// typed receiver, or a static call through a class name, `self`, `static` or
+// `parent`.
+func (e *Env) method(call syntax.Node) *index.Method {
+	switch n := call.(type) {
+	case *syntax.MethodCall:
+		id, ok := n.Name.(*syntax.Identifier)
+		if classes := e.types.TypeOf(n.Var).Classes(); ok && len(classes) == 1 {
+			return e.types.Index.FindMethod(classes[0], id.Value, e.types.PHP)
+		}
+		if this, direct := n.Var.(*syntax.Variable); ok && direct && this.Name == "this" {
+			// Inside a trait `$this` has no class of its own yet.
+			return e.types.Index.FindMethod(e.types.ClassFQN(syntax.EnclosingClass(n)), id.Value, e.types.PHP)
+		}
+	case *syntax.StaticCall:
+		id, ok := n.Name.(*syntax.Identifier)
+		class, named := n.Class.(*syntax.Name)
+		if !ok || !named {
+			return nil
+		}
+		return e.types.Index.FindMethod(e.named(class), id.Value, e.types.PHP)
+	}
+	return nil
+}
+
+// named resolves the class a static call names: the enclosing class for
+// `self` and `static`, the class it extends for `parent`. The method is then
+// looked up through the classes above it.
+func (e *Env) named(class *syntax.Name) string {
+	switch strings.ToLower(class.Value) {
+	case "self", "static":
+		return e.types.ClassFQN(syntax.EnclosingClass(class))
+	case "parent":
+		return e.types.Names.ParentFQN(syntax.EnclosingClass(class))
+	}
+	return e.types.Names.Class(class.Value, class.Span().Start)
+}
