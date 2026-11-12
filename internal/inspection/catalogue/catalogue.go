@@ -522,6 +522,8 @@ import (
 	"custos/internal/inspection/rules/undeclareddynamicproperty"
 	"custos/internal/inspection/rules/undefinedclass"
 	"custos/internal/inspection/rules/undefinedfunction"
+	"custos/internal/inspection/rules/undefinedmethod"
+	"custos/internal/inspection/rules/undefinedproperty"
 	"custos/internal/inspection/rules/unescapedhtmloutput"
 	"custos/internal/inspection/rules/unicodenormalizationfailureconsumed"
 	"custos/internal/inspection/rules/uninitializedtypedpropertyread"
@@ -1083,6 +1085,8 @@ func All() []analysis.Rule {
 		undeclareddynamicproperty.New(),
 		undefinedclass.New(),
 		undefinedfunction.New(),
+		undefinedmethod.New(),
+		undefinedproperty.New(),
 		unicodenormalizationfailureconsumed.New(),
 		uninitializedtypedpropertyread.New(),
 		unitenumjsonencoding.New(),

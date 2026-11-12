@@ -299,6 +299,15 @@ type Class struct {
 	Consts           map[string]*ClassConst `json:"consts,omitempty"`
 	Deprecated       bool                   `json:"dep,omitempty"`
 	Avail            Avail                  `json:"a,omitempty"`
+	// Mixin is set when the class's PHPDoc carries a @mixin tag (or its
+	// phpstan- or psalm- variant): its objects document members of
+	// another class, which they usually forward through magic methods.
+	Mixin bool `json:"mixin,omitempty"`
+	// Conditional is set for a named class-like declared inside a function,
+	// a condition, a loop or a try block rather than at the top level of
+	// its file (namespaces, declare statements and plain braces aside): it
+	// exists only when that code runs.
+	Conditional bool `json:"cond,omitempty"`
 	// Templates are the class-level @template parameters, in order.
 	Templates []Template `json:"tpl,omitempty"`
 	// Supers lists the generic arguments given to parents, interfaces and

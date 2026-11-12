@@ -1983,6 +1983,12 @@
   "UndefinedFunction": {
     "summary": "Report a call to a function that nothing declares: not the project, not an\ninstalled Composer package and not PHP or a known extension. Such a call\nthrows an `Error` when it runs; the name usually has a typo or lacks its\n`use function` import. The rule needs a complete view of the code the\nproject can load, so it reports nothing unless every Composer dependency is\ninstalled."
   },
+  "UndefinedMethod": {
+    "summary": "Report a method call on an object or a class that declares no method of\nthat name, judging the object only by what the code itself shows. PHP\nthrows an `Error` when such a call runs; the name usually has a typo, or\nthe method belongs to another class. Objects whose classes may answer\nany name (magic `__call`, `@method` and `@mixin` tags) are left alone."
+  },
+  "UndefinedProperty": {
+    "summary": "Report a read of a property that the object's class does not declare,\njudging the object only by what the code itself shows, and any access to an\nundeclared static property. PHP warns and reads `null` for the first, and\nthrows an `Error` for the second; the name usually has a typo. Objects\nthat accept any property (magic `__get`, `@property` and `@mixin` tags,\n`stdClass`, `#[AllowDynamicProperties]`) are left alone, and so are writes,\nwhich create a dynamic property (see UndeclaredDynamicProperty)."
+  },
   "UnescapedHtmlOutput": {
     "summary": "Detect request-derived text emitted into proven HTML text nodes, script or style element text, or classified attribute values without the escaping that context needs.",
     "options": "None. Enable or disable this rule through normal rule configuration."

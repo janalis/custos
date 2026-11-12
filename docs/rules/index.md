@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **587 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **589 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -545,6 +545,8 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [UndeclaredDynamicProperty](./probable-bugs/UndeclaredDynamicProperty) | native | warning | on |  | PHP ≥ 8.2 |
 | [UndefinedClass](./probable-bugs/UndefinedClass) | native | error | off |  | any |
 | [UndefinedFunction](./probable-bugs/UndefinedFunction) | native | error | off |  | any |
+| [UndefinedMethod](./probable-bugs/UndefinedMethod) | native | error | off |  | any |
+| [UndefinedProperty](./probable-bugs/UndefinedProperty) | native | error | off |  | any |
 | [UnicodeNormalizationFailureConsumed](./probable-bugs/UnicodeNormalizationFailureConsumed) | native | warning | on |  | PHP ≥ 5.3 |
 | [UninitializedTypedPropertyRead](./probable-bugs/UninitializedTypedPropertyRead) | native | error | on |  | PHP ≥ 7.4 |
 | [UnitEnumJsonEncoding](./probable-bugs/UnitEnumJsonEncoding) | native | error | on |  | PHP ≥ 8.1 |

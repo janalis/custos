@@ -9,6 +9,21 @@ import (
 	"custos/internal/semantic/types"
 )
 
+// conditionalDeclaration reports whether the class-like n is declared
+// inside anything but its file, a namespace, a declare statement or plain
+// braces.
+func conditionalDeclaration(n *syntax.ClassLike) bool {
+	for p := n.Parent(); ; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.File, nil:
+			return false
+		case *syntax.Namespace, *syntax.Declare, *syntax.Block:
+		default:
+			return true
+		}
+	}
+}
+
 func (x *extractor) classBody(n *syntax.ClassLike) {
 	at := n.Span().Start
 	fqn := x.r.SymbolFQN(n)
@@ -36,7 +51,9 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 			c.Attrs = append(c.Attrs, x.r.Class(a.Name.Value, a.Span().Start))
 		}
 	}
+	c.Conditional = n.Name != nil && conditionalDeclaration(n)
 	if d := x.doc(n); d != nil {
+		c.Mixin = d.Has("mixin") || d.Has("phpstan-mixin") || d.Has("psalm-mixin")
 		c.Deprecated = d.Has("deprecated")
 		c.Avail = x.avail(n.Attrs, d)
 		x.magicMembers(c, d, at)

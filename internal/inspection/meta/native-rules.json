@@ -2586,6 +2586,20 @@
     "hasFix": false
   },
   {
+    "id": "UndefinedMethod",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "UndefinedProperty",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "UnescapedHtmlOutput",
     "group": "Security",
     "severity": "error",

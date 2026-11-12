@@ -7,6 +7,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- UndefinedMethod and UndefinedProperty (errors, off by default) report a
+  method call, a property read or a static property access that the
+  receiver's class does not declare, when the code alone (not PHPDoc)
+  shows the class and its whole hierarchy is known. Magic methods,
+  `@method`, `@property` and `@mixin` tags, `stdClass` and
+  `#[AllowDynamicProperties]`, members a subclass or an implementation
+  declares, traits, closures that may be rebound, classes declared twice
+  or conditionally, members PHP declares in another version, and
+  `method_exists()` or `property_exists()` checks keep them silent.
 - UndefinedFunction and UndefinedClass (off by default) report calls and
   class names nothing declares. They report only when the project's world
   is complete: Composer's packages all installed and indexed, every
