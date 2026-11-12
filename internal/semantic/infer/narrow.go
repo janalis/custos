@@ -608,16 +608,23 @@ func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t typ
 
 // provenTrueAt reports whether test x of local v, evaluated at position
 // from, was true: v has not changed since, and the conditions guarding use
-// leave its value there (typed as read by x) nothing for which x is false.
+// leave its value there nothing for which x is false. The value is not
+// typed (typing it from here would re-enter the inference of the value
+// being narrowed): it is taken as any value (anyValue), which only those
+// guards narrow away that hold whatever the value's type.
 func (e *Env) provenTrueAt(x syntax.Expr, v *syntax.Variable, use syntax.Expr, scope syntax.Node, from uint32) bool {
 	if e.brokenBy(scope, from, use, e.mutations(scope, v.Name)) || e.factBroken(scope, v.Name, from, use) {
 		return false
 	}
 	e.correlating = true
-	at := e.NarrowedVarAt(v.Name, use, e.TypeOf(v))
+	at := e.NarrowedVarAt(v.Name, use, anyValue)
 	e.correlating = false
 	return e.applyCond(at, x, v.Name, false).IsBottom()
 }
+
+// anyValue seeds provenTrueAt: every kind of value, spelled out so that
+// guards narrow it (mixed stays mixed).
+var anyValue = types.Of("null", "bool", "int", "float", "string", "array", "object", "resource")
 
 // soleTest returns the local that condition c tests on its own: compares
 // with null (strictly or loosely), tests for truthiness, or negates such

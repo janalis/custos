@@ -29,6 +29,8 @@ func TestCorrelatedNullExit(t *testing.T) {
 		{"other value non-null", `if ($a === null && $b === null) { return; } if ($b !== null) { t('v', $a); } }`, `\A|null`},
 		{"other value written since", `if ($a === null && $b === null) { return; } $b = g(); if ($b === null) { t('v', $a); } }`, `\A|null`},
 		{"other value passed to an unknown function", `if ($a === null && $b === null) { return; } unknown_fn($b); if ($b === null) { t('v', $a); } }`, `\A|null`},
+		{"other value an int", `if ($a === null && $b === null) { return; } if ($b === 5) { t('v', $a); } }`, `\A|null`},
+		{"other value not an object", `if ($a === null && $b === null) { return; } if (!is_object($b)) { t('v', $a); } }`, `\A|null`},
 		{"either may be null", `if ($a === null || $b === null) { return; } if ($b === null) { t('v', $a); } }`, `\A`},
 		{"not an early exit", `if ($a === null && $b === null) { echo 1; } if ($b === null) { t('v', $a); } }`, `\A|null`},
 		{"other test not about null", `if ($a === null && $b instanceof A) { return; } if ($b instanceof A) { t('v', $a); } }`, `\A|null`},
