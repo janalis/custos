@@ -22,6 +22,10 @@ type NullAccess struct {
 	Receiver syntax.Expr
 	// Type is the receiver's proven type; it includes null.
 	Type types.Type
+	// Repeated tells that an earlier access on the same value, possibly
+	// null too, runs before this one on every path (see repeatedAccess):
+	// PossiblyNullAccess reports that one only.
+	Repeated bool
 }
 
 // Message is the finding's text.
@@ -29,17 +33,37 @@ func (a NullAccess) Message() string {
 	return "Check this value for null before the access: it is " + typeName(a.Type) + "."
 }
 
-type nullAccessKey struct{ access syntax.Node }
+type (
+	nullAccessKey     struct{ access syntax.Node }
+	nullAccessCoreKey struct{ access syntax.Node }
+)
 
 // PossiblyNullAccess reports access n (a property fetch, method call,
 // static access through an expression, or array element read) when its
 // receiver may be null (see possiblyNull) and the access fails or warns on
 // null: not `?->`, not a read inside isset(), empty() or the left side of
 // `??`, not an element write (which turns null into an array), not an
-// element read before PHP 7.4 (which read null silently). Cached per node.
+// element read before PHP 7.4 (which read null silently). Repeated tells
+// an access that repeats an earlier one (see repeatedAccess). Cached per
+// node.
 func PossiblyNullAccess(ctx *analysis.Context, n syntax.Node) (NullAccess, bool) {
 	r := ctx.Shared(nullAccessKey{n}, func() any {
 		a, ok := possiblyNullAccess(ctx, n)
+		if !ok {
+			return nil
+		}
+		a.Repeated = repeatedAccess(ctx, n, a.Receiver)
+		return a
+	})
+	a, ok := r.(NullAccess)
+	return a, ok
+}
+
+// possiblyNullAccess is PossiblyNullAccess without Repeated, cached per
+// node.
+func possiblyNullAccess(ctx *analysis.Context, n syntax.Node) (NullAccess, bool) {
+	r := ctx.Shared(nullAccessCoreKey{n}, func() any {
+		a, ok := nullAccessOf(ctx, n)
 		if !ok {
 			return nil
 		}
@@ -49,7 +73,7 @@ func PossiblyNullAccess(ctx *analysis.Context, n syntax.Node) (NullAccess, bool)
 	return a, ok
 }
 
-func possiblyNullAccess(ctx *analysis.Context, n syntax.Node) (NullAccess, bool) {
+func nullAccessOf(ctx *analysis.Context, n syntax.Node) (NullAccess, bool) {
 	var recv syntax.Expr
 	switch a := n.(type) {
 	case *syntax.PropertyFetch:

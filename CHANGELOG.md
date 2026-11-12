@@ -28,8 +28,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `assert()`, PHPDoc assertions, a check of the same call made earlier
   and a check of a property before a call keep them silent, and so does
   null passed to a scalar parameter of PHP's own functions outside strict
-  mode. NullPointerException leaves to them what they report when they
-  run in the same analysis.
+  mode. PossiblyNullAccess reports a value once: an access that only runs
+  after an earlier access on the same value is left out.
+  NullPointerException leaves to them what they report when they run in
+  the same analysis.
 - UndefinedMethod and UndefinedProperty (errors, off by default) report a
   method call, a property read or a static property access that the
   receiver's class does not declare, when the code alone (not PHPDoc)

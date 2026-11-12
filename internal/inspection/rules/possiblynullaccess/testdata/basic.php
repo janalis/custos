@@ -18,14 +18,14 @@ class Cart
     public function find(): ?Item { return null; }
 
     // A nullable parameter: every kind of access.
-    public function each(?Item $item, ?array $lines): void
+    public function each(?Item $a, ?Item $b, ?Item $c, ?Item $d, ?Item $e, ?Item $f, ?array $lines): void
     {
-        <warning descr="Check this value for null before the access: it is Shop\Item|null.">$item</warning>->price();
-        <warning descr="Check this value for null before the access: it is Shop\Item|null.">$item</warning>->qty = 2;
-        echo <warning descr="Check this value for null before the access: it is Shop\Item|null.">$item</warning>->qty;
-        echo <warning descr="Check this value for null before the access: it is Shop\Item|null.">$item</warning>::KIND;
-        echo <warning descr="Check this value for null before the access: it is Shop\Item|null.">$item</warning>::$made;
-        <warning descr="Check this value for null before the access: it is Shop\Item|null.">$item</warning>::make();
+        <warning descr="Check this value for null before the access: it is Shop\Item|null.">$a</warning>->price();
+        <warning descr="Check this value for null before the access: it is Shop\Item|null.">$b</warning>->qty = 2;
+        echo <warning descr="Check this value for null before the access: it is Shop\Item|null.">$c</warning>->qty;
+        echo <warning descr="Check this value for null before the access: it is Shop\Item|null.">$d</warning>::KIND;
+        echo <warning descr="Check this value for null before the access: it is Shop\Item|null.">$e</warning>::$made;
+        <warning descr="Check this value for null before the access: it is Shop\Item|null.">$f</warning>::make();
         echo <warning descr="Check this value for null before the access: it is array|null.">$lines</warning>['a'];
     }
 
@@ -64,10 +64,11 @@ class Cart
         <warning descr="Check this value for null before the access: it is Shop\Item|null.">$item</warning>->price();
     }
 
-    // A property read on an element of a nullable array is still a read.
+    // A property read on an element of a nullable array is still a read;
+    // the second read repeats the first.
     public function nested(?array $rows): void
     {
         echo <warning descr="Check this value for null before the access: it is array|null.">$rows</warning>['a']['b'];
-        $first = <warning descr="Check this value for null before the access: it is array|null.">$rows</warning>[0] + 1;
+        $first = $rows[0] + 1;
     }
 }

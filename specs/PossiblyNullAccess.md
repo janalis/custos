@@ -64,6 +64,27 @@ not reported.
 - E8. `$this` inside a closure or an arrow function, which may run bound
   to another object.
 - E9. Class names (`Foo::bar()`), which are never null.
+- E10. A repeated access: only the first access on a value is reported
+  when later ones only run after it. The value is a local or a property of
+  `$this` (`$this->last`); a later access on it is silent when an earlier
+  access on the same value, which D1 to D3 cover and E1 to E9 do not
+  excuse, has run on every path reaching it:
+  - the earlier access is in a statement before the later one's, or in an
+    earlier part of the same expression that is evaluated first (an
+    operand, an argument, an array item, the receiver of a call whose
+    arguments hold the later one), or in the condition of an `if`,
+    `elseif`, `while`, `switch` or `match`, the subject of a `foreach` or
+    the initializer of a `for` that holds the later one;
+  - on its way to that point, the earlier access is not in a branch, an
+    operand that `&&`, `||`, `??` or `??=` may skip, a ternary or `match`
+    arm, `isset()`, a loop body or step, a `try`, `do` or `case` block, an
+    argument or key after a nullsafe access, or a nested function;
+  - between the two, and in any loop around the later access that does
+    not hold the earlier one, the value is used only as the receiver of
+    accesses: no assignment, element write, argument, comparison or other
+    read.
+  An access inside the arguments of an earlier access on the same value
+  (`$x->m($x->n)`) is reported as well.
 
 ## Report
 

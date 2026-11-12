@@ -24,9 +24,10 @@ func (rule) Kinds() []syntax.NodeKind {
 func (rule) Semantic() {}
 
 // Check reports the receiver of an access that fails or warns on null when
-// native declarations prove the receiver may be null.
+// native declarations prove the receiver may be null, unless an earlier
+// access on the same value already says so.
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if a, ok := semanticquery.PossiblyNullAccess(ctx, n); ok {
+	if a, ok := semanticquery.PossiblyNullAccess(ctx, n); ok && !a.Repeated {
 		ctx.ReportNode(a.Receiver, a.Message())
 	}
 }

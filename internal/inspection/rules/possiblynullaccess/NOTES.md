@@ -17,6 +17,18 @@ test (`possiblyNull`), which asks, cheapest first:
    (`NativeEarlierCallProves`), or a local whose reaching values are such
    calls or never null.
 
+## Repeated accesses
+
+`repeatedAccess` (`possibly_null_repeat.go`) sets `NullAccess.Repeated`;
+the rule skips such accesses, but NullPointerException still defers on
+them, so a value is reported once. Per scope and value (`valueKey`), the
+accesses on it and its other occurrences are listed once
+(`valueAccesses`); an access scans at most `maxRepeatScan` earlier
+accesses, nearest first, and stops at the first one separated from it by
+another occurrence. `runsBefore` is syntactic dominance: `evaluated` for
+the steps up from the earlier access, `evaluatedBefore` at the first
+common ancestor.
+
 ## NullPointerException
 
 NullPointerException asks `semanticquery.PossiblyNullAccess` or
@@ -34,7 +46,5 @@ the three rules together (`"with"` sidecar key).
   (`correlated` in `narrow.go`): a two-operand `&&` early exit whose
   other operand tests one local alone, proven true by the guards at the
   use. Exits on three operands, or on tests reading two values, are not.
-- Every access on the same nullable value is reported, even after one
-  that would already have thrown.
 - Builtin methods declared nullable that only return null in states the
   code rules out (`IteratorIterator::getInnerIterator()`) are reported.

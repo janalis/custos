@@ -40,7 +40,7 @@ Reported:
 
 ## Detection
 
-- An access through `->` (property read or write, method call), `::`
+- D1. An access through `->` (property read or write, method call), `::`
   on an expression (`$x::CONST`, `$x::$prop`, `$x::m()`, `$x::class`), or
   an element read `$x[k]`.
 - D2. The type of the accessed value comes from native declarations only
@@ -59,11 +59,11 @@ Reported:
   or more are not combined that way. A local that may change without an assignment showing it (bound
   by reference, a `global` or `static` local, passed where it may be
   written by reference) is unknown.
-- That type includes null.
+- D3. That type includes null.
 
 ## Exceptions (no report)
 
-- The access is nullsafe (`?->`), or follows a nullsafe access in the
+- E1. The access is nullsafe (`?->`), or follows a nullsafe access in the
   same chain (`$a?->b()->c()`), whose short-circuit may be where null
   comes from.
 - A property, static property or element read inside `isset()` or
@@ -85,7 +85,28 @@ Reported:
   $p->date()->format('c'); }`), or a local holding such a call's result.
 - `$this` inside a closure or an arrow function, which may run bound
   to another object.
-- Class names (`Foo::bar()`), which are never null.
+- E9. Class names (`Foo::bar()`), which are never null.
+- A repeated access: only the first access on a value is reported
+  when later ones only run after it. The value is a local or a property of
+  `$this` (`$this->last`); a later access on it is silent when an earlier
+  access on the same value, which D1 to D3 cover and E1 to E9 do not
+  excuse, has run on every path reaching it:
+  - the earlier access is in a statement before the later one's, or in an
+    earlier part of the same expression that is evaluated first (an
+    operand, an argument, an array item, the receiver of a call whose
+    arguments hold the later one), or in the condition of an `if`,
+    `elseif`, `while`, `switch` or `match`, the subject of a `foreach` or
+    the initializer of a `for` that holds the later one;
+  - on its way to that point, the earlier access is not in a branch, an
+    operand that `&&`, `||`, `??` or `??=` may skip, a ternary or `match`
+    arm, `isset()`, a loop body or step, a `try`, `do` or `case` block, an
+    argument or key after a nullsafe access, or a nested function;
+  - between the two, and in any loop around the later access that does
+    not hold the earlier one, the value is used only as the receiver of
+    accesses: no assignment, element write, argument, comparison or other
+    read.
+  An access inside the arguments of an earlier access on the same value
+  (`$x->m($x->n)`) is reported as well.
 
 ## Fix
 
