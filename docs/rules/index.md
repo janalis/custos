@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **591 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **593 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -339,6 +339,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ImagickResizeStatusUsedAsImage](./probable-bugs/ImagickResizeStatusUsedAsImage) | native | warning | on |  | any |
 | [ImagickSingleBlobDropsRequiredFrames](./probable-bugs/ImagickSingleBlobDropsRequiredFrames) | native | warning | off |  | any |
 | [ImmutableDateResultIgnored](./probable-bugs/ImmutableDateResultIgnored) | native | warning | on | ✓ | PHP ≥ 5.5 |
+| [ImpossibleTypeComparison](./probable-bugs/ImpossibleTypeComparison) | native | error | off |  | any |
 | [IncorrectRandomRange](./probable-bugs/IncorrectRandomRange) | EA | error | on |  | any |
 | [IncrementalInflateEncodingMismatch](./probable-bugs/IncrementalInflateEncodingMismatch) | native | warning | on |  | PHP ≥ 7.0 |
 | [InfinityLoop](./probable-bugs/InfinityLoop) | EA | error | on |  | any |
@@ -464,6 +465,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [RecursiveReplaceRetainsListTail](./probable-bugs/RecursiveReplaceRetainsListTail) | native | warning | off |  | any |
 | [RecursiveTraversalOmitsDirectories](./probable-bugs/RecursiveTraversalOmitsDirectories) | native | warning | off |  | PHP ≥ 5.3 |
 | [RedirectContinuesProtectedExecution](./probable-bugs/RedirectContinuesProtectedExecution) | native | warning | on |  | any |
+| [RedundantTypeCheck](./probable-bugs/RedundantTypeCheck) | native | warning | off |  | any |
 | [ReflectionCompositeTypeAssumedNamed](./probable-bugs/ReflectionCompositeTypeAssumedNamed) | native | error | on |  | PHP ≥ 8.0 |
 | [ReflectionNamedArgumentMismatch](./probable-bugs/ReflectionNamedArgumentMismatch) | native | error | on |  | PHP ≥ 8.0 |
 | [RegexBodyDoesNotCompile](./probable-bugs/RegexBodyDoesNotCompile) | native | error | on |  | any |

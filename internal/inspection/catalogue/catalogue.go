@@ -228,6 +228,7 @@ import (
 	"custos/internal/inspection/rules/imagicksingleblobdropsrequiredframes"
 	"custos/internal/inspection/rules/immutabledateresultignored"
 	"custos/internal/inspection/rules/implodeargumentsorder"
+	"custos/internal/inspection/rules/impossibletypecomparison"
 	"custos/internal/inspection/rules/inarraymissuse"
 	"custos/internal/inspection/rules/incorrectrandomrange"
 	"custos/internal/inspection/rules/incrementalinflateencodingmismatch"
@@ -405,6 +406,7 @@ import (
 	"custos/internal/inspection/rules/recursivetraversalomitsdirectories"
 	"custos/internal/inspection/rules/redirectcontinuesprotectedexecution"
 	"custos/internal/inspection/rules/redundantelseclause"
+	"custos/internal/inspection/rules/redundanttypecheck"
 	"custos/internal/inspection/rules/referencingobjects"
 	"custos/internal/inspection/rules/reflectioncompositetypeassumednamed"
 	"custos/internal/inspection/rules/reflectionnamedargumentmismatch"
@@ -881,6 +883,7 @@ func All() []analysis.Rule {
 		imagickresizestatususedasimage.New(),
 		imagicksingleblobdropsrequiredframes.New(),
 		immutabledateresultignored.New(),
+		impossibletypecomparison.New(),
 		incorrectrandomrange.New(),
 		incrementalinflateencodingmismatch.New(),
 		infinityloop.New(),
@@ -1006,6 +1009,7 @@ func All() []analysis.Rule {
 		recursivereplaceretainslisttail.New(),
 		recursivetraversalomitsdirectories.New(),
 		redirectcontinuesprotectedexecution.New(),
+		redundanttypecheck.New(),
 		reflectioncompositetypeassumednamed.New(),
 		reflectionnamedargumentmismatch.New(),
 		regexbodydoesnotcompile.New(),

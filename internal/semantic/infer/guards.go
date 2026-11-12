@@ -72,9 +72,14 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 				!(isPropKey(name) && e.nonEmptyBroken(scope, name, g.Span().End, use)) {
 				// `if (false === $x) { $x = $default; }`: past the if, the
 				// condition no longer holds (unless the new value matches it).
+				// An impossible narrowing keeps its input, so the narrowed
+				// type must still hold the new value: `if ($x !== null) {
+				// $x = trim($x); }` leaves a string, not null.
 				vt := e.TypeOf(val)
 				if !vt.IsUnknown() && e.applyCond(vt, g.Cond, name, false).String() == vt.String() {
-					t = e.applyCond(t, g.Cond, name, false)
+					if nt := e.applyCond(t, g.Cond, name, false); holdsAtoms(nt, vt) {
+						t = nt
+					}
 				}
 			}
 		} else if ok && len(g.ElseIfs) < maxBranchScan {
@@ -473,4 +478,20 @@ func (e *Env) leavesExpr(x syntax.Expr) bool {
 		return e.TypeOf(n).OnlyOf("never")
 	}
 	return syntax.ExitInvocation(x)
+}
+
+// holdsAtoms reports whether every atom of sub is an atom of t, or one t
+// covers: an element-typed array by array or iterable, true or false by
+// bool.
+func holdsAtoms(t, sub types.Type) bool {
+	for _, a := range sub.Atoms() {
+		switch {
+		case t.Has(a):
+		case strings.HasSuffix(a, "[]") && t.HasAny("array", "iterable"):
+		case (a == "true" || a == "false") && t.Has("bool"):
+		default:
+			return false
+		}
+	}
+	return true
 }

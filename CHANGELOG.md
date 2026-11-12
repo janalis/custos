@@ -7,6 +7,18 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- ImpossibleTypeComparison (error) and RedundantTypeCheck (warning), both
+  off by default, report a `===`/`!==` whose operands share no value, and
+  an `instanceof`, `is_*()` or `null` check whose answer is always the
+  same, when the code alone (not PHPDoc) decides it. Unknown or mixed
+  values, constants, values written later in a loop, builtins whose return
+  type changes in a later PHP version, dependency class hierarchies, tests
+  and `assert()`, loose comparisons, integer ranges and string lengths
+  stay silent, and so does an always-true last `elseif`. Checks other
+  rules already report (CallableParameterUseCaseInTypeContext,
+  NotOptimalIfConditions, ArraySearchUsedAsInArray,
+  XmlParseZeroComparedWithFalse, CollatorComparisonTruthinessReversed,
+  DomMissingAttributeCheckedAsNull) are left to them when they run.
 - PossiblyNullAccess and PossiblyNullArgument (warnings, off by default)
   report a value the code alone (not PHPDoc) shows may be null, accessed
   with `->`, `::` or `[]`, or passed to a parameter whose declared type
@@ -117,6 +129,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Type inference no longer reads a local as null after
+  `if ($x !== null) { $x = trim($x); }` (the new value was dropped), nor
+  loses an assignment made earlier in the same `elseif` body as the read.
 - Type inference keeps more null checks: a local passed to a by-value
   parameter of a method inside a branch, or reassigned on one branch
   after an early exit, a variable assigned in the left operand of `&&`

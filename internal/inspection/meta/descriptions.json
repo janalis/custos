@@ -842,6 +842,9 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
     "fix": true
   },
+  "ImpossibleTypeComparison": {
+    "summary": "Report a strict comparison (`===`, `!==`) whose operands can never be\nidentical, because the code itself shows they have no value in common: an\n`int` against a `string`, an object against a scalar, two classes no\nobject can belong to at once, two locals holding different literals. Such\na comparison always gives the same answer, so the branch it guards is dead\nor always taken. Types that come only from PHPDoc never count."
+  },
   "InArrayMissUse": {
     "summary": "Two wasteful `in_array()` shapes:\n\n- searching the keys list built by `array_keys($a)` — a direct key lookup\n  (`array_key_exists`) avoids building the list;\n- searching a one-element array literal — that is just a comparison with the\n  single element.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. |\n\nComparison style (`regular`/`yoda`) is the global setting.",
@@ -1515,6 +1518,9 @@
   "RedundantElseClause": {
     "summary": "When an `if` body always leaves the current flow (return, throw, break,\ncontinue, exit/die), the following `else`/`elseif` keyword is superfluous: its\ncode can simply follow the `if`. Removing it flattens nesting.",
     "fix": true
+  },
+  "RedundantTypeCheck": {
+    "summary": "Report a type test whose answer the code already decides: `instanceof`,\n`is_int()` and the other type predicates, or a strict comparison with\n`null`, on a value whose native type makes it always true or always\nfalse. An always-true check is dead defensive code; an always-false one\nguards a branch that never runs, often a sign that the value is not what\nthe author thinks. Types that come only from PHPDoc never count, so a\nguard that enforces a documented type at run time stays silent."
   },
   "ReferencingObjects": {
     "summary": "Since PHP 5, object handles are passed and assigned by value of the handle:\nthe callee already works on the same object. Taking objects by reference\n(`Foo \u0026$x` parameters, `$x = \u0026new Foo()`) is a PHP 4 leftover that only\nconfuses readers — unless the reference is really used to replace the\ncaller's variable.",

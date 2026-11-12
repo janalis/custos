@@ -320,7 +320,9 @@ func dropExclusive(fwd []varDef, use, scope syntax.Node) []varDef {
 			}
 			add(n.Body)
 			for _, ei := range n.ElseIfs {
-				add(ei.Body)
+				if syntax.Node(ei) != child {
+					add(ei.Body)
+				}
 			}
 			if n.Else != nil {
 				add(n.Else)

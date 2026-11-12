@@ -1208,6 +1208,10 @@
             "link": "/rules/probable-bugs/ImmutableDateResultIgnored"
           },
           {
+            "text": "ImpossibleTypeComparison",
+            "link": "/rules/probable-bugs/ImpossibleTypeComparison"
+          },
+          {
             "text": "IncorrectRandomRange",
             "link": "/rules/probable-bugs/IncorrectRandomRange"
           },
@@ -1724,6 +1728,10 @@
           {
             "text": "RedirectContinuesProtectedExecution",
             "link": "/rules/probable-bugs/RedirectContinuesProtectedExecution"
+          },
+          {
+            "text": "RedundantTypeCheck",
+            "link": "/rules/probable-bugs/RedundantTypeCheck"
           },
           {
             "text": "ReflectionCompositeTypeAssumedNamed",
