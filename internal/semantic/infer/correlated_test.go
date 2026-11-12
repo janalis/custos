@@ -46,3 +46,34 @@ func TestCorrelatedNullExit(t *testing.T) {
 		})
 	}
 }
+
+// TestCorrelatedExitOfMoreValues covers an early exit taken when several
+// values are all null: once later conditions prove all of them but one
+// null, the last one is not.
+func TestCorrelatedExitOfMoreValues(t *testing.T) {
+	const head = `<?php class A {} function g(): ?A { return null; } function f(?A $a, ?A $b, ?A $c, ?A $d) { `
+	cases := []struct {
+		name, body, want string
+	}{
+		{"three values", `if ($a === null && $b === null && $c === null) { return; } if ($b === null && $c === null) { t('v', $a); } }`, `\A`},
+		{"value in the middle", `if ($b === null && $a === null && $c === null) { return; } if ($c === null) { if ($b === null) { t('v', $a); } } }`, `\A`},
+		{"grouped", `if ($b === null and ($c === null && $a === null)) { return; } if ($b === null && $c === null) { t('v', $a); } }`, `\A`},
+		{"four values", `if ($a === null && $b === null && $c === null && $d === null) { return; } if ($b === null && $c === null && $d === null) { t('v', $a); } }`, `\A`},
+		// Not proven.
+		{"one other value not tested", `if ($a === null && $b === null && $c === null) { return; } if ($b === null) { t('v', $a); } }`, `\A|null`},
+		{"one other value written since", `if ($a === null && $b === null && $c === null) { return; } $c = g(); if ($b === null && $c === null) { t('v', $a); } }`, `\A|null`},
+		{"a call among the tests", `if ($a === null && $b === null && g() === null) { return; } if ($b === null) { t('v', $a); } }`, `\A|null`},
+		{"every test proven: unreachable", `if ($b === null && $c === null) { return; } if ($b === null && $c === null) { t('v', $a); } }`, `\A|null`},
+		{"past the bound", `if ($a === null && $b === null && $c === null && $d === null && $b === null && $c === null && $d === null && $b === null && $c === null && $d === null) { return; } if ($b === null && $c === null && $d === null) { t('v', $a); } }`, `\A|null`},
+		{"a call before the others", `if ($a === null && g() === null && $b === null && $c === null) { return; } if ($b === null && $c === null) { t('v', $a); } }`, `\A|null`},
+		{"within the bound", `if ($a === null && $b === null && $c === null && $d === null && $b === null && $c === null && $d === null && $b === null) { return; } if ($b === null && $c === null && $d === null) { t('v', $a); } }`, `\A`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			native, proven := provenProbe(t, head+c.body)
+			if native != c.want || proven != c.want {
+				t.Errorf("native %s, proven %s; want %s", native, proven, c.want)
+			}
+		})
+	}
+}

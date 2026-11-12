@@ -69,6 +69,17 @@ class Cart
         $b->price();
     }
 
+    // Not all three are null: once two are, the third is not.
+    public function anyOf(?Item $a, ?Item $b, ?Item $c): void
+    {
+        if ($a === null && $b === null && $c === null) {
+            return;
+        }
+        if ($b === null && $c === null) {
+            $a->price();
+        }
+    }
+
     // Assertions: assert() and a PHPDoc assertion method.
     public function asserted(?Item $a, ?Item $b): void
     {

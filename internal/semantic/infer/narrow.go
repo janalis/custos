@@ -584,26 +584,59 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 }
 
 // correlated refines r, what condition c found false (ending at from)
-// proves of local key at use, when c is the conjunction of two tests and
-// one of them tests another local on its own (see soleTest) that the
-// conditions guarding use prove true: then the other test was false.
+// proves of local key at use, when c is a conjunction of tests all of which
+// but one test another local on its own (see soleTest) that the conditions
+// guarding use prove true: then the remaining test was false.
 // `if ($a === null && $b === null) { return; }` followed by
-// `if ($b === null) { … $a … }` leaves $a non-null there. The other local
-// must not have changed between c and use. Only two operands; inside, no
-// further correlation is followed.
+// `if ($b === null) { … $a … }` leaves $a non-null there, and so does
+// `if ($a === null && $b === null && $c === null) { return; }` followed by
+// `if ($b === null && $c === null)`. The other locals must not have changed
+// between c and use. At most maxCorrelatedTests tests; inside, no further
+// correlation is followed.
 func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, from uint32) types.Type {
-	b, ok := syntax.UnwrapParens(c).(*syntax.Binary)
-	if !ok || (b.Op.Kind != syntax.TBooleanAnd && b.Op.Kind != syntax.TAnd) || e.correlating {
+	if e.correlating {
 		return r
 	}
-	for _, p := range [2][2]syntax.Expr{{b.Left, b.Right}, {b.Right, b.Left}} {
-		other := soleTest(p[0])
-		if other == nil || other.Name == key || !e.provenTrueAt(p[0], other, use, scope, from) {
+	tests, ok := conjuncts(c, nil)
+	if !ok || len(tests) < 2 {
+		return r
+	}
+	var left []syntax.Expr // the tests not proven true
+	for _, x := range tests {
+		if len(left) > 1 {
+			break
+		}
+		if other := soleTest(x); other != nil && other.Name != key && e.provenTrueAt(x, other, use, scope, from) {
 			continue
 		}
-		return e.applyCond(t, p[1], key, false)
+		left = append(left, x)
 	}
-	return r
+	// None left: every test held, so c was true and use is unreachable.
+	if len(left) != 1 {
+		return r
+	}
+	return e.applyCond(t, left[0], key, false)
+}
+
+// maxCorrelatedTests bounds the tests of a conjunction correlated follows:
+// each costs a narrowing of another local.
+const maxCorrelatedTests = 8
+
+// conjuncts appends to out the operands of c, a chain of `&&` and `and`
+// (parentheses aside), and reports false past maxCorrelatedTests.
+func conjuncts(c syntax.Expr, out []syntax.Expr) ([]syntax.Expr, bool) {
+	c = syntax.UnwrapParens(c)
+	if b, ok := c.(*syntax.Binary); ok && (b.Op.Kind == syntax.TBooleanAnd || b.Op.Kind == syntax.TAnd) {
+		out, ok := conjuncts(b.Left, out)
+		if !ok {
+			return nil, false
+		}
+		return conjuncts(b.Right, out)
+	}
+	if len(out) == maxCorrelatedTests {
+		return nil, false
+	}
+	return append(out, c), true
 }
 
 // provenTrueAt reports whether test x of local v, evaluated at position

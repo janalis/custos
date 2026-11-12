@@ -50,13 +50,15 @@ Reported:
   `break`), assignments (destructuring included: it replaces what each
   variable held, and an element taken from a list is typed as the list's
   element, as a read of `$list[1]` is), and calls whose argument PHP's own functions
-  check. An early exit taken when two tests both hold (`if ($a === null
-  && $b === null) { return; }`) proves the first test false wherever a
-  later condition proves the second one true, provided the second tests a
-  single local on its own (a comparison with null, its truthiness, or the
-  negation of either) that has not changed since: past that exit,
-  `if ($b === null) { $a->total(); }` is silent. Exits on three tests
-  or more are not combined that way. A local that may change without an assignment showing it (bound
+  check. An early exit taken when several tests all hold (`if ($a === null
+  && $b === null) { return; }`, up to eight tests joined by `&&` or `and`)
+  proves the one test left false wherever later conditions prove all the
+  others true, provided each of those tests a single local on its own (a
+  comparison with null, its truthiness, or the negation of either) that
+  has not changed since: past that exit,
+  `if ($b === null) { $a->total(); }` is silent, and so is
+  `if ($b === null && $c === null) { $a->total(); }` past
+  `if ($a === null && $b === null && $c === null) { return; }`. A local that may change without an assignment showing it (bound
   by reference, a `global` or `static` local, passed where it may be
   written by reference) is unknown.
 - D3. That type includes null.

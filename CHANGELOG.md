@@ -22,9 +22,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - PossiblyNullAccess and PossiblyNullArgument (warnings, off by default)
   report a value the code alone (not PHPDoc) shows may be null, accessed
   with `->`, `::` or `[]`, or passed to a parameter whose declared type
-  rejects null. Null checks, early exits (also one taken when two values
-  are both null, once a later check shows one of them is), destructuring
-  that replaces an earlier null, `isset()`, `?->`, `??`,
+  rejects null. Null checks, early exits (also one taken when several
+  values are all null, once later checks show all of them but one are),
+  destructuring that replaces an earlier null, `isset()`, `?->`, `??`,
   `assert()`, PHPDoc assertions, a check of the same call made earlier
   and a check of a property before a call keep them silent, and so does
   null passed to a scalar parameter of PHP's own functions outside strict

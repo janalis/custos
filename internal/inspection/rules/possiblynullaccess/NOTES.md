@@ -61,9 +61,11 @@ the three rules together (`"with"` sidecar key).
 - A chain after a nullsafe access (`$a?->b()->c()`) is never reported,
   even when `b()` itself may return null.
 - Correlated conditions are followed only as `infer` does it
-  (`correlated` in `narrow.go`): a two-operand `&&` early exit whose
-  other operand tests one local alone, proven true by the guards at the
-  use. Exits on three operands, or on tests reading two values, are not.
+  (`correlated` in `narrow.go`): an `&&` early exit of at most
+  `maxCorrelatedTests` operands all of whose operands but one test one
+  local alone, proven true by the guards at the use (each proof narrows
+  that local once). Longer exits, or two operands left unproven (a call,
+  a test reading two values), are not followed.
 - Builtin methods declared nullable that only return null in states the
   code rules out are reported, except the short list in
   `neverNullReturns` (`getInnerIterator()` of the SPL wrappers sharing
