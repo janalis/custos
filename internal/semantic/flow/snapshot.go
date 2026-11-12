@@ -697,30 +697,30 @@ func changedAnswers(answers map[string]answer, lookup func(string) (Summary, boo
 
 // begin starts recording the contracts a result computed while summaries
 // are made reads; nil when they are not being made.
-func (e *Env) begin() map[string]bool {
-	if e.consulted == nil {
+func (s *summaryResolver) begin() map[string]bool {
+	if s.consulted == nil {
 		return nil
 	}
 	reads := map[string]bool{}
-	e.reading = append(e.reading, reads)
+	s.reading = append(s.reading, reads)
 	return reads
 }
 
 // end stops recording for reads, which the result computing it, if any,
 // read as well.
-func (e *Env) end(reads map[string]bool) {
+func (s *summaryResolver) end(reads map[string]bool) {
 	if reads == nil {
 		return
 	}
-	e.reading = e.reading[:len(e.reading)-1]
-	e.depend(reads)
+	s.reading = s.reading[:len(s.reading)-1]
+	s.depend(reads)
 }
 
 // depend records that the result being computed read one computed from
 // reads.
-func (e *Env) depend(reads map[string]bool) {
-	if len(e.reading) > 0 {
-		addReads(e.reading[len(e.reading)-1], reads)
+func (s *summaryResolver) depend(reads map[string]bool) {
+	if len(s.reading) > 0 {
+		addReads(s.reading[len(s.reading)-1], reads)
 	}
 }
 
