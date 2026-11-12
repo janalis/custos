@@ -1,6 +1,8 @@
 package semanticquery
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
@@ -150,7 +152,11 @@ func possiblyNull(ctx *analysis.Context, x syntax.Expr) (types.Type, bool) {
 // every value reaching it is such a call or never null (see checkedLocal).
 func checkedCall(ctx *analysis.Context, x syntax.Expr, t types.Type) bool {
 	switch v := x.(type) {
-	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+	case *syntax.MethodCall:
+		if NeverNullCall(ctx, v) {
+			return true
+		}
+	case *syntax.FuncCall, *syntax.StaticCall:
 	case *syntax.Variable:
 		return checkedLocal(ctx, v, t)
 	default:
@@ -162,6 +168,47 @@ func checkedCall(ctx *analysis.Context, x syntax.Expr, t types.Type) bool {
 		}
 		return t, func(r types.Type) bool { return !r.Has("null") }
 	})
+}
+
+// neverNullReturns lists the builtin methods (lower-case
+// `class::method` of the declaring class in the stubs) declared nullable
+// that never return null once their object is constructed. PHP implements
+// getInnerIterator() once for IteratorIterator and the subclasses below:
+// it returns the iterator the constructor took, and throws when called on
+// an object whose constructor did not run. AppendIterator, whose inner
+// iterator is null until one is appended, is not listed.
+var neverNullReturns = map[string]bool{
+	"iteratoriterator::getinneriterator": true,
+	"filteriterator::getinneriterator":   true,
+	"cachingiterator::getinneriterator":  true,
+	"limititerator::getinneriterator":    true,
+	"norewinditerator::getinneriterator": true,
+}
+
+// NeverNullCall reports whether x is a method call that every class of
+// its receiver resolves to a method of neverNullReturns: declared nullable
+// by PHP, never null once the object is constructed.
+func NeverNullCall(ctx *analysis.Context, x syntax.Expr) bool {
+	c, ok := x.(*syntax.MethodCall)
+	if !ok {
+		return false
+	}
+	name := "" // a dynamic name finds no method
+	if id, ok := c.Name.(*syntax.Identifier); ok {
+		name = id.Value
+	}
+	typ := ctx.TypeOf(c.Var).Without("null")
+	classes := typ.Classes()
+	if len(classes) == 0 || len(classes) != len(typ.Atoms()) {
+		return false
+	}
+	for _, cls := range classes {
+		m := ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), name, ctx.PHP)
+		if m == nil || !m.Builtin || !neverNullReturns[strings.ToLower(m.Class+"::"+m.Name)] {
+			return false
+		}
+	}
+	return true
 }
 
 // checkedLocal reports whether every value reaching local v is a checked

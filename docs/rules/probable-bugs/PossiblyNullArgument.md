@@ -53,10 +53,11 @@ Reported:
 - By-reference parameters; arguments after an unpacked one; named
   arguments to PHP's own functions; uncertain callees, as for
   InvalidArgumentType.
-- E4. The exceptions E4 to E8 of PossiblyNullAccess: unknown or `mixed`
-  values, null ruled out by PHPDoc or `assert()`, properties checked before
-  a call, checked identical calls and their holders, `$this` in closures
-  (also as the receiver of the call).
+- E4. The exceptions E4 to E8 and E11 of PossiblyNullAccess: unknown or
+  `mixed` values, null ruled out by PHPDoc or `assert()`, properties
+  checked before a call, checked identical calls and their holders,
+  `$this` in closures (also as the receiver of the call), and the inner
+  iterator of PHP's iterator wrappers.
 - PHP's own functions below PHP 8.0, functions of extensions not
   bundled with PHP, and builtins whose stub types differ from PHP's.
 

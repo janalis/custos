@@ -154,7 +154,9 @@ func (u *npeUnit) strategyChains() {
 		switch mc.Var.(type) {
 		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 			t := u.chainBaseType(mc.Var)
-			if t.HasAny("null", "void") && !t.HasAny("mixed") { // a null beside mixed claims nothing more
+			// A null beside mixed claims nothing more; PHP's iterator
+			// wrappers never return their declared null (E13).
+			if t.HasAny("null", "void") && !t.HasAny("mixed") && !semanticquery.NeverNullCall(u.ctx, mc.Var) {
 				seen := false
 				for _, e := range tested {
 					if astquery.Equivalent(u.ctx.File, e, mc.Var) {
@@ -267,7 +269,7 @@ func (u *npeUnit) testedBefore(x syntax.Expr) bool {
 // nullableAssign applies D5 to an assignment of $name.
 func (u *npeUnit) nullableAssign(a *syntax.Assign, name string) bool {
 	t := u.ctx.TypeOf(a.Value)
-	if !t.HasAny("null", "void") || !npeObjectOnly(t) || u.testedBefore(a.Value) {
+	if !t.HasAny("null", "void") || !npeObjectOnly(t) || u.testedBefore(a.Value) || semanticquery.NeverNullCall(u.ctx, a.Value) {
 		return false
 	}
 	// a is a plain `=` assignment (both callers check it)

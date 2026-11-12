@@ -87,6 +87,12 @@ not reported.
     read.
   An access inside the arguments of an earlier access on the same value
   (`$x->m($x->n)`) is reported as well.
+- E11. A call to `getInnerIterator()` of `IteratorIterator`,
+  `FilterIterator`, `CachingIterator`, `LimitIterator` or
+  `NoRewindIterator` (and their subclasses), or a local holding one: PHP
+  declares it nullable, but it returns the iterator the constructor took,
+  and throws on an object whose constructor did not run. The one of
+  `AppendIterator`, null until an iterator is appended, still counts.
 
 ## Report
 

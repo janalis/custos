@@ -47,4 +47,7 @@ the three rules together (`"with"` sidecar key).
   other operand tests one local alone, proven true by the guards at the
   use. Exits on three operands, or on tests reading two values, are not.
 - Builtin methods declared nullable that only return null in states the
-  code rules out (`IteratorIterator::getInnerIterator()`) are reported.
+  code rules out are reported, except the short list in
+  `neverNullReturns` (`getInnerIterator()` of the SPL wrappers sharing
+  IteratorIterator's implementation), checked through `checkedCall`. The
+  stubs carry no such fact, so a new entry needs the PHP source behind it.

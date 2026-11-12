@@ -284,6 +284,12 @@ walk for this name, *skip* goes to the next usage:
   that follows, in its statement list (or in an enclosing one), a `return`,
   `throw`, `break`, `continue`, `exit` or another statement that never
   completes, unless a `goto` label lets a jump land in between.
+- **E13** (custos) The result of `getInnerIterator()` of PHP's iterator
+  wrappers (`IteratorIterator`, `FilterIterator`, `CachingIterator`,
+  `LimitIterator`, `NoRewindIterator` and their subclasses), dereferenced
+  in a chain or through a local holding it: PHP declares it nullable, but
+  it returns the iterator the constructor took. `AppendIterator`'s, null
+  until an iterator is appended, still counts.
 
 ## Report
 
@@ -409,6 +415,9 @@ function visit(?Node $item) {
   has no such rules.
 - **E11 — custos diverges from upstream.** Upstream also reports
   dereferences in unreachable code, such as after a `break` in a `case`.
+- **E13 — custos diverges from upstream.** Upstream trusts the nullable
+  return PHP declares for `getInnerIterator()` of the iterator wrappers,
+  which never returns null once the wrapper is constructed.
 - Case-insensitive assertion names (custos diverges from upstream).
   Upstream compares the assertion method names (U5) and `is_null`
   case-sensitively, so `self::AssertNotNull($v)` or `IS_NULL($v)` — which
