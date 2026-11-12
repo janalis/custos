@@ -40,3 +40,28 @@ func BenchmarkRuleChecks(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkRuleChecksPerNode asks, in one run over a file, whether a rule
+// checks each of its nodes, as a rule deferring per node does.
+func BenchmarkRuleChecksPerNode(b *testing.B) {
+	e, err := NewEngine([]Rule{idRule{"ImpossibleTypeComparison"}}, Config{EnableAll: true})
+	if err != nil {
+		b.Fatal(err)
+	}
+	src := []byte("<?php\n")
+	for range 200 {
+		src = append(src, "$a = $b === $c && f($d, $e[1]);\n"...)
+	}
+	f := syntax.Parse("x.php", src, syntax.Options{Version: phpversion.PHP84})
+	var nodes []syntax.Node
+	syntax.InspectFile(f, func(n syntax.Node) bool { nodes = append(nodes, n); return true })
+	b.ReportAllocs()
+	for b.Loop() {
+		ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, engine: e}
+		for _, n := range nodes {
+			if !ctx.RuleChecks("ImpossibleTypeComparison", n) {
+				b.Fatal("not enabled")
+			}
+		}
+	}
+}

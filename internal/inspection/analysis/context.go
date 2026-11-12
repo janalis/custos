@@ -155,6 +155,11 @@ func (c *Context) RuleChecks(id string, n syntax.Node) bool {
 	if c.skipped[k] {
 		return false
 	}
+	// Only a run isolating its checks (once shared data failed) skips
+	// some, and asks whether one it skips was relied on.
+	if len(c.failed) == 0 {
+		return true
+	}
 	if c.relied == nil {
 		c.relied = map[ruleCheck]bool{}
 	}
