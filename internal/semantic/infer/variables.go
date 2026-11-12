@@ -780,8 +780,10 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 				end := n.Span().End
 				var kill syntax.Span
 				// Any assignment replaces the value (`.=` is a string, `+=` a
-				// number), not only `=` (by reference: not a kill).
-				if _, plain := n.Var.(*syntax.Variable); plain && !n.ByRef {
+				// number), not only `=` (by reference: not a kill). So does
+				// destructuring by value, which writes null where the key is
+				// missing.
+				if _, plain := n.Var.(*syntax.Variable); (plain || destructuresByValue(n.Var)) && !n.ByRef {
 					kill = e.arrowDefinitionSpan(n)
 					if es, ok := n.Parent().(*syntax.ExprStmt); ok {
 						switch parent := es.Parent().(type) {
@@ -1007,6 +1009,37 @@ func (e *Env) collectTargets(target syntax.Expr, pos uint32, t func() types.Type
 	case *syntax.Array:
 		e.collectItemTargets(v.Items, pos, t, add)
 	}
+}
+
+// destructuresByValue reports whether target is a list() or `[...]`
+// destructuring pattern none of whose items, at any depth, binds by
+// reference: each variable in it is assigned, null when its key is
+// missing.
+func destructuresByValue(target syntax.Expr) bool {
+	var items []*syntax.ArrayItem
+	switch l := target.(type) {
+	case *syntax.List:
+		items = l.Items
+	case *syntax.Array:
+		items = l.Items
+	default:
+		return false
+	}
+	for _, it := range items {
+		if it == nil || it.Value == nil {
+			continue
+		}
+		if it.ByRef {
+			return false
+		}
+		switch it.Value.(type) {
+		case *syntax.List, *syntax.Array:
+			if !destructuresByValue(it.Value) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // collectAssignTargets registers the targets of assignment n. Destructuring

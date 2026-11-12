@@ -47,7 +47,9 @@ Reported:
   (typed parameters, properties and returns, literals, operations), narrowed
   by the conditions guarding the access: `!== null`, `isset()`,
   `instanceof`, truthiness, early exits (`return`, `throw`, `continue`,
-  `break`), assignments, and calls whose argument PHP's own functions
+  `break`), assignments (destructuring included: it replaces what each
+  variable held, and an element taken from a list is typed as the list's
+  element, as a read of `$list[1]` is), and calls whose argument PHP's own functions
   check. An early exit taken when two tests both hold (`if ($a === null
   && $b === null) { return; }`) proves the first test false wherever a
   later condition proves the second one true, provided the second tests a

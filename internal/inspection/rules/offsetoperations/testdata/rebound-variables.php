@@ -1,6 +1,6 @@
 <?php
-// A variable rebound by destructuring or through a reference holds a value
-// the inferred type does not describe: no report.
+// A variable rebound through a reference holds a value the inferred type
+// does not describe; destructuring replaces the value it held: no report.
 function destructured(): string
 {
     $n = 0;

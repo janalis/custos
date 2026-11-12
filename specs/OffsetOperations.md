@@ -87,8 +87,6 @@ a container `C`):
   or D7 report on a plain-variable container, look at every occurrence of
   that variable in its scope (function-like body or top-level code). No
   report when the variable is, anywhere there:
-  - a target of a destructuring assignment (`[$v, $w] = …`,
-    `list('k' => $v) = …`);
   - bound by reference (`$v = &$other`) or aliased (`$alias = &$v`);
   - written as a call-time `&$v` argument, or passed to a by-reference
     parameter of a callee that resolves (positional, variadic tail or named:
@@ -121,8 +119,8 @@ a container `C`):
   accessors: allowed set empty → index not checked.
 - **E8** Index objects of a subclass (or implementation) of the accepted
   class/interface type.
-- **E9** Plain-variable containers rebound by destructuring or through a
-  reference in the same scope (D8).
+- **E9** Plain-variable containers rebound through a reference in the
+  same scope (D8).
 - **E10** (custos) A D6 report on a container that is itself an element read
   with a key other than a literal or a constant (`$days[$key]['total']`),
   when `S` has an `array` or `string` member: the container's type merges
@@ -270,10 +268,8 @@ function ok($m, $c, $n) {
   depending on the input) unless native declarations type the index.
 - **Rebound variables (custos refinement, not upstream).** The inferred
   type of a variable keeps its earlier scalar type when the variable is
-  later overwritten by a destructuring assignment
-  (`$n = 0; [$n, $m] = [['x'], 2]; $n[0]`), converted in place through a
-  by-reference parameter (`settype($n, 'array')`) or written through a
-  reference alias (`$r = &$n; $r = [1];`). D8 withholds both reports for
+  converted in place through a by-reference parameter
+  (`settype($n, 'array')`) or written through a reference alias (`$r = &$n; $r = [1];`). D8 withholds both reports for
   such a variable, anywhere in the scope: the check is not flow-sensitive,
   so an access placed before the rebinding is skipped too.
 - **Unresolvable ancestors (custos diverges).** A class whose parent,

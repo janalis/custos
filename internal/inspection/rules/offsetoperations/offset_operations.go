@@ -289,9 +289,10 @@ func offsetNativeAccess(ctx *analysis.Context, cls string) bool {
 
 // offsetRebound reports whether the container variable e may hold a value
 // the inferred type does not describe (custos refinement): somewhere in its
-// scope it is a destructuring target, bound or aliased by reference
-// (`$v = &$w`, `$w = &$v`) or passed to a by-reference parameter. A
-// by-reference closure capture already makes the inferred type unknown.
+// scope it is passed to a by-reference parameter. A reference binding or
+// alias (`$v = &$w`, `$w = &$v`) or a by-reference closure capture already
+// makes the inferred type unknown; destructuring is an assignment the
+// inferred type follows.
 // Only consulted before a report: it walks the scope.
 func offsetRebound(ctx *analysis.Context, e syntax.Expr) bool {
 	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
@@ -300,16 +301,12 @@ func offsetRebound(ctx *analysis.Context, e syntax.Expr) bool {
 	}
 	// Variable-variables have no accesses: never rebound here.
 	for _, acc := range flowquery.VarAccesses(ctx.File, syntax.EnclosingFuncLike(v), v.Name) {
-		switch by := acc.By.(type) {
-		case *syntax.Assign:
-			if acc.Write && (by.ByRef || syntax.UnwrapParens(by.Var) != syntax.Expr(acc.Var)) {
-				return true
-			}
-		case nil:
-			parent, _ := astquery.ParentSkipParens(acc.Var)
-			if arg, ok := parent.(*syntax.Arg); ok && semanticquery.ArgumentMayWrite(ctx.Types(), arg) {
-				return true
-			}
+		if acc.By != nil {
+			continue
+		}
+		parent, _ := astquery.ParentSkipParens(acc.Var)
+		if arg, ok := parent.(*syntax.Arg); ok && semanticquery.ArgumentMayWrite(ctx.Types(), arg) {
+			return true
 		}
 	}
 	return false
