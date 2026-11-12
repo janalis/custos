@@ -2,8 +2,8 @@ package infer_test
 
 import "testing"
 
-// Static properties narrow like `$this->prop`, and lose the fact on any
-// call or write in between.
+// Static properties narrow like `$this->prop`, and lose the fact on a
+// call that may run project code or a write in between.
 func TestStaticPropertyNarrowing(t *testing.T) {
 	checkAnywhere(t, `<?php
 class W {}
@@ -28,7 +28,7 @@ class S {
     public static function reset(): void {}
 }
 `, map[string]string{
-		"pop": `\W`, "static": `non-empty \W[]`, "cur": `\W`, "afterCall": `\W`, // as for $this->p, an early-exit guard survives calls "named": `\W`, "written": `\W`,
+		"pop": `\W`, "static": `non-empty \W[]`, "cur": `\W`, "afterCall": `\W|null`, "named": `\W`, "written": `\W`,
 	})
 }
 
@@ -125,7 +125,7 @@ class A {
         if (self::$s) { t('static', self::$s); } else { t('staticElse', self::$s); }
     }
 }
-`, map[string]string{"reassigned": "null|string", "afterCall": "string", "static": "string", "staticElse": "null|string"})
+`, map[string]string{"reassigned": "null|string", "afterCall": "null|string", "static": "string", "staticElse": "null|string"})
 }
 
 // A call that may enter the function again ends what a condition proved of

@@ -90,6 +90,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A condition on a property (`if ($this->buffer === null)`) no longer holds
+  past a call that may run project code, which may write the property: rules
+  using PHPDoc types no longer read a property refilled by `$this->send()`
+  as still null (a DocumentedReturnType false positive).
 - UntrustedForwardedClientAddress takes a proxy check that leaves on
   failure (`knownProxy($ip) or exit;`) or whose stored result is tested
   (`$trusted = knownProxy($ip); if (!$trusted) { return; }`) as a guard.

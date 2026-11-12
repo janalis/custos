@@ -264,10 +264,12 @@ must discard definite facts rather than authorize a finding or fix.
 ### Native and proven types
 
 `Env.Native()` ignores user PHPDoc and index-time inferred types, and its
-narrowing facts are proofs: a condition on a property stops holding after a
-call that may run project code, and a condition on an aliased local (a
-reference, a `global` or `static` local, a by-reference parameter) after any
-write or call that may reach it. A local read still takes the type of its
+narrowing facts are proofs: a condition on a property also stops holding
+after a write of a property of that name through another receiver and at a
+read that may run code (a hook, `__get`), and a condition on an aliased local
+(a reference, a `global` or `static` local, a by-reference parameter) after
+any write or call that may reach it. In every environment, a condition on a
+property stops holding after a call that may run project code. A local read still takes the type of its
 reaching definitions, so `$a = 1; unknown_fn($a);` types `$a` as `int` there.
 
 `Env.ProvenTypeOf(x)` (the `Env.Proven()` environment) is the stricter

@@ -582,8 +582,8 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 
 // factBroken reports whether what a condition ending at from established
 // about key may no longer hold at use: for a property, a write to it or
-// along its chain (where facts are proofs, also a call of the project or a
-// write through another receiver); for an element, a change of it or of its
+// along its chain, or a call that may run project code (where facts are
+// proofs, also a write through another receiver); for an element, a change of it or of its
 // array (see dimBroken); for a local, a write the definitions do not show
 // (through a reference, a global or static alias, a by-reference callee).
 func (e *Env) factBroken(scope syntax.Node, key string, from uint32, use syntax.Expr) bool {
@@ -596,9 +596,9 @@ func (e *Env) factBroken(scope syntax.Node, key string, from uint32, use syntax.
 		// have changed since the condition.
 		return e.dimBroken(scope, key, from, use)
 	case isPropKey(key):
-		// The property itself was written since, or (where facts are
-		// proofs) code may have run that writes it.
-		return e.brokenBy(scope, from, use, e.mutations(scope, key)) || e.native && e.memberBroken(scope, key, from, use)
+		// The property itself was written since, or a call may have run
+		// code that writes it (a builtin function does not reach it).
+		return e.brokenBy(scope, from, use, e.mutations(scope, key), e.mutations(scope, anyCall)) || e.native && e.memberBroken(scope, key, from, use)
 	}
 	sv := e.scopeVars(scope)
 	if e.native && sv.refs[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyWrite), e.mutations(scope, anyCall)) {
@@ -812,14 +812,11 @@ func (e *Env) assertCall(x syntax.Expr) syntax.Expr {
 
 // memberBroken reports, for the native environment, which proves rather
 // than assumes, whether a fact a condition established at from about
-// property key may no longer hold at use: a call that may run code of the
-// project lies between them, a property of that name is written through
-// another receiver (which may hold the same object), or reading use may run
-// code itself (see plainMember).
+// property key may no longer hold at use beyond the calls factBroken
+// checks: a property of that name is written through another receiver
+// (which may hold the same object), or reading use may run code itself
+// (see plainMember).
 func (e *Env) memberBroken(scope syntax.Node, key string, from uint32, use syntax.Expr) bool {
-	if e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
-		return true
-	}
 	pf, ok := syntax.UnwrapParens(use).(*syntax.PropertyFetch)
 	if !ok {
 		return false // a static property: no other receiver, no hook
