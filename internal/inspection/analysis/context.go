@@ -118,6 +118,10 @@ const MaxFindingsPerFile = 10000
 // RuleID returns the ID of the rule currently running.
 func (c *Context) RuleID() string { return c.cur.meta.ID }
 
+// RuleEnabled reports whether the run enables rule id, so that a rule can
+// leave to it what both would report.
+func (c *Context) RuleEnabled(id string) bool { return c.engine.enabled[id] }
+
 // OptionSet reports whether the configuration sets option name of the
 // current rule explicitly (false when the catalogue default applies).
 func (c *Context) OptionSet(name string) bool { return c.cur.explicit[name] }

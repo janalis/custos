@@ -7,6 +7,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- PossiblyNullAccess and PossiblyNullArgument (warnings, off by default)
+  report a value the code alone (not PHPDoc) shows may be null, accessed
+  with `->`, `::` or `[]`, or passed to a parameter whose declared type
+  rejects null. Null checks, early exits, `isset()`, `?->`, `??`,
+  `assert()`, PHPDoc assertions, a check of the same call made earlier
+  and a check of a property before a call keep them silent, and so does
+  null passed to a scalar parameter of PHP's own functions outside strict
+  mode. NullPointerException leaves to them what they report when they
+  run in the same analysis.
 - UndefinedMethod and UndefinedProperty (errors, off by default) report a
   method call, a property read or a static property access that the
   receiver's class does not declare, when the code alone (not PHPDoc)
@@ -107,6 +116,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Type inference keeps more null checks: a local passed to a by-value
+  parameter of a method inside a branch, or reassigned on one branch
+  after an early exit, a variable assigned in the left operand of `&&`
+  (read in its right operand or the body it guards), an `if`/`else`
+  whose other branches `continue` or `break`, a `return` inside `try`,
+  a value stored in a `do`/`while` body and tested by its condition, a
+  test of `$a['k'] ?? null`, and a property set to `x ?? []`.
 - The language server no longer replaces the declarations of an open
   document's unsaved edits with the file on disk: file changes replayed
   after a re-index skip open documents, and their buffers are indexed

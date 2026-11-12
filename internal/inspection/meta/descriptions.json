@@ -1382,6 +1382,12 @@
   "PosixAccountLookupFailureDereferenced": {
     "summary": "Identify array indexing on a direct or unchanged posix_getpwnam/posix_getpwuid result that a failed lookup (`false`) can still reach."
   },
+  "PossiblyNullAccess": {
+    "summary": "Report a property, method, class-member or array-element access on a value\nthat the code itself shows may be null. Calling a method or writing a\nproperty on null throws an `Error`; reading a property or an element of\nnull raises a warning and yields null. Null that comes only from PHPDoc is\nnot reported."
+  },
+  "PossiblyNullArgument": {
+    "summary": "Report an argument that the code itself shows may be null, passed to a\nparameter whose declared type rejects null. PHP throws a `TypeError` when\nthe call runs with null. Null that comes only from PHPDoc is not reported."
+  },
   "PotentialMalware": {
     "summary": "Flags code shapes typical of injected web-shells and backdoors: `eval()` of\ndecoded or fetched payloads, small decoder functions, timestamp forging\nwith `touch()`, and enumeration of all defined functions."
   },

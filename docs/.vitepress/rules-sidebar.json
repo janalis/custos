@@ -1608,6 +1608,14 @@
             "link": "/rules/probable-bugs/PosixAccountLookupFailureDereferenced"
           },
           {
+            "text": "PossiblyNullAccess",
+            "link": "/rules/probable-bugs/PossiblyNullAccess"
+          },
+          {
+            "text": "PossiblyNullArgument",
+            "link": "/rules/probable-bugs/PossiblyNullArgument"
+          },
+          {
             "text": "PregMatchAllLayoutMismatch",
             "link": "/rules/probable-bugs/PregMatchAllLayoutMismatch"
           },

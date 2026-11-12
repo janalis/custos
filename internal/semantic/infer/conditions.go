@@ -69,6 +69,11 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return unionNarrowed(e.applyCondB(t, c.Left, name, true, steps), e.applyCondB(lf, c.Right, name, true, steps))
 		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
 			return e.eqCond(t, c, name, truthy, steps)
+		case syntax.TCoalesce:
+			// `$x['k'] ?? null` holds when its left side does.
+			if x, ok := nullDefaulted(c); ok && truthy {
+				return e.applyCondB(t, x, name, true, steps)
+			}
 		case syntax.TLess, syntax.TIsSmallerOrEqual, syntax.TGreater, syntax.TIsGreaterOrEqual:
 			if n, ok := countComparison(c, name); ok {
 				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))

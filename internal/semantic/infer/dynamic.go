@@ -131,15 +131,15 @@ func (e *Env) definitelyAssigned(x syntax.Node, name string, scope syntax.Node) 
 				stmts = nil
 			}
 		case *syntax.If:
-			if child != syntax.Node(n.Cond) && e.exprAssigns(n.Cond, name) {
+			if child == syntax.Node(n.Body) && e.assignsWhenTrue(n.Cond, name) || child != syntax.Node(n.Cond) && e.exprAssigns(n.Cond, name) {
 				return true
 			}
 		case *syntax.ElseIf:
-			if child != syntax.Node(n.Cond) && e.exprAssigns(n.Cond, name) {
+			if child == syntax.Node(n.Body) && e.assignsWhenTrue(n.Cond, name) || child != syntax.Node(n.Cond) && e.exprAssigns(n.Cond, name) {
 				return true
 			}
 		case *syntax.While:
-			if child == syntax.Node(n.Body) && e.exprAssigns(n.Cond, name) {
+			if child == syntax.Node(n.Body) && e.assignsWhenTrue(n.Cond, name) {
 				return true
 			}
 		case *syntax.For:
@@ -166,6 +166,13 @@ func (e *Env) definitelyAssigned(x syntax.Node, name string, scope syntax.Node) 
 				if child == syntax.Node(n.Right) && e.exprAssigns(n.Left, name) {
 					return true
 				}
+				// The right operand of `&&` runs once the left one held,
+				// that of `||` once it failed.
+				and := n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd
+				or := n.Op.Kind == syntax.TBooleanOr || n.Op.Kind == syntax.TOr
+				if child == syntax.Node(n.Right) && (and || or) && e.assignsWhen(n.Left, name, and) {
+					return true
+				}
 			}
 		case *syntax.Ternary:
 			if child != syntax.Node(n.Cond) && e.exprAssigns(n.Cond, name) {
@@ -179,16 +186,57 @@ func (e *Env) definitelyAssigned(x syntax.Node, name string, scope syntax.Node) 
 			if scanned++; scanned > maxAssignScan {
 				return true // hostile bodies: see maxAssignScan
 			}
-			if e.stmtAssigns(stmts[i], name) {
+			if e.settles(stmts[i], name) {
 				return true
 			}
 		}
 	}
 	if scope == nil {
 		for i := len(e.File.Stmts) - 1; i >= 0; i-- {
-			if s := e.File.Stmts[i]; s.Span().End <= x.Span().Start && e.stmtAssigns(s, name) {
+			if s := e.File.Stmts[i]; s.Span().End <= x.Span().Start && e.settles(s, name) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// settles reports whether control reaching the statement after s in its
+// list has assigned name: s assigns it (stmtAssigns), or s is an if chain
+// whose every branch assigns it or jumps out of the list (break,
+// continue). Such a jump leaves the loop or switch around s, which also
+// holds the statements after s.
+func (e *Env) settles(s syntax.Stmt, name string) bool {
+	if e.stmtAssigns(s, name) {
+		return true
+	}
+	n, ok := s.(*syntax.If)
+	if !ok || n.Else == nil {
+		return false
+	}
+	branch := func(b syntax.Stmt) bool { return e.stmtAssigns(b, name) || jumpsOut(b) }
+	if !branch(n.Body) || !branch(n.Else.Body) {
+		return false
+	}
+	for _, ei := range n.ElseIfs {
+		if !e.exprAssigns(ei.Cond, name) && !branch(ei.Body) {
+			return false
+		}
+	}
+	return true
+}
+
+// jumpsOut reports whether branch s ends its list with a break or a
+// continue of its own (not one inside a nested statement).
+func jumpsOut(s syntax.Stmt) bool {
+	stmts := []syntax.Stmt{s}
+	if b, ok := s.(*syntax.Block); ok {
+		stmts = b.Stmts
+	}
+	for _, st := range stmts {
+		switch st.(type) {
+		case *syntax.Continue, *syntax.Break:
+			return true
 		}
 	}
 	return false
@@ -329,6 +377,30 @@ func (e *Env) exprAssigns(x syntax.Expr, name string) bool {
 		return true
 	})
 	return found
+}
+
+// assignsWhenTrue reports whether condition x assigns name whenever it
+// evaluates to true: both operands of `&&` run then (`if ($a && ($b =
+// f()))` assigns $b in its body), and either operand of `||` when it is
+// false (through `!`).
+func (e *Env) assignsWhenTrue(x syntax.Expr, name string) bool {
+	return e.assignsWhen(x, name, true)
+}
+
+func (e *Env) assignsWhen(x syntax.Expr, name string, truth bool) bool {
+	switch n := syntax.UnwrapParens(x).(type) {
+	case *syntax.Binary:
+		and := n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd
+		or := n.Op.Kind == syntax.TBooleanOr || n.Op.Kind == syntax.TOr
+		if and && truth || or && !truth {
+			return e.assignsWhen(n.Left, name, truth) || e.assignsWhen(n.Right, name, truth)
+		}
+	case *syntax.Unary:
+		if n.Op.Kind == syntax.TExclaim {
+			return e.assignsWhen(n.Expr, name, !truth)
+		}
+	}
+	return e.exprAssigns(x, name)
 }
 
 // dynamicRead reports, for a read of variable v, whether a dynamic write

@@ -829,7 +829,7 @@ func (e *Env) shapeClobberedAt(scope syntax.Node, name string, from uint32, use 
 // or the use sits in a loop (entered after from) that mutates it. Moving
 // the internal pointer does not count.
 func (e *Env) nonEmptyBroken(scope syntax.Node, name string, from uint32, use syntax.Node) bool {
-	if strings.Contains(name, "->") || strings.Contains(name, "::") {
+	if (strings.Contains(name, "->") || strings.Contains(name, "::")) && !e.options.PropertyFactsSurviveCalls {
 		// A property may also be changed by any (non-builtin) call.
 		return e.brokenBy(scope, from, use, e.mutations(scope, name), e.mutations(scope, anyCall))
 	}

@@ -170,6 +170,12 @@ func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Typ
 		// property's documented type: it is no more than a hint.
 		return types.Unknown
 	}
+	if e.coalescedNonNull(a.Value) && t.IsNullable() {
+		// `$this->p ??= f() ?? []`: whatever f() returns, never null.
+		if nt := t.Without("null"); len(nt.Atoms()) > 0 {
+			return nt
+		}
+	}
 	if !t.IsNullable() || vt.IsUnknown() || vt.IsNullable() || vt.Has("mixed") {
 		return t
 	}
@@ -177,6 +183,17 @@ func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Typ
 		return nt
 	}
 	return t
+}
+
+// coalescedNonNull reports whether x is `a ?? b` with b known never to be
+// null, so x is not null whatever a holds.
+func (e *Env) coalescedNonNull(x syntax.Expr) bool {
+	b, ok := syntax.UnwrapParens(x).(*syntax.Binary)
+	if !ok || b.Op.Kind != syntax.TCoalesce {
+		return false
+	}
+	rt := e.TypeOf(b.Right)
+	return !rt.IsUnknown() && !rt.IsNullable() && !rt.Has("mixed")
 }
 
 // guardIndex lists, for one statement list, the statements guards may use

@@ -75,6 +75,7 @@ function total($a) {
 | `options` | Rule options (bool, number, string or list). |
 | `calls` | Rarely needed: list options given as registration calls. |
 | `companions` | Extra project files (relative to the rule directory) to index. |
+| `with` | Other rules enabled in the same run; their findings are marked up too (for rules that leave findings to one another). |
 | `completeWorld` | `true` indexes the fixture and its companions as everything the project can load (see [the index world](./architecture#the-index-world)), so a name they do not declare exists nowhere. |
 
 ## Rules on other files

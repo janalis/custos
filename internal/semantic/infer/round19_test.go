@@ -123,7 +123,7 @@ function run() {
  $service->missing($a,...[$b]);t('unpacked',$a);
 }
 $arrow=fn()=>[$service=new Builder,$value=1,$service->mutate($value),t('arrowWrite',$value)];
-`, map[string]string{"unpacked": "int<1, 1>", "arrowWrite": "?unknown"})
+`, map[string]string{"unpacked": "int", "arrowWrite": "?unknown"})
 }
 
 func TestRound19DeferredIndexedContracts(t *testing.T) {

@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **589 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **591 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -436,6 +436,8 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [PgIdentifierEscapedAsLiteral](./probable-bugs/PgIdentifierEscapedAsLiteral) | native | warning | on | ✓ | PHP ≥ 5.4 |
 | [PgReturnedRowsUsedAsAffectedRows](./probable-bugs/PgReturnedRowsUsedAsAffectedRows) | native | warning | on |  | any |
 | [PosixAccountLookupFailureDereferenced](./probable-bugs/PosixAccountLookupFailureDereferenced) | native | warning | on |  | any |
+| [PossiblyNullAccess](./probable-bugs/PossiblyNullAccess) | native | warning | off |  | any |
+| [PossiblyNullArgument](./probable-bugs/PossiblyNullArgument) | native | warning | off |  | any |
 | [PregMatchAllLayoutMismatch](./probable-bugs/PregMatchAllLayoutMismatch) | native | warning | on |  | any |
 | [PregMatchFailureAsNonMatch](./probable-bugs/PregMatchFailureAsNonMatch) | native | warning | off |  | any |
 | [PregQuoteUsage](./probable-bugs/PregQuoteUsage) | EA | error | on |  | any |

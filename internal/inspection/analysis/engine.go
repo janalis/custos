@@ -23,12 +23,13 @@ type activeRule struct {
 
 // Engine is a configured set of rules. It is safe for concurrent use.
 type Engine struct {
-	cfg    Config
-	rules  []activeRule
-	byKind [syntax.NumNodeKinds][]int32
-	files  []int32 // indices of FileRule implementations
-	index  *index.Index
-	flow   *flow.Snapshot
+	cfg     Config
+	rules   []activeRule
+	enabled map[string]bool
+	byKind  [syntax.NumNodeKinds][]int32
+	files   []int32 // indices of FileRule implementations
+	index   *index.Index
+	flow    *flow.Snapshot
 }
 
 // NewEngine builds an engine from the registered rules and cfg.
@@ -40,7 +41,7 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 	for _, id := range cfg.Only {
 		only[id] = true
 	}
-	e := &Engine{cfg: cfg}
+	e := &Engine{cfg: cfg, enabled: map[string]bool{}}
 	for _, r := range registered {
 		m, ok := meta.Lookup(r.ID())
 		if !ok {
@@ -77,6 +78,7 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 		}
 		idx := int32(len(e.rules))
 		e.rules = append(e.rules, ar)
+		e.enabled[m.ID] = true
 		for _, k := range r.Kinds() {
 			e.byKind[k] = append(e.byKind[k], idx)
 		}

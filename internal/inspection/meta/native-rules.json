@@ -1293,6 +1293,20 @@
     "hasFix": false
   },
   {
+    "id": "PossiblyNullAccess",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "PossiblyNullArgument",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "InvalidReturnType",
     "group": "Probable bugs",
     "severity": "error",

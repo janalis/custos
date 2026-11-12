@@ -597,8 +597,13 @@ func (e *Env) factBroken(scope syntax.Node, key string, from uint32, use syntax.
 		return e.dimBroken(scope, key, from, use)
 	case isPropKey(key):
 		// The property itself was written since, or a call may have run
-		// code that writes it (a builtin function does not reach it).
-		return e.brokenBy(scope, from, use, e.mutations(scope, key), e.mutations(scope, anyCall)) || e.native && e.memberBroken(scope, key, from, use)
+		// code that writes it (a builtin function does not reach it),
+		// unless the options keep property facts across calls.
+		var calls []mutation
+		if !e.options.PropertyFactsSurviveCalls {
+			calls = e.mutations(scope, anyCall)
+		}
+		return e.brokenBy(scope, from, use, e.mutations(scope, key), calls) || e.native && e.memberBroken(scope, key, from, use)
 	}
 	sv := e.scopeVars(scope)
 	if e.native && sv.refs[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyWrite), e.mutations(scope, anyCall)) {

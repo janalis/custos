@@ -176,7 +176,7 @@ function f(int|string|null $x, int $c) {
 `, map[string]string{
 		"defAfterDef":     "int|null|string",
 		"secondCond":      "null|string",
-		"armAfterDef":     "int|null|string",
+		"armAfterDef":     "int|string", // the parameter path saw is_int: never null
 		"caseAfterDef":    "int|null|string",
 		"defaultAfterDef": "int|null|string",
 		"afterBlockBreak": "int|null|string",

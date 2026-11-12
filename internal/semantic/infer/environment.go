@@ -12,7 +12,14 @@ import (
 )
 
 // Options controls runtime assumptions used for type proofs.
-type Options struct{ Assertions bool }
+type Options struct {
+	// Assertions trusts assert() calls as guards.
+	Assertions bool
+	// PropertyFactsSurviveCalls keeps what a condition proved of a property
+	// across calls that may run project code (which may write it): a rule
+	// that reports only what holds even then asks such an environment.
+	PropertyFactsSurviveCalls bool
+}
 
 // Env infers expression types within one file. Not safe for concurrent use.
 type Env struct {

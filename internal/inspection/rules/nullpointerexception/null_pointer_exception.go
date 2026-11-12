@@ -63,12 +63,36 @@ type npeUnit struct {
 	report func(syntax.Span)
 }
 
-// emit reports span for node n unless n sits in code that control never
-// reaches (after a `break`, `return`, `throw`, … in its statement list).
-func (u *npeUnit) emit(n syntax.Node, span syntax.Span) {
-	if flowquery.Reachable(n, u.fn) {
+// emit reports span for the dereference of x unless x sits in code that
+// control never reaches (after a `break`, `return`, `throw`, … in its
+// statement list) or a possibly-null rule enabled in the run reports it
+// (E12).
+func (u *npeUnit) emit(x syntax.Expr, span syntax.Span) {
+	if flowquery.Reachable(x, u.fn) && !u.reportedElsewhere(x) {
 		u.report(span)
 	}
+}
+
+// reportedElsewhere reports whether a possibly-null rule enabled in the
+// run reports the possible null in x (E12): PossiblyNullAccess an access
+// whose receiver is x, PossiblyNullArgument the argument x.
+func (u *npeUnit) reportedElsewhere(x syntax.Expr) bool {
+	if arg, ok := x.Parent().(*syntax.Arg); ok {
+		if !u.ctx.RuleEnabled("PossiblyNullArgument") {
+			return false
+		}
+		for _, a := range semanticquery.PossiblyNullArguments(u.ctx, arg.Parent().Parent()) {
+			if a.Arg == arg {
+				return true
+			}
+		}
+		return false
+	}
+	if !u.ctx.RuleEnabled("PossiblyNullAccess") {
+		return false
+	}
+	a, ok := semanticquery.PossiblyNullAccess(u.ctx, x.Parent())
+	return ok && a.Receiver == x
 }
 
 // npeObjectOnly reports whether t (minus null/void) is a non-empty set of
@@ -140,7 +164,7 @@ func (u *npeUnit) strategyChains() {
 				}
 				if !seen {
 					if tok, ok := astquery.NextSignificant(u.ctx.File, mc.Var.Span().End); ok && tok.Kind == syntax.TObjectOperator {
-						u.emit(mc, syntax.Span{Start: tok.Start, End: tok.End})
+						u.emit(mc.Var, syntax.Span{Start: tok.Start, End: tok.End})
 					}
 				}
 			}

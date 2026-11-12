@@ -370,6 +370,8 @@ import (
 	"custos/internal/inspection/rules/phpunitdeprecations"
 	"custos/internal/inspection/rules/phpunittests"
 	"custos/internal/inspection/rules/posixaccountlookupfailuredereferenced"
+	"custos/internal/inspection/rules/possiblynullaccess"
+	"custos/internal/inspection/rules/possiblynullargument"
 	"custos/internal/inspection/rules/potentialmalware"
 	"custos/internal/inspection/rules/poweroperatorcanbeused"
 	"custos/internal/inspection/rules/pregmatchalllayoutmismatch"
@@ -976,6 +978,8 @@ func All() []analysis.Rule {
 		pgidentifierescapedasliteral.New(),
 		pgreturnedrowsusedasaffectedrows.New(),
 		posixaccountlookupfailuredereferenced.New(),
+		possiblynullaccess.New(),
+		possiblynullargument.New(),
 		pregmatchalllayoutmismatch.New(),
 		pregmatchfailureasnonmatch.New(),
 		pregquoteusage.New(),

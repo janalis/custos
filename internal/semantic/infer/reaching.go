@@ -487,10 +487,19 @@ func (e *Env) exitRegions(scope syntax.Node) []exitRegion {
 			// `continue N`: the loops and switches it leaves before the one
 			// whose next iteration it starts.
 			skip := continueLevel(st) - 1
+		walk:
 			for p := st.Parent(); p != nil && p != scope; p = p.Parent() {
-				switch p.(type) {
+				switch t := p.(type) {
 				case *syntax.Try:
-					return // catch/finally may resume: no region
+					// A return, throw or exit in the try block leaves it
+					// for good, or for a catch or finally block: the rest
+					// of the try block is out of reach. Other exits, and
+					// those in a catch or finally block: no region.
+					if k != exitFunc || limit != whole || !t.Body.Span().Contains(st.Span()) {
+						return
+					}
+					limit = t.Body.Span()
+					break walk
 				case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile, *syntax.Switch:
 					if skip > 0 {
 						skip--

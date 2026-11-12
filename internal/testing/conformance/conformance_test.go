@@ -144,6 +144,9 @@ type fixtureConfig struct {
 	// world the project can load (as with every Composer dependency
 	// installed), so a name they do not declare exists nowhere.
 	CompleteWorld bool `json:"completeWorld"`
+	// With lists other rules enabled in the same run, whose findings the
+	// fixture marks up too (rules that leave findings to one another).
+	With []string `json:"with"`
 }
 
 // TestOwnFixtures checks each rule package's testdata/*.php (with optional
@@ -204,7 +207,7 @@ func TestOwnFixtures(t *testing.T) {
 					calls = append(calls, rule+"."+c)
 				}
 				fixed, _ := os.ReadFile(base + ".fixed" + ext)
-				req := Request{Path: f, Rules: []string{rule}, PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls, CompleteWorld: cfg.CompleteWorld}
+				req := Request{Path: f, Rules: append([]string{rule}, cfg.With...), PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls, CompleteWorld: cfg.CompleteWorld}
 				for _, comp := range cfg.Companions {
 					p := filepath.Join(dir, comp)
 					src, err := os.ReadFile(p)

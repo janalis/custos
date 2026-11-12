@@ -410,6 +410,9 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	if len(defs) > maxVarDefs {
 		return types.Unknown
 	}
+	// A method argument binding a by-value parameter is no definition: kept,
+	// it would hide the guards between the definitions before it and use.
+	defs = e.changing(defs)
 	fwd, back, from := e.reaching(defs, use, scope)
 	clob := e.clobbered(sv, fwd, back, use, scope)
 	undef := !clob && len(fwd)+len(back) > 0 && e.maybeUndefinedAt(sv, defs, fwd, name, use, scope)
@@ -420,6 +423,9 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 		return types.Unknown
 	}
 	ts := make([]types.Type, 0, len(fwd)+len(back))
+	// tsAfter holds, for each of ts, where its definition ends: the
+	// conditions after it narrow its value (see narrowEach).
+	tsAfter := make([]uint32, 0, len(fwd)+1)
 	// Values carried by a loop's back edge (and the step of a for loop
 	// around v) never passed the conditions outside that loop: they are
 	// narrowed apart, from the start of the innermost loop holding both
@@ -441,6 +447,7 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 			continue
 		}
 		ts = append(ts, t)
+		tsAfter = append(tsAfter, max(d.pos, d.end))
 		after = max(after, d.pos, d.end)
 	}
 	for _, d := range back {
@@ -474,6 +481,7 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	}
 	if undef {
 		ts = append(ts, types.Null) // read before any assignment on some path
+		tsAfter = append(tsAfter, after)
 	}
 	settle := func(t types.Type) types.Type {
 		if t.HasShape() || !t.ArrayKey().IsUnknown() || t.IsNonEmptyArray() {
@@ -487,7 +495,7 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 		return t
 	}
 	if len(backTs) == 0 {
-		return e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after)
+		return e.narrowEach(ts, tsAfter, settle, use, name, scope, after)
 	}
 	// A union with an unknown member is unknown: keep that rule.
 	if all := settle(types.Union(append(ts, backTs...)...)); all.IsUnknown() {
@@ -495,7 +503,7 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	}
 	parts := []types.Type{e.narrowExprAfter(settle(types.Union(backTs...)), use, name, scope, backAfter)}
 	if len(ts) > 0 {
-		parts = append(parts, e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after))
+		parts = append(parts, e.narrowEach(ts, tsAfter, settle, use, name, scope, after))
 	}
 	return types.Union(parts...)
 }
@@ -510,6 +518,36 @@ func carriesValues(lists ...[]types.Type) bool {
 		}
 	}
 	return false
+}
+
+// maxNarrowEach bounds the definitions narrowEach narrows apart: beyond
+// it they are narrowed together, from the last one (reads of variables
+// with many conditional definitions would cost a walk each).
+const maxNarrowEach = 4
+
+// narrowEach narrows the types ts of the forward definitions reaching use
+// (each ending at the matching tsAfter, the last at after) by the
+// conditions guarding use, together from the last definition. When the
+// result holds null, the definitions are also narrowed apart, each from
+// where it ends: a condition between an earlier definition and a later,
+// conditional one (`if ($x === null) { return; } if ($c) { $x = f($x); }`)
+// still rules null out of the earlier value. Past maxNarrowEach
+// definitions, or when one comes out unknown (an impossible path, or the
+// analysis gave up), null stays.
+func (e *Env) narrowEach(ts []types.Type, tsAfter []uint32, settle func(types.Type) types.Type, use syntax.Expr, name string, scope syntax.Node, after uint32) types.Type {
+	all := e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after)
+	if !all.Has("null") || len(ts) > maxNarrowEach || !slices.ContainsFunc(tsAfter, func(a uint32) bool { return a != after }) {
+		return all
+	}
+	for i, t := range ts {
+		nt := e.narrowExprAfter(settle(t), use, name, scope, tsAfter[i])
+		if nt.IsUnknown() || nt.Has("null") {
+			return all
+		}
+	}
+	// Each value rules null out: the rest of what the conditions left (no
+	// type at all, which says nothing, when that was null alone).
+	return all.Without("null")
 }
 
 // redefinedInLoop reports a use inside one of the definitions of its
@@ -575,7 +613,10 @@ func (e *Env) loopCondNarrow(t types.Type, d varDef, name string, use, scope syn
 	for p := use.Parent(); p != nil && p != scope; p = p.Parent() {
 		switch n := p.(type) {
 		case *syntax.DoWhile:
-			if in(n.Cond) {
+			// A value the body stores comes back to the top of the body
+			// only once the condition held (this loop being the innermost
+			// holding both).
+			if in(n.Cond) || in(n.Body) {
 				return e.applyCond(t, n.Cond, name, true)
 			}
 		case *syntax.For:
@@ -586,6 +627,13 @@ func (e *Env) loopCondNarrow(t types.Type, d varDef, name string, use, scope syn
 				if in(x) {
 					return e.applyCond(t, n.Cond[len(n.Cond)-1], name, true)
 				}
+			}
+			if in(n.Body) {
+				return t // the innermost loop holding both
+			}
+		case *syntax.While, *syntax.Foreach:
+			if in(n) {
+				return t // the innermost loop holding both
 			}
 		}
 	}

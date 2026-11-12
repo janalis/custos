@@ -276,6 +276,10 @@ walk for this name, *skip* goes to the next usage:
 - **E8** Chained calls on a call previously null-tested in the unit;
   chained calls whose base is a parenthesised expression or a variable.
 - **E9** Abstract methods; methods in test contexts.
+- **E12** (custos) When PossiblyNullAccess or PossiblyNullArgument runs
+  in the same analysis, a dereference that rule reports on the same value
+  (the receiver of the access, the argument) is left to it, so that one
+  possible null is reported once. Run alone, this rule reports it.
 - **E11** Dereferences in code that control never reaches: a statement
   that follows, in its statement list (or in an enclosing one), a `return`,
   `throw`, `break`, `continue`, `exit` or another statement that never
@@ -399,6 +403,10 @@ function visit(?Node $item) {
 - **U13 — custos diverges from upstream.** Upstream reports every
   dereference of the same nullable value, even after one that always runs
   and would already have thrown.
+- **E12 — custos only.** The PossiblyNullAccess and PossiblyNullArgument
+  rules prove null from native types and flow; when either runs with this
+  rule, the dereferences it reports are not reported here again. Upstream
+  has no such rules.
 - **E11 — custos diverges from upstream.** Upstream also reports
   dereferences in unreachable code, such as after a `break` in a `case`.
 - Case-insensitive assertion names (custos diverges from upstream).
