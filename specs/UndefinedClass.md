@@ -62,7 +62,9 @@ unless every Composer dependency is installed.
   or, below it, a directory or a file left out (excluded by the
   configuration, hidden, symlinked, a test directory of a package, or too
   large to analyze). Below a PSR-4 directory only the namespace of what was
-  left out is concerned. A global name whose leading word (up to its first
+  left out is concerned: the one a skipped directory maps, or the one
+  holding a skipped file, which may declare more than the class it is
+  named after. A global name whose leading word (up to its first
   underscore or its second capitalized word, an acronym counting as one
   word: `Sphinx` of `SphinxClient`, `PDO` of `PDOStatement`) starts no
   class-like PHP or a known extension declares (`Yac`, `SphinxClient`): it

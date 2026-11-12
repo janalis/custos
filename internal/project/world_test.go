@@ -110,18 +110,24 @@ func TestComposerWorldGaps(t *testing.T) {
 	indexed := append(slices.Clone(worldIndexed), "vendor/acme/old/lib/Acme/Old/A.php")
 	skipped := Skipped{
 		Dirs: append(slices.Clone(worldSkipped.Dirs), "src/Legacy", "vendor/acme/http/src/Tests", "vendor/acme/old/lib/Acme/Old/Fixtures"),
-		// Big.php was too large to index; a declaration-only file names no
-		// class PSR-4 can load.
-		Files: []string{"vendor/acme/http/src/Big.php", "src/api.stub.php"},
+		// Big.php and Huge.php were too large to index; a declaration-only
+		// file names no class PSR-4 can load.
+		Files: []string{"vendor/acme/http/src/Big.php", "src/Model/Huge.php", "src/Model/Other.php", "src/api.stub.php"},
 	}
 	w := composerWorld(reader(files), []string{"src", "lib"}, indexed, skipped)
-	want := []string{`app\legacy\`, `app\tests\`, `acme\old\`, `acme\http\tests\`, `acme\http\testing\`}
-	if !w.Complete || !slices.Equal(sortedCopy(w.Blind), sortedCopy(want)) || !slices.Equal(w.Names, []string{`acme\http\big`}) {
+	want := []string{`app\legacy\`, `app\tests\`, `app\model\`, `acme\old\`, `acme\http\`, `acme\http\tests\`, `acme\http\testing\`}
+	if !w.Complete || !slices.Equal(sortedCopy(w.Blind), sortedCopy(want)) {
 		t.Fatalf("world: %+v", w)
 	}
-	// A skipped file hides its own class, not the names it starts.
-	if !w.Unseen(`Acme\Http\Big`) || w.Unseen(`Acme\Http\BigQuerry`) || w.Unseen(`Acme\Http\Big\Part`) {
-		t.Fatalf("unseen: %+v", w)
+	// A skipped file hides its whole namespace: it may declare more than
+	// the class it is named after.
+	for fqn, unseen := range map[string]bool{
+		`Acme\Http\Big`: true, `Acme\Http\BigQuery`: true, `Acme\Http\helper`: true,
+		`App\Model\User`: true, `App\Modeling\User`: false, `App\Kernel`: false,
+	} {
+		if w.Unseen(fqn) != unseen {
+			t.Errorf("unseen %s: %v", fqn, !unseen)
+		}
 	}
 	// The project root as a PSR-4 directory.
 	root := map[string]string{"composer.json": `{"autoload": {"psr-4": {"App\\": ""}}}`, "vendor/composer/installed.json": `{"packages": []}`}

@@ -16,16 +16,16 @@ import (
 
 // What discovery and indexing leave out is unseen by the world: the
 // project's excluded directories, the vendor walk's nested test
-// directories and files too large to index, so the names they may declare
-// are not reported.
+// directories and files too large to index (their whole namespace), so the
+// names they may declare are not reported.
 func TestWorldSkips(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "composer.json"), `{"require": {"acme/lib": "*"}, "autoload": {"psr-4": {"App\\": "src/"}}}`)
 	writeFile(t, filepath.Join(root, "vendor", "composer", "installed.json"), `{"packages": [{"name": "acme/lib", "autoload": {"psr-4": {"Acme\\Lib\\": "src/"}}}]}`)
 	writeFile(t, filepath.Join(root, "vendor", "acme", "lib", "src", "Client.php"), `<?php namespace Acme\Lib; class Client {}`)
 	writeFile(t, filepath.Join(root, "vendor", "acme", "lib", "src", "Tests", "Helper.php"), `<?php namespace Acme\Lib\Tests; class Helper {}`)
-	big := filepath.Join(root, "vendor", "acme", "lib", "src", "Big.php")
-	writeFile(t, big, `<?php namespace Acme\Lib; class Big {}`)
+	big := filepath.Join(root, "vendor", "acme", "lib", "src", "Huge", "Big.php")
+	writeFile(t, big, `<?php namespace Acme\Lib\Huge; class Big {} class Other {}`)
 	if err := os.Truncate(big, syntax.MaxFileSize+1); err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,8 @@ func TestWorldSkips(t *testing.T) {
 	writeFile(t, main, `<?php
 new \App\Legacy\Foo();
 new \Acme\Lib\Tests\Helper();
-new \Acme\Lib\Big();
+new \Acme\Lib\Huge\Big();
+new \Acme\Lib\Huge\Other();
 new \Acme\Lib\Client();
 new \Acme\Lib\Missing();
 new \App\Missing();
