@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"slices"
 	"testing"
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/names"
 )
 
 // deferRule reports each `!` unless UnnecessarySemicolon (crashRule) runs.
@@ -60,6 +62,48 @@ func TestSuppressedByOtherRule(t *testing.T) {
 	} {
 		if got := e.Analyze(syntax.Parse("x.php", []byte(tc.src), syntax.Options{Version: phpversion.PHP84})); len(got) != tc.want {
 			t.Errorf("%q: got %+v, want %d findings", tc.src, got, tc.want)
+		}
+	}
+}
+
+// namesNopRule reports each `;` after resolving names, which the test
+// makes crash: its checks are skipped, the rule itself is not disabled.
+type namesNopRule struct{ crashRule }
+
+func (namesNopRule) Check(ctx *Context, n syntax.Node) {
+	ctx.Names()
+	ctx.ReportNode(n, "nop")
+}
+
+// TestRuleEnabledAfterSkippedCheck: a rule a check of which was skipped
+// for lack of shared data no longer counts as enabled, whichever of the
+// two runs first.
+func TestRuleEnabledAfterSkippedCheck(t *testing.T) {
+	old := newResolver
+	t.Cleanup(func() { newResolver = old })
+	newResolver = func(*syntax.File) *names.Resolver { panic("resolver bug") }
+	for _, rules := range [][]Rule{{namesNopRule{}, deferRule{}}, {deferRule{}, namesNopRule{}}} {
+		e, err := NewEngine(rules, Config{EnableAll: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range []struct {
+			src  string
+			want []string
+		}{
+			{"<?php ;\n$a = !$b;", []string{"internal", "NestedNotOperators"}},
+			// No check of the rule was skipped: it still runs.
+			{"<?php f();\n$a = !$b;", nil},
+			// Nothing defers to it: one run is enough.
+			{"<?php ;", []string{"internal"}},
+		} {
+			var got []string
+			for _, fd := range e.Analyze(syntax.Parse("x.php", []byte(tc.src), syntax.Options{Version: phpversion.PHP84})) {
+				got = append(got, fd.Rule)
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("%q: got %v, want %v", tc.src, got, tc.want)
+			}
 		}
 	}
 }

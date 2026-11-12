@@ -113,12 +113,14 @@ func (e *Engine) AnalyzeResult(f *syntax.File) diagnostic.AnalysisResult {
 	var disabled map[int]bool
 	var internal []diagnostic.Finding
 	failed := map[string]envFailure{}
+	skipped := map[int]bool{}
 	// Terminates: each crash disables a distinct rule or records the first
-	// failure of shared data (later runs isolate checks from any), and a
-	// run with every rule disabled cannot crash.
+	// failure of shared data (later runs isolate checks from any), each
+	// run again for skipped checks adds a rule to skipped, and a run with
+	// every rule disabled cannot crash.
 	for {
-		result, crashed, msg := e.analyzeOnce(f, disabled, failed)
-		if crashed == envCrashed {
+		result, crashed, msg := e.analyzeOnce(f, disabled, failed, skipped)
+		if crashed == envCrashed || crashed == skipCrashed {
 			continue
 		}
 		if crashed < 0 {
@@ -144,8 +146,13 @@ func (e *Engine) AnalyzeResult(f *syntax.File) diagnostic.AnalysisResult {
 	}
 }
 
-// envCrashed is analyzeOnce's crashed index for a failure of shared data.
-const envCrashed = -2
+// envCrashed is analyzeOnce's crashed index for a failure of shared data;
+// skipCrashed when a rule that RuleEnabled told running had a check
+// skipped for lack of such data: the next run tells it is not.
+const (
+	envCrashed  = -2
+	skipCrashed = -3
+)
 
 // envFindings reports each failed build of shared data once (data built
 // from failed data names the failure it inherited).
@@ -170,9 +177,9 @@ func envFindings(failed map[string]envFailure) []diagnostic.Finding {
 // that rule's index (else -1) and the panic message; when building data
 // the rules share fails, envCrashed. Once some failed
 // (failed is not empty), each check runs isolated: one needing that data
-// is skipped and the others go on.
-func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[string]envFailure) (result diagnostic.AnalysisResult, crashed int, msg string) {
-	ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, ComparisonStyle: e.cfg.ComparisonStyle, engine: e, failed: failed, disabled: disabled}
+// is skipped and the others go on, its rule added to skipped.
+func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[string]envFailure, skipped map[int]bool) (result diagnostic.AnalysisResult, crashed int, msg string) {
+	ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, ComparisonStyle: e.cfg.ComparisonStyle, engine: e, failed: failed, disabled: disabled, skipped: skipped, skippedNow: map[int]bool{}}
 	isolated := len(failed) > 0
 	cur := -1
 	defer func() {
@@ -195,7 +202,7 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 		ctx.cur = &e.rules[i]
 		rule := e.rules[i].rule.(FileRule)
 		if isolated {
-			isolate(func() { rule.CheckFile(ctx) })
+			ctx.isolate(int(i), func() { rule.CheckFile(ctx) })
 		} else {
 			rule.CheckFile(ctx)
 		}
@@ -209,7 +216,7 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 				cur = int(i)
 				ctx.cur = &e.rules[i]
 				if isolated {
-					isolate(func() { e.rules[i].rule.Check(ctx, n) })
+					ctx.isolate(int(i), func() { e.rules[i].rule.Check(ctx, n) })
 				} else {
 					e.rules[i].rule.Check(ctx, n)
 				}
@@ -218,6 +225,14 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 		})
 	}
 	cur = -1
+	rerun := false
+	for i := range ctx.skippedNow {
+		rerun = rerun || ctx.relied[i] && !skipped[i]
+		skipped[i] = true
+	}
+	if rerun {
+		return diagnostic.AnalysisResult{}, skipCrashed, ""
+	}
 	if len(ctx.findings) == 0 {
 		return diagnostic.AnalysisResult{Incomplete: ctx.incomplete()}, -1, ""
 	}
@@ -238,14 +253,16 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 	return diagnostic.AnalysisResult{Findings: out, Incomplete: ctx.incomplete()}, -1, ""
 }
 
-// isolate runs check, skipping it when it needs shared data that failed to
-// build; any other panic goes on to the rule's crash handling.
-func isolate(check func()) {
+// isolate runs a check of rule i, skipping it when it needs shared data
+// that failed to build; any other panic goes on to the rule's crash
+// handling.
+func (c *Context) isolate(i int, check func()) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(envFailure); !ok {
 				panic(r)
 			}
+			c.skippedNow[i] = true
 		}
 	}()
 	check()

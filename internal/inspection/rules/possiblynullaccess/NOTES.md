@@ -44,7 +44,10 @@ NullPointerException asks `semanticquery.PossiblyNullAccess` or
 `PossiblyNullArguments` before each report, only when
 `analysis.Context.RuleEnabled` says the matching rule runs: the deferral only
 happens when this rule or PossiblyNullArgument runs in the same engine
-and was not skipped on the file after crashing there. It defers only where
+and was not skipped on the file after crashing there, nor had a check
+skipped for lack of shared data (the engine then analyzes the file again
+with RuleEnabled answering false; NullPointerException itself needs the
+same data, so this only matters for other deferring rules). It defers only where
 the shared query returns a finding, the same one the rule reports, so a
 `@noinspection PossiblyNullAccess` or a baseline entry silences the
 location; the other way round, `suppressedBy` in `native-rules.json` makes

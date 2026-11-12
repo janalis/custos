@@ -44,6 +44,10 @@ type Context struct {
 	failed map[string]envFailure
 	// disabled holds the rules skipped on this file after crashing on it.
 	disabled map[int]bool
+	// skipped holds the rules some isolated check of which an earlier run
+	// over the file skipped; skippedNow those of this run, and relied the
+	// rules RuleEnabled told running (see Engine.AnalyzeResult).
+	skipped, skippedNow, relied map[int]bool
 	// sup holds the file's suppression comments, built on first use.
 	sup *suppressions
 }
@@ -123,16 +127,25 @@ const MaxFindingsPerFile = 10000
 func (c *Context) RuleID() string { return c.cur.meta.ID }
 
 // RuleEnabled reports whether the run enables rule id and it still runs on
-// this file (not skipped after crashing on it), so that a rule can leave
-// to it what both would report.
+// this file: not skipped after crashing on it, and none of its checks
+// skipped for lack of shared data that failed to build, so that a rule can
+// leave to it what both would report.
 func (c *Context) RuleEnabled(id string) bool {
 	if !c.engine.enabled[id] {
 		return false
 	}
-	for i := range c.disabled {
-		if c.engine.rules[i].meta.ID == id {
+	for i := range c.engine.rules {
+		if c.engine.rules[i].meta.ID != id {
+			continue
+		}
+		if c.disabled[i] || c.skipped[i] {
 			return false
 		}
+		if c.relied == nil {
+			c.relied = map[int]bool{}
+		}
+		c.relied[i] = true
+		break
 	}
 	return true
 }
