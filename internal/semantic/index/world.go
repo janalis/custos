@@ -33,6 +33,10 @@ type World struct {
 	// relative to the working directory (see Dependency); empty when no
 	// project says.
 	Vendor string
+	// WorkDir is the working directory relative paths are written against,
+	// so that Dependency resolves them without asking the system on every
+	// call; empty to ask it.
+	WorkDir string
 }
 
 // Dependency reports whether file lies in the vendor directory. A file
@@ -44,14 +48,20 @@ func (w World) Dependency(file string) bool {
 	}
 	file, dir := filepath.Clean(file), filepath.Clean(w.Vendor)
 	if filepath.IsAbs(file) != filepath.IsAbs(dir) {
-		file, dir = absolute(file), absolute(dir)
+		file, dir = w.absolute(file), w.absolute(dir)
 	}
-	return strings.HasPrefix(filepath.ToSlash(file), filepath.ToSlash(dir)+"/")
+	return len(file) > len(dir) && file[len(dir)] == filepath.Separator && strings.HasPrefix(file, dir)
 }
 
-// absolute returns path made absolute, as is when the working directory
-// is unknown.
-func absolute(path string) string {
+// absolute returns clean path made absolute against WorkDir, or else the
+// current working directory; as is when that is unknown.
+func (w World) absolute(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	if w.WorkDir != "" {
+		return filepath.Join(w.WorkDir, path)
+	}
 	if abs, err := filepath.Abs(path); err == nil {
 		return abs
 	}

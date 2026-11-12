@@ -2,6 +2,7 @@ package project
 
 import (
 	"encoding/json"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -39,6 +40,9 @@ func ComposerWorld(root string, scope, indexed []string, skipped Skipped) index.
 	// Absolute like the other fields' base: index paths may be written
 	// either way (see index.World.Dependency).
 	w.Vendor = filepath.Join(absRoot, vendorDir(root))
+	// Relative index paths are resolved once against it, not with a
+	// getwd per question.
+	w.WorkDir, _ = os.Getwd()
 	return w
 }
 

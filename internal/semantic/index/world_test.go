@@ -115,6 +115,14 @@ func TestWorldDependencyPathForms(t *testing.T) {
 			t.Errorf("World{Vendor: %s}.Dependency(%s) = %v, want %v", c.w.Vendor, c.file, got, c.want)
 		}
 	}
+	// A world naming its working directory resolves relative paths against
+	// it, not against the current one.
+	named := index.World{Vendor: abs.Vendor, WorkDir: cwd}
+	t.Chdir(t.TempDir())
+	if !named.Dependency("vendor/acme/Base.php") || named.Dependency("src/Base.php") {
+		t.Error("relative paths resolve against WorkDir")
+	}
+	t.Chdir(dir)
 	// getcwd fails on macOS for an unreadable directory and on Linux for a
 	// removed one: do both.
 	gone := filepath.Join(dir, "gone")
@@ -131,5 +139,22 @@ func TestWorldDependencyPathForms(t *testing.T) {
 	}
 	if rel.Dependency(filepath.Join(cwd, "vendor", "A.php")) || !rel.Dependency("vendor/A.php") {
 		t.Error("without a working directory: paths compare as written")
+	}
+}
+
+// BenchmarkWorldDependency: a relative file against the absolute vendor
+// directory ComposerWorld records, asked per ancestor of every class a
+// type check judges.
+func BenchmarkWorldDependency(b *testing.B) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		b.Fatal(err)
+	}
+	w := index.World{Vendor: filepath.Join(cwd, "vendor"), WorkDir: cwd}
+	b.ReportAllocs()
+	for b.Loop() {
+		if w.Dependency("src/Model/Order.php") || !w.Dependency("vendor/acme/lib/Base.php") {
+			b.Fatal("wrong answer")
+		}
 	}
 }
