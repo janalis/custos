@@ -113,7 +113,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   value and a string literal its byte length and value, which a variable
   keeps only when no write its assignments do not show may have replaced
   it: through a reference, a `global` or `static` local, or a call that may
-  take it by reference.
+  take it by reference, such as one whose function, method or class is
+  named at run time (`$fn($n)`, `$obj->$m($n)`, `new $cls($n)`).
 - The NestedPositiveIfStatements quick-fix writes `elseif` instead of
   `else if` in a file that uses `elseif` more often than `else if`.
 - `analyse` and `fix` are faster on projects with large classes in

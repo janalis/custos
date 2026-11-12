@@ -44,4 +44,12 @@ func TestWithoutValues(t *testing.T) {
 	if got := typ.WithoutValues().ShapeString(); got != "int|null|string" {
 		t.Errorf("got %s", got)
 	}
+	// Values a string may hold and values ruled out both go: a write the
+	// values do not show may store any string. The string stays tracked.
+	for _, typ := range []Type{StringLiteral("a"), TrackedStrings().StringsWithout("a")} {
+		got := typ.WithoutValues()
+		if _, listed := got.StringValueList(); listed || got.StringExcludes("a") || got.StringExcludes("b") || !got.StringsTracked() || got.HasValues() {
+			t.Errorf("%s keeps string values", typ.ShapeString())
+		}
+	}
 }

@@ -103,6 +103,9 @@ function refill() { global $stock; $stock = 5; }
 function viaClosure() { $c = 0; $fn = static function (&$x) { $x = 9; }; $fn($c); restock($c); }
 function viaInclude() { $c = 0; include 'stock.php'; restock($c); }
 function viaAppend() { $s = ''; $p = &$s; $p .= 'x'; claim($s); }
+function viaDynamicMethod(object $obj, string $m) { $c = 0; $obj->$m($c); restock($c); }
+function viaDynamicStatic(string $m) { $c = 0; Stock::$m($c); restock($c); }
+function viaDynamicNew(string $cls) { $c = 0; new $cls($c); restock($c); }
 
 // Literal string values: a listed value, a string of unknown value, and a
 // value that may be listed.

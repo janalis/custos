@@ -31,6 +31,25 @@ function plain() { $c = 0; other(); t('plain', $c); }
 	})
 }
 
+// A callee named at run time (a dynamic method or static method name, a
+// class held by a variable) may take its arguments by reference, like a
+// callable called through a variable.
+func TestLiteralValuesDroppedOnDynamicCallees(t *testing.T) {
+	checkShape(t, `<?php
+function method($obj, string $m) { $n = 0; $obj->$m($n); t('method', $n); }
+function staticMethod(string $m) { $n = 0; Foo::$m($n); t('staticMethod', $n); }
+function dynamicClass(string $cls) { $n = 0; $cls::run($n); t('dynamicClass', $n); }
+function construct(string $cls) { $n = 0; new $cls($n); t('construct', $n); }
+function callable($fn) { $n = 0; $fn($n); t('callable', $n); }
+`, map[string]string{
+		"method":       "int",
+		"staticMethod": "int",
+		"dynamicClass": "int",
+		"construct":    "int",
+		"callable":     "int",
+	})
+}
+
 // A local read after an include or eval, which may assign it, keeps no
 // value.
 func TestLiteralValuesDroppedAfterInclude(t *testing.T) {

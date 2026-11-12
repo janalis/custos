@@ -477,6 +477,10 @@ type mutation struct {
 	// alias marks the mutRef of a `global` or `static` statement, which
 	// binds the local outside the scope's own references.
 	alias bool
+	// unseen marks a mutCallArg checked for writes a value does not show
+	// (see unproven; set by brokenByAs, never stored): a callee that cannot
+	// be resolved may take the argument by reference, as in a native Env.
+	unseen bool
 }
 
 // mutations returns the operations that may change variable name in scope
@@ -683,9 +687,13 @@ func writtenPropName(x syntax.Expr) string {
 }
 
 // byRefArg reports whether the argument of mutation m binds a by-reference
-// parameter of a resolvable callee.
+// parameter of a resolvable callee. In a native Env, and for a mutation
+// marked unseen, an unknown callee (a function called through a variable,
+// a method or class named at run time, a receiver of unknown class) may
+// take it by reference too.
 func (e *Env) byRefArg(m mutation) bool {
-	var params [][]index.Param
+	var buf [4][]index.Param // the usual receivers fit: no allocation
+	params := buf[:0]
 	// unresolved: some callee the call may reach is unknown. Where
 	// declarations are proofs, it may take the argument by reference.
 	unresolved := false
@@ -697,7 +705,7 @@ func (e *Env) byRefArg(m mutation) bool {
 	case *syntax.MethodCall:
 		id, ok := c.Name.(*syntax.Identifier)
 		if !ok {
-			return e.native
+			return e.native || m.unseen
 		}
 		recv := e.TypeOf(c.Var)
 		unresolved = recv.HasAny("mixed", "object")
@@ -711,7 +719,7 @@ func (e *Env) byRefArg(m mutation) bool {
 	case *syntax.StaticCall:
 		id, ok := c.Name.(*syntax.Identifier)
 		if !ok {
-			return e.native
+			return e.native || m.unseen
 		}
 		if cls := e.classRef(c.Class); cls != "" {
 			if mm := e.Index.FindMethod(cls, id.Value, e.PHP); mm != nil {
@@ -721,7 +729,7 @@ func (e *Env) byRefArg(m mutation) bool {
 	case *syntax.New:
 		cls := e.classRef(c.Class)
 		if cls == "" {
-			return e.native
+			return e.native || m.unseen
 		}
 		if mm := e.Index.FindMethod(cls, "__construct", e.PHP); mm != nil {
 			params = append(params, mm.Params)
@@ -729,7 +737,7 @@ func (e *Env) byRefArg(m mutation) bool {
 			return false // no constructor: the arguments are not bound
 		}
 	}
-	if (e.native || e.unseenArgs) && (unresolved || len(params) == 0) {
+	if (e.native || m.unseen) && (unresolved || len(params) == 0) {
 		return true
 	}
 	for _, ps := range params {
@@ -846,6 +854,12 @@ const maxMutScan = 512
 // order, as collectMutations records them) may change a fact established
 // at position from before use (see nonEmptyBroken).
 func (e *Env) brokenBy(scope syntax.Node, from uint32, use syntax.Node, lists ...[]mutation) bool {
+	return e.brokenByAs(false, scope, from, use, lists...)
+}
+
+// brokenByAs is brokenBy, the call arguments of lists marked unseen when
+// unseen is set (see mutation.unseen).
+func (e *Env) brokenByAs(unseen bool, scope syntax.Node, from uint32, use syntax.Node, lists ...[]mutation) bool {
 	empty := true
 	for _, l := range lists {
 		empty = empty && len(l) == 0
@@ -898,6 +912,7 @@ func (e *Env) brokenBy(scope syntax.Node, from uint32, use syntax.Node, lists ..
 			if scanned++; scanned > maxMutScan {
 				return true
 			}
+			m.unseen = unseen
 			if e.mutBreaks(m, at, loops, exclusive) {
 				return true
 			}

@@ -70,7 +70,7 @@ func (e *Env) unproven(sv *scopeVars, fwd, back []varDef, name string, use, scop
 		}
 	}
 	elems := e.mutations(scope, dimKey(name, anyElem))
-	if e.brokenBy(scope, from, use, e.mutations(scope, argKey(name)), kindsOf(elems, mutCallArg)) {
+	if e.brokenByAs(true, scope, from, use, e.mutations(scope, argKey(name)), kindsOf(elems, mutCallArg)) {
 		return true // passed (or an element of it) where it may be bound by reference
 	}
 	switch {

@@ -467,9 +467,7 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	// show may have replaced them (see ProvenTypeOf): the proven Env makes
 	// such a read unknown, the others keep its atoms.
 	if !partial && !e.proven && carriesValues(ts, backTs) {
-		e.unseenArgs = true
 		partial = e.unproven(sv, fwd, back, name, use, scope)
-		e.unseenArgs = false
 	}
 	if partial {
 		for i := range ts {
