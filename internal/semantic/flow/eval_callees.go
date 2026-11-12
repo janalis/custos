@@ -1,8 +1,6 @@
 package flow
 
 import (
-	"strings"
-
 	"custos/internal/php/syntax"
 )
 
@@ -120,36 +118,9 @@ func (e *Env) builtinCall(n syntax.Node, name string, args *syntax.ArgList, valu
 	}
 	switch name {
 	case "extract", "parse_str":
-		if name == "extract" && e.assigns(n, args, f, r) {
-			break
-		}
-		f.definite = false
-		// Each key of the array may replace a local binding of that
-		// name, or create one, with an element of the array.
-		if array, given := passed(args, values, "array", 0); given && name == "extract" || len(values) == 1 {
-			if !given {
-				array = values[0]
-			}
-			if array.scalars {
-				// The variables hold the numbers; the keys name them.
-				array.Safe |= everyContext
-			}
-			// With a skipping or prefixing flag existing variables stay.
-			if flags, chosen := passed(args, values, "flags", 1); !chosen || name != "extract" || !keepsExisting(flags.Expr) {
-				f.unsettle(r, array)
-			}
-			f.importing(array)
-		}
+		e.importBindings(n, name, args, values, f, r)
 	case "array_map":
-		// Each element is the callback's result; one array keeps its keys.
-		// A list has the keys PHP numbered it with.
-		if len(values) > 0 && e.scalarCallback(values[0].Expr) && len(out.value.Sources) > 0 {
-			if len(values) == 2 && !e.list(values[1].Expr) {
-				out.value.scalars = true
-			} else {
-				out.value.Safe |= everyContext
-			}
-		}
+		e.mappedScalars(values, out)
 	}
 	if len(values) > 0 && values[0].scalars && keepsElements(name) {
 		// The result is that array with fewer elements: the other
@@ -166,111 +137,9 @@ func (e *Env) builtinCall(n syntax.Node, name string, args *syntax.ArgList, valu
 	} else if e.handed(n, name, args, values) {
 		e.implicit(n, f, r)
 	}
-	out.value.Safe |= transforms[name].safe
-	switch name {
-	case "htmlspecialchars", "htmlentities":
-		// An unpacked list may pass flags that leave quotes alone.
-		if out.boundOK && len(out.bound) > 1 {
-			if flags, given := passed(args, values, "flags", 1); given || absent(args, "flags", 1) {
-				out.value.Safe |= e.htmlQuoteSafety(flags, !given, r)
-			}
-		}
-	case "json_encode":
-		// A JSON text holds no unescaped slash, so no `</script>`,
-		// unless asked for one without escaping `<` and `>` instead.
-		flags, given := passed(args, values, "flags", 1)
-		bits, known := int64(0), absent(args, "flags", 1)
-		if given && flags.Complete {
-			bits, known = e.htmlFlagBits(flags.Expr, r, 16)
-		}
-		if known && (bits&64 == 0 || bits&1 != 0) {
-			out.value.Safe |= HTMLScript
-		}
-		// Strings escape CR and LF as `\r` and `\n`; only
-		// JSON_PRETTY_PRINT (128) puts line breaks between members.
-		if known && bits&128 == 0 {
-			out.value.Safe |= Header
-		}
-	case "http_build_query":
-		// Every key and value is URL-encoded and joined by `=` and the
-		// separator, so no line break unless the numeric prefix or the
-		// separator brings one; an `&` may still start an entity.
-		if plainQueryPart(args, values, "numeric_prefix", 1) && plainQueryPart(args, values, "arg_separator", 2) {
-			out.value.Safe |= Header
-		}
-	case "number_format":
-		// Digits, a sign and the separators, which PHP chooses unless
-		// they are given.
-		if absent(args, "decimal_separator", 2) && absent(args, "thousands_separator", 3) {
-			out.value.Safe |= everyContext
-		}
-	case "filter_var":
-		if filter, given := passed(args, values, "filter", 1); given {
-			out.value.Safe |= e.filtered(filter)
-		}
-	case "quote":
-		if m := e.method(n); m != nil && strings.EqualFold(strings.TrimPrefix(m.Class, `\`), "PDO") {
-			out.value.Safe |= SQL
-		}
-	case "md5", "sha1", "hash", "hash_hmac":
-		position := 1
-		switch name {
-		case "hash":
-			position = 2
-		case "hash_hmac":
-			position = 3
-		}
-		if out.boundOK && position < len(out.bound) {
-			flag := out.bound[position]
-			if flag.Complete && flag.Expr == nil {
-				out.value.Safe |= everyContext
-			} else {
-				switch flag := syntax.UnwrapParens(flag.Expr).(type) {
-				case *syntax.ConstFetch:
-					if strings.EqualFold(flag.Name.Value, "false") {
-						out.value.Safe |= everyContext
-					}
-				case *syntax.Literal:
-					if flag.LitKind == syntax.LitInt && flag.Raw == "0" {
-						out.value.Safe |= everyContext
-					}
-				}
-			}
-		}
-	case "fopen", "tmpfile", "popen", "curl_init":
-		// A fresh handle: no code ran on it, whatever its arguments
-		// went through.
-		out.value.Identity, out.value.Invalidated = n.Span().Start+1, 0
-		if r.allocations == nil {
-			r.allocations = map[uint32]bool{}
-		}
-		r.allocations[out.value.Identity] = true
-	case "prepare", "query":
-		out.value = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
-	}
-	switch name {
-	case "session_start", "session_write_close", "session_commit", "session_abort", "session_destroy":
-		f.setState(sessionID, State{Operation: name, Span: n.Span()})
-	case "http_response_code":
-		f.setState(responseID, State{Operation: name, Span: n.Span()})
-	case "flush", "ob_end_flush":
-		if _, output := f.states[outputID]; output {
-			if _, buffering := f.states[bufferID]; !buffering || name == "ob_end_flush" {
-				f.setState(committedID, State{Operation: name, Span: n.Span()})
-			}
-		}
-		if name == "ob_end_flush" {
-			delete(f.states, bufferID)
-		}
-	case "ob_start":
-		f.setState(bufferID, State{Operation: name, Span: n.Span()})
-	case "ob_end_clean":
-		delete(f.states, bufferID)
-	case "header":
-		if text, known := literalText(first.Expr); known && strings.HasPrefix(strings.ToLower(text), "set-cookie:") {
-			f.setState(cookieID, State{Operation: name, Span: n.Span()})
-		}
-	}
+	out.value.Safe |= contract.safe
+	e.resultSafety(n, name, args, values, out, r)
+	frameEffects(n, name, first, f)
 }
 
 // userCall invalidates what a call to project code may change.
