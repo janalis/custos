@@ -48,7 +48,8 @@ left to DocumentedReturnType.
   expected, an object where a string is expected outside strict mode.
 - E5. `self` and `static` in a trait, whose methods run as members of the
   class using it, and `$this` read inside a closure or arrow function,
-  which may run bound to another object.
+  which may run bound to another object, unless the value's type does not
+  depend on that object.
 - E6. Template types and classes whose hierarchy is not fully known.
 - E7. Code outside any function and property hooks.
 

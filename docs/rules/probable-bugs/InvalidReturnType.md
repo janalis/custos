@@ -68,7 +68,8 @@ Reported:
   expected, an object where a string is expected outside strict mode.
 - `self` and `static` in a trait, whose methods run as members of the
   class using it, and `$this` read inside a closure or arrow function,
-  which may run bound to another object.
+  which may run bound to another object, unless the value's type does not
+  depend on that object.
 - Template types and classes whose hierarchy is not fully known.
 - Code outside any function and property hooks.
 

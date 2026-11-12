@@ -150,3 +150,14 @@ function names()
     yield 'a';
     return 3;
 }
+
+// $this in a closure may be bound to another object.
+class Ticket
+{
+    public string $label = '';
+
+    public function later()
+    {
+        return fn (): int => $this->label;
+    }
+}

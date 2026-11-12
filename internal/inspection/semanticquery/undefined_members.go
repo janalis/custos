@@ -22,12 +22,9 @@ var dynamicBuiltins = map[string]bool{
 
 // MemberReceiverClasses lists the classes native declarations prove the
 // object x to be (see infer.Env.ProvenTypeOf), null aside: nil unless
-// every atom names a class, and for `$this` read in a closure or an arrow
-// function, which may run bound to another object.
+// every atom names a class (the proven type of `$this` read in a closure or
+// an arrow function is unknown: it may run bound to another object).
 func MemberReceiverClasses(ctx *analysis.Context, x syntax.Expr) []string {
-	if reboundThis(x) {
-		return nil
-	}
 	typ := ctx.Types().ProvenTypeOf(x).Without("null")
 	classes := typ.Classes()
 	if len(classes) == 0 || len(classes) != len(typ.Atoms()) {

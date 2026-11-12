@@ -84,7 +84,17 @@ func TestProvenTypes(t *testing.T) {
 		{"narrowed property after a call", `<?php class C { public ?C $p = null; function m() { if ($this->p !== null) { $this->reset(); t('v', $this->p); } } function reset() { $this->p = null; } }`, `\C|null`, `\C|null`},
 		{"untyped property after a call", `<?php class C { public $p; function m() { $this->p = 1; $this->o(); t('v', $this->p); } function o() { $this->p = 'x'; } }`, unknown, unknown},
 		{"static property after a call", `<?php class C { public static ?C $p = null; function m() { if (self::$p !== null) { $this->o(); t('v', self::$p); } } function o() {} }`, `\C|null`, `\C|null`},
+		// $this in a closure or an arrow function: Closure::bind, bindTo and
+		// call may run it bound to another object.
+		{"$this in a closure", `<?php class C { function m() { return function () { t('v', $this); }; } }`, `\C`, unknown},
+		{"$this in an arrow function", `<?php class C { function m() { return fn() => t('v', $this); } }`, `\C`, unknown},
+		{"property of $this in a closure", `<?php class C { public int $p = 0; function m() { return function () { t('v', $this->p); }; } }`, "int", unknown},
+		{"narrowed property of $this in a closure", `<?php class C { public ?C $p = null; function m() { return function () { if ($this->p !== null) { t('v', $this->p); } }; } }`, `\C`, unknown},
+		{"method of $this in an arrow function", `<?php class C { function n(): int { return 1; } function m() { return fn() => t('v', $this->n()); } }`, "int", unknown},
+		{"$this in a static closure", `<?php class C { function m() { return static function () { t('v', $this); }; } }`, `\C`, unknown},
+		{"$this in a method of a class in a closure", `<?php function f() { return function () { return new class { public int $p = 0; function m() { t('v', $this->p); } }; }; }`, "int", "int"},
 		// Precision kept.
+		{"$this in a method", `<?php class C { function m() { t('v', $this); } }`, `\C`, `\C`},
 		{"plain local after a call", `<?php function f() { $a = 1; g(); t('v', $a); }`, "int", "int"},
 		{"by-value callee", `<?php function g(int $x) {} function f() { $a = 1; g($a); t('v', $a); }`, "int", "int"},
 		{"top-level variable after a plain builtin", `<?php $a = 1; strlen('x'); t('v', $a);`, "int", "int"},

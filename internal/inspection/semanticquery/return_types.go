@@ -70,7 +70,7 @@ func returnTypeMismatch(ctx *analysis.Context, n syntax.Node) (ReturnMismatch, b
 	case *syntax.ArrowFunction:
 		fn, value = r, r.Expr
 	}
-	if value == nil || reboundThis(value) {
+	if value == nil {
 		return ReturnMismatch{}, false
 	}
 	c := ctx.Shared(returnContractKey{fn}, func() any { return newReturnContract(ctx, fn) }).(*returnContract)
@@ -93,6 +93,11 @@ func returnTypeMismatch(ctx *analysis.Context, n syntax.Node) (ReturnMismatch, b
 	case !c.doc.IsUnknown() && types.AllRejected(c.docFor(given), given, accept):
 		m.Expected = c.docText
 	default:
+		return ReturnMismatch{}, false
+	}
+	// The proven type of `$this` in a closure is unknown; the PHPDoc-aware
+	// one still names the enclosing class.
+	if !m.Proven && reboundThis(value) {
 		return ReturnMismatch{}, false
 	}
 	return m, true

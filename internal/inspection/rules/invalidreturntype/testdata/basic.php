@@ -64,3 +64,15 @@ $count = function (): int {
 };
 $name = fn(): string => <error descr="Return string from the arrow function, not int.">42</error>;
 $nested = fn(): string => (fn(): string => <error descr="Return string from the arrow function, not array.">[]</error>)();
+
+// $this in a closure may be another object, but this value is a string
+// whatever it is bound to.
+class Ticket
+{
+    public function later()
+    {
+        return function (): int {
+            return <error descr="Return int from the closure, not string.">$this instanceof Ticket ? 'a' : 'b'</error>;
+        };
+    }
+}

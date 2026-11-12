@@ -33,6 +33,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   argument typed only by PHPDoc. Both follow PHP's weak-mode conversions
   outside `declare(strict_types=1)` and check PHP's own functions from PHP
   8.0, except those whose stubs declare other parameter types than PHP.
+  A value read from `$this` in a closure or an arrow function, which may
+  be bound to another object, is reported only when its type does not
+  depend on that object (by InvalidArgumentType and InvalidReturnType).
 - InvalidPropertyAssignment (error) and DocumentedPropertyAssignment
   (warning), both off by default, report a value stored in a property
   whose type can never accept it, through plain and compound assignments,

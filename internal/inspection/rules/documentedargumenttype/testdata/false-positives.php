@@ -79,3 +79,14 @@ function listNames(array $names) {}
 function greet(...$names) { foreach ($names as $n) { strlen($n); } }
 /** @param array<int, string> ...$rows */
 function rows(...$rows) { foreach ($rows as $row) { strlen($row); } }
+
+// $this in a closure may be bound to another object.
+class Ticket
+{
+    public string $label = '';
+
+    public function later()
+    {
+        return function () { rewind($this->label); };
+    }
+}

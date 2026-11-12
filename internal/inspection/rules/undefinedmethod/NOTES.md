@@ -8,7 +8,7 @@ The rule shares its lookup with UndefinedProperty
 
 1. `MemberReceiverClasses` takes the receiver's classes from
    `infer.Env.ProvenTypeOf` (null removed; every atom must be a class;
-   `$this` in closures skipped through `reboundThis`), and
+   `$this` in closures and arrow functions is unknown there), and
    `StaticMemberClasses` those of a static call from `StaticCallClass`,
    skipping `self`, `static` and `parent` in traits and closures;
 2. `memberKnown` requires `HierarchyResolved`, `AncestorsComplete`, and a

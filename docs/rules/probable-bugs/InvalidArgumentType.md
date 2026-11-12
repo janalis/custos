@@ -81,9 +81,9 @@ Reported:
   PHP declares in some version (a polyfill), classes declared more than
   once.
 - An override in a subtype that accepts the value.
-- `$this` read inside a closure or arrow function, as an argument or
-  as the receiver of the method called, since the closure may run bound
-  to another object.
+- `$this` read inside a closure or arrow function, as the receiver of
+  the method called or in an argument whose type depends on it, since the
+  closure may run bound to another object.
 - PHP's own functions below PHP 8.0, functions of extensions not
   bundled with PHP, and the builtins whose stub declares other parameter
   types than PHP enforces (overloaded forms such as `strtr`, option arrays

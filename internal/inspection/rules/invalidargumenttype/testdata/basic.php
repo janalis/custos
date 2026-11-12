@@ -44,3 +44,13 @@ Cart::restore(<error descr="Pass array to $lines of Shop\Cart::restore(), not st
 // PHP's own functions, from PHP 8.0.
 strlen(<error descr="Pass string to $string of strlen(), not int.">42</error>);
 str_repeat('-', <error descr="Pass int to $times of str_repeat(), not string.">'3'</error>);
+
+// $this in a closure may be another object, but this value is a string
+// whatever it is bound to.
+class Ticket
+{
+    public function later()
+    {
+        return fn () => charge(<error descr="Pass int to $cents of Shop\charge(), not string.">$this instanceof Ticket ? 'a' : 'b'</error>);
+    }
+}

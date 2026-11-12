@@ -95,7 +95,7 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 	var rejected []boundArg
 	for _, b := range args {
 		params, ok := bindAll(nominal, b)
-		if !ok || reboundThis(b.arg.Value) {
+		if !ok {
 			continue
 		}
 		if given := ctx.TypeOf(b.arg.Value); !given.IsUnknown() {
@@ -130,6 +130,11 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 			if proven := ctx.Types().ProvenTypeOf(b.arg.Value); check.nativeRejects(targets, params, proven) {
 				m.Proven, m.Given = true, proven
 			}
+		}
+		// The proven type of `$this` in a closure is unknown; the
+		// PHPDoc-aware one still names the enclosing class.
+		if !m.Proven && reboundThis(b.arg.Value) {
+			continue
 		}
 		out = append(out, m)
 	}
@@ -186,6 +191,8 @@ func bindableArgs(call syntax.Node) []boundArg {
 
 // reboundThis reports whether x reads $this in a closure or an arrow
 // function, which may run bound to another object (Closure::bind, macros).
+// The proven environment already types such reads as unknown; the
+// PHPDoc-aware one, which the Documented* rules read, does not.
 func reboundThis(x syntax.Expr) bool {
 	switch syntax.EnclosingFuncLike(x).(type) {
 	case *syntax.Closure, *syntax.ArrowFunction:

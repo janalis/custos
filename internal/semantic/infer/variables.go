@@ -335,6 +335,9 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		return types.Unknown
 	}
 	if v.Name == "this" {
+		if e.proven && rebindable(v) {
+			return types.Unknown
+		}
 		fqn := e.selfClass(syntax.EnclosingClass(v))
 		if fqn == "" {
 			return e.traitRequired(v)
@@ -348,6 +351,17 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		return t
 	}
 	return e.variableBaseAt(v.Name, v, v)
+}
+
+// rebindable reports whether the `$this` read v sits in a closure or an
+// arrow function, which Closure::bind, bindTo or call may run bound to
+// another object (a static one cannot read `$this` at all).
+func rebindable(v *syntax.Variable) bool {
+	switch syntax.EnclosingFuncLike(v).(type) {
+	case *syntax.Closure, *syntax.ArrowFunction:
+		return true
+	}
+	return false
 }
 
 // TypeOfVarAt types variable name as a read written at expression at would
