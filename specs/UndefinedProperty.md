@@ -25,8 +25,10 @@ which create a dynamic property (see UndeclaredDynamicProperty).
   through a class name, `self`, `parent` or `static` (`Cart::$lines`),
   read or written.
 - D2. An instance property counts where it is read: as a value, an
-  operand, an argument PHP passes by value, an array item, or the base of
-  an element or property read (`$cart->items[0]`, `$cart->owner->name`).
+  operand, an argument PHP passes by value, an array item, the subject a
+  `foreach` iterates by value, a key of a destructuring target
+  (`[$cart->key => $value] = $row`), or the base of an element or property
+  read (`$cart->items[0]`, `$cart->owner->name`).
 - D3. The object's classes come from native declarations only, as
   UndefinedMethod defines them (D2 to D3 there).
 - D4. No class-like in the hierarchy of any of the classes declares a
@@ -45,8 +47,8 @@ which create a dynamic property (see UndeclaredDynamicProperty).
   assignment target (compound and `??=` assignments included), an element
   write (`$cart->items[] = 1`), a by-reference binding (`&$cart->total`, an
   argument taken by reference or passed to a callee the analysis cannot
-  resolve), `unset()`, an increment or decrement, a `foreach` or
-  destructuring target, and a subject of `isset()`, `empty()` or the left
+  resolve), `unset()`, an increment or decrement, a `foreach` target or a
+  subject it iterates by reference, a destructuring target, and a subject of `isset()`, `empty()` or the left
   operand of `??`, also through elements or properties of it. Static
   properties are only exempt under `isset()`, `empty()` and `??`.
 - E2. An instance property of a name the analyzed file writes anywhere

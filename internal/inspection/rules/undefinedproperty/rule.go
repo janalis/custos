@@ -68,8 +68,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // read reports whether the property fetch f reads the property where PHP
 // warns when it is undeclared: not as (the base of an element written
 // through) an assignment target, a by-reference binding, an unset(), a
-// foreach or destructuring target, an increment, an argument that may be
-// taken by reference, nor under isset(), empty() or `??`.
+// foreach target or subject iterated by reference, a destructuring target
+// (its keys are read), an increment, an argument that may be taken by
+// reference, nor under isset(), empty() or `??`.
 func read(ctx *analysis.Context, f *syntax.PropertyFetch) bool {
 	if checked(f) {
 		return false
@@ -92,10 +93,13 @@ func read(ctx *analysis.Context, f *syntax.PropertyFetch) bool {
 	switch p := target.Parent().(type) {
 	case *syntax.Assign:
 		return p.Var != target && !(p.ByRef && p.Value == target)
-	case *syntax.IncDec, *syntax.Unset, *syntax.Foreach:
+	case *syntax.IncDec, *syntax.Unset:
 		return false
+	case *syntax.Foreach:
+		// Only iterating by reference writes the subject.
+		return p.Expr == target && !p.ByRef
 	case *syntax.ArrayItem:
-		return !p.ByRef && !destructured(p)
+		return p.Key == target || !p.ByRef && !destructured(p)
 	case *syntax.Arg:
 		return !semanticquery.ArgumentMayWrite(ctx.Types(), p)
 	}
