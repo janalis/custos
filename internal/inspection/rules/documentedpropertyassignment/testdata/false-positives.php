@@ -66,3 +66,12 @@ class Journal extends Ledger
 }
 
 function post(Ledger $l) { $l->entry = 'x'; }
+
+// A null default makes the PHPDoc type nullable.
+final class Link
+{
+    /** @var Order */
+    private $prev = null;
+
+    public function unlink() { $this->prev = null; }
+}

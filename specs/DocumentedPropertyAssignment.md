@@ -40,6 +40,8 @@ disagree. Mismatches the code alone proves are InvalidPropertyAssignment's.
   and literal string values. `@var positive-int` accepts any integer.
 - E4. Every exception of InvalidPropertyAssignment other than untyped
   properties.
+- E5. `null` stored in a property whose default value is `null`: the
+  default makes its `@var` type nullable, as it does for a parameter.
 
 ## Report
 

@@ -37,8 +37,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   (warning), both off by default, report a value stored in a property
   whose type can never accept it, through plain and compound assignments
   and `??=`. The first judges the value by the code alone, where PHP would
-  throw a `TypeError`; the second also checks `@var` types and values typed
-  only by PHPDoc. Both stay silent on hooked properties, classes with
+  throw a `TypeError`; the second also checks `@var` types, made nullable
+  by a `null` default, and values typed only by PHPDoc. Both stay silent on hooked properties, classes with
   `__set`, writes the scope cannot perform and readonly writes that may be
   re-initializations.
 - InvalidReturnType (error) and DocumentedReturnType (warning), both off

@@ -62,6 +62,8 @@ Reported:
   and literal string values. `@var positive-int` accepts any integer.
 - Every exception of InvalidPropertyAssignment other than untyped
   properties.
+- `null` stored in a property whose default value is `null`: the
+  default makes its `@var` type nullable, as it does for a parameter.
 
 ## Fix
 
