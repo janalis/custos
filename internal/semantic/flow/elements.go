@@ -1,12 +1,135 @@
 package flow
 
 import (
+	"maps"
+	"math/bits"
+	"slices"
 	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
+
+const (
+	uploadEntry uint8 = iota + 1
+	uploadTable
+)
+
+// elementSet is never modified once a binding holds it: a write makes a new
+// one, which lets every copy of the array value share it.
+type elementSet struct {
+	hasResources bool
+	whole        bool // every runtime entry is tracked; false after losing an entry
+	optional     bool // tracked keys may be absent, so membership/count is not exact
+	items        map[string]Value
+	order        []string // nil unless insertion order is proven for the complete set
+	depth        int      // bounded structural cost, including branching
+	width        int      // upper bound on the number of entries during construction
+}
+
+// Empty element sets contain no mutable evaluation metadata and are shared.
+var emptyElements = &elementSet{whole: true}
+
+func cloneElements(s *elementSet) *elementSet {
+	out := *s
+	out.items = maps.Clone(s.items)
+	return &out
+}
+
+// put is only used while constructing an unpublished set. A loop that wraps
+// its previous array cannot accumulate an unbounded chain of nested facts.
+func (s *elementSet) put(key string, value Value) {
+	height := bits.Len(uint(max(1, s.width)))
+	if value.elements != nil {
+		if value.elements.depth+height > MaxDepth {
+			value.elements = nil
+		} else {
+			height += value.elements.depth
+		}
+	}
+	s.hasResources = s.hasResources || value.storedIdentity != 0 || value.record != nil || value.elements != nil && value.elements.hasResources
+	s.depth = max(s.depth, height)
+	s.items[key] = value
+}
+
+// without returns the set less one element, which a callee holding a
+// reference to it may have rewritten; nothing when the element is not known.
+func (s *elementSet) without(key string, known bool) *elementSet {
+	if s == nil || !known {
+		return nil
+	}
+	n := &elementSet{items: map[string]Value{}, width: len(s.items)}
+	for k, v := range s.items {
+		if k != key {
+			n.put(k, v)
+		}
+	}
+	if len(n.items) == 0 {
+		return nil
+	}
+	return n
+}
+
+// with returns the set with one more element written.
+func (s *elementSet) with(key string, v Value) *elementSet {
+	width := 1
+	if s != nil {
+		width += len(s.items)
+	}
+	n := &elementSet{items: map[string]Value{}, width: width}
+	if s != nil {
+		n.whole = s.whole
+		n.optional = s.optional
+	}
+	n.put(key, v)
+	if s != nil {
+		for k, old := range s.items {
+			if k != key {
+				n.put(k, old)
+			}
+		}
+	}
+	return n
+}
+
+// common keeps the elements tracked in both sets, each holding what either
+// may. It returns a itself when b adds nothing to it.
+func common(a, b *elementSet) *elementSet {
+	if a == b {
+		return a
+	}
+	if a == nil || b == nil {
+		return nil
+	}
+	kept := slices.Equal(a.order, b.order) && (!a.whole || b.whole && len(a.items) == len(b.items)) && (!b.optional || a.optional)
+	for k, v := range a.items {
+		w, ok := b.items[k]
+		if !ok || !equal(merge(v, w), v) {
+			kept = false
+			break
+		}
+	}
+	if kept {
+		return a
+	}
+	n := &elementSet{items: map[string]Value{}, width: min(len(a.items), len(b.items)), whole: a.whole && b.whole && len(a.items) == len(b.items), optional: a.optional || b.optional}
+	if slices.Equal(a.order, b.order) {
+		n.order = a.order
+	}
+	for k, v := range a.items {
+		if w, ok := b.items[k]; ok {
+			n.put(k, merge(v, w))
+		}
+	}
+	if len(n.items) == 0 {
+		return nil
+	}
+	if len(n.items) != len(a.items) {
+		n.whole = false
+	}
+	return n
+}
 
 // elements returns the tracked elements of the array a plain assignment
 // stores: those of the variable, array literal or choice of either it reads.
