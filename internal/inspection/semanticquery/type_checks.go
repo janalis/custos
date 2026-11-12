@@ -473,7 +473,10 @@ func literal(x syntax.Expr) bool {
 }
 
 // exactOperand reports a literal, or a local of a function whose every
-// value reaching x is a literal assigned in that function.
+// value reaching x is a literal assigned in that function. A write into a
+// string offset reaching x needs no check here: inference then types the
+// local without values (see infer's withElemWritesAt), so values never
+// decide the comparison.
 func exactOperand(ctx *analysis.Context, x syntax.Expr) bool {
 	if literal(x) {
 		return true

@@ -133,3 +133,13 @@ final class Labeler
         return function () { joinParts(strlen($this->name)); };
     }
 }
+
+// A write into a string offset changes the value: no literal is kept.
+/** @param 'abc'|'xbc' $mode */
+function takeMode(string $mode) {}
+function offset(): void
+{
+    $s = 'zbc';
+    $s[0] = 'a';
+    takeMode($s);
+}

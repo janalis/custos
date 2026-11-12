@@ -286,6 +286,13 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 	// A write into null creates an array (`?array $n; $n['k'] = 1;`).
 	nullOnly := len(other) == 1 && other[0] == "null"
 	if len(arr) == 0 && !nullOnly {
+		// A write into a string offset (`$s[0] = 'x'`) changes its value
+		// and may lengthen it: keep the type, not the value.
+		if slices.Contains(other, "string") && t.HasValues() {
+			if ws, _ := e.reachingWritesAt(name, use, scope); len(ws) > 0 {
+				return t.WithoutValues(), true
+			}
+		}
 		return t, false
 	}
 	ws, back := e.reachingWritesAt(name, use, scope)

@@ -170,3 +170,12 @@ function status(bool $done, string $any)
     }
     return $any;
 }
+
+// A write into a string offset changes the value: no literal is kept.
+/** @return 'abc'|'xbc' */
+function offset(): string
+{
+    $s = 'zbc';
+    $s[0] = 'x';
+    return $s;
+}
