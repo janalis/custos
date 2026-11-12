@@ -32,8 +32,6 @@ func (s *Server) beginIndexing() bool {
 	return true
 }
 
-// buildIndex indexes the workspace (and vendor) after beginIndexing, then
-// re-analyses open documents.
 // abandonIndex ends a failed index build, unless a later one replaced it:
 // analyses go on without a project index.
 func (s *Server) abandonIndex(e *analysis.Engine, generation uint64) {
@@ -44,6 +42,8 @@ func (s *Server) abandonIndex(e *analysis.Engine, generation uint64) {
 	}
 }
 
+// buildIndex indexes the workspace (and vendor) after beginIndexing, then
+// re-analyses open documents.
 func (s *Server) buildIndex() {
 	s.mu.Lock()
 	e, cfg, generation := s.engine, s.cfg, s.indexGeneration
@@ -66,16 +66,24 @@ func (s *Server) buildIndex() {
 	ix, unread := buildIndexSymbols(cfg.Root, indexed, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 	skipped.Files = append(skipped.Files, unread...)
 	ix.SetWorld(project.ComposerWorld(cfg.Root, paths, indexed, skipped))
+	// The disk holds no unsaved edit: index the open buffers again, parsed
+	// outside the lock.
+	s.mu.Lock()
+	buffers := make(map[*document][]byte, len(s.docs))
+	for _, d := range s.docs {
+		buffers[d] = d.text
+	}
+	s.mu.Unlock()
+	parsed := make(map[*document]*index.FileSymbols, len(buffers))
+	for d, text := range buffers {
+		parsed[d] = extractSource(cfg, d.path, text)
+	}
 	s.mu.Lock()
 	if s.engine != e || s.indexGeneration != generation {
 		s.mu.Unlock()
 		return
 	}
-	// The disk holds no unsaved edit: index the open buffers again, under
-	// the lock so that no edit lands in between.
-	for _, d := range s.docs {
-		addSource(ix, cfg, d.path, d.text)
-	}
+	indexBuffers(ix, cfg, s.docs, buffers, parsed)
 	s.engine = e.WithIndex(ix)
 	s.index, s.worldKey = ix, worldKey
 	s.indexing = false
@@ -90,6 +98,20 @@ func (s *Server) buildIndex() {
 	n, _, _, _ := ix.Stats()
 	s.logf("indexed %d files in %v", n, time.Since(start).Round(time.Millisecond))
 	s.reanalyzeAll()
+}
+
+// indexBuffers adds the declarations of the open documents docs to ix:
+// those parsed from buffers when a document still holds that text, else
+// parsed again (an edit or an open landed meanwhile).
+func indexBuffers(ix *index.Index, cfg *config.Config, docs map[string]*document, buffers map[*document][]byte, parsed map[*document]*index.FileSymbols) {
+	for _, d := range docs {
+		fs, ok := parsed[d]
+		if !ok || !bytes.Equal(buffers[d], d.text) {
+			fs = extractSource(cfg, d.path, d.text)
+		}
+		ix.DropStaleInferred(fs)
+		ix.Add(fs)
+	}
 }
 
 // fileChange is one workspace/didChangeWatchedFiles event.
@@ -127,6 +149,11 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 		return
 	}
 	ix, cfg := s.index, s.cfg
+	// An open document's buffer, not the disk, holds its declarations.
+	opened := make(map[string]bool, len(s.docs))
+	for _, d := range s.docs {
+		opened[d.path] = true
+	}
 	s.mu.Unlock()
 	if ix == nil || len(changes) == 0 {
 		return
@@ -134,7 +161,7 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 	touched := false
 	for _, ch := range changes {
 		path := uriToPath(ch.URI)
-		if !strings.HasSuffix(strings.ToLower(path), ".php") {
+		if !strings.HasSuffix(strings.ToLower(path), ".php") || opened[path] {
 			continue
 		}
 		touched = true
