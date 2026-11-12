@@ -281,11 +281,12 @@ func elementWrite(ctx *analysis.Context, x *syntax.ArrayDimFetch) bool {
 	}
 	switch p := top.Parent().(type) {
 	case *syntax.Assign:
-		return p.Var == top
+		return p.Var == top || p.ByRef // `$r = &$x['k']` binds the element
 	case *syntax.IncDec:
 		return true
 	case *syntax.ArrayItem:
-		return p.ByRef || inDestructuring(p)
+		// A key is read, even in a pattern: `[$m['k'] => $v] = $row`.
+		return p.Value == top && (p.ByRef || inDestructuring(p))
 	case *syntax.Foreach:
 		return p.Expr != top
 	case *syntax.Unset:

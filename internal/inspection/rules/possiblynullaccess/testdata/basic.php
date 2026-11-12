@@ -71,4 +71,10 @@ class Cart
         echo <warning descr="Check this value for null before the access: it is array|null.">$rows</warning>['a']['b'];
         $first = $rows[0] + 1;
     }
+
+    // A key of a destructuring pattern is read.
+    public function keyed(?array $map, array $row): void
+    {
+        [<warning descr="Check this value for null before the access: it is array|null.">$map</warning>['col'] => $value] = $row;
+    }
 }

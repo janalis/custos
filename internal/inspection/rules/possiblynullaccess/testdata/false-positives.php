@@ -111,6 +111,12 @@ class Cart
         }
     }
 
+    // An element bound by reference, alone in its function.
+    public function boundElement(?array $rows): void
+    {
+        $r = &$rows['a'];
+    }
+
     // A property checked, then re-read after a call that may write it.
     public function afterCall(): void
     {

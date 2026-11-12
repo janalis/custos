@@ -48,9 +48,11 @@ not reported.
   `empty()`, or on the left of `??` or `??=`, along a chain of such reads
   (`$a->b['c'] ?? null`): null raises nothing there. A method call ends the
   chain.
-- E3. An element written, appended, destructured into, iterated into,
-  incremented, unset, taken or passed by reference, or passed to a call
-  whose parameters are unknown: PHP turns null into an array there.
+- E3. An element written, appended, destructured into (as a value: a key
+  of the pattern, `[$map['k'] => $v] = $row`, is read), iterated into,
+  incremented, unset, taken or bound by reference (`$r = &$x['k']`), or
+  passed to a call whose parameters are unknown: PHP turns null into an
+  array there.
   Element reads before PHP 7.4, which read null silently.
 - E4. The value's type is unknown or includes `mixed`.
 - E5. The code rules null out in a way D2 does not count: a PHPDoc type
