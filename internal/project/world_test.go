@@ -115,19 +115,28 @@ func TestComposerWorldGaps(t *testing.T) {
 		Files: []string{"vendor/acme/http/src/Big.php", "src/Model/Huge.php", "src/Model/Other.php", "src/api.stub.php"},
 	}
 	w := composerWorld(reader(files), []string{"src", "lib"}, indexed, skipped)
-	want := []string{`app\legacy\`, `app\tests\`, `app\model\`, `acme\old\`, `acme\http\`, `acme\http\tests\`, `acme\http\testing\`}
-	if !w.Complete || !slices.Equal(sortedCopy(w.Blind), sortedCopy(want)) {
+	want := []string{`app\legacy\`, `app\tests\`, `acme\old\`, `acme\http\tests\`, `acme\http\testing\`}
+	if !w.Complete || !slices.Equal(sortedCopy(w.Blind), sortedCopy(want)) ||
+		!slices.Equal(sortedCopy(w.BlindExact), []string{`acme\http\`, `app\model\`}) {
 		t.Fatalf("world: %+v", w)
 	}
-	// A skipped file hides its whole namespace: it may declare more than
-	// the class it is named after.
+	// A skipped file hides its whole namespace, not its sub-namespaces: it
+	// may declare more than the class it is named after.
 	for fqn, unseen := range map[string]bool{
 		`Acme\Http\Big`: true, `Acme\Http\BigQuery`: true, `Acme\Http\helper`: true,
-		`App\Model\User`: true, `App\Modeling\User`: false, `App\Kernel`: false,
+		`Acme\Http\Client\Pool`: false, `Acme\Http\Tests\Case`: true,
+		`App\Model\User`: true, `App\Model\Cast\Json`: false, `App\Modeling\User`: false, `App\Kernel`: false,
 	} {
 		if w.Unseen(fqn) != unseen {
 			t.Errorf("unseen %s: %v", fqn, !unseen)
 		}
+	}
+	// A skipped file at the root of a PSR-4 directory hides the mapped
+	// namespace's own members only.
+	kernel := Skipped{Files: []string{"src/Kernel.php"}}
+	w = composerWorld(reader(map[string]string{"composer.json": `{"autoload": {"psr-4": {"App\\": "src/"}}}`, "vendor/composer/installed.json": `{"packages": []}`}), []string{"src"}, nil, kernel)
+	if !w.Complete || len(w.Blind) != 0 || !w.Unseen(`App\Kernel`) || !w.Unseen(`\App\Other`) || w.Unseen(`App\Http\Missing`) || w.Unseen(`Kernel`) {
+		t.Fatalf("root file: %+v", w)
 	}
 	// The project root as a PSR-4 directory.
 	root := map[string]string{"composer.json": `{"autoload": {"psr-4": {"App\\": ""}}}`, "vendor/composer/installed.json": `{"packages": []}`}

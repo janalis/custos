@@ -120,8 +120,9 @@ func dirs(raw json.RawMessage) []string {
 // packages, production code may still name them (tool extensions, optional
 // integrations), so the world is not complete. PSR-4 and PSR-0 prefixes
 // whose directories are out of scope, or lie in a directory the walks
-// skipped, are blind; below a PSR-4 directory, so are the namespaces of
-// the directories that hold what the walks or the indexing left out.
+// skipped, are blind; below a PSR-4 directory, so are the namespaces a
+// skipped directory maps, sub-namespaces included, and, exactly, those of
+// the directories holding files the walks or the indexing left out.
 func composerWorld(read func(string) ([]byte, error), scope, indexed []string, skipped Skipped) index.World {
 	b, err := read("composer.json")
 	if err != nil {
@@ -206,13 +207,13 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 			for prefix, raw := range mapping {
 				for _, d := range dirs(raw) {
 					d = path.Join(dir, d)
-					var blind []string
+					var blind, exact []string
 					if own && !inScope(d) || g.within(d) {
 						blind = []string{""}
 					} else {
-						blind = g.psr(d)
+						blind, exact = g.psr(d)
 					}
-					if len(blind) == 0 {
+					if len(blind)+len(exact) == 0 {
 						continue
 					}
 					// A fallback directory or a PSR-0 prefix of class names
@@ -222,10 +223,13 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 					}
 					if !psr4 {
 						// PSR-0 maps underscores to directories too.
-						blind = []string{""}
+						blind, exact = []string{""}, nil
 					}
 					for _, sub := range blind {
 						w.Blind = append(w.Blind, strings.ToLower(prefix+sub))
+					}
+					for _, sub := range exact {
+						w.BlindExact = append(w.BlindExact, strings.ToLower(prefix+sub))
 					}
 				}
 			}
@@ -355,34 +359,35 @@ func (g *gaps) holds(p string) bool {
 }
 
 // psr returns, relative to the namespace a PSR directory p (clean) maps,
-// the namespace prefixes (backslash-separated, ending in one, empty for
-// that namespace itself) of what the walks left out below it: skipped
-// directories, and the directories of skipped files a PSR autoloader can
-// load (*.php or *.hh named after a class), which may declare more than
-// that class.
-func (g *gaps) psr(p string) []string {
+// the namespaces (backslash-separated, ending in one, empty for that
+// namespace itself) of what the walks left out below it: as prefixes,
+// those of skipped directories, sub-namespaces included; as exact
+// namespaces, those of the directories of skipped files a PSR autoloader
+// can load (*.php or *.hh named after a class), which may declare more
+// than that class in their namespace.
+func (g *gaps) psr(p string) (prefixes, exact []string) {
 	dirs, files, prefix := g.under(p)
-	var prefixes []string
 	seen := map[string]bool{}
-	add := func(rel string) {
+	add := func(list []string, rel string, kind string) []string {
 		ns := ""
 		if rel != "." {
 			ns = strings.ReplaceAll(rel, "/", `\`) + `\`
 		}
-		if !seen[ns] {
-			seen[ns] = true
-			prefixes = append(prefixes, ns)
+		if !seen[kind+ns] {
+			seen[kind+ns] = true
+			list = append(list, ns)
 		}
+		return list
 	}
 	for _, d := range dirs {
-		add(strings.TrimPrefix(d, prefix))
+		prefixes = add(prefixes, strings.TrimPrefix(d, prefix), "d")
 	}
 	for _, f := range files {
 		ext := path.Ext(f)
 		name := strings.TrimSuffix(f, ext)
 		if (ext == ".php" || ext == ".hh") && !strings.Contains(path.Base(name), ".") {
-			add(path.Dir(strings.TrimPrefix(f, prefix)))
+			exact = add(exact, path.Dir(strings.TrimPrefix(f, prefix)), "f")
 		}
 	}
-	return prefixes
+	return prefixes, exact
 }
