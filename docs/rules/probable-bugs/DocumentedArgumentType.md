@@ -18,7 +18,7 @@ code alone proves are InvalidArgumentType's.
 
 ## Example
 
-```php{7,11}
+```php{7,11,15}
 <?php
 declare(strict_types=1);
 
@@ -30,6 +30,10 @@ archive('order-1');
 function charge(int $cents) {}
 /** @param string $amount */
 function bill($amount) { charge($amount); }
+
+/** @param positive-int $quantity */
+function restock(int $quantity) {}
+restock(0);
 ```
 
 Reported:
@@ -37,6 +41,7 @@ Reported:
 <ul>
 <li>line 7: Pass Order to $order of archive(), not string.</li>
 <li>line 11: Pass int to $cents of charge(), not string.</li>
+<li>line 15: Pass positive-int to $quantity of restock(), not int.</li>
 </ul>
 
 ## Detection
@@ -51,6 +56,11 @@ Reported:
   type nullable.
 - The weak-mode conversions and the exceptions of InvalidArgumentType
   apply alike.
+- D5. Integer ranges and non-empty strings of a `@param` type count only
+  against an argument whose possible values are all known (an integer
+  literal such as `0`) or, for a string, whose byte lengths are (a string
+  literal such as `''`); otherwise `@param positive-int` accepts any
+  integer.
 
 ## Exceptions (no report)
 
@@ -59,9 +69,9 @@ Reported:
 - The `@param` type of a variadic parameter, of a parameter of PHP's
   own functions, a `@param` type naming templates, and a `@param` type the
   declared type rejects (a stale tag).
-- The value details of a `@param` type: integer ranges, string
-  lengths and literal string values. `@param positive-int` accepts any
-  integer.
+- The other value details of a `@param` type: string lengths other
+  than non-empty and literal string values, and every value detail against
+  an argument whose values are not all known (see D5).
 - Every exception of InvalidArgumentType.
 - Values read from a variadic parameter whose `@param` type is an array
   or iterable (`@param string[] ...$names`): the tag may type the collected

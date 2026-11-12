@@ -104,8 +104,8 @@ function f(object|string|null $r, ?int $n, $c) {
     t('replaceUnknown', str_replace('a', 'b', $c));
 }
 `, map[string]string{
-		"true": "object", "false": "null|string", "guard": "int", "changed": "int|null",
-		"twoDefs": "null|object|string", "aliasOfAlias": "int|null", "notBool": "null|object|string",
+		"true": "object", "false": "null|string", "guard": "int", "changed": "int<1, 1>|null",
+		"twoDefs": "null|object|string", "aliasOfAlias": "int<1, 1>|null", "notBool": "null|object|string",
 		"undefinedAlias": "null|object|string", "replaceUnknown": "?unknown",
 	})
 }

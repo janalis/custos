@@ -187,8 +187,27 @@ func (x *extractor) typeStr(n syntax.Expr, at uint32) string {
 }
 
 func (x *extractor) docTypeStr(text string, at uint32) string {
+	if t := x.docType(text, at); !t.IsUnknown() {
+		return t.DocString() // keeps array shapes (round-trips through FromDoc)
+	}
+	return ""
+}
+
+// docTypeStrs is docTypeStr with the type's values (see Type.ValueDocString)
+// when it documents integer ranges or non-empty strings, "" otherwise.
+func (x *extractor) docTypeStrs(text string, at uint32) (doc, values string) {
+	t := x.docType(text, at)
+	if t.IsUnknown() {
+		return "", ""
+	}
+	return t.DocString(), t.ValueDocString()
+}
+
+// docType parses PHPDoc type text written at position at, with the file's
+// names, aliases and constants resolved.
+func (x *extractor) docType(text string, at uint32) types.Type {
 	resolveType := x.docTypeResolver(at)
-	t := types.FromDocResolved(text, x.resolver(at), func(expr string) types.Type {
+	return types.FromDocResolved(text, x.resolver(at), func(expr string) types.Type {
 		t := resolveType(expr)
 		if !t.IsUnknown() {
 			return t
@@ -210,10 +229,6 @@ func (x *extractor) docTypeStr(text string, at uint32) string {
 		// runtime class type. Unsupported consumers conservatively read mixed.
 		return types.Of(`\` + strings.TrimPrefix(x.resolver(at)(owner), `\`) + "::" + member)
 	})
-	if t.IsUnknown() {
-		return ""
-	}
-	return t.DocString() // keeps array shapes (round-trips through FromDoc)
 }
 
 // DocComment returns the doc comment directly preceding node n ("" if none).

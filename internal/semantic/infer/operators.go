@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -71,11 +72,65 @@ func (e *Env) unaryType(n *syntax.Unary) types.Type {
 		return e.TypeOf(n.Expr)
 	default: // TMinus, TPlus: the parser builds no other unary operator
 		t := e.TypeOf(n.Expr)
+		if t.OnlyOf("int") && n.Op.Kind == syntax.TMinus {
+			return negatedInts(t)
+		}
 		if t.OnlyOf("int") || t.OnlyOf("float") {
 			return t
 		}
 		return types.Unknown
 	}
+}
+
+// literalType types a literal with its value facts: an integer holds its
+// value, a string its byte length (a float, or an integer or string that
+// does not decode, gets the plain type).
+func (e *Env) literalType(n *syntax.Literal) types.Type {
+	switch n.LitKind {
+	case syntax.LitInt:
+		if v, err := strconv.ParseInt(strings.ReplaceAll(n.Raw, "_", ""), 0, 64); err == nil {
+			return types.IntValue(v)
+		}
+		return types.Int
+	case syntax.LitFloat:
+		return types.Float
+	}
+	if l, ok := e.literalLength(n); ok {
+		return types.StringLength(l)
+	}
+	return types.String
+}
+
+// literalLength is the byte length of string literal n's value: a
+// single-quoted string without escapes is read directly, others decoded.
+func (e *Env) literalLength(n *syntax.Literal) (int64, bool) {
+	raw := n.Raw
+	if raw != "" && (raw[0] == 'b' || raw[0] == 'B') {
+		raw = raw[1:]
+	}
+	if len(raw) >= 2 && raw[0] == '\'' && raw[len(raw)-1] == '\'' && strings.IndexByte(raw, '\\') < 0 {
+		return int64(len(raw) - 2), true
+	}
+	v, ok := syntax.LiteralStringValueForVersion(n, e.PHP)
+	return int64(len(v)), ok
+}
+
+// negatedInts is the int type -x holds for x of int type t: its values
+// negated when known (a plain int when one is the smallest int, whose
+// negation is a float).
+func negatedInts(t types.Type) types.Type {
+	rs, ok := t.IntRanges()
+	if !ok {
+		return t
+	}
+	out := make([]types.IntRange, len(rs))
+	for i, r := range rs {
+		if r.Lo == math.MinInt64 {
+			return types.Int
+		}
+		out[i] = types.IntRange{Lo: -r.Hi, Hi: -r.Lo}
+	}
+	return types.Ints(out...)
 }
 
 // numeric types `a + b`, `a - b` and `a * b` on numbers. One numeric

@@ -30,7 +30,7 @@ function l(array $rows) {
 }
 `
 	checkAnywhere(t, src, map[string]string{
-		"extract": "?unknown", "after": "int", "parse": "?unknown", "parse2": "int", "varvar": "?unknown", "loop": "?unknown",
+		"extract": "?unknown", "after": "int<1, 1>", "parse": "?unknown", "parse2": "int<1, 1>", "varvar": "?unknown", "loop": "?unknown",
 	})
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
@@ -61,7 +61,7 @@ function f() {
     $n = 1;
     t('later', $n);
 }
-`, map[string]string{"after": "?unknown", "later": "int"})
+`, map[string]string{"after": "?unknown", "later": "int<1, 1>"})
 }
 
 // Every assignment replaces the variable's value: `.=` yields a string
@@ -86,7 +86,7 @@ function f($f, int $i) {
     $r = &$s;
     t('byRef', $r);
 }
-`, map[string]string{"concat": "string", "concatNull": "string", "concatExpr": "string", "plus": "float|int", "byRef": "string"})
+`, map[string]string{"concat": "string", "concatNull": "string", "concatExpr": "string", "plus": "float|int", "byRef": "string<len 1, 1>"})
 }
 
 // Arithmetic is typed when one operand is a number, and stays unknown when

@@ -78,8 +78,8 @@ func propertyAssignmentMismatch(ctx *analysis.Context, n syntax.Node) (PropertyM
 		switch {
 		case types.AllRejected(native, given, check.weak):
 			shown = p.Type
-		case check.docTypeRejects(p.DocType, p.Default, native, given, check.weak):
-			shown, allNative = p.DocType, false
+		case check.docTypeRejects(documented(p.DocType, p.DocValues, given), p.Default, native, given, check.weak):
+			shown, allNative = documented(p.DocType, p.DocValues, given), false
 		default:
 			return PropertyMismatch{}, false
 		}

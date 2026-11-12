@@ -146,22 +146,27 @@ func (c *returnContract) docFor(given types.Type) types.Type {
 	return c.wideDoc
 }
 
-// exactValues reports whether every int and string member of t lists its
-// possible values.
+// exactValues reports whether every int member of t lists its possible
+// values and every string member its values or its byte lengths (a string
+// literal).
 func exactValues(t types.Type) bool {
 	if t.Has("int") {
 		rs, ok := t.IntRanges()
-		if !ok {
+		if !ok || !singleValues(rs) {
 			return false
 		}
-		for _, r := range rs {
-			if r.Lo != r.Hi {
-				return false
-			}
-		}
 	}
-	if t.Has("string") {
-		if _, ok := t.StringValueList(); !ok {
+	if _, listed := t.StringValueList(); t.Has("string") && !listed {
+		rs, ok := t.StringLengthRanges()
+		return ok && singleValues(rs)
+	}
+	return true
+}
+
+// singleValues reports whether every range of rs holds one value.
+func singleValues(rs []types.IntRange) bool {
+	for _, r := range rs {
+		if r.Lo != r.Hi {
 			return false
 		}
 	}

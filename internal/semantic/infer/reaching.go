@@ -99,8 +99,9 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 	// Inside a loop, definitions later in the loop reach the use through
 	// the back edge (`$prev = null; foreach (…) { f($prev); $prev = $x; }`).
 	// Not when an unconditional definition inside the loop precedes the
-	// use: every path from the back edge passes through it.
-	if loop := outermostLoop(use, scope); loop != nil && lastKill < loop.Span().Start {
+	// use: every path from the back edge passes through it. A loop nested
+	// after that definition still carries its own.
+	if loop := outermostLoopAfter(use, scope, lastKill); loop != nil {
 		end := loop.Span().End
 		for _, d := range defs {
 			if d.pos > pos && d.pos < end && !d.doc && !d.barrier {

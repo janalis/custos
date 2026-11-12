@@ -50,5 +50,5 @@ function k($c) {
     static $shared = 1;
     t('shared', $shared);
 }
-`, map[string]string{"both": "int|string", "opaque": "?unknown", "shared": "?unknown", "static": "false|int", "assigned": "int", "elem": "?unknown", "none": "null", "inc": "?unknown", "dyn": "?unknown", "ref": "?unknown", "return": `\ArrayObject`})
+`, map[string]string{"both": "int<0, 0>|string<len 1, 1>", "opaque": "?unknown", "shared": "?unknown", "static": "false|int<1, 1>", "assigned": "int<1, 1>", "elem": "?unknown", "none": "null", "inc": "?unknown", "dyn": "?unknown", "ref": "?unknown", "return": `\ArrayObject`})
 }

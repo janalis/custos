@@ -66,3 +66,24 @@ function offset()
     return <warning descr="Return negative-int from Shop\offset(), not int.">count([1, 2])</warning>;
 }
 
+/** @return positive-int */
+function stock(bool $empty)
+{
+    if ($empty) {
+        return <warning descr="Return positive-int from Shop\stock(), not int.">0</warning>;
+    }
+    return <warning descr="Return positive-int from Shop\stock(), not int.">-3</warning>;
+}
+
+/** @return int<1, 9> */
+function digit(bool $high)
+{
+    return <warning descr="Return int<1,9> from Shop\digit(), not int.">$high ? 10 : 12</warning>;
+}
+
+/** @return non-empty-string */
+function label()
+{
+    return <warning descr="Return non-empty-string from Shop\label(), not string.">''</warning>;
+}
+

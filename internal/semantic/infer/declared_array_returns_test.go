@@ -24,8 +24,8 @@ t('documented', documented()); t('mixedBody', mixedBody(true));
 t('final', (new Repo())->all()); t('open', (new Open())->all());
 $cb = 'rows'; t('callable', call_user_func('rows'));
 `, map[string]string{
-		"rows": "int[][]{0: int[]{id: int}}<array{id: int}>", "maybe": "int[]|null{a: int}", "strict": "string[]{k: string}",
-		"scalar": "array", "documented": "string[]", "mixedBody": "array", "final": "int[]{n: int}",
-		"open": "array", "own": "true[]{p: true}", "callable": "int[][]{0: int[]{id: int}}<array{id: int}>",
+		"rows": "int[][]<int[]<int<1, 1>>{id: int<1, 1>}>{0: int[]<int<1, 1>>{id: int<1, 1>}}", "maybe": "int[]|null<int<1, 1>>{a: int<1, 1>}", "strict": "string[]<string<len 1, 1>>{k: string<len 1, 1>}",
+		"scalar": "array", "documented": "string[]", "mixedBody": "array", "final": "int[]<int<1, 1>>{n: int<1, 1>}",
+		"open": "array", "own": "true[]{p: true}", "callable": "int[][]<int[]<int<1, 1>>{id: int<1, 1>}>{0: int[]<int<1, 1>>{id: int<1, 1>}}",
 	})
 }

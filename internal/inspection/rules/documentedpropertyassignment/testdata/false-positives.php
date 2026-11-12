@@ -19,6 +19,7 @@ final class Cart
     {
         // Ranges and lengths count only against exact values.
         $this->count = $n;
+        $this->count = 2;
         // A PHPDoc type the native type rejects is stale.
         $this->stale = 3;
         // Values the native types already reject are

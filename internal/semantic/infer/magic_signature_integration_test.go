@@ -38,7 +38,7 @@ function run(Service $service) {
 }
 `)
 	expectShapes(t, got, map[string]string{
-		"plain":    "int[]{k: int}",
+		"plain":    "int[]<int<1, 1>>{k: int<1, 1>}",
 		"instance": "array", // the documented `array`, without the shape
 		"named":    "array",
 		"static":   "array",

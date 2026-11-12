@@ -28,6 +28,11 @@ code alone proves are InvalidArgumentType's.
   type nullable.
 - D4. The weak-mode conversions and the exceptions of InvalidArgumentType
   apply alike.
+- D5. Integer ranges and non-empty strings of a `@param` type count only
+  against an argument whose possible values are all known (an integer
+  literal such as `0`) or, for a string, whose byte lengths are (a string
+  literal such as `''`); otherwise `@param positive-int` accepts any
+  integer.
 
 ## Exceptions (no report)
 
@@ -36,9 +41,9 @@ code alone proves are InvalidArgumentType's.
 - E2. The `@param` type of a variadic parameter, of a parameter of PHP's
   own functions, a `@param` type naming templates, and a `@param` type the
   declared type rejects (a stale tag).
-- E3. The value details of a `@param` type: integer ranges, string
-  lengths and literal string values. `@param positive-int` accepts any
-  integer.
+- E3. The other value details of a `@param` type: string lengths other
+  than non-empty and literal string values, and every value detail against
+  an argument whose values are not all known (see D5).
 - E4. Every exception of InvalidArgumentType.
 - E5. Values read from a variadic parameter whose `@param` type is an array
   or iterable (`@param string[] ...$names`): the tag may type the collected
@@ -77,6 +82,10 @@ archive(<warning descr="Pass Order to $order of archive(), not string.">'order-1
 function charge(int $cents) {}
 /** @param string $amount */
 function bill($amount) { charge(<warning descr="Pass int to $cents of charge(), not string.">$amount</warning>); }
+
+/** @param positive-int $quantity */
+function restock(int $quantity) {}
+restock(<warning descr="Pass positive-int to $quantity of restock(), not int.">0</warning>);
 ```
 
 A template, or a variadic parameter whose tag types each value, is not

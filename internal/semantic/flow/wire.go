@@ -597,6 +597,7 @@ func encodeIndexParams(w *wire.Writer, params []index.Param) {
 		w.String(p.Name)
 		w.String(p.Type)
 		w.String(p.DocType)
+		w.String(p.DocValues)
 		w.Bools(p.Optional, p.ByRef, p.Variadic, p.Promoted)
 		w.String(p.Default)
 		w.String(p.Out)
@@ -614,7 +615,7 @@ func decodeIndexParams(r *wire.Reader) []index.Param {
 	out := wire.Make[index.Param](r, n)
 	for i := range out {
 		p := &out[i]
-		p.Name, p.Type, p.DocType = r.String(), r.String(), r.String()
+		p.Name, p.Type, p.DocType, p.DocValues = r.String(), r.String(), r.String(), r.String()
 		r.Bools(&p.Optional, &p.ByRef, &p.Variadic, &p.Promoted)
 		p.Default, p.Out, p.Gen = r.String(), r.String(), r.String()
 		p.Avail.From = phpversion.Version(r.Uint())

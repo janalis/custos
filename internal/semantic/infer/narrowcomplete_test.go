@@ -332,7 +332,7 @@ function f($x, mixed $m, int|string|null $s, ?array $a) {
 		"getClassNot":   `\Base|\Fin|null|string`,
 		"count":         "non-empty array",
 		"inArray":       "string",
-		"inArrayMixed":  "int|null",
+		"inArrayMixed":  "int<1, 1>|null",
 		"inArrayLoose":  "int|null|string",
 		"notInArray":    "int|null|string",
 		"inArrayPlain":  "int|null|string",
@@ -384,7 +384,7 @@ function f(string|int|null $d, $c) {
 		"afterBreak":  "int|null|string",
 		"fallThrough": "float|int|null|string",
 		"afterGoto":   "int|null|string|true", // [1] is followed by break
-		"loop":        "false|float|int|int[]|null|string|string[]|true",
+		"loop":        "false|float|int|int[]|null|string|string[]|true<int<1, 1>|string>",
 	})
 }
 

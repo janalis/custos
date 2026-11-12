@@ -32,14 +32,18 @@ func (a Avail) In(v phpversion.Version) bool {
 // Param is a function/method parameter. Types are normalised type strings
 // (see internal/semantic/types), "" when undeclared.
 type Param struct {
-	Name     string `json:"n"`
-	Type     string `json:"t,omitempty"`
-	DocType  string `json:"d,omitempty"`
-	Optional bool   `json:"o,omitempty"`
-	ByRef    bool   `json:"r,omitempty"`
-	Variadic bool   `json:"v,omitempty"`
-	Promoted bool   `json:"p,omitempty"`
-	Default  string `json:"def,omitempty"` // default value source text
+	Name    string `json:"n"`
+	Type    string `json:"t,omitempty"`
+	DocType string `json:"d,omitempty"`
+	// DocValues is the documented type keeping its integer ranges and
+	// non-empty strings, which DocType drops (see Type.ValueDocString); ""
+	// when it has none.
+	DocValues string `json:"dv,omitempty"`
+	Optional  bool   `json:"o,omitempty"`
+	ByRef     bool   `json:"r,omitempty"`
+	Variadic  bool   `json:"v,omitempty"`
+	Promoted  bool   `json:"p,omitempty"`
+	Default   string `json:"def,omitempty"` // default value source text
 	// Out is the type a by-reference parameter holds after the call
 	// (`@param-out`, phpstan-/psalm- variants); "" when not documented.
 	Out string `json:"out,omitempty"`
@@ -197,11 +201,14 @@ type Property struct {
 	// the declaration uses its read visibility (subject to readonly rules).
 	SetVisibility *Visibility `json:"setVis,omitempty"`
 	// Final includes the implicit finality of private(set) declarations.
-	Final      bool   `json:"final,omitempty"`
-	Static     bool   `json:"static,omitempty"`
-	Readonly   bool   `json:"ro,omitempty"`
-	Type       string `json:"t,omitempty"`
-	DocType    string `json:"d,omitempty"`
+	Final    bool   `json:"final,omitempty"`
+	Static   bool   `json:"static,omitempty"`
+	Readonly bool   `json:"ro,omitempty"`
+	Type     string `json:"t,omitempty"`
+	DocType  string `json:"d,omitempty"`
+	// DocValues is DocType keeping its integer ranges and non-empty
+	// strings (see Param.DocValues).
+	DocValues  string `json:"dv,omitempty"`
 	HasDefault bool   `json:"hasDef,omitempty"`
 	Default    string `json:"def,omitempty"`
 	Promoted   bool   `json:"promoted,omitempty"`

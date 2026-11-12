@@ -62,13 +62,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.StaticVar:
 		return e.staticType(n)
 	case *syntax.Literal:
-		switch n.LitKind {
-		case syntax.LitInt:
-			return types.Int
-		case syntax.LitFloat:
-			return types.Float
-		}
-		return types.String
+		return e.literalType(n)
 	case *syntax.InterpolatedString:
 		if n.Backtick {
 			return types.Of("string", "null", "false")

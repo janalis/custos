@@ -28,8 +28,9 @@ Mismatches the code alone proves are InvalidReturnType's.
   declaring class rejects.
 - D4. Integer ranges, string lengths and literal values of the `@return`
   type count only against a value whose possible values are all known
-  (such as the count of a literal array); otherwise `@return positive-int`
-  accepts any integer.
+  (an integer literal such as `-1`, the count of a literal array) or, for
+  a string, whose byte lengths are (a string literal such as `''`);
+  otherwise `@return positive-int` accepts any integer.
 - D5. The weak-mode conversions and the exceptions of InvalidReturnType
   apply alike.
 

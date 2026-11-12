@@ -41,7 +41,7 @@ func TestExitCallableInference(t *testing.T) {
  $x = 1;
  exit(...);
  t('reachable', $x);
-}`, map[string]string{"nullable": "null|string", "reachable": "int"})
+}`, map[string]string{"nullable": "null|string", "reachable": "int<1, 1>"})
 }
 
 func TestImmediateExitInvocationFlow(t *testing.T) {
@@ -73,7 +73,7 @@ function creating($flag) {
  if ($flag) { $value = 'assigned'; } else { (exit(...))(...); }
  t('possiblyUndefined', $value);
 }
-`, map[string]string{"assigned": "string", "possiblyUndefined": "null|string"})
+`, map[string]string{"assigned": "string<len 8, 8>", "possiblyUndefined": "null|string<len 8, 8>"})
 }
 
 func BenchmarkExitInference(b *testing.B) {

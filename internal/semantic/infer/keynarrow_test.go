@@ -68,7 +68,7 @@ class Holder {
 		"keyExistsVal": "int|null",
 		"container":    "non-empty mixed[]",
 		"ternary":      `\Foo|null`,
-		"and":          `\Foo|int|null`,
+		"and":          `\Foo|int<1, 1>|null`,
 		"guard":        `\Foo`,
 		"numeric":      "float|int|string", // not int: is_numeric() on mixed
 		"rewritten":    `\Foo|null`,

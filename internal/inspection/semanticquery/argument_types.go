@@ -279,7 +279,7 @@ func (c *argumentCheck) rejected(targets []CallTarget, params []index.Param, giv
 		case types.AllRejected(native, given, c.at(t)):
 			shown = p.Type
 		case c.docRejects(t, p, native, given):
-			shown, allNative = p.DocType, false
+			shown, allNative = documented(p.DocType, p.DocValues, given), false
 		default:
 			return "", false, false
 		}
@@ -294,13 +294,23 @@ func (c *argumentCheck) rejected(targets []CallTarget, params []index.Param, giv
 // target t rejects given. A PHPDoc type is not consulted on a variadic
 // parameter (it may describe the collected array or one element), when it
 // mentions templates, or when the native type rejects it (a stale tag).
-// The index keeps no integer range, string length or literal value of a
-// PHPDoc type (see Type.DocString), so those are never compared.
+// Its integer ranges and non-empty strings count only against exact values
+// (see documented).
 func (c *argumentCheck) docRejects(t CallTarget, p index.Param, native, given types.Type) bool {
 	if t.Builtin || p.Variadic || p.Gen != "" {
 		return false
 	}
-	return c.docTypeRejects(p.DocType, p.Default, native, given, c.at(t))
+	return c.docTypeRejects(documented(p.DocType, p.DocValues, given), p.Default, native, given, c.at(t))
+}
+
+// documented is the PHPDoc type to judge given against: the type with its
+// values (integer ranges, non-empty strings) when it has some and given
+// lists exact values, its plain atoms doc otherwise.
+func documented(doc, values string, given types.Type) string {
+	if values != "" && exactValues(given) {
+		return values
+	}
+	return doc
 }
 
 // docTypeRejects reports whether PHPDoc type text, made nullable by a null

@@ -109,11 +109,11 @@ function f(array|int $c, $cc, int $i) {
     if ($cc) { $u = 'i'; return; t('dead', $u); }
 }
 `, map[string]string{
-		"else": "array", "ternary": "int", "arm": "int|string", "loopElse": "array|int|string",
-		"afterReturn": "int", "afterThrow": "int", "afterIfElse": "string", "catch": "int|null|string",
-		"inLoop": "int", "afterBreak": "int|null|string", "outerLoop": "int|null|string", "continued": "int",
-		"nextIteration": "int|string", "viaHead": "int|string", "innerSwitch": "?unknown", "afterInner": "int|string", "noCond": "int|string",
-		"switchDefault": "?unknown", "dead": "string",
+		"else": "array", "ternary": "int", "arm": "int|string<len 1, 1>", "loopElse": "array|int|string<len 1, 1>",
+		"afterReturn": "int<5, 5>", "afterThrow": "int<1, 1>", "afterIfElse": "string<len 1, 1>", "catch": "int<1, 1>|null|string<len 1, 1>",
+		"inLoop": "int<1, 1>", "afterBreak": "int<1, 1>|null|string<len 1, 1>", "outerLoop": "int<1, 1>|null|string<len 1, 1>", "continued": "int<1, 1>",
+		"nextIteration": "int<1, 1>|string<len 1, 1>", "viaHead": "int<1, 1>|string<len 1, 1>", "innerSwitch": "?unknown", "afterInner": "int<0, 0>|string<len 1, 1>", "noCond": "int<0, 0>|string<len 1, 1>",
+		"switchDefault": "?unknown", "dead": "string<len 1, 1>",
 	})
 }
 
@@ -179,12 +179,12 @@ function f($t, $c, array $xs) {
     t('continueList', $cb);
 }
 `, map[string]string{
-		"maybe": "null|string", "ifElse": "int", "switchDefault": "string", "switchNoDefault": "null|string",
-		"tryCatch": "int", "doWhile": "int", "condAssign": "int", "elseReturns": "int", "afterLoop": "int|null",
-		"rhsAssign": "int|null", "isset": "string", "whileCond": "string", "forInit": "float|int", "echo": "string",
-		"ternary": "int|null", "chain": "int", "chainGap": "int|null", "finally": "int", "tryBody": "int",
-		"catchGap": "int|null", "block": "int", "whileBody": "int|null", "foreachExpr": "array", "switchCond": "?unknown",
-		"matchCond": "?unknown", "fallthrough": "int", "emptyDefault": "int|null", "continueList": "int|null",
+		"maybe": "null|string<len 1, 1>", "ifElse": "int<1, 2>", "switchDefault": "string<len 1, 1>", "switchNoDefault": "null|string<len 1, 1>",
+		"tryCatch": "int<1, 2>", "doWhile": "int<1, 1>", "condAssign": "int", "elseReturns": "int<1, 1>", "afterLoop": "int<1, 1>|null",
+		"rhsAssign": "int<1, 1>|null", "isset": "string<len 1, 1>", "whileCond": "string", "forInit": "float|int", "echo": "string<len 1, 1>",
+		"ternary": "int<1, 1>|null", "chain": "int<1, 3>", "chainGap": "int<1, 1>|int<3, 3>|null", "finally": "int<2, 2>", "tryBody": "int<1, 1>",
+		"catchGap": "int<1, 1>|null", "block": "int<1, 1>", "whileBody": "int<1, 1>|null", "foreachExpr": "array", "switchCond": "?unknown",
+		"matchCond": "?unknown", "fallthrough": "int<1, 3>", "emptyDefault": "int<1, 1>|null", "continueList": "int<2, 2>|null",
 	})
 }
 
@@ -223,7 +223,7 @@ function h($o, $x) {
 }
 `, map[string]string{
 		"elseifCond": "int", "switchIn": "int", "matchIn": "int", "rhs": "int", "ternaryIn": "int",
-		"args": `\ArrayIterator<int, string>`, "leaves": "string", "afterFor": "float|int", "caseCond": "int|null",
+		"args": `\ArrayIterator<int, string>`, "leaves": "string", "afterFor": "float|int", "caseCond": "int<1, 1>|null",
 	})
 	src := `<?php
 function k($x) {
@@ -282,6 +282,6 @@ function f(string $s, $c) {
     if (match ($c) { 1 => ($m2 = 'g'), default => 0 }) { t('matchArm', $m2); }
 }
 `, map[string]string{
-		"and": "string[]", "ifBody": "string", "andCond": "string", "conditional": "int|string", "notOr": "string", "orFalse": "string", "orLeft": "string", "coalesceArg": "int|string", "matchArm": "int|string", "ternary": "int|string", "or": "string",
+		"and": "string[]", "ifBody": "string<len 1, 1>", "andCond": "string<len 1, 1>", "conditional": "int<1, 1>|string<len 1, 1>", "notOr": "string<len 1, 1>", "orFalse": "string<len 1, 1>", "orLeft": "string<len 1, 1>", "coalesceArg": "int<1, 1>|string<len 1, 1>", "matchArm": "int<1, 1>|string<len 1, 1>", "ternary": "int<1, 1>|string<len 1, 1>", "or": "string<len 1, 1>",
 	})
 }

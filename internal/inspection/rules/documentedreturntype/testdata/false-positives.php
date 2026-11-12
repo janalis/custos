@@ -21,6 +21,30 @@ function code(string $s)
     return $s;
 }
 
+/** @return negative-int */
+function before(bool $far)
+{
+    return $far ? -10 : -1;
+}
+
+/** @return int<0, 9> */
+function bounded(int $n)
+{
+    return $n > 9 ? 9 : 0;
+}
+
+/** @return non-empty-string */
+function name(bool $long)
+{
+    return $long ? 'a long name' : "x";
+}
+
+/** @return 'asc'|'desc' */
+function order(bool $down)
+{
+    return $down ? 'desc' : 'asc';
+}
+
 /** @return 'asc'|'desc' */
 function direction(string $input)
 {

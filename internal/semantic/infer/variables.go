@@ -412,6 +412,9 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	// the definition and v.
 	var backTs []types.Type
 	after, backAfter := uint32(0), uint32(0)
+	// partial: a back-edge value was left out, so the values (not the
+	// atoms) the other definitions give are not all the variable may hold.
+	partial := redefinedInLoop(defs, use, scope)
 	for _, d := range fwd {
 		t := d.typ()
 		if !t.IsUnknown() && e.forStep(d, use, scope) {
@@ -432,10 +435,20 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 		if t := d.typ(); !t.IsUnknown() {
 			backTs = append(backTs, e.loopCondNarrow(t, d, name, use, scope))
 			backAfter = max(backAfter, loopAround(d, use, scope))
+		} else {
+			partial = true
 		}
 	}
 	if len(ts)+len(backTs) == 0 {
 		return types.Unknown
+	}
+	if partial {
+		for i := range ts {
+			ts[i] = ts[i].WithoutValues()
+		}
+		for i := range backTs {
+			backTs[i] = backTs[i].WithoutValues()
+		}
 	}
 	if undef {
 		ts = append(ts, types.Null) // read before any assignment on some path
@@ -463,6 +476,25 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 		parts = append(parts, e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after))
 	}
 	return types.Union(parts...)
+}
+
+// redefinedInLoop reports a use inside one of the definitions of its
+// variable (`$i++`, `$x = $x + 1`) in a loop: the value that definition
+// stored on the previous iteration reaches the use too, which reaching
+// definitions do not list.
+func redefinedInLoop(defs []varDef, use, scope syntax.Node) bool {
+	pos := use.Span().Start
+	for _, d := range defs {
+		if d.pos > pos {
+			break
+		}
+		if d.end > pos && !d.barrier {
+			if loop := outermostLoop(use, scope); loop != nil && d.pos >= loop.Span().Start {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // loopAround returns the start of the innermost loop holding both
@@ -542,20 +574,28 @@ func iterElem(t types.Type) types.Type {
 // scope, or nil. The array a foreach iterates and the initializers of a for
 // loop are evaluated once, before the loop: they are not within it.
 func outermostLoop(n, scope syntax.Node) syntax.Node {
+	return outermostLoopAfter(n, scope, 0)
+}
+
+// outermostLoopAfter is outermostLoop among the loops starting after
+// position after.
+func outermostLoopAfter(n, scope syntax.Node, after uint32) syntax.Node {
 	var loop syntax.Node
 	child := n
 	for p := n.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
 		switch p := p.(type) {
 		case *syntax.Foreach:
-			if syntax.Node(p.Expr) != child {
+			if syntax.Node(p.Expr) != child && p.Span().Start > after {
 				loop = p
 			}
 		case *syntax.For:
-			if !slices.ContainsFunc(p.Init, func(e syntax.Expr) bool { return syntax.Node(e) == child }) {
+			if !slices.ContainsFunc(p.Init, func(e syntax.Expr) bool { return syntax.Node(e) == child }) && p.Span().Start > after {
 				loop = p
 			}
 		case *syntax.While, *syntax.DoWhile:
-			loop = p
+			if p.Span().Start > after {
+				loop = p
+			}
 		}
 	}
 	return loop

@@ -22,6 +22,20 @@ archive(<warning descr="Pass Shop\Order to $order of Shop\archive(), not string.
 archive(<warning descr="Pass Shop\Order to $order of Shop\archive(), not Shop\Coupon.">new Coupon()</warning>);
 maybeArchive(<warning descr="Pass Shop\Order|null to $order of Shop\maybeArchive(), not Shop\Coupon.">new Coupon()</warning>);
 
+// Ranges and lengths count against exact values.
+/** @param positive-int $quantity */
+function restock(int $quantity) {}
+restock(<warning descr="Pass positive-int to $quantity of Shop\restock(), not int.">0</warning>);
+restock(<warning descr="Pass positive-int to $quantity of Shop\restock(), not int.">-2</warning>);
+
+/** @param int<1, 9>|null $digit */
+function dial($digit = null) {}
+dial(<warning descr="Pass int<1, 9>|null to $digit of Shop\dial(), not int.">10</warning>);
+
+/** @param non-empty-string $code */
+function redeem(string $code) {}
+redeem(<warning descr="Pass non-empty-string to $code of Shop\redeem(), not string.">''</warning>);
+
 // The native type rejects a value only PHPDoc describes.
 /** @param string $amount */
 function bill($amount)

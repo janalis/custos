@@ -60,7 +60,7 @@ func TestWireFields(t *testing.T) {
 		"flow.sinkClass":        {"Final", "Kind", "Modifiers", "Extends", "Traits", "Methods"},
 		"flow.sinkMethod":       {"Count", "Modifiers", "Parameters"},
 		"index.Avail":           {"From", "To"},
-		"index.Param":           {"Name", "Type", "DocType", "Optional", "ByRef", "Variadic", "Promoted", "Default", "Out", "Gen", "Avail"},
+		"index.Param":           {"Name", "Type", "DocType", "DocValues", "Optional", "ByRef", "Variadic", "Promoted", "Default", "Out", "Gen", "Avail"},
 		"syntax.Span":           {"Start", "End"},
 	}
 	// Types encode their own fields (see types.TestWireFields).

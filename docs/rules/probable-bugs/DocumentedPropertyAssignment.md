@@ -51,6 +51,10 @@ Reported:
 - The weak-mode conversions and the exceptions of
   InvalidPropertyAssignment apply alike, except that an untyped property
   with a `@var` type is checked.
+- D5. Integer ranges and non-empty strings of a `@var` type count only
+  against a value whose possible values are all known (an integer literal
+  such as `0`) or, for a string, whose byte lengths are (a string literal
+  such as `''`); otherwise `@var positive-int` accepts any integer.
 
 ## Exceptions (no report)
 
@@ -58,8 +62,9 @@ Reported:
   reject what the code alone shows.
 - A `@var` type naming templates, and a `@var` type the declared type
   rejects (a stale tag).
-- The value details of a `@var` type: integer ranges, string lengths
-  and literal string values. `@var positive-int` accepts any integer.
+- The other value details of a `@var` type: string lengths other than
+  non-empty and literal string values, and every value detail against a
+  value whose values are not all known (see D5).
 - Every exception of InvalidPropertyAssignment other than untyped
   properties.
 - `null` stored in a property whose default value is `null`: the

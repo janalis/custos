@@ -17,6 +17,18 @@ function fromInput(int $n, string $s)
     restock($n);
     rewind(strlen($s));
 }
+restock(3);
+rewind(-4);
+
+/** @param int<1, 9>|null $digit */
+function dial($digit = null) {}
+dial(9);
+dial(null);
+
+/** @param non-empty-string|int $code */
+function redeem($code) {}
+redeem('x');
+redeem(0);
 
 // Values the native types already reject are InvalidArgumentType's.
 function charge(int $cents) {}

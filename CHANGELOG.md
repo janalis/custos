@@ -69,6 +69,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- DocumentedReturnType, DocumentedArgumentType and
+  DocumentedPropertyAssignment compare integer and string literals with
+  integer ranges and non-empty strings: `return -1;` under
+  `@return positive-int`, `f(0)` against `@param positive-int` and
+  `$this->label = ''` against `@var non-empty-string` are reported. Inference
+  gives an integer literal its value and a string literal its byte length.
 - The NestedPositiveIfStatements quick-fix writes `elseif` instead of
   `else if` in a file that uses `elseif` more often than `else if`.
 - `analyse` and `fix` are faster on projects with large classes in

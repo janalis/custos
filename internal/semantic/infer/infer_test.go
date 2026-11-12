@@ -484,10 +484,10 @@ function f(bool $c, $u) {
     t('merged', $m); t('ma', $m['a']); t('mb', $m['b']);
 }
 `, map[string]string{
-		"lit": "int[]|string[]{a: int, b: string}", "a": "int", "b": "string", "missing": "?unknown",
-		"list": "false[]|int[]|string[]|true[]{0: int, 1: string, 5: true, 6: false}", "l1": "string", "l6": "false", "l1s": "string",
+		"lit": "int[]|string[]<int<1, 1>|string<len 1, 1>>{a: int<1, 1>, b: string<len 1, 1>}", "a": "int<1, 1>", "b": "string<len 1, 1>", "missing": "?unknown",
+		"list": "false[]|int[]|string[]|true[]<false|int<1, 1>|string<len 1, 1>|true>{0: int<1, 1>, 1: string<len 1, 1>, 5: true, 6: false}", "l1": "string<len 1, 1>", "l6": "false", "l1s": "string<len 1, 1>",
 		"unpack": "non-empty array", "empty": "array{}", "nested": "float",
-		"merged": "int[]|string[]{a: int|string, b?: int}", "ma": "int|string", "mb": "int",
+		"merged": "int[]|string[]<int<1, 2>|string<len 1, 1>>{a: int<1, 1>|string<len 1, 1>, b?: int<2, 2>}", "ma": "int<1, 1>|string<len 1, 1>", "mb": "int<2, 2>",
 	})
 }
 
@@ -522,9 +522,9 @@ function f(array $xs, string $k) {
     t('destructPos', $p1);
 }
 `, map[string]string{
-		"name": "string", "n": "int", "overwritten": "int|string", "computed": "int|null",
-		"nestedWrite": "int", "otherKey": "string", "append": "int",
-		"byRef": "int|string", "foreachRef": "int|string", "destructKey": "string", "destructPos": "string",
+		"name": "string<len 1, 1>", "n": "int<1, 1>", "overwritten": "int<1, 1>|string<len 3, 3>", "computed": "int<1, 1>|null",
+		"nestedWrite": "int", "otherKey": "string<len 1, 1>", "append": "int<1, 1>",
+		"byRef": "int<1, 1>|string<len 1, 1>", "foreachRef": "int<1, 1>|string<len 1, 1>", "destructKey": "string<len 1, 1>", "destructPos": "string<len 3, 3>",
 	})
 }
 
@@ -667,10 +667,10 @@ function f(array $xs, bool $c) {
     t('cycle', $w['a']);
 }
 `, map[string]string{
-		"before": "int", "after": "int|string", "branch": "int|string", "reassigned": "float",
-		"loopBefore": "int|string", "beforeNested": "int", "afterNested": "int",
-		"missingBefore": "?unknown", "missingAfter": "int",
-		"elemBefore": "int", "elemAfter": "int|string", "cycle": "int",
+		"before": "int<1, 1>", "after": "int<1, 1>|string<len 1, 1>", "branch": "int<1, 1>|string<len 1, 1>", "reassigned": "float",
+		"loopBefore": "int<1, 1>|string<len 1, 1>", "beforeNested": "int<1, 1>", "afterNested": "int",
+		"missingBefore": "?unknown", "missingAfter": "int<1, 1>",
+		"elemBefore": "int<1, 1>", "elemAfter": "int<1, 1>|string<len 1, 1>", "cycle": "int",
 	})
 }
 

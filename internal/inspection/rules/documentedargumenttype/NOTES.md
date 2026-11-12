@@ -7,10 +7,12 @@ not proven.
 ## Value details
 
 The index keeps `@param` types through `Type.DocString`, which drops integer
-ranges, string lengths and literal string values, and literal arguments
-carry no value facts, so those details never reach the check. Once the
-index keeps them, they should count only against exact values (literals,
-complete value sets): widen the `@param` type to its plain atoms otherwise.
+ranges, string lengths and literal string values. `Param.DocValues` keeps
+the integer ranges and a non-empty string (`Type.ValueDocString`); the
+check judges an argument against it only when the argument lists exact
+values (`semanticquery.exactValues`: integer and string literals), and
+against the plain `DocType` otherwise. Other lengths and literal string
+values are never kept. Magic `@method` parameters have no `DocValues`.
 
 ## Corpus triage
 

@@ -9,10 +9,10 @@ proven.
 The `@return` type is parsed from the declaration's own PHPDoc, so it keeps
 integer ranges, string lengths and literal values. They count only when
 every int member of the value lists single values and every string member
-lists its values; otherwise the tag is widened to its plain atoms
-(`Type.DocString`, parsed again). Ordinary inference never tracks string
-values, so in practice only integers such as `count()` of a literal array
-are compared exactly.
+lists its values or single byte lengths (`semanticquery.exactValues`);
+otherwise the tag is widened to its plain atoms (`Type.DocString`, parsed
+again). Inference gives an integer literal its value and a string literal
+its length (never its value), and `count()` of a literal array its size.
 
 ## Corpus triage
 
