@@ -8,6 +8,8 @@ and guard search of UndefinedMethod (see its notes). Its own parts:
 - `read` climbs through parentheses and element fetches to tell a read
   from a write; arguments use `semanticquery.ArgumentMayWrite`, so an
   argument to an unresolved callee counts as a write;
+- `silent` adds to `checked` the base of a property an `unset()`
+  removes, which is neither a read nor a write;
 - `checked` climbs through element and property fetches to find `isset`,
   `empty` or the left of `??`;
 - `written` lists, once per file through `analysis.Context.Shared`, the

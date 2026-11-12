@@ -72,7 +72,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // (its keys are read), an increment, an argument that may be taken by
 // reference, nor under isset(), empty() or `??`.
 func read(ctx *analysis.Context, f *syntax.PropertyFetch) bool {
-	if checked(f) {
+	if silent(f) {
 		return false
 	}
 	// Writing an element of the property creates it.
@@ -124,6 +124,38 @@ func destructured(it *syntax.ArrayItem) bool {
 	}
 }
 
+// silent reports whether the instance property fetch f is accessed where
+// PHP neither warns nor creates it: under isset(), empty() or `??` (see
+// checked), or as the base of a property unset() removes, through elements
+// or properties of it (`unset($cart->meta->x)`).
+func silent(f *syntax.PropertyFetch) bool {
+	if checked(f) {
+		return true
+	}
+	var n syntax.Node = f
+	below := false
+	for {
+		switch p := n.Parent().(type) {
+		case *syntax.Paren:
+			n = p
+			continue
+		case *syntax.ArrayDimFetch:
+			if p.Var == n {
+				n = p
+				continue
+			}
+		case *syntax.PropertyFetch:
+			if p.Var == n {
+				n, below = p, true
+				continue
+			}
+		case *syntax.Unset:
+			return below
+		}
+		return false
+	}
+}
+
 // checked reports whether the access x, or an element or property access
 // rooted at it, is the subject of isset(), empty() or the left operand of
 // `??`, which never warn.
@@ -163,7 +195,7 @@ func written(ctx *analysis.Context) map[string]bool {
 		out := map[string]bool{}
 		syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
 			if f, ok := n.(*syntax.PropertyFetch); ok {
-				if id, ok := f.Name.(*syntax.Identifier); ok && !out[id.Value] && !checked(f) && !read(ctx, f) {
+				if id, ok := f.Name.(*syntax.Identifier); ok && !out[id.Value] && !silent(f) && !read(ctx, f) {
 					out[id.Value] = true
 				}
 			}

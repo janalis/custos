@@ -47,12 +47,14 @@ which create a dynamic property (see UndeclaredDynamicProperty).
   assignment target (compound and `??=` assignments included), an element
   write (`$cart->items[] = 1`), a by-reference binding (`&$cart->total`, an
   argument taken by reference or passed to a callee the analysis cannot
-  resolve), `unset()`, an increment or decrement, a `foreach` target or a
+  resolve), `unset()` (also of an element or a property below it, as in
+  `unset($cart->meta->key)`), an increment or decrement, a `foreach` target or a
   subject it iterates by reference, a destructuring target, and a subject of `isset()`, `empty()` or the left
   operand of `??`, also through elements or properties of it. Static
   properties are only exempt under `isset()`, `empty()` and `??`.
 - E2. An instance property of a name the analyzed file writes anywhere
-  (E1): a dynamic property created there may be read elsewhere. This holds
+  (E1, except an `unset()` of a property below it, which creates
+  nothing): a dynamic property created there may be read elsewhere. This holds
   at every PHP version, since PHP 8.2 only deprecates dynamic properties.
 - E3. Dynamic property names (`$cart->$name`, `$cart->{'total'}`,
   `Cart::${'lines'}`) and dynamic class names (`$class::$lines`).
