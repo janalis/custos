@@ -148,6 +148,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- LongInheritanceChain stops at a class of the project's vendor directory
+  as Composer's `vendor-dir` configures it, instead of at any class under
+  a directory named `vendor`: a project directory of that name now counts
+  as the project's own, and a configured `vendor-dir` as a library.
 - NullPointerException no longer reports the result of
   `getInnerIterator()` of PHP's iterator wrappers (`FilterIterator`,
   `LimitIterator` and the like), which PHP declares nullable but never
