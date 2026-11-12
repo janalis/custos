@@ -718,17 +718,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	if builtin {
 		e.observeIntrospection(n, name, args, f, r)
 	}
-	c := Call{Node: n, Name: name, Receiver: receiver, Arguments: values}
-	if i, ok := r.callIndex[n]; ok {
-		for j, v := range values {
-			if j < len(r.calls[i].Arguments) {
-				r.calls[i].Arguments[j] = merge(r.calls[i].Arguments[j], v)
-			}
-		}
-	} else {
-		r.callIndex[n] = len(r.calls)
-		r.calls = append(r.calls, c)
-	}
+	recordCall(n, name, receiver, values, r)
 	out := callOutcome{value: Value{Complete: true, Expr: n.(syntax.Expr)}}
 	// A PHP function that edits text makes, of matched labels and literals,
 	// text of the program.
@@ -834,22 +824,44 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	if out.immutablePure || builtin && e.keyed(n, name, args) {
 		out.value.plain, out.value.deep = true, true
 	}
-	if builtin && name == "array_map" {
-		if mapped, known := e.mappedCallback(n, args, values, f, r); known {
-			out.value = mapped
-		}
-	}
-	if builtin && name == "array_filter" {
-		if filtered, known := e.filteredCallback(n, args, values, f, r); known {
-			out.value = filtered
-		}
-	}
-	if builtin && name == "array_reduce" {
-		if reduced, known := e.reducedCallback(n, args, values, f, r); known {
-			out.value = reduced
-		}
+	if builtin {
+		e.callbackResult(n, name, args, values, &out.value, f, r)
 	}
 	return out.value
+}
+
+// recordCall records the arguments of a call, merged into those of the
+// earlier visit of the same call.
+func recordCall(n syntax.Node, name string, receiver syntax.Expr, values []Value, r *scopeResult) {
+	if i, ok := r.callIndex[n]; ok {
+		for j, v := range values {
+			if j < len(r.calls[i].Arguments) {
+				r.calls[i].Arguments[j] = merge(r.calls[i].Arguments[j], v)
+			}
+		}
+	} else {
+		r.callIndex[n] = len(r.calls)
+		r.calls = append(r.calls, Call{Node: n, Name: name, Receiver: receiver, Arguments: values})
+	}
+}
+
+// callbackResult replaces the result of array_map, array_filter or
+// array_reduce with what the callback is known to compute.
+func (e *Env) callbackResult(n syntax.Node, name string, args *syntax.ArgList, values []Value, result *Value, f *frame, r *scopeResult) {
+	switch name {
+	case "array_map":
+		if mapped, known := e.mappedCallback(n, args, values, f, r); known {
+			*result = mapped
+		}
+	case "array_filter":
+		if filtered, known := e.filteredCallback(n, args, values, f, r); known {
+			*result = filtered
+		}
+	case "array_reduce":
+		if reduced, known := e.reducedCallback(n, args, values, f, r); known {
+			*result = reduced
+		}
+	}
 }
 
 // keyed reports a PHP function whose result holds no object whatever it is
