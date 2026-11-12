@@ -19,9 +19,12 @@ goes:
    compared only when both operands carry them and `exactOperand` accepts
    both (a literal, or a local of a function whose `ReachingAssignments`
    exclude its entry value and whose `PossibleValuesReaching` are all
-   literals);
+   literals). A loose comparison goes through `looseDisjoint` instead,
+   whose pair table (`looseAtomsMeet`) is the spec's D5 table, never with
+   values; `plainObject` rejects interfaces and classes with a builtin
+   class ancestor (identity with the `stubs.Index()` declaration);
 4. the context exclusions last: test context and `assert()`,
-   `instanceofSibling`, `writtenLaterInLoop`, `versionedOperand`,
+   `notOptimalReports`, `writtenLaterInLoop`, `versionedOperand`,
    `ownedComparison`.
 
 Analysis budgets: an inference that hits a recursion or work bound yields
@@ -31,8 +34,10 @@ an unknown type, which step 2 rejects, so no separate gap check exists.
 
 `typeChecks.classVerdict` wraps `types.Accepts` with `IndexRelations`
 (strict mode) and answers Maybe for traits, unresolved hierarchies and
-`dependencyHierarchy`: a class or ancestor whose file path has a `vendor`
-segment. Two classes are disjoint when either direction is No.
+`dependencyHierarchy`: a class or ancestor whose file lies in the vendor
+directory the project layer records (`index.World.Vendor`, from
+composer.json's `config.vendor-dir`; fixtures set it with the `vendorDir`
+sidecar key). Two classes are disjoint when either direction is No.
 
 ## Owners
 
@@ -43,10 +48,10 @@ owners, `"with"` sidecar key) and `owners-alone.php` (without) cover both.
 
 ## Known gaps
 
-- Loose comparisons are never judged, even when no conversion could make
-  the operands equal (an object against an int).
+- Loose comparisons of a plain object against a string are never judged,
+  even for a final class without `__toString()`; nor are an enum against
+  its backing value, or exact values (`'a' == 'b'` through locals).
 - Only an operand that reads a constant itself is skipped: a local
   assigned from a configuration constant whose stub or declaration gives
   `false` (`$debug = APP_DEBUG; $debug === true`) is judged by its atoms.
-- The vendor test is a path heuristic: a `vendor-dir` configured under
-  another name is not recognized.
+- Without a project (no index world), no class counts as a dependency's.

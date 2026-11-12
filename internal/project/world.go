@@ -35,7 +35,10 @@ func ComposerWorld(root string, scope, indexed []string, skipped Skipped) index.
 	read := func(name string) ([]byte, error) {
 		return safeio.ReadFile(filepath.Join(absRoot, filepath.FromSlash(name)), 4*config.MaxFileSize)
 	}
-	return composerWorld(read, rel(scope), rel(indexed), Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
+	w := composerWorld(read, rel(scope), rel(indexed), Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
+	// The vendor walk (IndexSourcesSkipping) names files under this path.
+	w.Vendor = filepath.Join(root, vendorDir(root))
+	return w
 }
 
 // WorldInputs returns the files ComposerWorld reads under root:

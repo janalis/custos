@@ -1,7 +1,7 @@
 package semanticquery
 
 import (
-	"path/filepath"
+	"slices"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -11,10 +11,12 @@ import (
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
+	"custos/internal/semantic/stubs"
 	"custos/internal/semantic/types"
 )
 
-// Decided type checks: an identity comparison (`===`, `!==`) or a type test
+// Decided type checks: a comparison (`===`, `!==`, or loose where PHP's
+// conversions decide it, see looseAtomsMeet) or a type test
 // (`instanceof`, `is_*()`, a strict comparison with null) whose answer the
 // native declarations of the code decide. ImpossibleTypeComparison reports
 // the comparisons, RedundantTypeCheck the type tests.
@@ -54,8 +56,8 @@ func DecidedTypeCheck(ctx *analysis.Context, n syntax.Node) (DecidedCheck, bool)
 	return c, ok
 }
 
-// typeComparison is an identity comparison between operands that share no
-// value.
+// typeComparison is a comparison between operands that share no value, or
+// for a loose one never compare equal.
 type typeComparison struct {
 	node        *syntax.Binary
 	left, right types.Type
@@ -65,8 +67,13 @@ type typeComparison struct {
 }
 
 func (c typeComparison) message() string {
-	return "This comparison is always " + boolWord(c.node.Op.Kind == syntax.TIsNotIdentical) + ": " +
-		givenName(c.left, c.values) + " and " + givenName(c.right, c.values) + " share no value."
+	k := c.node.Op.Kind
+	tail := " share no value."
+	if k == syntax.TIsEqual || k == syntax.TIsNotEqual {
+		tail = " never compare equal."
+	}
+	return "This comparison is always " + boolWord(k == syntax.TIsNotIdentical || k == syntax.TIsNotEqual) + ": " +
+		givenName(c.left, c.values) + " and " + givenName(c.right, c.values) + tail
 }
 
 // typeCheck is a type test whose answer is always the same.
@@ -89,11 +96,21 @@ func boolWord(b bool) string {
 }
 
 // impossibleTypeComparison reports `a === b` or `a !== b` when no value of
-// a can be identical to a value of b (see operandType for the operands
+// a can be identical to a value of b, and `a == b` or `a != b` when PHP's
+// loose comparison never finds a value of a equal to a value of b (see
+// looseDisjoint), whatever their values (see operandType for the operands
 // considered), unless one operand is the null literal.
 func impossibleTypeComparison(ctx *analysis.Context, n syntax.Node) (typeComparison, bool) {
 	b, ok := n.(*syntax.Binary)
-	if !ok || b.Op.Kind != syntax.TIsIdentical && b.Op.Kind != syntax.TIsNotIdentical {
+	if !ok {
+		return typeComparison{}, false
+	}
+	loose := false
+	switch b.Op.Kind {
+	case syntax.TIsIdentical, syntax.TIsNotIdentical:
+	case syntax.TIsEqual, syntax.TIsNotEqual:
+		loose = true
+	default:
 		return typeComparison{}, false
 	}
 	l, r := syntax.UnwrapParens(b.Left), syntax.UnwrapParens(b.Right)
@@ -112,8 +129,13 @@ func impossibleTypeComparison(ctx *analysis.Context, n syntax.Node) (typeCompari
 		if !ok {
 			return typeComparison{}, false
 		}
-		decided, byValues := disjoint(coarse(lt), coarse(rt), rel)
-		if !decided && lt.HasValues() && rt.HasValues() {
+		var decided, byValues bool
+		if loose {
+			decided = looseDisjoint(lt, rt, rel)
+		} else {
+			decided, byValues = disjoint(coarse(lt), coarse(rt), rel)
+		}
+		if !decided && !loose && lt.HasValues() && rt.HasValues() {
 			// Only the exact values of literals (or locals holding them)
 			// may tell the operands apart.
 			for i, x := range [2]syntax.Expr{l, r} {
@@ -136,7 +158,7 @@ func impossibleTypeComparison(ctx *analysis.Context, n syntax.Node) (typeCompari
 			out.left, out.right = lt, rt
 		}
 	}
-	if !checkedContext(ctx, b) || instanceofSibling(ctx, b, l) || instanceofSibling(ctx, b, r) || // NotOptimalIfConditions
+	if !checkedContext(ctx, b) || notOptimalReports(ctx, b) ||
 		writtenLaterInLoop(ctx, l) || writtenLaterInLoop(ctx, r) || versionedOperand(ctx, l) || versionedOperand(ctx, r) {
 		return typeComparison{}, false
 	}
@@ -227,7 +249,7 @@ func redundantTypeCheck(ctx *analysis.Context, n syntax.Node) (typeCheck, bool) 
 		}
 	}
 	out.result = (verdict == types.Yes) != negate
-	if !checkedContext(ctx, n) || instanceofSibling(ctx, n, subject) || writtenLaterInLoop(ctx, subject) ||
+	if !checkedContext(ctx, n) || notOptimalReports(ctx, out.node) || writtenLaterInLoop(ctx, subject) ||
 		lastBranchCondition(out.node, out.result) || versionedOperand(ctx, subject) {
 		return typeCheck{}, false
 	}
@@ -342,55 +364,135 @@ func checkedContext(ctx *analysis.Context, n syntax.Node) bool {
 	return true
 }
 
-// instanceofSibling reports whether n is an operand, at any depth, of a
-// chain of `&&` and `||` another operand of which tests x with instanceof
-// or, when n is an instanceof, compares x with a literal:
-// NotOptimalIfConditions judges such checks against each other.
-func instanceofSibling(ctx *analysis.Context, n syntax.Node, x syntax.Expr) bool {
-	top := n
-	for p := n.Parent(); p != nil; p = p.Parent() {
-		if _, ok := p.(*syntax.Paren); ok {
-			continue
-		}
-		b, ok := p.(*syntax.Binary)
-		if !ok || !logicalChain(b.Op.Kind) {
-			break
-		}
-		top = b
-	}
-	if top == n {
+// notOptimalReports reports whether NotOptimalIfConditions runs and reports
+// check n itself: n is an operand of the condition of an if or elseif, as
+// that rule splits it (conditionOperands), and either
+//   - n is a comparison of a value with a literal in an `&&` chain whose
+//     first instanceof tests that value (that rule leaves out a loose
+//     comparison with a string when the class has __toString(), which
+//     never decides a check here), or
+//   - n is an instanceof another instanceof of the chain on the same value
+//     makes redundant: under `||` the more specific one, under `&&` the
+//     broader one (both when they name the same class).
+//
+// Its REPORT_INSTANCE_OF_FLAWS option is not read: turned off, the check is
+// still left to it.
+func notOptimalReports(ctx *analysis.Context, n syntax.Expr) bool {
+	if !ctx.RuleEnabled("NotOptimalIfConditions") {
 		return false
 	}
-	found := false
-	var walk func(e syntax.Expr)
-	walk = func(e syntax.Expr) {
-		e = syntax.UnwrapParens(e)
-		if found || e == nil || e == n {
-			return
-		}
-		switch v := e.(type) {
-		case *syntax.Binary:
-			if logicalChain(v.Op.Kind) {
-				walk(v.Left)
-				walk(v.Right)
-			} else if _, ok := n.(*syntax.Instanceof); ok && equality(v.Op.Kind) {
-				l, r := syntax.UnwrapParens(v.Left), syntax.UnwrapParens(v.Right)
-				found = literal(r) && astquery.Equivalent(ctx.File, l, x) || literal(l) && astquery.Equivalent(ctx.File, r, x)
-			}
-		case *syntax.Instanceof:
-			found = astquery.Equivalent(ctx.File, syntax.UnwrapParens(v.Expr), x)
+	var cond syntax.Expr
+	for p := n.Parent(); p != nil && cond == nil && !syntax.IsFuncLike(p); p = p.Parent() {
+		switch c := p.(type) {
+		case *syntax.If:
+			cond = c.Cond
+		case *syntax.ElseIf:
+			cond = c.Cond
 		}
 	}
-	walk(top.(syntax.Expr))
-	return found
+	ops, op := conditionOperands(cond)
+	if len(ops) < 2 || !slices.Contains(ops, n) {
+		return false
+	}
+	switch c := n.(type) {
+	case *syntax.Binary:
+		return op == syntax.TBooleanAnd && literalComparedWithInstance(ctx, c, ops)
+	case *syntax.Instanceof:
+		cn, _ := instanceofTarget(ctx, c) // a check names a known class
+		for _, o := range ops {
+			m, ok := o.(*syntax.Instanceof)
+			if !ok || m == c || !astquery.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(m.Expr), syntax.UnwrapParens(c.Expr)) {
+				continue
+			}
+			cm, ok := instanceofTarget(ctx, m)
+			if !ok {
+				continue
+			}
+			child, parent := cn, cm // under ||, n is the more specific check
+			if op == syntax.TBooleanAnd {
+				child, parent = cm, cn // under &&, n is the broader one
+			}
+			if ctx.Index().IsSubtype(child, parent, ctx.PHP) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
-func equality(k syntax.TokenKind) bool {
-	return k == syntax.TIsEqual || k == syntax.TIsNotEqual || k == syntax.TIsIdentical || k == syntax.TIsNotIdentical
+// conditionOperands splits condition c as NotOptimalIfConditions does:
+// parentheses and one prefix unary operator stripped, then the left-nested
+// chain of one symbolic `&&` or `||` operator flattened (a parenthesised
+// right operand, and the keyword operators, stay single operands), each
+// operand without parentheses.
+func conditionOperands(c syntax.Expr) ([]syntax.Expr, syntax.TokenKind) {
+	c = syntax.UnwrapParens(c)
+	if u, ok := c.(*syntax.Unary); ok {
+		c = syntax.UnwrapParens(u.Expr)
+	}
+	b, ok := c.(*syntax.Binary)
+	if !ok || b.Op.Kind != syntax.TBooleanAnd && b.Op.Kind != syntax.TBooleanOr {
+		return []syntax.Expr{c}, 0
+	}
+	op := b.Op.Kind
+	var out []syntax.Expr
+	for {
+		out = append(out, syntax.UnwrapParens(b.Right))
+		left := syntax.UnwrapParens(b.Left)
+		next, ok := left.(*syntax.Binary)
+		if !ok || next.Op.Kind != op {
+			out = append(out, left)
+			break
+		}
+		b = next
+	}
+	slices.Reverse(out)
+	return out, op
 }
 
-func logicalChain(k syntax.TokenKind) bool {
-	return k == syntax.TBooleanAnd || k == syntax.TBooleanOr || k == syntax.TAnd || k == syntax.TOr
+// literalComparedWithInstance reports whether comparison c (a check
+// compares) compares the subject of the first instanceof among ops with a
+// literal value.
+func literalComparedWithInstance(ctx *analysis.Context, c *syntax.Binary, ops []syntax.Expr) bool {
+	var first *syntax.Instanceof
+	for _, o := range ops {
+		if i, ok := o.(*syntax.Instanceof); ok {
+			first = i
+			break
+		}
+	}
+	if first == nil {
+		return false
+	}
+	subject := syntax.UnwrapParens(first.Expr)
+	l, r := syntax.UnwrapParens(c.Left), syntax.UnwrapParens(c.Right)
+	return astquery.EquivalentFoldNames(ctx.File, l, subject) && literalValue(r) ||
+		astquery.EquivalentFoldNames(ctx.File, r, subject) && literalValue(l)
+}
+
+// instanceofTarget returns the class an instanceof names (no leading
+// backslash), when the index knows it.
+func instanceofTarget(ctx *analysis.Context, c *syntax.Instanceof) (string, bool) {
+	name, ok := c.Class.(*syntax.Name)
+	if !ok {
+		return "", false
+	}
+	cls := ctx.Names().Class(name.Value, name.Span().Start)
+	return cls, ctx.Index().Class(cls, ctx.PHP) != nil
+}
+
+// literalValue reports a number (signed or not), a string (interpolated
+// too), null, true, false or an array literal.
+func literalValue(x syntax.Expr) bool {
+	switch v := x.(type) {
+	case *syntax.Array, *syntax.InterpolatedString:
+		return true
+	case *syntax.Unary:
+		if v.Op.Kind == syntax.TMinus || v.Op.Kind == syntax.TPlus {
+			return astquery.IsNumberLiteral(syntax.UnwrapParens(v.Expr))
+		}
+	}
+	return literal(x)
 }
 
 // The environments whose answers must agree, cheapest first: the default
@@ -424,7 +526,7 @@ func operandType(ctx *analysis.Context, x syntax.Expr, env int) (types.Type, boo
 		t = ctx.Types().ProvenTypeOf(x)
 	default:
 		twin := ctx.Shared(versionTwinKey{}, func() any {
-			return infer.NewEnv(ctx.File, ctx.Names(), ctx.Index(), phpversion.Max, infer.Options{}).Proven()
+			return infer.NewEnv(ctx.File, ctx.Names(), ctx.Index(), phpversion.Max, ctx.InferOptions()).Proven()
 		}).(*infer.Env)
 		t = twin.TypeOf(x)
 	}
@@ -626,22 +728,38 @@ func (r typeChecks) classVerdict(c, a string) types.Verdict {
 }
 
 // dependencyHierarchy reports whether class atom a or one of its ancestors
-// is declared under a vendor directory: another version of that package,
-// one the project also supports, may extend or implement something else
-// (an interface a later release adds to its base class).
+// is declared in the project's vendor directory (see index.World.Vendor):
+// another version of that package, one the project also supports, may
+// extend or implement something else (an interface a later release adds to
+// its base class).
 func (r typeChecks) dependencyHierarchy(a string) bool {
+	w := r.ix.World()
 	for _, c := range r.ix.Ancestors(strings.TrimPrefix(a, `\`), r.ver) {
-		if dependencyFile(c.File) {
+		if w.Dependency(c.File) {
 			return true
 		}
 	}
 	return false
 }
 
-// dependencyFile reports a path with a vendor directory segment.
-func dependencyFile(path string) bool {
-	path = filepath.ToSlash(path)
-	return strings.HasPrefix(path, "vendor/") || strings.Contains(path, "/vendor/")
+// plainObject reports a class atom whose objects PHP compares and converts
+// with its standard rules: a class or an enum (not an interface, which any
+// object may implement) whose whole hierarchy is known, no dependency
+// declares (see dependencyHierarchy), and no builtin class is an ancestor
+// of (DateTime, SimpleXMLElement or GMP compare and convert their objects
+// their own way). Its subclasses share that ancestry.
+func (r typeChecks) plainObject(a string) bool {
+	c := r.class(a)
+	if c == nil || c.Kind != syntax.KindClass && c.Kind != syntax.KindEnum || !r.Resolved(a) || r.dependencyHierarchy(a) {
+		return false
+	}
+	builtin := stubs.Index()
+	for _, anc := range r.ix.Ancestors(c.FQN, r.ver) {
+		if anc.Kind == syntax.KindClass && builtin.Class(anc.FQN, r.ver) == anc {
+			return false
+		}
+	}
+	return true
 }
 
 // atomKind groups atoms by what identity comparisons and type tests tell
@@ -803,6 +921,57 @@ func atomsMeet(x, y string, a, b types.Type, rel typeChecks) (meet, values bool)
 	return false, false
 }
 
+// looseDisjoint reports whether `a == b` is false for every value of a and
+// of b. Both are known; values never decide it (PHP compares a numeric
+// string with a number by value).
+func looseDisjoint(a, b types.Type, rel typeChecks) bool {
+	if a.Intersection() != nil || b.Intersection() != nil {
+		return false
+	}
+	for _, x := range a.Atoms() {
+		for _, y := range b.Atoms() {
+			if looseAtomsMeet(x, y, a, b, rel) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// looseAtomsMeet reports whether `x == y` may hold for values of atoms x (of
+// type a) and y (of type b) under PHP 8's rules. It never does for:
+//   - two plain objects (see plainObject) no object is an instance of both:
+//     objects of different classes are never equal;
+//   - a plain object and an array, null or false: the object converts to
+//     no array and to true;
+//   - an array and an int, a float or a string: arrays only equal arrays,
+//     and null or a bool by truthiness;
+//   - true and false, or true and null.
+//
+// Everything else may: an object equals 1 and true (and a string through
+// __toString), null equals 0, ” and [], a number equals a numeric string.
+func looseAtomsMeet(x, y string, a, b types.Type, rel typeChecks) bool {
+	kx, ky := atomKind(x), atomKind(y)
+	if kx > ky {
+		kx, ky, x, y, a, b = ky, kx, y, x, b, a
+	}
+	switch kx + "/" + ky {
+	case "class/class":
+		if !rel.plainObject(x) || !rel.plainObject(y) {
+			return true
+		}
+		meet, _ := atomsMeet(x, y, a, b, rel)
+		return meet
+	case "class/false", "class/null":
+		return !rel.plainObject(x)
+	case "array/class":
+		return !rel.plainObject(y)
+	case "array/int", "array/float", "array/string", "false/true", "null/true":
+		return false
+	}
+	return true
+}
+
 func sharesInt(a, b []types.IntRange) bool {
 	for _, x := range a {
 		for _, y := range b {
@@ -853,9 +1022,26 @@ var comparisonOwners = map[string]map[string]comparisonOwner{
 func ownedComparison(ctx *analysis.Context, x syntax.Expr, lit string) bool {
 	owners := comparisonOwners[lit]
 	for i, v := range origins(ctx, x) {
-		if o, ok := owners[calleeKey(ctx, v)]; ok && (i == 0 || o.locals) && ctx.RuleEnabled(o.rule) {
-			return true
+		for key, o := range owners {
+			if (i == 0 || o.locals) && ownerCall(ctx, v, key) && ctx.RuleEnabled(o.rule) {
+				return true
+			}
 		}
+	}
+	return false
+}
+
+// ownerCall reports whether x calls the builtin comparisonOwners key names:
+// the global function, or for `class::method` that builtin method on a
+// receiver natively typed as that class or a subclass, as the owning rules
+// match it (NativeMethod).
+func ownerCall(ctx *analysis.Context, x syntax.Expr, key string) bool {
+	switch c := x.(type) {
+	case *syntax.FuncCall:
+		return ctx.GlobalFunctionName(c) == key
+	case *syntax.MethodCall:
+		class, method, ok := strings.Cut(key, "::")
+		return ok && NativeMethod(ctx, c, class, method)
 	}
 	return false
 }
@@ -959,19 +1145,4 @@ func returnVaries(from phpversion.Version, at func(phpversion.Version) string) b
 		}
 	}
 	return false
-}
-
-// calleeKey names the builtin call x targets: the lower-case global
-// function, or `class::method` for a method call on a receiver typed as
-// that one class ("" otherwise).
-func calleeKey(ctx *analysis.Context, x syntax.Expr) string {
-	switch c := x.(type) {
-	case *syntax.FuncCall:
-		return ctx.GlobalFunctionName(c)
-	case *syntax.MethodCall:
-		if cs := ctx.TypeOf(c.Var).Classes(); len(cs) == 1 {
-			return strings.ToLower(strings.TrimPrefix(cs[0], `\`) + "::" + identName(c.Name))
-		}
-	}
-	return ""
 }

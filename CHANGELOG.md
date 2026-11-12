@@ -8,17 +8,21 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 
 - ImpossibleTypeComparison (error) and RedundantTypeCheck (warning), both
-  off by default, report a `===`/`!==` whose operands share no value, and
-  an `instanceof`, `is_*()` or `null` check whose answer is always the
-  same, when the code alone (not PHPDoc) decides it. Unknown or mixed
-  values, constants, values written later in a loop, builtins whose return
-  type changes in a later PHP version, dependency class hierarchies, tests
-  and `assert()`, loose comparisons, integer ranges and string lengths
+  off by default, report a `===`/`!==` whose operands share no value, a
+  `==`/`!=` whose operands PHP 8 never finds equal (objects of unrelated
+  classes, an object against an array, null or false, an array against a
+  number or a string), and an `instanceof`, `is_*()` or `null` check
+  whose answer is always the same, when the code alone (not PHPDoc)
+  decides it. Unknown or mixed values, constants, values written later in
+  a loop, builtins whose return type changes in a later PHP version,
+  classes of dependencies (in Composer's `vendor-dir`), tests and
+  `assert()`, other loose comparisons, integer ranges and string lengths
   stay silent, and so does an always-true last `elseif`. Checks other
   rules already report (CallableParameterUseCaseInTypeContext,
   NotOptimalIfConditions, ArraySearchUsedAsInArray,
   XmlParseZeroComparedWithFalse, CollatorComparisonTruthinessReversed,
-  DomMissingAttributeCheckedAsNull) are left to them when they run.
+  DomMissingAttributeCheckedAsNull) are left to them where they run and
+  report them.
 - PossiblyNullAccess and PossiblyNullArgument (warnings, off by default)
   report a value the code alone (not PHPDoc) shows may be null, accessed
   with `->`, `::` or `[]`, or passed to a parameter whose declared type

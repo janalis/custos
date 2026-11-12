@@ -1,1 +1,1 @@
-{ "with": ["CallableParameterUseCaseInTypeContext", "DomMissingAttributeCheckedAsNull"] }
+{ "with": ["CallableParameterUseCaseInTypeContext", "DomMissingAttributeCheckedAsNull", "NotOptimalIfConditions"] }

@@ -117,10 +117,11 @@ class Cart
         ];
     }
 
-    // Checked by NotOptimalIfConditions next to another instanceof.
+    // NotOptimalIfConditions splits if conditions only: here the check is
+    // this rule's.
     public function chains(?Order $order, $o): bool
     {
         return ($o instanceof Priced || $o instanceof Order)
-            || $order !== null && $order instanceof Order;
+            || $order !== null && <warning descr="This check is always true: the value is Shop\Order.">$order instanceof Order</warning>;
     }
 }

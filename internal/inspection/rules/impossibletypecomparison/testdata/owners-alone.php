@@ -11,3 +11,11 @@ function owners(array $roles, string $who, $parser, string $data, Collator $c): 
         <error descr="This comparison is always false: false|int and true share no value.">$c->compare('a', 'b') === true</error>,
     ];
 }
+
+final class Ticket {}
+function chains($o): void
+{
+    if ($o instanceof Ticket && <error descr="This comparison is always false: Ticket and string share no value.">$o === 'x'</error>) {
+        echo 1;
+    }
+}

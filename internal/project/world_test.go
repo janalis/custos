@@ -186,8 +186,26 @@ func TestComposerWorldOnDisk(t *testing.T) {
 	if w := ComposerWorld(root, scope, indexed, Skipped{Dirs: []string{filepath.Join(root, "vendor", "acme", "http", "tests")}}); !w.Complete {
 		t.Fatalf("world: %+v", w)
 	}
-	if w := ComposerWorld(filepath.Join(root, "missing"), scope, indexed, Skipped{}); w.Complete {
-		t.Fatal("world without composer.json")
+	if w := ComposerWorld(filepath.Join(root, "missing"), scope, indexed, Skipped{}); w.Complete || w.Vendor != filepath.Join(root, "missing", "vendor") {
+		t.Fatalf("world without composer.json: %+v", w)
+	}
+}
+
+// TestComposerWorldVendorDir: the world names the vendor directory
+// composer.json configures, in the form the vendor walk gives its files,
+// even when the world is incomplete.
+func TestComposerWorldVendorDir(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "composer.json"), `{"config": {"vendor-dir": "libraries/deps"}}`)
+	writeFile(t, filepath.Join(root, "libraries", "deps", "acme", "A.php"), "<?php class A {}")
+	writeFile(t, filepath.Join(root, "vendor", "B.php"), "<?php class B {}")
+	indexed, skipped := IndexSourcesSkipping(root, nil, nil, nil)
+	w := ComposerWorld(root, nil, indexed, skipped)
+	if w.Complete || w.Vendor != filepath.Join(root, "libraries", "deps") {
+		t.Fatalf("world: %+v", w)
+	}
+	if len(indexed) != 1 || !w.Dependency(indexed[0]) || w.Dependency(filepath.Join(root, "vendor", "B.php")) {
+		t.Fatalf("indexed %v under %s", indexed, w.Vendor)
 	}
 }
 
@@ -213,7 +231,11 @@ func TestSnapshotWorld(t *testing.T) {
 		t.Fatal("skipped vendor files may declare anything")
 	}
 	s.SkippedCount, s.installed = 0, nil
-	if w := s.world(); w.Complete {
-		t.Fatal("world without installed.json")
+	if w := s.world(); w.Complete || w.Vendor != "vendor" {
+		t.Fatalf("world without installed.json: %+v", w)
+	}
+	s.Sources["composer.json"] = []byte(`{"config": {"vendor-dir": "deps"}}`)
+	if w := s.world(); w.Vendor != "deps" || !w.Dependency("deps/acme/A.php") {
+		t.Fatalf("snapshot vendor-dir: %+v", w)
 	}
 }

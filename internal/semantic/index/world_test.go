@@ -30,6 +30,29 @@ func TestWorldLayers(t *testing.T) {
 	}
 }
 
+// TestWorldDependency: a file is a dependency's when it lies in the
+// configured vendor directory, whatever other directory names it has; an
+// unknown vendor directory makes nothing a dependency.
+func TestWorldDependency(t *testing.T) {
+	w := index.World{Vendor: "./libraries/deps"}
+	for file, want := range map[string]bool{
+		"libraries/deps/acme/A.php":     true,
+		"./libraries/deps/acme/A.php":   true,
+		"libraries/deps":                false,
+		"libraries/depsx/A.php":         false,
+		"vendor/acme/A.php":             false,
+		"src/vendor/A.php":              false,
+		"other/libraries/deps/acme.php": false,
+	} {
+		if got := w.Dependency(file); got != want {
+			t.Errorf("Dependency(%s) = %v, want %v", file, got, want)
+		}
+	}
+	if (index.World{}).Dependency("vendor/acme/A.php") {
+		t.Error("no vendor directory: nothing is a dependency")
+	}
+}
+
 func TestDynamicAliases(t *testing.T) {
 	for _, tc := range []struct {
 		src     string

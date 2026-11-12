@@ -13,14 +13,18 @@ php: { min: "", max: "" }
 Report a strict comparison (`===`, `!==`) whose operands can never be
 identical, because the code itself shows they have no value in common: an
 `int` against a `string`, an object against a scalar, two classes no
-object can belong to at once, two locals holding different literals. Such
-a comparison always gives the same answer, so the branch it guards is dead
-or always taken. Types that come only from PHPDoc never count.
+object can belong to at once, two locals holding different literals. Also
+report a loose comparison (`==`, `!=`, `<>`) that PHP 8's conversions can
+never make true, such as objects of two unrelated classes or an array
+against a number. Such a comparison always gives the same answer, so the
+branch it guards is dead or always taken. Types that come only from PHPDoc
+never count.
 
 ## Detection
 
-- D1. A `===` or `!==` comparison. Neither operand is the `null` literal
-  (RedundantTypeCheck judges those), and not both are literals.
+- D1. A `===`, `!==`, `==`, `!=` or `<>` comparison. Neither operand is
+  the `null` literal (RedundantTypeCheck judges the strict ones), and not
+  both are literals.
 - D2. Each operand's type comes from native declarations only (typed
   parameters, properties and returns, literals, operations, the types
   PHP's own functions declare), narrowed by the conditions guarding the
@@ -37,6 +41,29 @@ or always taken. Types that come only from PHPDoc never count.
   are literals, or locals whose every reaching value is a literal assigned
   in the same function (`$mode = 'cart'; if ($bulk) { $mode = 'bulk'; }`
   never equals `'sale'`). Integer ranges and string lengths never do.
+- D5. A loose comparison is reported only when every pair of values of the
+  two types is one PHP 8 always finds unequal, whatever the values (exact
+  values never decide it):
+
+  | Left | Right | Why never equal |
+  | --- | --- | --- |
+  | plain object | plain object of a class no object of the first can be | objects of different classes are unequal |
+  | plain object | array, `null`, `false` | an object converts to no array, and to `true` |
+  | array | `int`, `float`, `string` | an array only equals an array, or `null` and a `bool` by truthiness |
+  | `true` | `false`, `null` | both sides compare as booleans |
+
+  A plain object is an instance of a class or an enum (not an interface,
+  which an object of any class may implement) whose hierarchy is wholly
+  known, no dependency declares (E5), and that extends no class of PHP
+  itself: `DateTime` equals a `DateTimeImmutable` at the same instant, an
+  empty `SimpleXMLElement` equals `false`, a `GMP` number equals an `int`.
+
+  Every other pair may be equal and keeps the comparison silent: an object
+  against an `int` or a `float` (it converts to 1, with a notice), `true`,
+  or a `string` (through `__toString()`); `null` against `false`, `0`,
+  `0.0`, `''` or `[]`; an array against a `bool`; a number against a
+  numeric string (`1 == '01'`), an `int` against a `float`; `object`,
+  `iterable` and `callable` values against anything.
 
 ## Exceptions (no report)
 
@@ -53,20 +80,25 @@ or always taken. Types that come only from PHPDoc never count.
   method whose declared return type changes after the target PHP version
   (`sort()` returns `bool` before PHP 8.2 and `true` after).
 - E5. Classes whose hierarchy is not wholly known, traits, and classes
-  that are or extend a class declared under a `vendor` directory: another
-  release of that package, which the project may also support, may relate
-  them differently.
+  that are or extend a class declared in the project's vendor directory
+  (Composer's `config.vendor-dir`, `vendor` by default): another release of
+  that package, which the project may also support, may relate them
+  differently. A directory named `vendor` elsewhere holds project code.
 - E6. Code in a test context (a file ending with `Test.php`, `Spec.php` or
   `.phpt`, a `Fixtures` directory, or a test class), and comparisons inside
   an `assert()` call.
-- E7. Loose comparisons (`==`, `!=`), which convert their operands.
-- E8. Comparisons other rules report, when they run: an operand of an
-  `&&`/`||` chain one of whose operands tests it with `instanceof`
-  (NotOptimalIfConditions); `array_search()` compared with `true`
+- E7. Loose comparisons outside the pairs of D5, which convert their
+  operands.
+- E8. Comparisons other rules report, when they run: in the condition of
+  an `if` or `elseif` that is an `&&` chain (one symbolic operator), a
+  comparison of the value the first `instanceof` of the chain tests with a
+  literal, unless loose against a string when that class has
+  `__toString()` (NotOptimalIfConditions); `array_search()` compared with `true`
   (ArraySearchUsedAsInArray); `xml_parse()` compared with `false`
   (XmlParseZeroComparedWithFalse); a `Collator` comparison result compared
   with `true` (CollatorComparisonTruthinessReversed). The last two follow
-  the result through a local.
+  the result through a local, and a method counts on a subclass of its
+  class too.
 
 ## Report
 
@@ -74,7 +106,9 @@ or always taken. Types that come only from PHPDoc never count.
 - Severity: error.
 - Message: `This comparison is always false: int and string share no value.`
   (`always true` for `!==`), with both types, the exact values when they
-  decided it.
+  decided it. For a loose comparison:
+  `This comparison is always false: Order and Refund never compare equal.`
+  (`always true` for `!=` and `<>`).
 
 ## Fix
 
@@ -105,17 +139,20 @@ function compare(int $qty, string $code, Order $order, Refund $refund, bool $bul
         $mode = 'bulk';
     }
     $sale = <error descr="This comparison is always false: 'bulk'|'cart' and 'sale' share no value.">$mode === 'sale'</error>;
+    $loose = <error descr="This comparison is always false: Order and Refund never compare equal.">$order == $refund</error>;
 }
 ```
 
-Comparisons that may hold, PHPDoc-only types and loose comparisons are
-silent:
+Comparisons that may hold, PHPDoc-only types and loose comparisons a
+conversion may make true are silent:
 
 ```php
 <?php
+final class Ticket {}
 /** @param positive-int $qty */
-function guard(int $qty, ?string $code, int|string $key) {
-    if ($qty <= 0 || $qty === 0 || $code === 'x' || $key === 1 || $qty == '1') {
+function guard(int $qty, ?string $code, int|string $key, Ticket $ticket, ?array $tags) {
+    if ($qty <= 0 || $qty === 0 || $code === 'x' || $key === 1 || $qty == '1' ||
+        $ticket == 1 || $tags == $code) {
         throw new InvalidArgumentException('qty');
     }
 }

@@ -1,1 +1,1 @@
-{ "with": ["ArraySearchUsedAsInArray", "XmlParseZeroComparedWithFalse", "CollatorComparisonTruthinessReversed"] }
+{ "with": ["ArraySearchUsedAsInArray", "XmlParseZeroComparedWithFalse", "CollatorComparisonTruthinessReversed", "NotOptimalIfConditions"] }

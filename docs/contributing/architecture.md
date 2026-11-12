@@ -147,7 +147,10 @@ themselves (`project.Skipped`: excluded, hidden, symlinked and vendor test
 directories, declaration-only and non-`.php` loadable files) and by the
 indexing (files too large or unreadable), so the world never re-derives
 discovery's rules; a directory the project walk skipped that holds the vendor
-directory does not hide the packages the vendor walk reads. `Index.DynamicAliases` reports a
+directory does not hide the packages the vendor walk reads. `World.Vendor`
+names the vendor directory (composer.json's `config.vendor-dir`), complete
+world or not, in the form the index's file paths take, and `World.Dependency`
+tells a dependency's file. `Index.DynamicAliases` reports a
 `class_alias()` with computed names, and `Index.BuiltinPrefixes` the namespaces
 and leading words (of functions and of class-likes) PHP extensions use. Rules
 ask `semanticquery.UndeclaredEverywhere`, which combines them, rather than

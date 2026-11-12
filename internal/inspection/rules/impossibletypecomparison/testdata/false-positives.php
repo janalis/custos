@@ -92,9 +92,20 @@ class Cart
         };
     }
 
-    // Checked by NotOptimalIfConditions next to an instanceof.
+    // NotOptimalIfConditions splits if conditions only: here the
+    // comparison is this rule's.
     public function chain($o): bool
     {
-        return $o instanceof Order && $o === 'x';
+        return $o instanceof Order && <error descr="This comparison is always false: Shop\Order and string share no value.">$o === 'x'</error>;
     }
+}
+
+// A write into a string offset changes the value, and may lengthen it.
+function offsets(): array
+{
+    $s = 'abc';
+    $s[0] = 'x';
+    $t = 'abc';
+    $t[3] = 'd';
+    return [$s === 'xbc', $t === 'abcd', $t !== 'abc'];
 }

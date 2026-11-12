@@ -12,3 +12,37 @@ function owners(array $roles, string $who, $parser, string $data, Collator $c): 
         <warning descr="Compare collation results explicitly.">$c->compare('a', 'b') === true</warning>,
     ];
 }
+
+// NotOptimalIfConditions reports a comparison with a literal next to an
+// instanceof of the same value in an if condition.
+final class Ticket {}
+function chains($o): void
+{
+    if ($o instanceof Ticket && <weak_warning descr="Equality check on a value also tested with instanceof; verify the logic.">$o === 'x'</weak_warning>) {
+        echo 1;
+    }
+}
+
+// How NotOptimalIfConditions splits a condition: an elseif, a negated
+// chain, a longer chain; a chain with no instanceof, or comparing another
+// value, stays this rule's.
+function splits($o, int $n): void
+{
+    if ($n > 1) {
+        echo 0;
+    } elseif ($o instanceof Ticket && <weak_warning descr="Equality check on a value also tested with instanceof; verify the logic.">$o === []</weak_warning>) {
+        echo 1;
+    }
+    if (!($o instanceof Ticket && <weak_warning descr="Equality check on a value also tested with instanceof; verify the logic.">$o === -1</weak_warning>)) {
+        echo 2;
+    }
+    if ($n > 1 && $o instanceof Ticket && <weak_warning descr="Equality check on a value also tested with instanceof; verify the logic.">"a{$n}" === $o</weak_warning>) {
+        echo 3;
+    }
+    if ($n > 1 && <error descr="This comparison is always false: int and string share no value.">$n === 'x'</error>) {
+        echo 4;
+    }
+    if ($o instanceof Ticket && <error descr="This comparison is always false: int and string share no value.">$n === 'x'</error>) {
+        echo 5;
+    }
+}

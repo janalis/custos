@@ -843,7 +843,7 @@
     "fix": true
   },
   "ImpossibleTypeComparison": {
-    "summary": "Report a strict comparison (`===`, `!==`) whose operands can never be\nidentical, because the code itself shows they have no value in common: an\n`int` against a `string`, an object against a scalar, two classes no\nobject can belong to at once, two locals holding different literals. Such\na comparison always gives the same answer, so the branch it guards is dead\nor always taken. Types that come only from PHPDoc never count."
+    "summary": "Report a strict comparison (`===`, `!==`) whose operands can never be\nidentical, because the code itself shows they have no value in common: an\n`int` against a `string`, an object against a scalar, two classes no\nobject can belong to at once, two locals holding different literals. Also\nreport a loose comparison (`==`, `!=`, `\u003c\u003e`) that PHP 8's conversions can\nnever make true, such as objects of two unrelated classes or an array\nagainst a number. Such a comparison always gives the same answer, so the\nbranch it guards is dead or always taken. Types that come only from PHPDoc\nnever count."
   },
   "InArrayMissUse": {
     "summary": "Two wasteful `in_array()` shapes:\n\n- searching the keys list built by `array_keys($a)` — a direct key lookup\n  (`array_key_exists`) avoids building the list;\n- searching a one-element array literal — that is just a comparison with the\n  single element.",

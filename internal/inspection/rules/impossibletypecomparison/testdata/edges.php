@@ -17,6 +17,7 @@ function edges(Input $in, Output $out, Order $order, array $list): array
         <error descr="This comparison is always false: Shop\Order and Acme\Input share no value.">$order === $in</error>,
         $sorted === 'x',
         sort($list) === 1,
+        $order == $in, // loosely, a dependency class is never judged
     ];
 }
 

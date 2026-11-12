@@ -1,6 +1,7 @@
 package index
 
 import (
+	"path/filepath"
 	"strings"
 )
 
@@ -27,6 +28,19 @@ type World struct {
 	// in its namespace or below it, so Unseen hides those as well: silence
 	// over a finding the index cannot support.
 	BlindExact []string
+	// Vendor is the directory Composer installs dependencies into (the
+	// project's `config.vendor-dir`, `vendor` by default), written as the
+	// paths of the index's files are; empty when no project says.
+	Vendor string
+}
+
+// Dependency reports whether file lies in the vendor directory.
+func (w World) Dependency(file string) bool {
+	if w.Vendor == "" {
+		return false
+	}
+	file, dir := filepath.ToSlash(filepath.Clean(file)), filepath.ToSlash(filepath.Clean(w.Vendor))
+	return strings.HasPrefix(file, dir+"/")
 }
 
 // SetWorld records what the index knows about the project's world. Call it

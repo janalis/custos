@@ -739,11 +739,12 @@ func installedJSON(composer []byte) string {
 // world derives the index world from the captured Composer metadata. Its
 // paths are relative to the project root, like the snapshot's.
 func (s *Snapshot) world() index.World {
+	composer := s.Sources["composer.json"]
+	vendor := index.World{Vendor: vendorDirBytes(composer)}
 	// A skipped vendor file may declare any name.
 	if s.installed == nil || s.SkippedCount > 0 {
-		return index.World{}
+		return vendor
 	}
-	composer := s.Sources["composer.json"]
 	// composerWorld reads composer.json, then the installed.json it names.
 	read := func(name string) ([]byte, error) {
 		if name == "composer.json" {
@@ -756,5 +757,7 @@ func (s *Snapshot) world() index.World {
 		scope = s.Config.Paths
 	}
 	indexed := append(append([]string{}, s.OwnFiles...), s.Vendor...)
-	return composerWorld(read, scope, indexed, s.unseen)
+	w := composerWorld(read, scope, indexed, s.unseen)
+	w.Vendor = vendor.Vendor
+	return w
 }

@@ -84,8 +84,10 @@ Reported:
   (`sort()` returns `bool` before PHP 8.2 and `true` after).
 - Classes whose hierarchy is not wholly known, traits (`$this` in a
   trait is the class using it), and classes that are or extend a class
-  declared under a `vendor` directory: another release of that package,
-  which the project may also support, may implement more interfaces.
+  declared in the project's vendor directory (Composer's
+  `config.vendor-dir`, `vendor` by default): another release of that
+  package, which the project may also support, may implement more
+  interfaces.
 - A test that is always true and is, through parentheses and `!`, the
   whole condition of the last `elseif` (or `else if`) of a chain without
   `else`: it names the case left rather than testing anything.
@@ -95,11 +97,15 @@ Reported:
 - Tests other rules report, when they run: an always-false `is_int()`,
   `is_float()`, `is_string()`, `is_bool()`, `is_array()` or `is_object()`
   on a parameter of the enclosing function or method
-  (CallableParameterUseCaseInTypeContext); a test in an `&&`/`||` chain
-  another operand of which tests the same value with `instanceof`, or, for
-  an `instanceof`, compares it with a literal (NotOptimalIfConditions); a
-  `null` comparison of `DOMElement::getAttribute()`, directly or through a
-  local (DomMissingAttributeCheckedAsNull). An `instanceof` of a trait is
+  (CallableParameterUseCaseInTypeContext); in the condition of an `if` or
+  `elseif` split on one symbolic `&&` or `||` operator, an `instanceof`
+  another `instanceof` of the same value makes redundant (under `||` the
+  more specific one, under `&&` the broader one) or, in an `&&` chain, a
+  `null` comparison of the value the first `instanceof` tests
+  (NotOptimalIfConditions); a `null` comparison of `getAttribute()` on a
+  `DOMElement` or a subclass, directly or through a local
+  (DomMissingAttributeCheckedAsNull). An `instanceof` next to an unrelated
+  one, or outside an `if` condition, stays this rule's. An `instanceof` of a trait is
   left to SuspiciousBinaryOperation.
 
 ## Fix

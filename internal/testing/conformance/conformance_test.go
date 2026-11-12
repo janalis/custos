@@ -1,6 +1,7 @@
 package conformance
 
 import (
+	"cmp"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -144,6 +145,11 @@ type fixtureConfig struct {
 	// world the project can load (as with every Composer dependency
 	// installed), so a name they do not declare exists nowhere.
 	CompleteWorld bool `json:"completeWorld"`
+	// VendorDir is the project's vendor directory, relative to the
+	// testdata directory like companions (default `vendor`).
+	VendorDir string `json:"vendorDir"`
+	// Assertions trusts assert() calls as guards (flow.assertions).
+	Assertions bool `json:"assertions"`
 	// With lists other rules enabled in the same run, whose findings the
 	// fixture marks up too (rules that leave findings to one another).
 	With []string `json:"with"`
@@ -207,7 +213,10 @@ func TestOwnFixtures(t *testing.T) {
 					calls = append(calls, rule+"."+c)
 				}
 				fixed, _ := os.ReadFile(base + ".fixed" + ext)
-				req := Request{Path: f, Rules: append([]string{rule}, cfg.With...), PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls, CompleteWorld: cfg.CompleteWorld}
+				req := Request{
+					Path: f, Rules: append([]string{rule}, cfg.With...), PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls, CompleteWorld: cfg.CompleteWorld,
+					Vendor: filepath.Join(dir, cmp.Or(cfg.VendorDir, "vendor")), Assertions: cfg.Assertions,
+				}
 				for _, comp := range cfg.Companions {
 					p := filepath.Join(dir, comp)
 					src, err := os.ReadFile(p)
