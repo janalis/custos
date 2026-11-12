@@ -148,4 +148,6 @@ function sum(?Order $order): int {
 Native custos rule. No upstream inspection or fixture comparison applies.
 These conditions are independently specified and examples are original.
 NullPointerException, when it runs together with this rule, leaves to it
-the accesses this rule reports.
+the accesses this rule reports. A suppression comment naming NullPointerException
+(or its PhpStorm name) suppresses this rule's findings too, so that
+comments written for NullPointerException keep silencing the value.

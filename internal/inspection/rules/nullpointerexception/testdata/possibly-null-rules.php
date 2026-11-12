@@ -15,6 +15,17 @@ class Node
         <warning descr="Check this value for null before the access: it is Node|null.">$this->next()</warning>->next();
     }
 
+    // A suppression of either rule silences the dereference.
+    public function suppressed(?Node $a, ?Node $b, ?Node $c)
+    {
+        /** @noinspection NullPointerExceptionInspection */
+        $a->value = 1;
+        // @noinspection NullPointerException
+        $this->take($c);
+        // @noinspection PossiblyNullAccess
+        $b->value = 1;
+    }
+
     /** @return Node|null */
     public function documented() { return null; }
 

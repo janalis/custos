@@ -278,8 +278,10 @@ walk for this name, *skip* goes to the next usage:
 - **E9** Abstract methods; methods in test contexts.
 - **E12** (custos) When PossiblyNullAccess or PossiblyNullArgument runs
   in the same analysis, a dereference that rule reports on the same value
-  (the receiver of the access, the argument) is left to it, so that one
-  possible null is reported once. Run alone, this rule reports it.
+  (the receiver of the access, the argument, or an access repeating one it
+  reports) is left to it, so that one possible null is reported once. Run
+  alone, or skipped on a file after failing there, it leaves nothing. A
+  suppression of either rule there silences the dereference.
 - **E11** Dereferences in code that control never reaches: a statement
   that follows, in its statement list (or in an enclosing one), a `return`,
   `throw`, `break`, `continue`, `exit` or another statement that never

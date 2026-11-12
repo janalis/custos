@@ -32,7 +32,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   declares nullable but never returns null. PossiblyNullAccess reports a value once: an access that only runs
   after an earlier access on the same value is left out.
   NullPointerException leaves to them what they report when they run in
-  the same analysis.
+  the same analysis (not on a file where they failed), and its
+  suppression comments silence them too.
 - UndefinedMethod and UndefinedProperty (errors, off by default) report a
   method call, a property read or a static property access that the
   receiver's class does not declare, when the code alone (not PHPDoc)

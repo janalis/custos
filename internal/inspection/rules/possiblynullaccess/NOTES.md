@@ -34,8 +34,12 @@ common ancestor.
 NullPointerException asks `semanticquery.PossiblyNullAccess` or
 `PossiblyNullArguments` before each report, only when
 `analysis.Context.RuleEnabled` says the matching rule runs: the deferral only
-happens when this rule or PossiblyNullArgument runs in the same engine.
-The fixture `nullpointerexception/testdata/possibly-null-rules.php` runs
+happens when this rule or PossiblyNullArgument runs in the same engine
+and was not skipped on the file after crashing there. It defers only where
+the shared query returns a finding, the same one the rule reports, so a
+`@noinspection PossiblyNullAccess` or a baseline entry silences the
+location; the other way round, `suppressedBy` in `native-rules.json` makes
+NullPointerException's suppressions apply to both rules. The fixture `nullpointerexception/testdata/possibly-null-rules.php` runs
 the three rules together (`"with"` sidecar key).
 
 ## Known gaps

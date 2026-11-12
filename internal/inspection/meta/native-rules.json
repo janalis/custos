@@ -1304,14 +1304,16 @@
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
-    "hasFix": false
+    "hasFix": false,
+    "suppressedBy": ["NullPointerException"]
   },
   {
     "id": "PossiblyNullArgument",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
-    "hasFix": false
+    "hasFix": false,
+    "suppressedBy": ["NullPointerException"]
   },
   {
     "id": "InvalidReturnType",

@@ -16,6 +16,9 @@ function legacy() { /* … */ }
   or, for EA rules, the PhpStorm name (`<ID>Inspection`). Comments written for
   Php Inspections (EA Extended) in PhpStorm therefore keep working. Native
   rules have no PhpStorm name: use their rule ID.
+- PossiblyNullAccess and PossiblyNullArgument take over the possible nulls
+  NullPointerException would otherwise report, so a suppression of
+  NullPointerException silences them too.
 - Names are case-sensitive: `@custos-ignore onetimeusevariables` suppresses
   nothing.
 - Several names can be listed: `// @custos-ignore UnusedGotoLabel, UnnecessarySemicolon`.

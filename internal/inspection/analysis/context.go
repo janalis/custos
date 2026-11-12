@@ -42,6 +42,8 @@ type Context struct {
 	// failed holds the shared data whose build crashed on this file, kept
 	// across the engine's runs over it; once one did, checks run isolated.
 	failed map[string]envFailure
+	// disabled holds the rules skipped on this file after crashing on it.
+	disabled map[int]bool
 }
 
 // ProjectPath returns the file's path relative to its project root, with
@@ -118,9 +120,20 @@ const MaxFindingsPerFile = 10000
 // RuleID returns the ID of the rule currently running.
 func (c *Context) RuleID() string { return c.cur.meta.ID }
 
-// RuleEnabled reports whether the run enables rule id, so that a rule can
-// leave to it what both would report.
-func (c *Context) RuleEnabled(id string) bool { return c.engine.enabled[id] }
+// RuleEnabled reports whether the run enables rule id and it still runs on
+// this file (not skipped after crashing on it), so that a rule can leave
+// to it what both would report.
+func (c *Context) RuleEnabled(id string) bool {
+	if !c.engine.enabled[id] {
+		return false
+	}
+	for i := range c.disabled {
+		if c.engine.rules[i].meta.ID == id {
+			return false
+		}
+	}
+	return true
+}
 
 // OptionSet reports whether the configuration sets option name of the
 // current rule explicitly (false when the catalogue default applies).

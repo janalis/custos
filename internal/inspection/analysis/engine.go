@@ -172,7 +172,7 @@ func envFindings(failed map[string]envFailure) []diagnostic.Finding {
 // (failed is not empty), each check runs isolated: one needing that data
 // is skipped and the others go on.
 func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[string]envFailure) (result diagnostic.AnalysisResult, crashed int, msg string) {
-	ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, ComparisonStyle: e.cfg.ComparisonStyle, engine: e, failed: failed}
+	ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, ComparisonStyle: e.cfg.ComparisonStyle, engine: e, failed: failed, disabled: disabled}
 	isolated := len(failed) > 0
 	cur := -1
 	defer func() {

@@ -53,6 +53,7 @@ func TestDecodeCatalogues(t *testing.T) {
 		{`[{"id":""}]`, `[]`},
 		{`[{"id":"Alpha"}]`, `[{"id":"Alpha"}]`},
 		{`[{"id":"Alpha","legacyId":"Beta"}]`, `[{"id":"Beta"}]`},
+		{`[]`, `[{"id":"Alpha","suppressedBy":["Nope"]}]`},
 	} {
 		if _, _, err := decodeCatalogues([]byte(tc.extracted), []byte(tc.native)); err == nil {
 			t.Errorf("invalid catalogues accepted: %+v", tc)

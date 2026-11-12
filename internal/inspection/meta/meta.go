@@ -32,6 +32,9 @@ type Rule struct {
 	HasFix           bool                `json:"hasFix"`
 	Experimental     bool                `json:"experimental,omitempty"` // disabled upstream; off by default
 	Options          []Option            `json:"options,omitempty"`
+	// SuppressedBy names rules whose suppressions also suppress this
+	// rule's findings: rules that leave to this one what both would report.
+	SuppressedBy []string `json:"suppressedBy,omitempty"`
 }
 
 //go:embed rules.json
@@ -78,6 +81,13 @@ func decodeCatalogues(extracted, native []byte) ([]Rule, map[string]*Rule, error
 				return nil, nil, fmt.Errorf("meta: duplicate rule ID or alias %q", id)
 			}
 			lookup[id] = r
+		}
+	}
+	for _, r := range combined {
+		for _, id := range r.SuppressedBy {
+			if _, ok := lookup[id]; !ok {
+				return nil, nil, fmt.Errorf("meta: rule %s suppressed by unknown rule %q", r.ID, id)
+			}
 		}
 	}
 	return combined, lookup, nil
