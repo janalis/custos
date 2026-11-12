@@ -16,7 +16,7 @@ function i($n) { if ($n === null) { $n = null; } $n['k'] = 1; t('unknownBase', $
 function j(?array $n) { foreach ([1] as $x) { $n[] = $x; } t('loopWrite', $n); }
 `, map[string]string{
 		"param": "array", "fromNull": "string[]<string<len 1, 1>>", "maybe": "int[]|null<int<1, 1>>", "inBranch": "array",
-		"after": "array|null", "reassigned": "null", "byRef": "array", "string": "null|string",
+		"after": "array|null", "reassigned": "null", "byRef": "array", "string": "string|string[]<string<len 1, 1>>",
 		"nested": "array", "loopWrite": "array|null",
 	})
 }

@@ -283,9 +283,12 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 			other = append(other, a)
 		}
 	}
-	// A write into null creates an array (`?array $n; $n['k'] = 1;`).
+	// A write into null creates an array (`?array $n; $n['k'] = 1;`),
+	// also when the value may be a string instead (`?string $s; $s[0] =
+	// 'x';` makes null an array, see below for the string).
 	nullOnly := len(other) == 1 && other[0] == "null"
-	if len(arr) == 0 && !nullOnly {
+	nullableString := len(other) == 2 && other[0] == "null" && other[1] == "string"
+	if len(arr) == 0 && !nullOnly && !nullableString {
 		// A write into a string offset (`$s[0] = 'x'`) changes its value
 		// and may lengthen it: keep the type, not the string's values (an
 		// int member keeps its own).
@@ -300,8 +303,8 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 	if len(ws) == 0 {
 		return t, false
 	}
-	if nullOnly && e.writeDominatesAt(name, use, scope) {
-		other = nil // every path to v writes into the array: no longer null
+	if (nullOnly || nullableString) && e.writeDominatesAt(name, use, scope) {
+		other = other[1:] // every path to v writes into the array: no longer null
 	}
 	el := t.Elem()
 	switch {

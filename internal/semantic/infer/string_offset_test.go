@@ -24,8 +24,9 @@ func TestStringOffsetWrite(t *testing.T) {
 		{"replaced character", `$s = 'abc'; $s[0] = 'x'; t('v', $s);`, `string`},
 		{"appended character", `$s = 'abc'; $s[3] = 'd'; t('v', $s);`, `string`},
 		{"in a branch", `$s = 'abc'; if (g()) { $s[1] = 'x'; } t('v', $s);`, `string`},
-		// A write into null makes an array, which this path does not model.
-		{"nullable", `$s = g() ? 'abc' : null; $s[0] = 'x'; t('v', $s);`, `null|string`},
+		// A write into null makes an array of the written values.
+		{"nullable", `$s = g() ? 'abc' : null; $s[0] = 'x'; t('v', $s);`, `string|string[]`},
+		{"nullable in a branch", `$s = g() ? 'abc' : null; if (g()) { $s[0] = 'x'; } t('v', $s);`, `null|string|string[]`},
 		// An int member keeps its values: only the string's are dropped.
 		{"int member", `$v = g() ? 2 : 'ab'; $v[0] = 'x'; t('v', $v);`, `int|string [{2 2}]`},
 		// The literal stands when no write reaches.

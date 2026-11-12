@@ -125,7 +125,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   take it by reference, such as one whose function, method or class is
   named at run time (`$fn($n)`, `$obj->$m($n)`, `new $cls($n)`), or a
   write into a string offset (`$s[0] = 'x'`), which keeps the values of
-  an integer the variable may hold instead.
+  an integer the variable may hold instead and turns a null it may hold
+  into an array, as PHP does.
 - The NestedPositiveIfStatements quick-fix writes `elseif` instead of
   `else if` in a file that uses `elseif` more often than `else if`.
 - `analyse` and `fix` are faster on projects with large classes in
