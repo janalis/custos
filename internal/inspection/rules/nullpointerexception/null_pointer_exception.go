@@ -78,7 +78,7 @@ func (u *npeUnit) emit(x syntax.Expr, span syntax.Span) {
 // whose receiver is x, PossiblyNullArgument the argument x.
 func (u *npeUnit) reportedElsewhere(x syntax.Expr) bool {
 	if arg, ok := x.Parent().(*syntax.Arg); ok {
-		if !u.ctx.RuleEnabled("PossiblyNullArgument") {
+		if !u.ctx.RuleChecks("PossiblyNullArgument", arg.Parent().Parent()) {
 			return false
 		}
 		for _, a := range semanticquery.PossiblyNullArguments(u.ctx, arg.Parent().Parent()) {
@@ -88,7 +88,7 @@ func (u *npeUnit) reportedElsewhere(x syntax.Expr) bool {
 		}
 		return false
 	}
-	if !u.ctx.RuleEnabled("PossiblyNullAccess") {
+	if !u.ctx.RuleChecks("PossiblyNullAccess", x.Parent()) {
 		return false
 	}
 	a, ok := semanticquery.PossiblyNullAccess(u.ctx, x.Parent())
@@ -156,7 +156,7 @@ func (u *npeUnit) strategyChains() {
 			t := u.chainBaseType(mc.Var)
 			// A null beside mixed claims nothing more; PHP's iterator
 			// wrappers never return their declared null (E13).
-			if t.HasAny("null", "void") && !t.HasAny("mixed") && !semanticquery.NeverNullCall(u.ctx, mc.Var) {
+			if t.HasAny("null", "void") && !t.HasAny("mixed") && !semanticquery.NeverNullCall(u.ctx, mc.Var, u.ctx.TypeOf) {
 				seen := false
 				for _, e := range tested {
 					if astquery.Equivalent(u.ctx.File, e, mc.Var) {
@@ -269,7 +269,7 @@ func (u *npeUnit) testedBefore(x syntax.Expr) bool {
 // nullableAssign applies D5 to an assignment of $name.
 func (u *npeUnit) nullableAssign(a *syntax.Assign, name string) bool {
 	t := u.ctx.TypeOf(a.Value)
-	if !t.HasAny("null", "void") || !npeObjectOnly(t) || u.testedBefore(a.Value) || semanticquery.NeverNullCall(u.ctx, a.Value) {
+	if !t.HasAny("null", "void") || !npeObjectOnly(t) || u.testedBefore(a.Value) || semanticquery.NeverNullCall(u.ctx, a.Value, u.ctx.TypeOf) {
 		return false
 	}
 	// a is a plain `=` assignment (both callers check it)

@@ -45,4 +45,8 @@ function splits($o, int $n): void
     if ($o instanceof Ticket && <error descr="This comparison is always false: int and string share no value.">$n === 'x'</error>) {
         echo 5;
     }
+    // An operand under any prefix operator counts as a literal there.
+    if ($o instanceof Ticket && <weak_warning descr="Equality check on a value also tested with instanceof; verify the logic.">$o === !false</weak_warning>) {
+        echo 6;
+    }
 }

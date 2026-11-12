@@ -280,8 +280,9 @@ walk for this name, *skip* goes to the next usage:
   in the same analysis, a dereference that rule reports on the same value
   (the receiver of the access, the argument, or an access repeating one it
   reports) is left to it, so that one possible null is reported once. Run
-  alone, skipped on a file after failing there, or with a check skipped
-  there for lack of data the analysis failed to build, it leaves nothing. A
+  alone or skipped on a file after failing there, it leaves nothing, and
+  where its check of that access or call was skipped for lack of data the
+  analysis failed to build, it leaves that dereference. A
   suppression of either rule there silences the dereference.
 - **E11** Dereferences in code that control never reaches: a statement
   that follows, in its statement list (or in an enclosing one), a `return`,
@@ -292,7 +293,7 @@ walk for this name, *skip* goes to the next usage:
   `LimitIterator`, `NoRewindIterator` and their subclasses), dereferenced
   in a chain or through a local holding it: PHP declares it nullable, but
   it returns the iterator the constructor took. The receiver's type,
-  proven without PHPDoc, must name classes whose subclasses, of PHP or of
+  PHPDoc included, must name classes whose subclasses, of PHP or of
   the project, all keep that method. `AppendIterator`'s, null until an
   iterator is appended, still counts, and so does the one of a receiver
   typed `IteratorIterator`, which may be an `AppendIterator`, or of one a

@@ -19,10 +19,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `assert()`, other loose comparisons, integer ranges and string lengths
   stay silent, and so does an always-true last `elseif`. Checks other
   rules already report (CallableParameterUseCaseInTypeContext,
-  NotOptimalIfConditions, ArraySearchUsedAsInArray,
-  XmlParseZeroComparedWithFalse, CollatorComparisonTruthinessReversed,
-  DomMissingAttributeCheckedAsNull) are left to them where they run and
-  report them.
+  NotOptimalIfConditions with its instanceof checks on,
+  ArraySearchUsedAsInArray, XmlParseZeroComparedWithFalse,
+  CollatorComparisonTruthinessReversed, DomMissingAttributeCheckedAsNull)
+  are left to them where they run and report them.
 - PossiblyNullAccess and PossiblyNullArgument (warnings, off by default)
   report a value the code alone (not PHPDoc) shows may be null, accessed
   with `->`, `::` or `[]`, or passed to a parameter whose declared type
@@ -40,7 +40,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   a suppression comment silences that one, a loop may change the value
   before the next iteration, or the function holds a `goto`.
   NullPointerException leaves to them what they report when they run in
-  the same analysis (not on a file where they failed), and its
+  the same analysis (not where their check failed), and its
   suppression comments and baseline entries cover them too.
 - UndefinedMethod and UndefinedProperty (errors, off by default) report a
   method call, a property read or a static property access that the

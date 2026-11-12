@@ -94,19 +94,20 @@ Reported:
 - Code in a test context (a file ending with `Test.php`, `Spec.php` or
   `.phpt`, a `Fixtures` directory, or a test class), and tests inside an
   `assert()` call.
-- Tests other rules report, when they run: an always-false `is_int()`,
-  `is_float()`, `is_string()`, `is_bool()`, `is_array()` or `is_object()`
-  on a parameter of the enclosing function or method
-  (CallableParameterUseCaseInTypeContext); in the condition of an `if` or
-  `elseif` split on one symbolic `&&` or `||` operator, an `instanceof`
-  another `instanceof` of the same value makes redundant (under `||` the
-  more specific one, under `&&` the broader one) or, in an `&&` chain, a
-  `null` comparison of the value the first `instanceof` tests
-  (NotOptimalIfConditions); a `null` comparison of `getAttribute()` on a
-  `DOMElement` or a subclass, directly or through a local
-  (DomMissingAttributeCheckedAsNull). An `instanceof` next to an unrelated
-  one, or outside an `if` condition, stays this rule's. An `instanceof` of a trait is
-  left to SuspiciousBinaryOperation.
+- Tests other rules report, when they run and check that code: an
+  always-false `is_int()`, `is_float()`, `is_string()`, `is_bool()`,
+  `is_array()` or `is_object()` on a parameter of the enclosing function
+  or method (CallableParameterUseCaseInTypeContext); in the condition of
+  an `if` or `elseif` split on one symbolic `&&` or `||` operator, an
+  `instanceof` another `instanceof` of the same value makes redundant
+  (under `||` the more specific one, under `&&` the broader one) or, in an
+  `&&` chain, a `null` comparison of the value the first `instanceof`
+  tests (NotOptimalIfConditions, when it reports `instanceof` flaws); a
+  `null` comparison of `getAttribute()` on a `DOMElement` or a subclass,
+  directly or through a local (DomMissingAttributeCheckedAsNull). An
+  `instanceof` next to an unrelated one, or outside an `if` condition,
+  stays this rule's. An `instanceof` of a trait is left to
+  SuspiciousBinaryOperation.
 
 ## Fix
 

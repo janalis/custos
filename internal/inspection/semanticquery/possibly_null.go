@@ -153,7 +153,7 @@ func possiblyNull(ctx *analysis.Context, x syntax.Expr) (types.Type, bool) {
 func checkedCall(ctx *analysis.Context, x syntax.Expr, t types.Type) bool {
 	switch v := x.(type) {
 	case *syntax.MethodCall:
-		if NeverNullCall(ctx, v) {
+		if NeverNullCall(ctx, v, ctx.Types().ProvenTypeOf) {
 			return true
 		}
 	case *syntax.FuncCall, *syntax.StaticCall:
@@ -185,14 +185,15 @@ var neverNullReturns = map[string]bool{
 	"norewinditerator::getinneriterator": true,
 }
 
-// NeverNullCall reports whether x is a method call on a receiver whose
-// proven type names classes only, where each of them, and each class of
-// PHP or of the project extending one, resolves the method to one of
-// neverNullReturns: declared nullable by PHP, never null once the object
-// is constructed. A receiver declared IteratorIterator may be an
+// NeverNullCall reports whether x is a method call on a receiver whose type
+// in the caller's environment (typeOf: proven, or PHPDoc-aware) names
+// classes only, where each of them, and each class of PHP or of the
+// project extending one, resolves the method to one of neverNullReturns:
+// declared nullable by PHP, never null once the object is constructed. A
+// receiver declared IteratorIterator may be an
 // AppendIterator, whose inner iterator may be null; one declared a class
 // of the project may be a subclass overriding the method.
-func NeverNullCall(ctx *analysis.Context, x syntax.Expr) bool {
+func NeverNullCall(ctx *analysis.Context, x syntax.Expr, typeOf func(syntax.Expr) types.Type) bool {
 	c, ok := x.(*syntax.MethodCall)
 	if !ok {
 		return false
@@ -201,7 +202,7 @@ func NeverNullCall(ctx *analysis.Context, x syntax.Expr) bool {
 	if id, ok := c.Name.(*syntax.Identifier); ok {
 		name = id.Value
 	}
-	typ := ctx.Types().ProvenTypeOf(c.Var).Without("null")
+	typ := typeOf(c.Var).Without("null")
 	classes := typ.Classes()
 	if len(classes) == 0 || len(classes) != len(typ.Atoms()) {
 		return false

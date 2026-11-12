@@ -19,17 +19,19 @@ type activeRule struct {
 	severity diagnostic.Severity
 	options  map[string]any
 	explicit map[string]bool // options set by the configuration (not defaults)
+	file     bool            // a FileRule: its one check covers the file
 }
 
 // Engine is a configured set of rules. It is safe for concurrent use.
 type Engine struct {
-	cfg     Config
-	rules   []activeRule
-	enabled map[string]bool
-	byKind  [syntax.NumNodeKinds][]int32
-	files   []int32 // indices of FileRule implementations
-	index   *index.Index
-	flow    *flow.Snapshot
+	cfg   Config
+	rules []activeRule
+	// ids maps the ID of each enabled rule to its index in rules.
+	ids    map[string]int
+	byKind [syntax.NumNodeKinds][]int32
+	files  []int32 // indices of FileRule implementations
+	index  *index.Index
+	flow   *flow.Snapshot
 }
 
 // NewEngine builds an engine from the registered rules and cfg.
@@ -41,7 +43,7 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 	for _, id := range cfg.Only {
 		only[id] = true
 	}
-	e := &Engine{cfg: cfg, enabled: map[string]bool{}}
+	e := &Engine{cfg: cfg, ids: map[string]int{}}
 	for _, r := range registered {
 		m, ok := meta.Lookup(r.ID())
 		if !ok {
@@ -77,12 +79,13 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 			ar.explicit[k] = true
 		}
 		idx := int32(len(e.rules))
+		_, ar.file = r.(FileRule)
 		e.rules = append(e.rules, ar)
-		e.enabled[m.ID] = true
+		e.ids[m.ID] = int(idx)
 		for _, k := range r.Kinds() {
 			e.byKind[k] = append(e.byKind[k], idx)
 		}
-		if _, ok := r.(FileRule); ok {
+		if ar.file {
 			e.files = append(e.files, idx)
 		}
 	}
@@ -113,10 +116,10 @@ func (e *Engine) AnalyzeResult(f *syntax.File) diagnostic.AnalysisResult {
 	var disabled map[int]bool
 	var internal []diagnostic.Finding
 	failed := map[string]envFailure{}
-	skipped := map[int]bool{}
+	skipped := map[ruleCheck]bool{}
 	// Terminates: each crash disables a distinct rule or records the first
 	// failure of shared data (later runs isolate checks from any), each
-	// run again for skipped checks adds a rule to skipped, and a run with
+	// run again for skipped checks adds a check to skipped, and a run with
 	// every rule disabled cannot crash.
 	for {
 		result, crashed, msg := e.analyzeOnce(f, disabled, failed, skipped)
@@ -147,8 +150,8 @@ func (e *Engine) AnalyzeResult(f *syntax.File) diagnostic.AnalysisResult {
 }
 
 // envCrashed is analyzeOnce's crashed index for a failure of shared data;
-// skipCrashed when a rule that RuleEnabled told running had a check
-// skipped for lack of such data: the next run tells it is not.
+// skipCrashed when a check RuleChecks told running was skipped for lack of
+// such data: the next run tells it is not.
 const (
 	envCrashed  = -2
 	skipCrashed = -3
@@ -177,9 +180,9 @@ func envFindings(failed map[string]envFailure) []diagnostic.Finding {
 // that rule's index (else -1) and the panic message; when building data
 // the rules share fails, envCrashed. Once some failed
 // (failed is not empty), each check runs isolated: one needing that data
-// is skipped and the others go on, its rule added to skipped.
-func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[string]envFailure, skipped map[int]bool) (result diagnostic.AnalysisResult, crashed int, msg string) {
-	ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, ComparisonStyle: e.cfg.ComparisonStyle, engine: e, failed: failed, disabled: disabled, skipped: skipped, skippedNow: map[int]bool{}}
+// is skipped and the others go on, the check added to skipped.
+func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[string]envFailure, skipped map[ruleCheck]bool) (result diagnostic.AnalysisResult, crashed int, msg string) {
+	ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, ComparisonStyle: e.cfg.ComparisonStyle, engine: e, failed: failed, disabled: disabled, skipped: skipped, skippedNow: map[ruleCheck]bool{}}
 	isolated := len(failed) > 0
 	cur := -1
 	defer func() {
@@ -202,7 +205,7 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 		ctx.cur = &e.rules[i]
 		rule := e.rules[i].rule.(FileRule)
 		if isolated {
-			ctx.isolate(int(i), func() { rule.CheckFile(ctx) })
+			ctx.isolate(ruleCheck{int(i), nil}, func() { rule.CheckFile(ctx) })
 		} else {
 			rule.CheckFile(ctx)
 		}
@@ -216,7 +219,7 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 				cur = int(i)
 				ctx.cur = &e.rules[i]
 				if isolated {
-					ctx.isolate(int(i), func() { e.rules[i].rule.Check(ctx, n) })
+					ctx.isolate(ruleCheck{int(i), n}, func() { e.rules[i].rule.Check(ctx, n) })
 				} else {
 					e.rules[i].rule.Check(ctx, n)
 				}
@@ -226,9 +229,9 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 	}
 	cur = -1
 	rerun := false
-	for i := range ctx.skippedNow {
-		rerun = rerun || ctx.relied[i] && !skipped[i]
-		skipped[i] = true
+	for k := range ctx.skippedNow {
+		rerun = rerun || ctx.relied[k] && !skipped[k]
+		skipped[k] = true
 	}
 	if rerun {
 		return diagnostic.AnalysisResult{}, skipCrashed, ""
@@ -253,16 +256,15 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 	return diagnostic.AnalysisResult{Findings: out, Incomplete: ctx.incomplete()}, -1, ""
 }
 
-// isolate runs a check of rule i, skipping it when it needs shared data
-// that failed to build; any other panic goes on to the rule's crash
-// handling.
-func (c *Context) isolate(i int, check func()) {
+// isolate runs check k, skipping it when it needs shared data that failed
+// to build; any other panic goes on to the rule's crash handling.
+func (c *Context) isolate(k ruleCheck, check func()) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(envFailure); !ok {
 				panic(r)
 			}
-			c.skippedNow[i] = true
+			c.skippedNow[k] = true
 		}
 	}()
 	check()

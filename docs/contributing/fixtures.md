@@ -72,7 +72,7 @@ function total($a) {
 |---|---|
 | `php` | Target PHP version for this fixture (default 8.4). |
 | `comparisonStyle` | `regular` or `yoda`. |
-| `options` | Rule options (bool, number, string or list). |
+| `options` | Rule options (bool, number, string or list); a `Rule.OPTION` key sets an option of a `with` rule. |
 | `calls` | Rarely needed: list options given as registration calls. |
 | `companions` | Extra project files (relative to the rule directory) to index. |
 | `with` | Other rules enabled in the same run; their findings are marked up too (for rules that leave findings to one another). |

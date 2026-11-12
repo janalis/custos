@@ -162,10 +162,10 @@ func impossibleTypeComparison(ctx *analysis.Context, n syntax.Node) (typeCompari
 		writtenLaterInLoop(ctx, l) || writtenLaterInLoop(ctx, r) || versionedOperand(ctx, l) || versionedOperand(ctx, r) {
 		return typeComparison{}, false
 	}
-	if lit, ok := astquery.BoolConst(l); ok && ownedComparison(ctx, r, boolWord(lit)) {
+	if lit, ok := astquery.BoolConst(l); ok && ownedComparison(ctx, b, r, boolWord(lit)) {
 		return typeComparison{}, false
 	}
-	if lit, ok := astquery.BoolConst(r); ok && ownedComparison(ctx, l, boolWord(lit)) {
+	if lit, ok := astquery.BoolConst(r); ok && ownedComparison(ctx, b, l, boolWord(lit)) {
 		return typeComparison{}, false
 	}
 	return out, true
@@ -253,11 +253,11 @@ func redundantTypeCheck(ctx *analysis.Context, n syntax.Node) (typeCheck, bool) 
 		lastBranchCondition(out.node, out.result) || versionedOperand(ctx, subject) {
 		return typeCheck{}, false
 	}
-	if pred == "null" && ownedComparison(ctx, subject, "null") {
+	if pred == "null" && ownedComparison(ctx, out.node, subject, "null") {
 		return typeCheck{}, false
 	}
-	if verdict == types.No && parameterChecks[fn] && ctx.RuleEnabled("CallableParameterUseCaseInTypeContext") &&
-		namedFunctionParameter(subject) {
+	if verdict == types.No && parameterChecks[fn] && namedFunctionParameter(subject) &&
+		ctx.RuleChecks("CallableParameterUseCaseInTypeContext", syntax.EnclosingFuncLike(subject)) {
 		return typeCheck{}, false
 	}
 	return out, true
@@ -364,135 +364,30 @@ func checkedContext(ctx *analysis.Context, n syntax.Node) bool {
 	return true
 }
 
-// notOptimalReports reports whether NotOptimalIfConditions runs and reports
-// check n itself: n is an operand of the condition of an if or elseif, as
-// that rule splits it (conditionOperands), and either
-//   - n is a comparison of a value with a literal in an `&&` chain whose
-//     first instanceof tests that value (that rule leaves out a loose
-//     comparison with a string when the class has __toString(), which
-//     never decides a check here), or
-//   - n is an instanceof another instanceof of the chain on the same value
-//     makes redundant: under `||` the more specific one, under `&&` the
-//     broader one (both when they name the same class).
-//
-// Its REPORT_INSTANCE_OF_FLAWS option is not read: turned off, the check is
-// still left to it.
+// notOptimalReports reports whether NotOptimalIfConditions reports check
+// n itself: n is an operand of the condition of an if or elseif, that rule
+// reports instanceof flaws, n is one of them (see InstanceofFlaws), and
+// its check of that if statement runs.
 func notOptimalReports(ctx *analysis.Context, n syntax.Expr) bool {
-	if !ctx.RuleEnabled("NotOptimalIfConditions") {
-		return false
-	}
+	var stmt syntax.Node // the if statement that rule checks
 	var cond syntax.Expr
-	for p := n.Parent(); p != nil && cond == nil && !syntax.IsFuncLike(p); p = p.Parent() {
+	for p := n.Parent(); p != nil; p = p.Parent() {
 		switch c := p.(type) {
+		case *syntax.Paren, *syntax.Unary:
+			continue
+		case *syntax.Binary:
+			if c.Op.Kind == syntax.TBooleanAnd || c.Op.Kind == syntax.TBooleanOr {
+				continue
+			}
 		case *syntax.If:
-			cond = c.Cond
+			stmt, cond = c, c.Cond
 		case *syntax.ElseIf:
-			cond = c.Cond
+			stmt, cond = c.Parent(), c.Cond
 		}
+		break
 	}
-	ops, op := conditionOperands(cond)
-	if len(ops) < 2 || !slices.Contains(ops, n) {
-		return false
-	}
-	switch c := n.(type) {
-	case *syntax.Binary:
-		return op == syntax.TBooleanAnd && literalComparedWithInstance(ctx, c, ops)
-	case *syntax.Instanceof:
-		cn, _ := instanceofTarget(ctx, c) // a check names a known class
-		for _, o := range ops {
-			m, ok := o.(*syntax.Instanceof)
-			if !ok || m == c || !astquery.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(m.Expr), syntax.UnwrapParens(c.Expr)) {
-				continue
-			}
-			cm, ok := instanceofTarget(ctx, m)
-			if !ok {
-				continue
-			}
-			child, parent := cn, cm // under ||, n is the more specific check
-			if op == syntax.TBooleanAnd {
-				child, parent = cm, cn // under &&, n is the broader one
-			}
-			if ctx.Index().IsSubtype(child, parent, ctx.PHP) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// conditionOperands splits condition c as NotOptimalIfConditions does:
-// parentheses and one prefix unary operator stripped, then the left-nested
-// chain of one symbolic `&&` or `||` operator flattened (a parenthesised
-// right operand, and the keyword operators, stay single operands), each
-// operand without parentheses.
-func conditionOperands(c syntax.Expr) ([]syntax.Expr, syntax.TokenKind) {
-	c = syntax.UnwrapParens(c)
-	if u, ok := c.(*syntax.Unary); ok {
-		c = syntax.UnwrapParens(u.Expr)
-	}
-	b, ok := c.(*syntax.Binary)
-	if !ok || b.Op.Kind != syntax.TBooleanAnd && b.Op.Kind != syntax.TBooleanOr {
-		return []syntax.Expr{c}, 0
-	}
-	op := b.Op.Kind
-	var out []syntax.Expr
-	for {
-		out = append(out, syntax.UnwrapParens(b.Right))
-		left := syntax.UnwrapParens(b.Left)
-		next, ok := left.(*syntax.Binary)
-		if !ok || next.Op.Kind != op {
-			out = append(out, left)
-			break
-		}
-		b = next
-	}
-	slices.Reverse(out)
-	return out, op
-}
-
-// literalComparedWithInstance reports whether comparison c (a check
-// compares) compares the subject of the first instanceof among ops with a
-// literal value.
-func literalComparedWithInstance(ctx *analysis.Context, c *syntax.Binary, ops []syntax.Expr) bool {
-	var first *syntax.Instanceof
-	for _, o := range ops {
-		if i, ok := o.(*syntax.Instanceof); ok {
-			first = i
-			break
-		}
-	}
-	if first == nil {
-		return false
-	}
-	subject := syntax.UnwrapParens(first.Expr)
-	l, r := syntax.UnwrapParens(c.Left), syntax.UnwrapParens(c.Right)
-	return astquery.EquivalentFoldNames(ctx.File, l, subject) && literalValue(r) ||
-		astquery.EquivalentFoldNames(ctx.File, r, subject) && literalValue(l)
-}
-
-// instanceofTarget returns the class an instanceof names (no leading
-// backslash), when the index knows it.
-func instanceofTarget(ctx *analysis.Context, c *syntax.Instanceof) (string, bool) {
-	name, ok := c.Class.(*syntax.Name)
-	if !ok {
-		return "", false
-	}
-	cls := ctx.Names().Class(name.Value, name.Span().Start)
-	return cls, ctx.Index().Class(cls, ctx.PHP) != nil
-}
-
-// literalValue reports a number (signed or not), a string (interpolated
-// too), null, true, false or an array literal.
-func literalValue(x syntax.Expr) bool {
-	switch v := x.(type) {
-	case *syntax.Array, *syntax.InterpolatedString:
-		return true
-	case *syntax.Unary:
-		if v.Op.Kind == syntax.TMinus || v.Op.Kind == syntax.TPlus {
-			return astquery.IsNumberLiteral(syntax.UnwrapParens(v.Expr))
-		}
-	}
-	return literal(x)
+	return cond != nil && ctx.RuleBool("NotOptimalIfConditions", "REPORT_INSTANCE_OF_FLAWS") &&
+		slices.Contains(InstanceofFlaws(ctx, cond), n) && ctx.RuleChecks("NotOptimalIfConditions", stmt)
 }
 
 // The environments whose answers must agree, cheapest first: the default
@@ -1000,6 +895,9 @@ type comparisonOwner struct {
 	rule string
 	// locals tells that the rule also follows the result through a local.
 	locals bool
+	// onComparison tells that the rule checks the comparison rather than
+	// the call.
+	onComparison bool
 }
 
 // comparisonOwners lists the comparisonOwner of a strict comparison with a
@@ -1007,28 +905,38 @@ type comparisonOwner struct {
 // function or `class::method` name.
 var comparisonOwners = map[string]map[string]comparisonOwner{
 	"true": {
-		"array_search":      {"ArraySearchUsedAsInArray", false},
-		"collator_compare":  {"CollatorComparisonTruthinessReversed", true},
-		"collator::compare": {"CollatorComparisonTruthinessReversed", true},
+		"array_search":      {"ArraySearchUsedAsInArray", false, false},
+		"collator_compare":  {"CollatorComparisonTruthinessReversed", true, false},
+		"collator::compare": {"CollatorComparisonTruthinessReversed", true, false},
 	},
-	"false": {"xml_parse": {"XmlParseZeroComparedWithFalse", true}},
-	"null":  {"domelement::getattribute": {"DomMissingAttributeCheckedAsNull", true}},
+	"false": {"xml_parse": {"XmlParseZeroComparedWithFalse", true, true}},
+	"null":  {"domelement::getattribute": {"DomMissingAttributeCheckedAsNull", true, true}},
 }
 
-// ownedComparison reports whether comparing x with constant lit (true,
-// false or null) is another rule's finding: x, or for a rule following
-// locals a value assigned to local x, is a call comparisonOwners lists for
-// lit, and that rule runs.
-func ownedComparison(ctx *analysis.Context, x syntax.Expr, lit string) bool {
+// ownedComparison reports whether check cmp comparing x with constant lit
+// (true, false or null) is another rule's finding: x, or for a rule
+// following locals a value assigned to local x, is a call comparisonOwners
+// lists for lit, and that rule's check of the comparison or of the call
+// runs.
+func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool {
 	owners := comparisonOwners[lit]
 	for i, v := range origins(ctx, x) {
 		for key, o := range owners {
-			if (i == 0 || o.locals) && ownerCall(ctx, v, key) && ctx.RuleEnabled(o.rule) {
+			if (i == 0 || o.locals) && ownerCall(ctx, v, key) && ctx.RuleChecks(o.rule, ownerNode(o, cmp, v)) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// ownerNode returns the node owner o checks for check cmp of call
+// v.
+func ownerNode(o comparisonOwner, cmp, v syntax.Expr) syntax.Node {
+	if o.onComparison {
+		return cmp
+	}
+	return v
 }
 
 // ownerCall reports whether x calls the builtin comparisonOwners key names:

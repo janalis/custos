@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"custos/internal/php/syntax"
@@ -13,7 +14,7 @@ import (
 type deferRule struct{ okRule }
 
 func (deferRule) Check(ctx *Context, n syntax.Node) {
-	if !ctx.RuleEnabled("UnnecessarySemicolon") {
+	if !ctx.RuleChecks("UnnecessarySemicolon", n) {
 		ctx.ReportNode(n, "found")
 	}
 }
@@ -66,23 +67,27 @@ func TestSuppressedByOtherRule(t *testing.T) {
 	}
 }
 
-// namesNopRule reports each `;` after resolving names, which the test
-// makes crash: its checks are skipped, the rule itself is not disabled.
-type namesNopRule struct{ crashRule }
+// namesFileRule (UnnecessarySemicolon) reports the file; it resolves
+// names first when the file mentions $skip, which the test makes crash:
+// its check is skipped, the rule itself is not disabled.
+type namesFileRule struct{ patternRule }
 
-func (namesNopRule) Check(ctx *Context, n syntax.Node) {
-	ctx.Names()
-	ctx.ReportNode(n, "nop")
+func (namesFileRule) CheckFile(ctx *Context) {
+	if strings.Contains(string(ctx.Src), "$skip") {
+		ctx.Names()
+	}
+	ctx.ReportNode(ctx.File, "nop")
 }
 
-// TestRuleEnabledAfterSkippedCheck: a rule a check of which was skipped
-// for lack of shared data no longer counts as enabled, whichever of the
-// two runs first.
-func TestRuleEnabledAfterSkippedCheck(t *testing.T) {
+// TestRuleChecksAfterSkippedFileCheck: a file rule whose check was
+// skipped for lack of shared data no longer checks any node, whichever of
+// the two runs first.
+func TestRuleChecksAfterSkippedFileCheck(t *testing.T) {
 	old := newResolver
 	t.Cleanup(func() { newResolver = old })
 	newResolver = func(*syntax.File) *names.Resolver { panic("resolver bug") }
-	for _, rules := range [][]Rule{{namesNopRule{}, deferRule{}}, {deferRule{}, namesNopRule{}}} {
+	owner := namesFileRule{patternRule{"UnnecessarySemicolon"}}
+	for _, rules := range [][]Rule{{owner, deferRule{}}, {deferRule{}, owner}} {
 		e, err := NewEngine(rules, Config{EnableAll: true})
 		if err != nil {
 			t.Fatal(err)
@@ -91,11 +96,11 @@ func TestRuleEnabledAfterSkippedCheck(t *testing.T) {
 			src  string
 			want []string
 		}{
-			{"<?php ;\n$a = !$b;", []string{"internal", "NestedNotOperators"}},
-			// No check of the rule was skipped: it still runs.
-			{"<?php f();\n$a = !$b;", nil},
+			{"<?php $skip;\n$a = !$b;", []string{"internal", "NestedNotOperators"}},
+			// Its check was not skipped: it still runs.
+			{"<?php f();\n$a = !$b;", []string{"UnnecessarySemicolon"}},
 			// Nothing defers to it: one run is enough.
-			{"<?php ;", []string{"internal"}},
+			{"<?php $skip;", []string{"internal"}},
 		} {
 			var got []string
 			for _, fd := range e.Analyze(syntax.Parse("x.php", []byte(tc.src), syntax.Options{Version: phpversion.PHP84})) {
@@ -104,6 +109,50 @@ func TestRuleEnabledAfterSkippedCheck(t *testing.T) {
 			if !slices.Equal(got, tc.want) {
 				t.Errorf("%q: got %v, want %v", tc.src, got, tc.want)
 			}
+		}
+	}
+}
+
+// ownerRule (UnnecessarySemicolon) reports each `!`; on `!$skip` its check
+// resolves names first, which the test makes crash.
+type ownerRule struct{ okRule }
+
+func (ownerRule) ID() string { return "UnnecessarySemicolon" }
+
+func (ownerRule) Check(ctx *Context, n syntax.Node) {
+	if v, ok := n.(*syntax.Unary).Expr.(*syntax.Variable); ok && v.Name == "skip" {
+		ctx.Names()
+	}
+	ctx.ReportNode(n, "owner")
+}
+
+// nodeDeferRule reports each `!` the owner's check did not run on.
+type nodeDeferRule struct{ okRule }
+
+func (nodeDeferRule) Check(ctx *Context, n syntax.Node) {
+	if !ctx.RuleChecks("UnnecessarySemicolon", n) {
+		ctx.ReportNode(n, "deferred")
+	}
+}
+
+// TestRuleCheckRanPerNode: a check skipped on one node leaves only that
+// node to the rules deferring to its rule, whichever runs first.
+func TestRuleCheckRanPerNode(t *testing.T) {
+	old := newResolver
+	t.Cleanup(func() { newResolver = old })
+	newResolver = func(*syntax.File) *names.Resolver { panic("resolver bug") }
+	for _, rules := range [][]Rule{{ownerRule{}, nodeDeferRule{}}, {nodeDeferRule{}, ownerRule{}}} {
+		e, err := NewEngine(rules, Config{EnableAll: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, fd := range e.Analyze(syntax.Parse("x.php", []byte("<?php $a = !$b;\n$c = !$skip;"), syntax.Options{Version: phpversion.PHP84})) {
+			got = append(got, fd.Rule+":"+fd.Message)
+		}
+		want := []string{"UnnecessarySemicolon:owner", "NestedNotOperators:deferred"}
+		if len(got) != 3 || !strings.HasPrefix(got[0], "internal:") || !slices.Equal(got[1:], want) {
+			t.Errorf("got %v, want internal + %v", got, want)
 		}
 	}
 }

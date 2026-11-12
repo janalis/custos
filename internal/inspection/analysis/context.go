@@ -44,10 +44,10 @@ type Context struct {
 	failed map[string]envFailure
 	// disabled holds the rules skipped on this file after crashing on it.
 	disabled map[int]bool
-	// skipped holds the rules some isolated check of which an earlier run
-	// over the file skipped; skippedNow those of this run, and relied the
-	// rules RuleEnabled told running (see Engine.AnalyzeResult).
-	skipped, skippedNow, relied map[int]bool
+	// skipped holds the isolated checks an earlier run over the file
+	// skipped; skippedNow those of this run, and relied the checks
+	// RuleChecks told running (see Engine.AnalyzeResult).
+	skipped, skippedNow, relied map[ruleCheck]bool
 	// sup holds the file's suppression comments, built on first use.
 	sup *suppressions
 }
@@ -126,28 +126,43 @@ const MaxFindingsPerFile = 10000
 // RuleID returns the ID of the rule currently running.
 func (c *Context) RuleID() string { return c.cur.meta.ID }
 
-// RuleEnabled reports whether the run enables rule id and it still runs on
-// this file: not skipped after crashing on it, and none of its checks
-// skipped for lack of shared data that failed to build, so that a rule can
-// leave to it what both would report.
-func (c *Context) RuleEnabled(id string) bool {
-	if !c.engine.enabled[id] {
+// ruleCheck is the check of rule (an index in the engine's rules) on
+// node, nil for a FileRule's check of the whole file.
+type ruleCheck struct {
+	rule int
+	node syntax.Node
+}
+
+// RuleChecks reports whether the run enables rule id and its check on n
+// runs on this file: the rule not skipped after crashing on it, and that
+// check not skipped for lack of shared data that failed to build, so that
+// a rule can leave n to it when both would report it. n is the node the
+// engine hands that rule's check (ignored for a FileRule, whose one check
+// covers the file).
+func (c *Context) RuleChecks(id string, n syntax.Node) bool {
+	i, ok := c.engine.ids[id]
+	if !ok || c.disabled[i] {
 		return false
 	}
-	for i := range c.engine.rules {
-		if c.engine.rules[i].meta.ID != id {
-			continue
-		}
-		if c.disabled[i] || c.skipped[i] {
-			return false
-		}
-		if c.relied == nil {
-			c.relied = map[int]bool{}
-		}
-		c.relied[i] = true
-		break
+	k := ruleCheck{i, n}
+	if c.engine.rules[i].file {
+		k.node = nil
 	}
+	if c.skipped[k] {
+		return false
+	}
+	if c.relied == nil {
+		c.relied = map[ruleCheck]bool{}
+	}
+	c.relied[k] = true
 	return true
+}
+
+// RuleBool returns boolean option name of rule id, false when the run
+// does not enable that rule.
+func (c *Context) RuleBool(id, name string) bool {
+	i, ok := c.engine.ids[id]
+	return ok && boolOption(c.engine.rules[i].options, name)
 }
 
 // Suppressed reports whether a finding of rule at span would be
@@ -170,8 +185,10 @@ func (c *Context) suppressions() *suppressions {
 func (c *Context) OptionSet(name string) bool { return c.cur.explicit[name] }
 
 // Bool returns a boolean option of the current rule.
-func (c *Context) Bool(name string) bool {
-	switch v := c.cur.options[name].(type) {
+func (c *Context) Bool(name string) bool { return boolOption(c.cur.options, name) }
+
+func boolOption(options map[string]any, name string) bool {
+	switch v := options[name].(type) {
 	case bool:
 		return v
 	case string:

@@ -201,12 +201,16 @@ func TestOwnFixtures(t *testing.T) {
 				}
 				opts := map[string]string{}
 				for k, v := range cfg.Options {
+					key := k
+					if !strings.Contains(k, ".") { // `Rule.OPTION` sets an option of a `with` rule
+						key = rule + "." + k
+					}
 					if list, ok := v.([]any); ok { // list option: passed as JSON
 						b, _ := json.Marshal(list)
-						opts[rule+"."+k] = string(b)
+						opts[key] = string(b)
 						continue
 					}
-					opts[rule+"."+k] = fmt.Sprint(v)
+					opts[key] = fmt.Sprint(v)
 				}
 				var calls []string
 				for _, c := range cfg.Calls {

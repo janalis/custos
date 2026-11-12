@@ -24,3 +24,11 @@ function appended(AppendIterator $a)
     $inner = $a->getInnerIterator();
     <warning descr="Possible null dereference.">$inner</warning>->rewind();
 }
+
+// A wrapper known from PHPDoc only is trusted as well.
+function documented()
+{
+    /** @var FilterIterator $it */
+    $it = make();
+    $it->getInnerIterator()->rewind();
+}

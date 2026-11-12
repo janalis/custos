@@ -42,9 +42,13 @@ sidecar key). Two classes are disjoint when either direction is No.
 ## Owners
 
 `comparisonOwners` lists the builtin results other rules report against a
-constant; `ownedComparison` defers only when that rule runs
-(`analysis.Context.RuleEnabled`). The fixtures `owners.php` (with the
-owners, `"with"` sidecar key) and `owners-alone.php` (without) cover both.
+constant; `ownedComparison` defers only when that rule's check of the
+comparison or of the call runs (`analysis.Context.RuleChecks`). Checks
+NotOptimalIfConditions reports come from `semanticquery.InstanceofFlaws`,
+which that rule reports from too, and are left to it only when its
+`REPORT_INSTANCE_OF_FLAWS` option is on (`analysis.Context.RuleBool`). The
+fixtures `owners.php` (with the owners, `"with"` sidecar key),
+`owners-flaws-off.php` and `owners-alone.php` (without) cover them.
 
 ## Known gaps
 

@@ -8,7 +8,6 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 )
 
@@ -40,48 +39,22 @@ func (r notOptimalIfConditions) Check(ctx *analysis.Context, n syntax.Node) {
 		if c == nil || c.Span().Len() == 0 {
 			continue
 		}
-		ops, op := splitCondition(c)
-		if optimize && len(ops) >= 2 {
+		if ops, _ := astquery.SplitCondition(c); optimize && len(ops) >= 2 {
 			r.ordering(ctx, ops)
 		}
 		if literal {
 			keywordOperators(ctx, c)
 		}
-		if instanceofFlaws && len(ops) >= 2 {
-			if op == syntax.TBooleanAnd {
-				equalityNextToInstanceof(ctx, ops)
+		if instanceofFlaws {
+			for _, x := range semanticquery.InstanceofFlaws(ctx, c) {
+				if _, ok := x.(*syntax.Instanceof); ok {
+					ctx.Report(x.Span(), notOptimalInstanceofMsg)
+				} else {
+					ctx.ReportSeverity(x.Span(), diagnostic.SeverityInfo, notOptimalEqualityMsg)
+				}
 			}
-			redundantInstanceof(ctx, ops, op)
 		}
 	}
-}
-
-// splitCondition flattens a condition into its && / || operands.
-func splitCondition(c syntax.Expr) ([]syntax.Expr, syntax.TokenKind) {
-	e := syntax.UnwrapParens(c)
-	if u, ok := e.(*syntax.Unary); ok {
-		e = syntax.UnwrapParens(u.Expr)
-	}
-	b, ok := e.(*syntax.Binary)
-	if !ok || (b.Op.Kind != syntax.TBooleanAnd && b.Op.Kind != syntax.TBooleanOr) {
-		return []syntax.Expr{e}, 0
-	}
-	op := b.Op.Kind
-	ops := []syntax.Expr{syntax.UnwrapParens(b.Right)}
-	left := syntax.UnwrapParens(b.Left)
-	for {
-		lb, ok := left.(*syntax.Binary)
-		if !ok || lb.Op.Kind != op {
-			break
-		}
-		ops = append(ops, syntax.UnwrapParens(lb.Right))
-		left = syntax.UnwrapParens(lb.Left)
-	}
-	ops = append(ops, left)
-	for i, j := 0, len(ops)-1; i < j; i, j = i+1, j-1 {
-		ops[i], ops[j] = ops[j], ops[i]
-	}
-	return ops, op
 }
 
 func (notOptimalIfConditions) ordering(ctx *analysis.Context, ops []syntax.Expr) {
@@ -769,158 +742,3 @@ func keywordOperators(ctx *analysis.Context, c syntax.Expr) {
 		return true
 	})
 }
-
-// notOptimalLiteral reports whether e (parentheses stripped) is a literal
-// value: a scalar or string literal, null/true/false, an array literal, or a
-// signed number.
-func notOptimalLiteral(e syntax.Expr) bool {
-	switch x := syntax.UnwrapParens(e).(type) {
-	case *syntax.Literal, *syntax.InterpolatedString, *syntax.Array:
-		return true
-	case *syntax.ConstFetch:
-		switch strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`)) {
-		case "null", "true", "false":
-			return true
-		}
-	case *syntax.Unary:
-		return notOptimalLiteral(x.Expr)
-	}
-	return false
-}
-
-func equalityNextToInstanceof(ctx *analysis.Context, ops []syntax.Expr) {
-	var subj syntax.Expr
-	var test *syntax.Instanceof
-	for _, o := range ops {
-		if io, ok := o.(*syntax.Instanceof); ok {
-			subj, test = io.Expr, io
-			break
-		}
-	}
-	if subj == nil {
-		return
-	}
-	for _, o := range ops {
-		b, ok := o.(*syntax.Binary)
-		if !ok {
-			continue
-		}
-		switch b.Op.Kind {
-		case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical:
-		default:
-			continue
-		}
-		var other syntax.Expr
-		switch {
-		case astquery.EquivalentFoldNames(ctx.File, b.Left, subj):
-			other = b.Right
-		case astquery.EquivalentFoldNames(ctx.File, b.Right, subj):
-			other = b.Left
-		}
-		// Comparing the object with another value (`$a instanceof X && $a !==
-		// $b`) is an ordinary identity/equality check; only a comparison with
-		// a literal (null, bool, number, string, array) is redundant or
-		// suspicious next to instanceof.
-		if other != nil && notOptimalLiteral(other) && !stringableEquality(ctx, test, b, other) {
-			ctx.ReportSeverity(b.Span(), diagnostic.SeverityInfo, notOptimalEqualityMsg)
-		}
-	}
-}
-
-// stringableEquality reports a loose comparison b with string literal
-// other when the instanceof class converts to a string (custos):
-// `$r instanceof Status && $r == 'QUEUED'` compares the status text.
-func stringableEquality(ctx *analysis.Context, test *syntax.Instanceof, b *syntax.Binary, other syntax.Expr) bool {
-	if b.Op.Kind != syntax.TIsEqual && b.Op.Kind != syntax.TIsNotEqual {
-		return false
-	}
-	switch x := syntax.UnwrapParens(other).(type) {
-	case *syntax.Literal:
-		if x.LitKind != syntax.LitString {
-			return false
-		}
-	case *syntax.InterpolatedString:
-	default:
-		return false
-	}
-	name, ok := test.Class.(*syntax.Name)
-	if !ok {
-		return false
-	}
-	fqn := ctx.Names().Class(name.Value, name.Span().Start)
-	return ctx.Index().FindMethod(fqn, "__toString", ctx.PHP) != nil
-}
-
-type instanceofEntry struct {
-	node *syntax.Instanceof
-	fqn  string
-}
-
-func redundantInstanceof(ctx *analysis.Context, ops []syntax.Expr, op syntax.TokenKind) {
-	var entries []instanceofEntry
-	for _, o := range ops {
-		io, ok := o.(*syntax.Instanceof)
-		if !ok {
-			continue
-		}
-		name, ok := io.Class.(*syntax.Name)
-		if !ok {
-			continue
-		}
-		fqn := ctx.Names().Class(name.Value, name.Span().Start)
-		c := ctx.Index().Class(fqn, ctx.PHP)
-		if c == nil {
-			continue
-		}
-		entries = append(entries, instanceofEntry{io, c.FQN})
-	}
-	if len(entries) < 2 {
-		return
-	}
-	used := make([]bool, len(entries))
-	for i := range entries {
-		if used[i] {
-			continue
-		}
-		group := []int{i}
-		used[i] = true
-		for j := i + 1; j < len(entries); j++ {
-			if !used[j] && astquery.EquivalentFoldNames(ctx.File, entries[i].node.Expr, entries[j].node.Expr) {
-				group = append(group, j)
-				used[j] = true
-			}
-		}
-		if len(group) < 2 {
-			continue
-		}
-		reported := map[int]bool{}
-		for _, a := range group {
-			anc := map[string]bool{}
-			for _, c := range ctx.Index().Ancestors(entries[a].fqn, ctx.PHP) {
-				anc[notOptimalClassKey(c.FQN)] = true
-			}
-			for _, b := range group {
-				if b == a {
-					continue
-				}
-				k := notOptimalClassKey(entries[b].fqn)
-				if k == "datetimeinterface" && ctx.PHP < phpversion.PHP55 {
-					continue
-				}
-				if anc[k] {
-					// a's class is a subtype of b's: under || the specific
-					// check a is subsumed, under && the broad check b is.
-					redundant := a
-					if op == syntax.TBooleanAnd {
-						redundant = b
-					}
-					if !reported[redundant] {
-						reported[redundant] = true
-						ctx.Report(entries[redundant].node.Span(), notOptimalInstanceofMsg)
-					}
-				}
-			}
-		}
-	}
-}
-func notOptimalClassKey(fqn string) string { return strings.ToLower(strings.TrimPrefix(fqn, `\`)) }

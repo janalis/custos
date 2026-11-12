@@ -118,11 +118,13 @@ Reported:
   an `assert()` call.
 - Loose comparisons outside the pairs of D5, which convert their
   operands.
-- Comparisons other rules report, when they run: in the condition of
-  an `if` or `elseif` that is an `&&` chain (one symbolic operator), a
-  comparison of the value the first `instanceof` of the chain tests with a
-  literal, unless loose against a string when that class has
-  `__toString()` (NotOptimalIfConditions); `array_search()` compared with `true`
+- Comparisons other rules report, when they run and check that code:
+  in the condition of an `if` or `elseif` that is an `&&` chain (one
+  symbolic operator), a comparison of the value the first `instanceof` of
+  the chain tests with a literal, also under prefix operators (`-1`,
+  `!false`), unless loose against a string when that class has
+  `__toString()` (NotOptimalIfConditions, when it reports `instanceof`
+  flaws); `array_search()` compared with `true`
   (ArraySearchUsedAsInArray); `xml_parse()` compared with `false`
   (XmlParseZeroComparedWithFalse); a `Collator` comparison result compared
   with `true` (CollatorComparisonTruthinessReversed). The last two follow
