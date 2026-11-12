@@ -124,12 +124,13 @@ Reported:
   the chain tests with a literal, also under prefix operators (`-1`,
   `!false`), unless loose against a string when that class has
   `__toString()` (NotOptimalIfConditions, when it reports `instanceof`
-  flaws); `array_search()` compared with `true`
-  (ArraySearchUsedAsInArray); `xml_parse()` compared with `false`
-  (XmlParseZeroComparedWithFalse); a `Collator` comparison result compared
-  with `true` (CollatorComparisonTruthinessReversed). The last two follow
-  the result through a local, and a method counts on a subclass of its
-  class too.
+  flaws); a call to `array_search()` compared with `true`, unless the call
+  is in parentheses (ArraySearchUsedAsInArray); `xml_parse()` compared with
+  `false`, also through a local (XmlParseZeroComparedWithFalse); a call to
+  the `compare()` method of `Collator` (or of a subclass) tested equal to
+  `true` (CollatorComparisonTruthinessReversed). The function form
+  `collator_compare()`, a collation result held in a local and a test that
+  it is not identical to `true` stay this rule's.
 
 ## Fix
 

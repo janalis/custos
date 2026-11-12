@@ -890,7 +890,9 @@ func sharesString(a, b []string) bool {
 }
 
 // comparisonOwner is a rule reporting a comparison of a builtin's result
-// with a constant the builtin never returns.
+// with a constant the builtin never returns. Its fields describe the
+// comparisons the rule actually reports, so that only those are left to
+// it.
 type comparisonOwner struct {
 	rule string
 	// locals tells that the rule also follows the result through a local.
@@ -898,6 +900,12 @@ type comparisonOwner struct {
 	// onComparison tells that the rule checks the comparison rather than
 	// the call.
 	onComparison bool
+	// bare tells that the rule sees the call only as an operand of the
+	// comparison itself, not wrapped in parentheses.
+	bare bool
+	// equality tells that the rule reports `==` and `===` but not their
+	// negations (only for a "true" owner, whose check is a comparison).
+	equality bool
 }
 
 // comparisonOwners lists the comparisonOwner of a strict comparison with a
@@ -905,29 +913,42 @@ type comparisonOwner struct {
 // function or `class::method` name.
 var comparisonOwners = map[string]map[string]comparisonOwner{
 	"true": {
-		"array_search":      {"ArraySearchUsedAsInArray", false, false},
-		"collator_compare":  {"CollatorComparisonTruthinessReversed", true, false},
-		"collator::compare": {"CollatorComparisonTruthinessReversed", true, false},
+		"array_search":      {rule: "ArraySearchUsedAsInArray", bare: true},
+		"collator::compare": {rule: "CollatorComparisonTruthinessReversed", equality: true},
 	},
-	"false": {"xml_parse": {"XmlParseZeroComparedWithFalse", true, true}},
-	"null":  {"domelement::getattribute": {"DomMissingAttributeCheckedAsNull", true, true}},
+	"false": {"xml_parse": {rule: "XmlParseZeroComparedWithFalse", locals: true, onComparison: true}},
+	"null":  {"domelement::getattribute": {rule: "DomMissingAttributeCheckedAsNull", locals: true, onComparison: true}},
 }
 
 // ownedComparison reports whether check cmp comparing x with constant lit
 // (true, false or null) is another rule's finding: x, or for a rule
 // following locals a value assigned to local x, is a call comparisonOwners
-// lists for lit, and that rule's check of the comparison or of the call
-// runs.
+// lists for lit, in a comparison of the shape that rule reports, and that
+// rule's check of the comparison or of the call runs.
 func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool {
 	owners := comparisonOwners[lit]
 	for i, v := range origins(ctx, x) {
 		for key, o := range owners {
-			if (i == 0 || o.locals) && ownerCall(ctx, v, key) && ctx.RuleChecks(o.rule, ownerNode(o, cmp, v)) {
+			if (i == 0 || o.locals) && ownerShape(o, cmp, v) && ownerCall(ctx, v, key) && ctx.RuleChecks(o.rule, ownerNode(o, cmp, v)) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// ownerShape reports whether owner o reports check cmp of value v: v is
+// not wrapped in parentheses when o needs a bare operand, and cmp is an
+// equality when o reports only those.
+func ownerShape(o comparisonOwner, cmp, v syntax.Expr) bool {
+	if o.bare && v.Parent() != syntax.Node(cmp) {
+		return false
+	}
+	if o.equality {
+		k := cmp.(*syntax.Binary).Op.Kind
+		return k == syntax.TIsIdentical || k == syntax.TIsEqual
+	}
+	return true
 }
 
 // ownerNode returns the node owner o checks for check cmp of call
