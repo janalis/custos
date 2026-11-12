@@ -1,6 +1,8 @@
 package index_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"custos/internal/php/syntax"
@@ -80,5 +82,54 @@ func TestBuiltinPrefixes(t *testing.T) {
 	}
 	if !p.Namespaces["mongodb"] || !p.Namespaces["random"] || p.Namespaces["app"] {
 		t.Fatal("namespaces of builtins")
+	}
+}
+
+// TestWorldDependencyPathForms: a file and a vendor directory written in
+// different forms, one absolute and the other relative to the working
+// directory, are compared as absolute paths. Without a working directory
+// they are compared as written.
+func TestWorldDependencyPathForms(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	abs := index.World{Vendor: filepath.Join(cwd, "vendor")}
+	rel := index.World{Vendor: "vendor"}
+	for _, c := range []struct {
+		w    index.World
+		file string
+		want bool
+	}{
+		{abs, "vendor/acme/lib/Base.php", true},
+		{abs, "./vendor/acme/lib/Base.php", true},
+		{abs, "src/vendor/Base.php", false},
+		{abs, filepath.Join(cwd, "vendor", "acme", "lib", "Base.php"), true},
+		{rel, filepath.Join(cwd, "vendor", "acme", "lib", "Base.php"), true},
+		{rel, filepath.Join(cwd, "src", "Base.php"), false},
+		{rel, "vendor/acme/lib/Base.php", true},
+	} {
+		if got := c.w.Dependency(c.file); got != c.want {
+			t.Errorf("World{Vendor: %s}.Dependency(%s) = %v, want %v", c.w.Vendor, c.file, got, c.want)
+		}
+	}
+	// getcwd fails on macOS for an unreadable directory and on Linux for a
+	// removed one: do both.
+	gone := filepath.Join(dir, "gone")
+	if err := os.Mkdir(gone, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(gone)
+	t.Setenv("PWD", "")
+	if err := os.Chmod(gone, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(gone); err != nil {
+		t.Fatal(err)
+	}
+	if rel.Dependency(filepath.Join(cwd, "vendor", "A.php")) || !rel.Dependency("vendor/A.php") {
+		t.Error("without a working directory: paths compare as written")
 	}
 }

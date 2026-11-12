@@ -239,3 +239,29 @@ func TestSnapshotWorld(t *testing.T) {
 		t.Fatalf("snapshot vendor-dir: %+v", w)
 	}
 }
+
+// TestComposerWorldVendorPathForms: whether the root is absolute or
+// relative to the working directory, a vendor file reaches the index as
+// a dependency in either form.
+func TestComposerWorldVendorPathForms(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "composer.json"), `{}`)
+	t.Chdir(root)
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range []string{cwd, "."} {
+		w := ComposerWorld(r, nil, nil, Skipped{})
+		for file, want := range map[string]bool{
+			"vendor/acme/lib/Base.php":                              true,
+			filepath.Join(cwd, "vendor", "acme", "lib", "Base.php"): true,
+			"src/vendor/Base.php":                                   false,
+			filepath.Join(cwd, "src", "Base.php"):                   false,
+		} {
+			if got := w.Dependency(file); got != want {
+				t.Errorf("root %s: Dependency(%s) = %v, want %v", r, file, got, want)
+			}
+		}
+	}
+}

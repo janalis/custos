@@ -29,18 +29,33 @@ type World struct {
 	// over a finding the index cannot support.
 	BlindExact []string
 	// Vendor is the directory Composer installs dependencies into (the
-	// project's `config.vendor-dir`, `vendor` by default), written as the
-	// paths of the index's files are; empty when no project says.
+	// project's `config.vendor-dir`, `vendor` by default), absolute or
+	// relative to the working directory (see Dependency); empty when no
+	// project says.
 	Vendor string
 }
 
-// Dependency reports whether file lies in the vendor directory.
+// Dependency reports whether file lies in the vendor directory. A file
+// and a directory written in different forms (one absolute, the other
+// relative to the working directory) are compared as absolute paths.
 func (w World) Dependency(file string) bool {
 	if w.Vendor == "" {
 		return false
 	}
-	file, dir := filepath.ToSlash(filepath.Clean(file)), filepath.ToSlash(filepath.Clean(w.Vendor))
-	return strings.HasPrefix(file, dir+"/")
+	file, dir := filepath.Clean(file), filepath.Clean(w.Vendor)
+	if filepath.IsAbs(file) != filepath.IsAbs(dir) {
+		file, dir = absolute(file), absolute(dir)
+	}
+	return strings.HasPrefix(filepath.ToSlash(file), filepath.ToSlash(dir)+"/")
+}
+
+// absolute returns path made absolute, as is when the working directory
+// is unknown.
+func absolute(path string) string {
+	if abs, err := filepath.Abs(path); err == nil {
+		return abs
+	}
+	return path
 }
 
 // SetWorld records what the index knows about the project's world. Call it
