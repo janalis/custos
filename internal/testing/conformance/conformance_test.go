@@ -263,6 +263,9 @@ func TestEAFixturesParse(t *testing.T) {
 	if err != nil {
 		t.Skipf("no EA index: %v", err)
 	}
+	if _, err := os.Stat(idx.EAPath); err != nil {
+		t.Skipf("EA checkout not found at %s", idx.EAPath)
+	}
 	seen := map[string]bool{}
 	bad := 0
 	for _, c := range idx.Cases {
