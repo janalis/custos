@@ -195,26 +195,18 @@ func (w propertyWrite) targets(cls string, subtypes bool) (string, []*index.Prop
 	if !subtypes || c.Final {
 		return label, out, true
 	}
+	d := certainDescendants(ix, cls, w.ctx.PHP)
+	if !d.certain {
+		return "", nil, false
+	}
 	redeclarable := p.Visibility != index.Private && !p.Final
-	seen := map[string]bool{strings.ToLower(strings.TrimPrefix(cls, `\`)): true}
-	queue := []string{cls}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, child := range ix.ChildrenAll(cur) {
-			k := strings.ToLower(strings.TrimPrefix(child, `\`))
-			if seen[k] {
-				continue
-			}
-			seen[k] = true
-			sub, ok := w.declaration(child)
-			if !ok {
-				return "", nil, false
-			}
-			if redeclarable {
-				out = append(out, sub)
-			}
-			queue = append(queue, child)
+	for _, child := range d.classes {
+		sub, ok := w.declaration(child)
+		if !ok {
+			return "", nil, false
+		}
+		if redeclarable {
+			out = append(out, sub)
 		}
 	}
 	return label, out, true

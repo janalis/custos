@@ -78,11 +78,14 @@ func NativeFunctionBody(ctx *analysis.Context, call *syntax.FuncCall) *syntax.Bl
 
 // NativeGeneratorBody recognizes yields owned by this body, not nested scopes.
 func NativeGeneratorBody(body *syntax.Block) bool {
-	if body == nil {
-		return false
-	}
+	return body != nil && yields(body)
+}
+
+// yields reports whether n yields outside nested function-likes and
+// classes.
+func yields(n syntax.Node) bool {
 	found := false
-	syntax.Inspect(body, func(n syntax.Node) bool {
+	syntax.Inspect(n, func(n syntax.Node) bool {
 		switch n.(type) {
 		case *syntax.Function, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
 			return false

@@ -219,3 +219,13 @@ class Loop extends Knot
 class Knot extends Loop {}
 
 function tie(Loop $l) { $l->count = 1; }
+
+// A subtype whose hierarchy the index does not hold.
+class Sized
+{
+    public int $size = 0;
+}
+
+class Odd extends Sized implements \Vendor\Missing\Contract {}
+
+function resize(Sized $s) { $s->size = 'x'; }

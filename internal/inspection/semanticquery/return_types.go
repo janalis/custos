@@ -124,10 +124,9 @@ func newReturnContract(ctx *analysis.Context, fn syntax.Node) *returnContract {
 	// A @return type the native type rejects is stale; one that only
 	// narrows values (ranges, lengths, literals) counts against exact
 	// values only.
-	c.accept = AcceptContext(ctx, false)
-	strict := c.accept
-	strict.Strict = true
-	if !c.doc.IsUnknown() && !c.native.IsUnknown() && types.AllRejected(c.native, c.doc, strict) {
+	check := fileTypeCheck(ctx)
+	c.accept = check.weak
+	if !c.doc.IsUnknown() && !c.native.IsUnknown() && types.AllRejected(c.native, c.doc, check.strict) {
 		c.doc = types.Unknown
 	}
 	if c.native.IsUnknown() && c.doc.IsUnknown() || generatorBody(fn) {
@@ -172,17 +171,15 @@ func exactValues(t types.Type) bool {
 // generatorBody reports whether function-like fn yields (nested
 // function-likes and classes aside).
 func generatorBody(fn syntax.Node) bool {
-	found := false
-	syntax.Inspect(fn, func(n syntax.Node) bool {
-		switch n.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
-			return n == fn
-		case *syntax.Yield, *syntax.YieldFrom:
-			found = true
-		}
-		return !found
-	})
-	return found
+	switch f := fn.(type) {
+	case *syntax.Function:
+		return NativeGeneratorBody(f.Body)
+	case *syntax.Method:
+		return NativeGeneratorBody(f.Body)
+	case *syntax.Closure:
+		return NativeGeneratorBody(f.Body)
+	}
+	return yields(fn.(*syntax.ArrowFunction).Expr)
 }
 
 // functionLabel names function f: its FQN followed by `()`.
