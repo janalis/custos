@@ -631,6 +631,15 @@ var ErrBaseline = errors.New("unreadable baseline")
 
 // AnalyzeSnapshot publishes index and flow copies before producing findings.
 func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
+	// A baseline that does not decode fails before the index and the flow
+	// summaries are built for nothing.
+	var bl *baseline.Baseline
+	if s.Baseline != "" {
+		var err error
+		if bl, err = baseline.Parse(s.Sources[s.Baseline], path.Dir(s.Baseline)); err != nil {
+			return nil, fmt.Errorf("%w %s: %w", ErrBaseline, s.Baseline, err)
+		}
+	}
 	if s.vendorSymbols == nil && len(s.Vendor) > 0 {
 		if err := s.readVendor(ctx, true); err != nil {
 			return nil, err
@@ -688,12 +697,8 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 		s.Engine = s.Engine.WithFlow(BuildFlowSnapshot(ctx, s.OwnFiles, srcs, opt, s.Index, WithVendorFlow(s.Config.Root, s.Index, opt, s.Config.Flow)))
 	}
 	analyzer := s.Engine
-	if s.Baseline != "" {
+	if bl != nil {
 		// Checks see the findings the baseline hides as silenced.
-		bl, err := baseline.Parse(s.Sources[s.Baseline], path.Dir(s.Baseline))
-		if err != nil {
-			return nil, fmt.Errorf("%w %s: %w", ErrBaseline, s.Baseline, err)
-		}
 		s.Recorded = bl
 		analyzer = s.Engine.WithRecorded(bl.Recorder)
 	}

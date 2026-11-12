@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"custos/internal/inspection/rules/securityadvisories"
 	"custos/internal/inspection/rules/untrustedshellcommand"
 	"custos/internal/php/syntax"
+	"custos/internal/project/config"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
 )
@@ -132,6 +134,21 @@ func TestCapturedExtractionCrash(t *testing.T) {
 	t.Cleanup(func() { extract = original })
 	extract = func(string, []byte, syntax.Options, infer.Options) *index.FileSymbols { panic("parser crash") }
 	if _, err := extractCaptured("a.php", []byte("<?php"), syntax.Options{}, infer.Options{}); err == nil || !strings.Contains(err.Error(), "a.php") {
+		t.Fatal(err)
+	}
+}
+
+// TestSnapshotBaselineDecodedFirst: a captured baseline that does not
+// decode fails the analysis before any source is indexed.
+func TestSnapshotBaselineDecodedFirst(t *testing.T) {
+	original := extract
+	t.Cleanup(func() { extract = original })
+	extract = func(string, []byte, syntax.Options, infer.Options) *index.FileSymbols {
+		t.Error("sources indexed before the baseline was decoded")
+		return original("a.php", nil, syntax.Options{}, infer.Options{})
+	}
+	s := &Snapshot{Config: &config.Config{}, Baseline: "bl.json", Sources: map[string][]byte{"a.php": []byte("<?php"), "bl.json": []byte("{")}}
+	if _, err := AnalyzeSnapshot(context.Background(), s); !errors.Is(err, ErrBaseline) {
 		t.Fatal(err)
 	}
 }
