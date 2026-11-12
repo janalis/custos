@@ -297,13 +297,27 @@ func IntValue(v int64) Type {
 // HasValues reports whether t carries int values, string lengths or string
 // values (see WithoutValues).
 func (t Type) HasValues() bool {
-	return t.ints != nil || t.lens != nil || t.strs != nil && (t.strs.only != nil || t.strs.not != nil)
+	return t.ints != nil || t.HasStringValues()
+}
+
+// HasStringValues reports whether t carries string lengths or string
+// values (see WithoutStringValues).
+func (t Type) HasStringValues() bool {
+	return t.lens != nil || t.strs != nil && (t.strs.only != nil || t.strs.not != nil)
 }
 
 // WithoutValues drops the int values, string lengths and string values of
 // t, keeping its atoms and other facts (a tracked string stays tracked).
 func (t Type) WithoutValues() Type {
-	t.ints, t.lens = nil, nil
+	t.ints = nil
+	return t.WithoutStringValues()
+}
+
+// WithoutStringValues drops the string lengths and string values of t,
+// keeping its int values, atoms and other facts (a tracked string stays
+// tracked).
+func (t Type) WithoutStringValues() Type {
+	t.lens = nil
 	if t.strs != nil {
 		t.strs = trackedAny
 	}

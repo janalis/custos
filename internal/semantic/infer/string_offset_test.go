@@ -1,6 +1,7 @@
 package infer_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -14,7 +15,8 @@ import (
 
 // TestStringOffsetWrite: a write into a string offset changes the value
 // (and may lengthen it) without assigning the local, so the literal it held
-// is dropped while its type stays a string.
+// is dropped while its type stays a string. The values of other members
+// stand.
 func TestStringOffsetWrite(t *testing.T) {
 	cases := []struct {
 		name, body, want string // want: type, then its string values
@@ -24,6 +26,8 @@ func TestStringOffsetWrite(t *testing.T) {
 		{"in a branch", `$s = 'abc'; if (g()) { $s[1] = 'x'; } t('v', $s);`, `string`},
 		// A write into null makes an array, which this path does not model.
 		{"nullable", `$s = g() ? 'abc' : null; $s[0] = 'x'; t('v', $s);`, `null|string`},
+		// An int member keeps its values: only the string's are dropped.
+		{"int member", `$v = g() ? 2 : 'ab'; $v[0] = 'x'; t('v', $v);`, `int|string [{2 2}]`},
 		// The literal stands when no write reaches.
 		{"no write", `$s = 'abc'; t('v', $s);`, `string abc`},
 		{"write before the assignment", `$s = 'q'; $s[0] = 'x'; $s = 'abc'; t('v', $s);`, `string abc`},
@@ -43,6 +47,9 @@ func TestStringOffsetWrite(t *testing.T) {
 						got := ty.String()
 						if vals, ok := ty.StringValueList(); ok {
 							got += " " + strings.Join(vals, ",")
+						}
+						if rs, ok := ty.IntRanges(); ok {
+							got += fmt.Sprint(" ", rs)
 						}
 						if got != c.want {
 							t.Errorf("got %q, want %q", got, c.want)

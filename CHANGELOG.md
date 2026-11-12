@@ -124,7 +124,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   it: through a reference, a `global` or `static` local, or a call that may
   take it by reference, such as one whose function, method or class is
   named at run time (`$fn($n)`, `$obj->$m($n)`, `new $cls($n)`), or a
-  write into a string offset (`$s[0] = 'x'`).
+  write into a string offset (`$s[0] = 'x'`), which keeps the values of
+  an integer the variable may hold instead.
 - The NestedPositiveIfStatements quick-fix writes `elseif` instead of
   `else if` in a file that uses `elseif` more often than `else if`.
 - `analyse` and `fix` are faster on projects with large classes in
