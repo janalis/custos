@@ -140,8 +140,9 @@ vendor file was skipped, every required `ext-*` is one the stubs describe
 read whole and every files entry was read. PSR-4 and PSR-0 prefixes whose
 directories lie outside the indexed paths or in a skipped directory are listed
 as blind (`World.Blind`, namespace prefixes), and so are, below a PSR-4
-directory, the namespaces of skipped directories and the class names of
-skipped files (`World.Names`, exact names). "Skipped" is recorded by the walks
+directory, the namespaces of skipped directories (`World.Blind`) and of
+skipped files (`World.BlindExact`), each with its sub-namespaces: a skipped
+file may declare anything there once loaded. "Skipped" is recorded by the walks
 themselves (`project.Skipped`: excluded, hidden, symlinked and vendor test
 directories, declaration-only and non-`.php` loadable files) and by the
 indexing (files too large or unreadable), so the world never re-derives

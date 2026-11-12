@@ -82,8 +82,9 @@ Reported:
   configuration, hidden, symlinked, a test directory of a package, or too
   large to analyze). Below a PSR-4 directory only the namespace of what was
   left out is concerned: the one a skipped directory maps, with its
-  sub-namespaces, or the one holding a skipped file, which may declare
-  more than the class it is named after, without its sub-namespaces. A global name whose leading word (up to its first
+  sub-namespaces, or the one holding a skipped file, with its
+  sub-namespaces too, since the file may declare anything there once
+  loaded. A global name whose leading word (up to its first
   underscore or its second capitalized word, an acronym counting as one
   word: `Sphinx` of `SphinxClient`, `PDO` of `PDOStatement`) starts no
   class-like PHP or a known extension declares (`Yac`, `SphinxClient`): it

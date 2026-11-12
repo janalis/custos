@@ -102,6 +102,12 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 		if !ok {
 			continue
 		}
+		// `$this` in a closure may be rebound: unless the code alone
+		// proves its value, no finding can follow (see below), so skip
+		// the override resolution it would cost.
+		if reboundThis(b.arg.Value) && ctx.Types().ProvenTypeOf(b.arg.Value).IsUnknown() {
+			continue
+		}
 		if given := ctx.TypeOf(b.arg.Value); !given.IsUnknown() {
 			if _, _, ok := check.rejected(nominal, params, given); ok {
 				rejected = append(rejected, b)
@@ -129,8 +135,8 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 			continue
 		}
 		m := ArgumentMismatch{Arg: b.arg, Callee: label, Param: params[0].Name, Expected: expected, Given: given}
-		if nominal, at := check.declaredType(params[0].Type, params[0].Default), check.at(targets[0]); !native && !types.AllRejected(nominal, given, at) {
-			m.Values = valuesDecide(check, params[0].DocType, params[0].DocValues, params[0].Default, nominal, given, at)
+		if declared, at := check.declaredType(params[0].Type, params[0].Default), check.at(targets[0]); !native && !types.AllRejected(declared, given, at) {
+			m.Values = valuesDecide(check, params[0].DocType, params[0].DocValues, params[0].Default, declared, given, at)
 		}
 		// Proven: the native types also reject what the code alone shows.
 		if native {

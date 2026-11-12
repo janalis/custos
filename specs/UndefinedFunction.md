@@ -60,7 +60,7 @@ installed.
   by the configuration, hidden, symlinked, a test directory of a package,
   or too large to analyze). Below a PSR-4 directory only the namespace of
   what was left out is concerned: the one a skipped directory maps, with
-  its sub-namespaces, or the one holding a skipped file, without them.
+  its sub-namespaces, or the one holding a skipped file, with them too.
 - E4. A global name whose leading word, up to its first underscore, starts
   no function PHP or a known extension declares (`newext_open()`): it may
   belong to an extension the stubs lack. A global name without an

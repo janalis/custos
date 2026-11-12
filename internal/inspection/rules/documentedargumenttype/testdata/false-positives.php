@@ -115,3 +115,18 @@ function sorting(string $any, bool $flip)
     sortBy($any);
     sortBy($flip ? 'asc' : 'up');
 }
+
+// The code alone types the argument (strlen() returns an int), but it reads
+// $this in a closure, which may be bound to another object: what PHPDoc
+// says of it is not taken.
+/** @param array $parts */
+function joinParts($parts) {}
+final class Labeler
+{
+    public string $name = 'x';
+
+    public function later()
+    {
+        return function () { joinParts(strlen($this->name)); };
+    }
+}

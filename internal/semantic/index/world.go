@@ -1,7 +1,6 @@
 package index
 
 import (
-	"slices"
 	"strings"
 )
 
@@ -23,9 +22,10 @@ type World struct {
 	// the project autoloads from directories the index does not wholly
 	// hold.
 	Blind []string
-	// BlindExact lists namespaces (lower case, ending in a backslash)
-	// whose own members, not those of their sub-namespaces, a file the
-	// index lacks may declare.
+	// BlindExact lists namespaces (lower case, ending in a backslash) of
+	// files the index lacks. Such a file may declare anything once loaded,
+	// in its namespace or below it, so Unseen hides those as well: silence
+	// over a finding the index cannot support.
 	BlindExact []string
 }
 
@@ -49,7 +49,7 @@ func (ix *Index) World() World {
 
 // Unseen reports whether the class-like or function fqn lies in a namespace
 // the project autoloads from a directory the index does not wholly hold:
-// below a prefix of Blind, or directly in a namespace of BlindExact.
+// below a prefix of Blind or of BlindExact.
 func (w World) Unseen(fqn string) bool {
 	k := strings.ToLower(strings.TrimPrefix(fqn, `\`))
 	for _, prefix := range w.Blind {
@@ -57,7 +57,12 @@ func (w World) Unseen(fqn string) bool {
 			return true
 		}
 	}
-	return slices.Contains(w.BlindExact, k[:strings.LastIndexByte(k, '\\')+1])
+	for _, namespace := range w.BlindExact {
+		if strings.HasPrefix(k, namespace) {
+			return true
+		}
+	}
+	return false
 }
 
 type dynamicAliasesKey struct{}
