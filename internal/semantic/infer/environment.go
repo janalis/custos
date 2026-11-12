@@ -73,6 +73,9 @@ type Env struct {
 	// write of an unknown value to it keeps that type (see
 	// afterPropertyWrite).
 	seedUse syntax.Expr
+	// correlating is set while correlated asks what guards prove of
+	// another local, which then follows no correlation of its own.
+	correlating bool
 
 	// generics caches genBindings.
 	generics map[string]map[string]tplBindings

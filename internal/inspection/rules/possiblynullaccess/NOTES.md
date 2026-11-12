@@ -30,8 +30,10 @@ the three rules together (`"with"` sidecar key).
 
 - A chain after a nullsafe access (`$a?->b()->c()`) is never reported,
   even when `b()` itself may return null.
-- Conditions correlating two values (`if ($a === null && $b === null)
-  return; if ($b === null) $a->m();`) are not followed.
+- Correlated conditions are followed only as `infer` does it
+  (`correlated` in `narrow.go`): a two-operand `&&` early exit whose
+  other operand tests one local alone, proven true by the guards at the
+  use. Exits on three operands, or on tests reading two values, are not.
 - Every access on the same nullable value is reported, even after one
   that would already have thrown.
 - Builtin methods declared nullable that only return null in states the

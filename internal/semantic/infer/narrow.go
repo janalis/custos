@@ -561,6 +561,9 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	// too, which may not run) is a definition reaching use: callers skip the
 	// conditions written before it (see narrowExprAfter's after).
 	r := e.applyCond(t, c, key, truthy)
+	if !truthy && !isPropKey(key) && !isDimKey(key) {
+		r = e.correlated(r, use, scope, t, c, key, from)
+	}
 	// Different atoms render differently: only equal atoms need the
 	// rendered facts compared.
 	if (!slices.Equal(r.Atoms(), t.Atoms()) || r.ShapeString() != t.ShapeString()) && e.factBroken(scope, key, from, use) {
@@ -578,6 +581,78 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 		}
 	}
 	return r
+}
+
+// correlated refines r, what condition c found false (ending at from)
+// proves of local key at use, when c is the conjunction of two tests and
+// one of them tests another local on its own (see soleTest) that the
+// conditions guarding use prove true: then the other test was false.
+// `if ($a === null && $b === null) { return; }` followed by
+// `if ($b === null) { … $a … }` leaves $a non-null there. The other local
+// must not have changed between c and use. Only two operands; inside, no
+// further correlation is followed.
+func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, from uint32) types.Type {
+	b, ok := syntax.UnwrapParens(c).(*syntax.Binary)
+	if !ok || (b.Op.Kind != syntax.TBooleanAnd && b.Op.Kind != syntax.TAnd) || e.correlating {
+		return r
+	}
+	for _, p := range [2][2]syntax.Expr{{b.Left, b.Right}, {b.Right, b.Left}} {
+		other := soleTest(p[0])
+		if other == nil || other.Name == key || !e.provenTrueAt(p[0], other, use, scope, from) {
+			continue
+		}
+		return e.applyCond(t, p[1], key, false)
+	}
+	return r
+}
+
+// provenTrueAt reports whether test x of local v, evaluated at position
+// from, was true: v has not changed since, and the conditions guarding use
+// leave its value there (typed as read by x) nothing for which x is false.
+func (e *Env) provenTrueAt(x syntax.Expr, v *syntax.Variable, use syntax.Expr, scope syntax.Node, from uint32) bool {
+	if e.brokenBy(scope, from, use, e.mutations(scope, v.Name)) || e.factBroken(scope, v.Name, from, use) {
+		return false
+	}
+	e.correlating = true
+	at := e.NarrowedVarAt(v.Name, use, e.TypeOf(v))
+	e.correlating = false
+	return e.applyCond(at, x, v.Name, false).IsBottom()
+}
+
+// soleTest returns the local that condition c tests on its own: compares
+// with null (strictly or loosely), tests for truthiness, or negates such
+// a test (nil otherwise). Its outcome depends on that local's value only.
+func soleTest(c syntax.Expr) *syntax.Variable {
+	switch x := syntax.UnwrapParens(c).(type) {
+	case *syntax.Variable:
+		return plainLocal(x)
+	case *syntax.Unary:
+		if x.Op.Kind == syntax.TExclaim {
+			return soleTest(x.Expr)
+		}
+	case *syntax.Binary:
+		switch x.Op.Kind {
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+			l, r := syntax.UnwrapParens(x.Left), syntax.UnwrapParens(x.Right)
+			if syntax.IsNullConst(l) {
+				l = r
+			} else if !syntax.IsNullConst(r) {
+				return nil
+			}
+			return plainLocal(l)
+		}
+	}
+	return nil
+}
+
+// plainLocal returns x when it is a local named statically other than
+// $this (nil otherwise).
+func plainLocal(x syntax.Expr) *syntax.Variable {
+	v, ok := x.(*syntax.Variable)
+	if !ok || v.NameExpr != nil || v.Name == "" || v.Name == "this" {
+		return nil
+	}
+	return v
 }
 
 // factBroken reports whether what a condition ending at from established

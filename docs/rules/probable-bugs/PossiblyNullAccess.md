@@ -48,7 +48,13 @@ Reported:
   by the conditions guarding the access: `!== null`, `isset()`,
   `instanceof`, truthiness, early exits (`return`, `throw`, `continue`,
   `break`), assignments, and calls whose argument PHP's own functions
-  check. A local that may change without an assignment showing it (bound
+  check. An early exit taken when two tests both hold (`if ($a === null
+  && $b === null) { return; }`) proves the first test false wherever a
+  later condition proves the second one true, provided the second tests a
+  single local on its own (a comparison with null, its truthiness, or the
+  negation of either) that has not changed since: past that exit,
+  `if ($b === null) { $a->total(); }` is silent. Exits on three tests
+  or more are not combined that way. A local that may change without an assignment showing it (bound
   by reference, a `global` or `static` local, passed where it may be
   written by reference) is unknown.
 - That type includes null.

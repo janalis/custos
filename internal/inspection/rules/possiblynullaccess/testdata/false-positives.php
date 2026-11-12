@@ -56,6 +56,19 @@ class Cart
         echo $rows['a'];
     }
 
+    // Both cannot be null: once one is, the other is not.
+    public function either(?Item $a, ?Item $b): void
+    {
+        if ($a === null && $b === null) {
+            return;
+        }
+        if ($b === null) {
+            $a->price();
+            return;
+        }
+        $b->price();
+    }
+
     // Assertions: assert() and a PHPDoc assertion method.
     public function asserted(?Item $a, ?Item $b): void
     {
