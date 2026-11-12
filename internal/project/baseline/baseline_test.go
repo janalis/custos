@@ -201,3 +201,56 @@ func BenchmarkFilterFindings(b *testing.B) {
 		})
 	}
 }
+
+// TestMovedFindings: a finding that moved between rules related through
+// the catalogue's suppressedBy (NullPointerException leaves possible nulls
+// to PossiblyNullAccess and PossiblyNullArgument) stays covered by the
+// entry of the rule it moved from at the same location, whatever the
+// message, in both directions. Exact entries are consumed first, unrelated
+// rules and other lines never match, and each entry covers one finding.
+func TestMovedFindings(t *testing.T) {
+	dir := t.TempDir()
+	php := filepath.Join(dir, "a.php")
+	if err := os.WriteFile(php, []byte("<?php\n$a->b();\nf($c);\n$d->e();\n$g->h();\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bl := filepath.Join(dir, "bl.json")
+	if err := os.WriteFile(bl, []byte(`{"version": 1, "entries": [
+		{"path": "a.php", "rule": "NullPointerException", "message": "old", "line": "$a->b();", "count": 1},
+		{"path": "a.php", "rule": "NullPointerException", "message": "old", "line": "f($c);", "count": 1},
+		{"path": "a.php", "rule": "PossiblyNullAccess", "message": "new", "line": "$d->e();", "count": 1},
+		{"path": "a.php", "rule": "NullPointerException", "message": "old", "line": "$g->h();", "count": 1}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := Load(bl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := []diagnostic.Item{
+		{Path: php, Line: 2, Rule: "PossiblyNullAccess", Message: "new"},   // moved from NullPointerException
+		{Path: php, Line: 2, Rule: "PossiblyNullAccess", Message: "new"},   // second one: the entry is used up
+		{Path: php, Line: 3, Rule: "PossiblyNullArgument", Message: "new"}, // moved from NullPointerException
+		{Path: php, Line: 4, Rule: "NullPointerException", Message: "old"}, // moved back
+		{Path: php, Line: 3, Rule: "NestedNotOperators", Message: "old"},   // unrelated rule
+		{Path: php, Line: 5, Rule: "PossiblyNullAccess", Message: "new"},   // the exact finding comes after
+		{Path: php, Line: 5, Rule: "NullPointerException", Message: "old"}, // exact match wins the entry
+	}
+	rest, n := b.Filter(items)
+	if n != 4 || len(rest) != 3 || rest[0].Line != 2 || rest[1].Rule != "NestedNotOperators" || rest[2].Line != 5 || rest[2].Rule != "PossiblyNullAccess" {
+		t.Fatalf("suppressed=%d rest=%+v", n, rest)
+	}
+
+	src, _ := os.ReadFile(php)
+	at := func(rule string, off uint32) diagnostic.Finding {
+		return diagnostic.Finding{Rule: rule, Message: "new", Span: syntax.Span{Start: off, End: off + 1}}
+	}
+	fs := []diagnostic.Finding{
+		at("PossiblyNullAccess", 6), at("PossiblyNullAccess", 6), at("PossiblyNullArgument", 15),
+		at("NullPointerException", 22), at("PossiblyNullAccess", 31),
+		{Rule: "NullPointerException", Message: "old", Span: syntax.Span{Start: 31, End: 32}},
+	}
+	got := b.FilterFindings(php, src, fs)
+	if len(got) != 2 || got[0].Span.Start != 6 || got[1].Span.Start != 31 || got[1].Rule != "PossiblyNullAccess" {
+		t.Fatalf("FilterFindings: %+v", got)
+	}
+}

@@ -2,7 +2,8 @@
 // reported. Entries are keyed by file path (relative to the baseline's
 // directory), rule, message and the trimmed text of the flagged line, so
 // they survive unrelated edits that move code around; a count per key
-// tolerates duplicates.
+// tolerates duplicates. A finding that moved to a related rule (see
+// related) stays covered by the entry of the rule it moved from.
 package baseline
 
 import (
@@ -13,8 +14,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"custos/internal/diagnostic"
+	"custos/internal/inspection/meta"
 	"custos/internal/php/syntax"
 	"custos/internal/platform/safeio"
 )
@@ -36,10 +39,14 @@ type File struct {
 
 type key struct{ path, rule, msg, line string }
 
+// loc is a key without its message: where a finding is and which rule.
+type loc struct{ path, rule, line string }
+
 // Baseline is a loaded baseline.
 type Baseline struct {
 	dir    string
 	counts map[key]int
+	byLoc  map[loc][]key   // entries by location, for moved findings
 	paths  map[string]bool // paths with at least one entry
 }
 
@@ -58,9 +65,14 @@ func Load(path string) (*Baseline, error) {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	abs, _ := filepath.Abs(path)
-	bl := &Baseline{dir: filepath.Dir(abs), counts: map[key]int{}, paths: map[string]bool{}}
+	bl := &Baseline{dir: filepath.Dir(abs), counts: map[key]int{}, byLoc: map[loc][]key{}, paths: map[string]bool{}}
 	for _, e := range f.Entries {
-		bl.counts[key{e.Path, e.Rule, e.Message, e.Line}] += max(e.Count, 1)
+		k := key{e.Path, e.Rule, e.Message, e.Line}
+		if bl.counts[k] == 0 {
+			l := loc{e.Path, e.Rule, e.Line}
+			bl.byLoc[l] = append(bl.byLoc[l], k)
+		}
+		bl.counts[k] += max(e.Count, 1)
 		bl.paths[e.Path] = true
 	}
 	return bl, nil
@@ -68,6 +80,74 @@ func Load(path string) (*Baseline, error) {
 
 // Empty returns a baseline that suppresses nothing.
 func Empty() *Baseline { return &Baseline{counts: map[key]int{}} }
+
+// related maps a rule to the rules its findings may have moved from or
+// to: those it names in suppressedBy and those naming it there. A rule
+// that leaves a finding to another (NullPointerException to
+// PossiblyNullAccess, say) reported it before that rule existed or ran, so
+// an entry recorded for one covers the other at the same location.
+var related = sync.OnceValue(func() map[string][]string {
+	all, _ := meta.All() // embedded catalogues: decoding is tested in meta
+	out := map[string][]string{}
+	for _, r := range all {
+		for _, id := range r.SuppressedBy {
+			out[r.ID] = append(out[r.ID], id)
+			out[id] = append(out[id], r.ID)
+		}
+	}
+	return out
+})
+
+// matcher consumes baseline entries for one filtering pass, reading the
+// loaded counts lazily so that a pass over few findings copies nothing.
+type matcher struct {
+	b    *Baseline
+	left map[key]int
+}
+
+func (m *matcher) take(k key) bool {
+	n, seen := m.left[k]
+	if !seen {
+		n = m.b.counts[k]
+	}
+	if n == 0 {
+		return false
+	}
+	m.left[k] = n - 1
+	return true
+}
+
+// takeMoved consumes an entry of a rule related to k's at k's location,
+// whatever its message (rules word their findings differently).
+func (m *matcher) takeMoved(k key) bool {
+	for _, other := range related()[k.rule] {
+		for _, e := range m.b.byLoc[loc{k.path, other, k.line}] {
+			if m.take(e) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// filter returns which of n findings, keyed by keyOf, the baseline
+// covers. Exact entries are consumed first over all findings, so that a
+// moved finding never takes the entry of an unmoved one.
+func (b *Baseline) filter(n int, keyOf func(int) key) []bool {
+	m := &matcher{b: b, left: map[key]int{}}
+	covered := make([]bool, n)
+	keys := make([]key, n)
+	for i := range n {
+		keys[i] = keyOf(i)
+		covered[i] = m.take(keys[i])
+	}
+	for i := range n {
+		if !covered[i] {
+			covered[i] = m.takeMoved(keys[i])
+		}
+	}
+	return covered
+}
 
 // lineText returns the trimmed text of a 1-based line of the file at path.
 func lineText(cache map[string][]string, path string, line int) string {
@@ -98,17 +178,15 @@ func rel(dir, path string) string {
 // Filter removes items covered by the baseline and returns the rest plus
 // the number of suppressed items.
 func (b *Baseline) Filter(items []diagnostic.Item) ([]diagnostic.Item, int) {
-	remaining := make(map[key]int, len(b.counts))
-	for k, v := range b.counts {
-		remaining[k] = v
-	}
 	cache := map[string][]string{}
+	covered := b.filter(len(items), func(i int) key {
+		it := items[i]
+		return key{rel(b.dir, it.Path), it.Rule, it.Message, lineText(cache, it.Path, it.Line)}
+	})
 	var out []diagnostic.Item
 	suppressed := 0
-	for _, it := range items {
-		k := key{rel(b.dir, it.Path), it.Rule, it.Message, lineText(cache, it.Path, it.Line)}
-		if remaining[k] > 0 {
-			remaining[k]--
+	for i, it := range items {
+		if covered[i] {
 			suppressed++
 			continue
 		}
@@ -128,24 +206,19 @@ func (b *Baseline) FilterFindings(path string, src []byte, findings []diagnostic
 	}
 	li := syntax.NewLineIndex(src)
 	lines := strings.Split(string(bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n"))), "\n")
-	remaining := map[key]int{}
-	out := findings[:0:0]
-	for _, f := range findings {
+	covered := b.filter(len(findings), func(i int) key {
+		f := findings[i]
 		text := ""
 		if l, _ := li.Position(f.Span.Start); l < len(lines) {
 			text = strings.TrimSpace(lines[l])
 		}
-		k := key{p, f.Rule, f.Message, text}
-		left, seen := remaining[k]
-		if !seen {
-			left = b.counts[k]
+		return key{p, f.Rule, f.Message, text}
+	})
+	out := findings[:0:0]
+	for i, f := range findings {
+		if !covered[i] {
+			out = append(out, f)
 		}
-		if left > 0 {
-			remaining[k] = left - 1
-			continue
-		}
-		remaining[k] = 0
-		out = append(out, f)
 	}
 	return out
 }

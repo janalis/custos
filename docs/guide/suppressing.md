@@ -82,6 +82,9 @@ Baseline entries match on file, rule, message and the text of the flagged
 line, not on line numbers, so they survive code moving around. Each entry
 counts its occurrences: a second identical finding on an identical line is
 new. Regenerate the baseline after fixing old findings to keep it small.
+A possible null that NullPointerException recorded and that
+PossiblyNullAccess or PossiblyNullArgument now reports on the same line
+(or the reverse) stays covered, whatever the message.
 
 The file is JSON, sorted so that it diffs well:
 

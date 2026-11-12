@@ -51,7 +51,9 @@ same data, so this only matters for other deferring rules). It defers only where
 the shared query returns a finding, the same one the rule reports, so a
 `@noinspection PossiblyNullAccess` or a baseline entry silences the
 location; the other way round, `suppressedBy` in `native-rules.json` makes
-NullPointerException's suppressions apply to both rules. The fixture `nullpointerexception/testdata/possibly-null-rules.php` runs
+NullPointerException's suppressions apply to both rules, and the baseline
+(`internal/project/baseline`) lets an entry of either side of a
+`suppressedBy` link cover a finding of the other at the same location. The fixture `nullpointerexception/testdata/possibly-null-rules.php` runs
 the three rules together (`"with"` sidecar key).
 
 ## Known gaps

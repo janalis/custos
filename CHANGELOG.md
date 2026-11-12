@@ -37,7 +37,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   before the next iteration, or the function holds a `goto`.
   NullPointerException leaves to them what they report when they run in
   the same analysis (not on a file where they failed), and its
-  suppression comments silence them too.
+  suppression comments and baseline entries cover them too.
 - UndefinedMethod and UndefinedProperty (errors, off by default) report a
   method call, a property read or a static property access that the
   receiver's class does not declare, when the code alone (not PHPDoc)
