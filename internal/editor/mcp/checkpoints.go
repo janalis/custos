@@ -349,17 +349,18 @@ func collect(cp *checkpoint, snap *project.Snapshot) error {
 		}
 		lines := strings.Split(string(r.Src), "\n")
 		// The snapshot's baseline matches captured bytes rather than
-		// reopening untrusted paths.
+		// reopening untrusted paths, and covers every item as the CLI's
+		// filter does, read and parse errors included.
 		var covered []bool
-		if snap.Recorded != nil {
-			covered = snap.Recorded.Covered(r.Path, r.Src, r.Findings)
+		if snap.Recorded != nil && len(items) > 0 {
+			covered = snap.Recorded.Covered(r.Path, r.Src, itemFindings(r))
 		}
 		for i, it := range items {
+			if covered != nil && covered[i] {
+				continue
+			}
 			ev := evidence{Item: it}
 			if i >= len(r.Errors) && r.Err == nil {
-				if covered != nil && covered[i-len(r.Errors)] {
-					continue
-				}
 				fd := r.Findings[i-len(r.Errors)]
 				ev.Start = fd.Span.Start
 				ev.End = fd.Span.End
@@ -386,6 +387,20 @@ func collect(cp *checkpoint, snap *project.Snapshot) error {
 		}
 	}
 	return nil
+}
+
+// itemFindings returns the items diagnostic.Items lists for r, in its
+// order, as findings the baseline can match: the read error, else the
+// parse errors and the findings.
+func itemFindings(r diagnostic.FileResult) []diagnostic.Finding {
+	if r.Err != nil {
+		return []diagnostic.Finding{{Rule: "io", Message: r.Err.Error()}}
+	}
+	out := make([]diagnostic.Finding, 0, len(r.Errors)+len(r.Findings))
+	for _, e := range r.Errors {
+		out = append(out, diagnostic.Finding{Rule: "syntax", Message: e.Msg, Span: e.Span})
+	}
+	return append(out, r.Findings...)
 }
 
 // expire marks a checkpoint stale when inputs changed and names the first ones.
