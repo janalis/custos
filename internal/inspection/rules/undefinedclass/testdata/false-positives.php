@@ -54,6 +54,7 @@ if (extension_loaded('acme')) {
 }
 if (PHP_VERSION_ID >= 90000) {
     $future = new \FutureClass();
+    $later = new \Php9\Later();
 }
 
 // Declared conditionally.
