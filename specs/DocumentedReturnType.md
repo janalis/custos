@@ -29,8 +29,9 @@ Mismatches the code alone proves are InvalidReturnType's.
 - D4. Integer ranges, string lengths and literal values of the `@return`
   type count only against a value whose possible values are all known
   (an integer literal such as `-1`, the count of a literal array) or, for
-  a string, whose byte lengths are (a string literal such as `''`);
-  otherwise `@return positive-int` accepts any integer.
+  a string, whose values or byte lengths are (a string literal such as
+  `''` or `'gone'`); otherwise `@return positive-int` accepts any integer
+  and `@return 'open'|'closed'` any string.
 - D5. The weak-mode conversions and the exceptions of InvalidReturnType
   apply alike.
 

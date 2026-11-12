@@ -17,6 +17,8 @@ func TestValueName(t *testing.T) {
 		{types.Union(types.IntValue(-1), types.IntValue(3)), "-1|3"},
 		{types.Ints(types.IntRange{Lo: 1, Hi: 5}), "int"},
 		{types.StringLength(0), "''"},
+		{types.Union(types.StringLiteral("up"), types.StringLiteral("down")), "'down'|'up'"},
+		{types.StringLengths(types.IntRange{Lo: 0, Hi: 0}, types.IntRange{Lo: 2, Hi: 2}), "string"},
 		{types.StringLength(2), "string"},
 		{types.String, "string"},
 		{types.Union(types.IntValue(0), types.Null, types.Of(`\Shop\Order`)), `Shop\Order|0|null`},

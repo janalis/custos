@@ -103,3 +103,15 @@ function refill() { global $stock; $stock = 5; }
 function viaClosure() { $c = 0; $fn = static function (&$x) { $x = 9; }; $fn($c); restock($c); }
 function viaInclude() { $c = 0; include 'stock.php'; restock($c); }
 function viaAppend() { $s = ''; $p = &$s; $p .= 'x'; claim($s); }
+
+// Literal string values: a listed value, a string of unknown value, and a
+// value that may be listed.
+/** @param 'asc'|'desc' $direction */
+function sortBy(string $direction) {}
+function sorting(string $any, bool $flip)
+{
+    sortBy('asc');
+    sortBy("desc");
+    sortBy($any);
+    sortBy($flip ? 'asc' : 'up');
+}

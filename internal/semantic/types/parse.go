@@ -161,6 +161,9 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	if rs := unionLens(pts); rs != nil {
 		t = t.withLens(rs)
 	}
+	if t.Has("string") {
+		t.strs = unionStrs(pts)
+	}
 	return t.withGen(unionGen(t, pts)).withInter(unionInter(pts)).withUnionElements(pts)
 }
 
@@ -208,6 +211,9 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	if s[0] == '\'' || s[0] == '"' {
 		if end := quotedEnd(s, 0); end != len(s)-1 || end < 0 {
 			return Unknown
+		}
+		if v := s[1 : len(s)-1]; !strings.ContainsAny(v, "\\$") {
+			return StringLiteral(v)
 		}
 		return String
 	}

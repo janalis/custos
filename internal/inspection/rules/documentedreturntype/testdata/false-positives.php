@@ -161,3 +161,12 @@ class Ticket
         return fn (): int => $this->label;
     }
 }
+
+/** @return 'open'|'closed' */
+function status(bool $done, string $any)
+{
+    if ($done) {
+        return 'closed';
+    }
+    return $any;
+}

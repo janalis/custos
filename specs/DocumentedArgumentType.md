@@ -28,11 +28,11 @@ code alone proves are InvalidArgumentType's.
   type nullable.
 - D4. The weak-mode conversions and the exceptions of InvalidArgumentType
   apply alike.
-- D5. Integer ranges and non-empty strings of a `@param` type count only
-  against an argument whose possible values are all known (an integer
-  literal such as `0`) or, for a string, whose byte lengths are (a string
-  literal such as `''`); otherwise `@param positive-int` accepts any
-  integer.
+- D5. Integer ranges, non-empty strings and literal string values
+  (`'asc'|'desc'`) of a `@param` type count only against an argument whose
+  possible values are all known (an integer or string literal such as `0`
+  or `'up'`); otherwise `@param positive-int` accepts any integer and
+  `@param 'asc'|'desc'` any string.
 
 ## Exceptions (no report)
 
@@ -42,8 +42,9 @@ code alone proves are InvalidArgumentType's.
   own functions, a `@param` type naming templates, and a `@param` type the
   declared type rejects (a stale tag).
 - E3. The other value details of a `@param` type: string lengths other
-  than non-empty and literal string values, and every value detail against
-  an argument whose values are not all known (see D5).
+  than non-empty, literal strings with a backslash, a quote or a `$`, and
+  every value detail against an argument whose values are not all known
+  (see D5).
 - E4. Every exception of InvalidArgumentType.
 - E5. Values read from a variadic parameter whose `@param` type is an array
   or iterable (`@param string[] ...$names`): the tag may type the collected

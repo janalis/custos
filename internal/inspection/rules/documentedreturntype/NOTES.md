@@ -11,8 +11,9 @@ integer ranges, string lengths and literal values. They count only when
 every int member of the value lists single values and every string member
 lists its values or single byte lengths (`semanticquery.exactValues`);
 otherwise the tag is widened to its plain atoms (`Type.DocString`, parsed
-again). Inference gives an integer literal its value and a string literal
-its length (never its value), and `count()` of a literal array its size.
+again). Inference gives an integer literal its value, a string literal its
+length and, up to 64 bytes, its value, and `count()` of a literal array its
+size.
 
 ## Corpus triage
 

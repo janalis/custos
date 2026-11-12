@@ -83,8 +83,8 @@ func (e *Env) unaryType(n *syntax.Unary) types.Type {
 }
 
 // literalType types a literal with its value facts: an integer holds its
-// value, a string its byte length (a float, or an integer or string that
-// does not decode, gets the plain type).
+// value, a string its value and byte length (a float, or an integer or
+// string that does not decode, gets the plain type).
 func (e *Env) literalType(n *syntax.Literal) types.Type {
 	switch n.LitKind {
 	case syntax.LitInt:
@@ -95,24 +95,23 @@ func (e *Env) literalType(n *syntax.Literal) types.Type {
 	case syntax.LitFloat:
 		return types.Float
 	}
-	if l, ok := e.literalLength(n); ok {
-		return types.StringLength(l)
+	if v, ok := e.literalValue(n); ok {
+		return types.StringLiteral(v)
 	}
 	return types.String
 }
 
-// literalLength is the byte length of string literal n's value: a
-// single-quoted string without escapes is read directly, others decoded.
-func (e *Env) literalLength(n *syntax.Literal) (int64, bool) {
+// literalValue is string literal n's value: a single-quoted string without
+// escapes is read directly, others decoded.
+func (e *Env) literalValue(n *syntax.Literal) (string, bool) {
 	raw := n.Raw
 	if raw != "" && (raw[0] == 'b' || raw[0] == 'B') {
 		raw = raw[1:]
 	}
 	if len(raw) >= 2 && raw[0] == '\'' && raw[len(raw)-1] == '\'' && strings.IndexByte(raw, '\\') < 0 {
-		return int64(len(raw) - 2), true
+		return raw[1 : len(raw)-1], true
 	}
-	v, ok := syntax.LiteralStringValueForVersion(n, e.PHP)
-	return int64(len(v)), ok
+	return syntax.LiteralStringValueForVersion(n, e.PHP)
 }
 
 // negatedInts is the int type -x holds for x of int type t: its values

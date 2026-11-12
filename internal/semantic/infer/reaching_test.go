@@ -269,13 +269,13 @@ function f(string $s, $c) {
     $y2 = 1;
     if ($c || ($y2 = 'b')) { t('conditional', $y2); }
     $n = 1;
-    if (!($c || ($n = 'x'))) { t('notOr', $n); }
+    if (!($c || ($n = '0'))) { t('notOr', $n); }
     $o = 1;
-    $r = ($c || ($o = 'x')) || t('orFalse', $o);
+    $r = ($c || ($o = '0')) || t('orFalse', $o);
     $z = 1;
     if ($c ?: ($z = 'c')) { t('ternary', $z); }
     $w = 1;
-    $v = ($w = 'd') || t('or', $w);
+    $v = ($w = '0') || t('or', $w);
     $a2 = 1;
     if (($a2 = 'e') || $c) { t('orLeft', $a2); }
     $q2 = 1;

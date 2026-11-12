@@ -79,12 +79,13 @@ versions follow [Semantic Versioning](https://semver.org/).
   DocumentedPropertyAssignment compare integer and string literals with
   integer ranges and non-empty strings: `return -1;` under
   `@return positive-int`, `f(0)` against `@param positive-int` and
-  `$this->label = ''` against `@var non-empty-string` are reported, and the
+  `$this->label = ''` against `@var non-empty-string` are reported, as is
+  `f('up')` against `@param 'asc'|'desc'` (literal string values), and the
   message names the value (`not 0.`). Inference gives an integer literal its
-  value and a string literal its byte length, which a variable keeps only
-  when no write its assignments do not show may have replaced it: through a
-  reference, a `global` or `static` local, or a call that may take it by
-  reference.
+  value and a string literal its byte length and value, which a variable
+  keeps only when no write its assignments do not show may have replaced
+  it: through a reference, a `global` or `static` local, or a call that may
+  take it by reference.
 - The NestedPositiveIfStatements quick-fix writes `elseif` instead of
   `else if` in a file that uses `elseif` more often than `else if`.
 - `analyse` and `fix` are faster on projects with large classes in

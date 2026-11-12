@@ -8,7 +8,8 @@ that are not proven.
 
 The index keeps `@var` types through `Type.DocString`, which drops integer
 ranges, string lengths and literal string values; `Property.DocValues`
-keeps the integer ranges and a non-empty string, judged only against exact
+keeps the integer ranges, a non-empty string and literal string values,
+judged only against exact
 values as for DocumentedArgumentType (see its NOTES; magic `@property`
 tags have none). `DocType` turns a template nested in a generic type into
 `mixed` (`array<int, T>` reads `array<int,mixed>`), which still rejects a

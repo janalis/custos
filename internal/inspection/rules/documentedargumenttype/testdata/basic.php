@@ -36,6 +36,16 @@ dial(<warning descr="Pass int<1, 9>|null to $digit of Shop\dial(), not 10.">10</
 function redeem(string $code) {}
 redeem(<warning descr="Pass non-empty-string to $code of Shop\redeem(), not ''.">''</warning>);
 
+// Literal string values count against exact values.
+/** @param 'asc'|'desc' $direction */
+function sortBy(string $direction) {}
+sortBy(<warning descr="Pass 'asc'|'desc' to $direction of Shop\sortBy(), not 'up'.">'up'</warning>);
+function descending()
+{
+    $direction = 'down';
+    sortBy(<warning descr="Pass 'asc'|'desc' to $direction of Shop\sortBy(), not 'down'.">$direction</warning>);
+}
+
 // The native type rejects a value only PHPDoc describes.
 /** @param string $amount */
 function bill($amount)

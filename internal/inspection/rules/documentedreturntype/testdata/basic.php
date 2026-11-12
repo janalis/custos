@@ -87,3 +87,9 @@ function label()
     return <warning descr="Return non-empty-string from Shop\label(), not ''.">''</warning>;
 }
 
+
+/** @return 'open'|'closed' */
+function state()
+{
+    return <warning descr="Return 'open'|'closed' from Shop\state(), not 'gone'.">'gone'</warning>;
+}

@@ -21,6 +21,8 @@ final class Cart
     public $page = 1;
     /** @var non-empty-string */
     public string $label = 'cart';
+    /** @var 'eur'|'usd' */
+    public string $unit = 'eur';
 
     /** @param string $amount */
     public function fill($amount, Coupon $coupon)
@@ -33,6 +35,8 @@ final class Cart
         // Ranges and lengths count against exact values.
         $this->page = <warning descr="Assign positive-int to Shop\Cart::$page, not 0.">0</warning>;
         $this->label = <warning descr="Assign non-empty-string to Shop\Cart::$label, not ''.">''</warning>;
+        $this->unit = <warning descr="Assign 'eur'|'usd' to Shop\Cart::$unit, not 'gbp'.">'gbp'</warning>;
+        $this->unit = 'usd';
         // The native type rejects a value only PHPDoc describes.
         $this->total = <warning descr="Assign int to Shop\Cart::$total, not string.">$amount</warning>;
     }

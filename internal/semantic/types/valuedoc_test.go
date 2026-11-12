@@ -19,7 +19,11 @@ func TestValueDocString(t *testing.T) {
 		{"numeric-string|array{a: int}", "non-empty-string|array{a:int}"},
 		{"int", ""},
 		{"string|null", ""},
-		{"'a'|'b'", ""},
+		{"'a'|'b'", "'a'|'b'"},
+		{"'a'|null", "'a'|null"},
+		{`"x"|positive-int`, "positive-int|'x'"},
+		{"'a'|string", ""},
+		{`'it\'s'|'b'`, ""},
 		{"Foo", ""},
 	} {
 		typ := FromDoc(tc.doc, nil)

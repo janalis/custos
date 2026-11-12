@@ -404,7 +404,13 @@ func valueName(t types.Type) string {
 				names[i] = strings.Join(vs, "|")
 			}
 		case "string":
-			if rs, ok := t.StringLengthRanges(); ok && len(rs) == 1 && rs[0] == (types.IntRange{}) {
+			if values, ok := t.StringValueList(); ok {
+				quoted := make([]string, len(values))
+				for j, v := range values {
+					quoted[j] = "'" + v + "'"
+				}
+				names[i] = strings.Join(quoted, "|")
+			} else if rs, ok := t.StringLengthRanges(); ok && len(rs) == 1 && rs[0] == (types.IntRange{}) {
 				names[i] = "''"
 			}
 		}
