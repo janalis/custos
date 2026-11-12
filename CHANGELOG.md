@@ -96,6 +96,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The language server no longer replaces the declarations of an open
+  document's unsaved edits with the file on disk: file changes replayed
+  after a re-index skip open documents, and their buffers are indexed
+  again once the rebuild ends.
 - A condition on a property (`if ($this->buffer === null)`) no longer holds
   past a call that may run project code, which may write the property: rules
   using PHPDoc types no longer read a property refilled by `$this->send()`
