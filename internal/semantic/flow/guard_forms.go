@@ -2,6 +2,7 @@ package flow
 
 import (
 	"strconv"
+	"strings"
 
 	"custos/internal/php/syntax"
 )
@@ -163,4 +164,83 @@ func (e *Env) refineMethodCall(n *syntax.MethodCall, f *frame, truth bool) {
 			}
 		}
 	}
+}
+
+// stored returns the test a flag variable holds (`$ok = $u !== false`) when
+// its outcome still describes the frame: every variable the test read has the
+// producer it had then. A test that assigns, or reads a value of unknown
+// origin, is not followed, nor is a flag that merely copies another one.
+func (e *Env) stored(flag *syntax.Variable, f *frame) syntax.Expr {
+	test := syntax.UnwrapParens(f.vars.value(flag.Name).Expr)
+	switch test.(type) {
+	case *syntax.Binary, *syntax.Unary, *syntax.FuncCall, *syntax.Isset, *syntax.Empty, *syntax.Instanceof:
+	default:
+		return nil
+	}
+	r := e.scopes[syntax.EnclosingVariableScope(flag)]
+	current := true
+	syntax.Inspect(test, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Assign, *syntax.IncDec, *syntax.Closure, *syntax.ArrowFunction:
+			current = false
+		case *syntax.Variable:
+			then, now := r.values.at(x), f.vars.value(x.Name)
+			current = current && x.NameExpr == nil && now.Expr != nil && then.Expr == now.Expr && then.Invalidated == now.Invalidated
+		}
+		return current
+	})
+	if !current {
+		return nil
+	}
+	return test
+}
+
+// falsyConstant reports a constant PHP reads as false: null, false, 0,
+// 0.0, ” or '0' written as such.
+func falsyConstant(x syntax.Expr) bool {
+	switch c := syntax.UnwrapParens(x).(type) {
+	case *syntax.ConstFetch:
+		name := strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`))
+		return name == "null" || name == "false"
+	case *syntax.Literal:
+		switch c.Raw {
+		case "0", "0.0", "''", `""`, "'0'", `"0"`:
+			return true
+		}
+	}
+	return false
+}
+
+// nonEmptyText returns the argument of strlen() or mb_strlen() when
+// comparison n, holding as truth says, bounds its length to at least one
+// (`strlen($s) > 0`, `48 > strlen($s)` that does not hold): false reads as
+// the empty text there, of length zero.
+func (e *Env) nonEmptyText(n *syntax.Binary, truth bool) syntax.Expr {
+	call, ok := syntax.UnwrapParens(n.Left).(*syntax.FuncCall)
+	bound := n.Right
+	op := n.Op.Kind
+	if !ok {
+		call, ok = syntax.UnwrapParens(n.Right).(*syntax.FuncCall)
+		bound, op = n.Left, syntax.MirroredComparison[op]
+	}
+	if !truth {
+		op = map[syntax.TokenKind]syntax.TokenKind{
+			syntax.TGreater: syntax.TIsSmallerOrEqual, syntax.TIsSmallerOrEqual: syntax.TGreater,
+			syntax.TLess: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TLess,
+		}[op]
+	}
+	text, known := literalText(bound)
+	if !ok || !known {
+		return nil
+	}
+	least, err := strconv.ParseInt(text, 10, 64)
+	if err != nil || !(op == syntax.TGreater && least >= 0 || op == syntax.TIsGreaterOrEqual && least >= 1) {
+		return nil
+	}
+	name, builtin := e.callName(call)
+	args, valid := e.guardArguments(call)
+	if !builtin || !valid || len(args) == 0 || name != "strlen" && name != "mb_strlen" {
+		return nil
+	}
+	return args[0].Value
 }
