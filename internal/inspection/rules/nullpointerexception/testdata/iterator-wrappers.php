@@ -11,7 +11,13 @@ class OnlyFiles extends FilterIterator
     }
 }
 
-// AppendIterator has no inner iterator until one is appended.
+// AppendIterator has no inner iterator until one is appended, and an
+// IteratorIterator may be one.
+function wrapped(IteratorIterator $it)
+{
+    $it->getInnerIterator()<warning descr="Possible null dereference.">-></warning>rewind();
+}
+
 function appended(AppendIterator $a)
 {
     $a->getInnerIterator()<warning descr="Possible null dereference.">-></warning>rewind();

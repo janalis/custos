@@ -24,9 +24,10 @@ class Wrapped extends \IteratorIterator
     }
 }
 
+// An IteratorIterator may be an AppendIterator.
 function rewind(\IteratorIterator $it): void
 {
-    $it->getInnerIterator()->rewind();
+    <warning descr="Check this value for null before the access: it is Iterator|null.">$it->getInnerIterator()</warning>->rewind();
 }
 
 function wrappers(\LimitIterator $l, \CachingIterator $c, \NoRewindIterator $n, \RegexIterator $r, \CallbackFilterIterator $cb, \InfiniteIterator $i): void

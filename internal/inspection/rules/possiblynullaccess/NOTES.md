@@ -27,7 +27,16 @@ accesses on it and its other occurrences are listed once
 accesses, nearest first, and stops at the first one separated from it by
 another occurrence. `runsBefore` is syntactic dominance: `evaluated` for
 the steps up from the earlier access, `evaluatedBefore` at the first
-common ancestor.
+common ancestor. `usedBetween` widens the window to a loop around the
+later access unless the loop runs the earlier one on each iteration
+(`repeatsWith`: not a `foreach` subject or `for` initializer). Calls do
+not count as uses of a `$this` property, matching
+`PropertyFactsSurviveCalls` in `possiblyNull` (spec E6). A scope holding
+a `goto` has no repeated access. The earlier access must be reported: `repeatedAccess`
+asks `analysis.Context.Suppressed` (the engine's suppression comments,
+built once per file and reused when filtering findings) and, when it is
+suppressed, whether it repeats another itself. Baseline entries are not
+consulted: a baselined earlier access still hides the later ones.
 
 ## NullPointerException
 
@@ -53,5 +62,9 @@ the three rules together (`"with"` sidecar key).
 - Builtin methods declared nullable that only return null in states the
   code rules out are reported, except the short list in
   `neverNullReturns` (`getInnerIterator()` of the SPL wrappers sharing
-  IteratorIterator's implementation), checked through `checkedCall`. The
+  IteratorIterator's implementation), checked through `checkedCall`.
+  `NeverNullCall` reads the receiver's proven type and requires every
+  class of it, and every class extending one (`index.Extending`, stubs
+  included, so `IteratorIterator` fails through `AppendIterator`), to
+  resolve the method to such an entry. The
   stubs carry no such fact, so a new entry needs the PHP source behind it.

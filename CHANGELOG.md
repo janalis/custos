@@ -29,8 +29,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   and a check of a property before a call keep them silent, and so does
   null passed to a scalar parameter of PHP's own functions outside strict
   mode, or the inner iterator of PHP's iterator wrappers, which PHP
-  declares nullable but never returns null. PossiblyNullAccess reports a value once: an access that only runs
-  after an earlier access on the same value is left out.
+  declares nullable but never returns null (an `IteratorIterator` may be
+  an `AppendIterator`, though, and a class of the project may override
+  the method). PossiblyNullAccess reports a value once: an access that
+  only runs after a reported access on the same value is left out, unless
+  a suppression comment silences that one, a loop may change the value
+  before the next iteration, or the function holds a `goto`.
   NullPointerException leaves to them what they report when they run in
   the same analysis (not on a file where they failed), and its
   suppression comments silence them too.
@@ -137,9 +141,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - NullPointerException no longer reports the result of
-  `getInnerIterator()` of PHP's iterator wrappers (`IteratorIterator`,
-  `FilterIterator` and the like), which PHP declares nullable but never
-  returns null once the wrapper is constructed.
+  `getInnerIterator()` of PHP's iterator wrappers (`FilterIterator`,
+  `LimitIterator` and the like), which PHP declares nullable but never
+  returns null once the wrapper is constructed. It still reports it on an
+  `IteratorIterator`, which may be an `AppendIterator`, or when a class
+  of the project overrides the method.
 - Type inference no longer reads a local as null after
   `if ($x !== null) { $x = trim($x); }` (the new value was dropped), nor
   loses an assignment made earlier in the same `elseif` body as the read.

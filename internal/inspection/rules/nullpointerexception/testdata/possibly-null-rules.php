@@ -24,6 +24,7 @@ class Node
         $this->take($c);
         // @noinspection PossiblyNullAccess
         $b->value = 1;
+        <warning descr="Check this value for null before the access: it is Node|null.">$b</warning>->value = 2;
     }
 
     /** @return Node|null */

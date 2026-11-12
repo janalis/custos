@@ -185,9 +185,13 @@ var neverNullReturns = map[string]bool{
 	"norewinditerator::getinneriterator": true,
 }
 
-// NeverNullCall reports whether x is a method call that every class of
-// its receiver resolves to a method of neverNullReturns: declared nullable
-// by PHP, never null once the object is constructed.
+// NeverNullCall reports whether x is a method call on a receiver whose
+// proven type names classes only, where each of them, and each class of
+// PHP or of the project extending one, resolves the method to one of
+// neverNullReturns: declared nullable by PHP, never null once the object
+// is constructed. A receiver declared IteratorIterator may be an
+// AppendIterator, whose inner iterator may be null; one declared a class
+// of the project may be a subclass overriding the method.
 func NeverNullCall(ctx *analysis.Context, x syntax.Expr) bool {
 	c, ok := x.(*syntax.MethodCall)
 	if !ok {
@@ -197,18 +201,31 @@ func NeverNullCall(ctx *analysis.Context, x syntax.Expr) bool {
 	if id, ok := c.Name.(*syntax.Identifier); ok {
 		name = id.Value
 	}
-	typ := ctx.TypeOf(c.Var).Without("null")
+	typ := ctx.Types().ProvenTypeOf(c.Var).Without("null")
 	classes := typ.Classes()
 	if len(classes) == 0 || len(classes) != len(typ.Atoms()) {
 		return false
 	}
+	ix := ctx.Index()
 	for _, cls := range classes {
-		m := ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), name, ctx.PHP)
-		if m == nil || !m.Builtin || !neverNullReturns[strings.ToLower(m.Class+"::"+m.Name)] {
+		cls = strings.TrimPrefix(cls, `\`)
+		if !neverNullIn(ctx, cls, name) {
 			return false
+		}
+		for _, sub := range ix.Extending(cls) {
+			if !neverNullIn(ctx, sub, name) {
+				return false
+			}
 		}
 	}
 	return true
+}
+
+// neverNullIn reports whether class cls resolves method name to one of
+// neverNullReturns.
+func neverNullIn(ctx *analysis.Context, cls, name string) bool {
+	m := ctx.Index().FindMethod(cls, name, ctx.PHP)
+	return m != nil && m.Builtin && neverNullReturns[strings.ToLower(m.Class+"::"+m.Name)]
 }
 
 // checkedLocal reports whether every value reaching local v is a checked

@@ -18,13 +18,20 @@ const maxRepeatScan = 64
 // of `$this`, see valueKey) that may be null too and runs before n on every
 // path (see runsBefore), with no other use of the value between them: no
 // write, no comparison, no argument. In a loop around n that does not hold
-// the earlier access, no such use anywhere in the loop either.
+// the earlier access, no such use anywhere in the loop either. A call
+// between them does not count for a property, as a check of it outlives
+// calls (see possiblyNull). A scope holding a `goto` has no repeated access: it may jump past the
+// earlier one. The earlier access is reported: its finding is not
+// suppressed (see analysis.Context.Suppressed), or it repeats another.
 func repeatedAccess(ctx *analysis.Context, n syntax.Node, recv syntax.Expr) bool {
 	value := valueKey(recv)
 	if value == "" {
 		return false
 	}
 	u := valueAccesses(ctx, syntax.EnclosingVariableScope(n), value)
+	if u.jumps {
+		return false // statements may not run in source order
+	}
 	start := recv.Span().Start
 	scanned := 0
 	for i := len(u.accesses) - 1; i >= 0 && scanned < maxRepeatScan; i-- {
@@ -36,35 +43,65 @@ func repeatedAccess(ctx *analysis.Context, n syntax.Node, recv syntax.Expr) bool
 		if !runsBefore(c, n) {
 			continue
 		}
-		if usedBetween(u.others, c, n, start) {
+		if usedBetween(u, c, n, start) {
 			return false // earlier accesses have this use in between too
 		}
-		if _, ok := possiblyNullAccess(ctx, c); ok {
+		if a, ok := possiblyNullAccess(ctx, c); ok && (!ctx.Suppressed(possiblyNullAccessRule, a.Receiver.Span()) || repeatedOf(ctx, c)) {
 			return true
 		}
 	}
 	return false
 }
 
-// usedBetween reports whether one of the occurrences others lies after
-// access c and before start (n's receiver), or in a loop around n that
-// does not hold c.
-func usedBetween(others []syntax.Expr, c, n syntax.Node, start uint32) bool {
+// possiblyNullAccessRule is the rule reporting PossiblyNullAccess.
+const possiblyNullAccessRule = "PossiblyNullAccess"
+
+// repeatedOf reports whether access c, which may be null, repeats an
+// earlier access (see repeatedAccess).
+func repeatedOf(ctx *analysis.Context, c syntax.Node) bool {
+	a, _ := PossiblyNullAccess(ctx, c)
+	return a.Repeated
+}
+
+// usedBetween reports whether one of the other occurrences of u's value
+// lies after access c and before start (n's receiver), or in a loop around
+// n that does not repeat c with it (see repeatsWith).
+func usedBetween(u *valueUses, c, n syntax.Node, start uint32) bool {
 	from, end := c.Span().End, start
 	for p := n.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
 		switch p.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
-			if sp := p.Span(); sp.Start >= from {
-				end = max(end, sp.End)
+			if !repeatsWith(p, c) {
+				end = max(end, p.Span().End)
 			}
 		}
 	}
-	for _, o := range others {
+	for _, o := range u.others {
 		if s := o.Span().Start; s >= from && s < end {
 			return true
 		}
 	}
 	return false
+}
+
+// repeatsWith reports whether loop holds c in a part it runs on every
+// iteration: not the subject of a `foreach` nor the initializer of a
+// `for`, which run once before the first one.
+func repeatsWith(loop, c syntax.Node) bool {
+	if !loop.Span().Contains(c.Span()) {
+		return false
+	}
+	switch l := loop.(type) {
+	case *syntax.Foreach:
+		return !l.Expr.Span().Contains(c.Span())
+	case *syntax.For:
+		for _, x := range l.Init {
+			if x.Span().Contains(c.Span()) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 type valueUsesKey struct {
@@ -75,12 +112,14 @@ type valueUsesKey struct {
 type valueUses struct {
 	accesses []syntax.Node // accesses whose receiver holds the value, in source order
 	others   []syntax.Expr // the other occurrences of the value
+	// jumps tells that the scope holds a `goto`.
+	jumps bool
 }
 
 // valueAccesses lists the accesses (as PossiblyNullAccess takes them) in
-// scope whose receiver holds value (see valueKey), and the occurrences of
+// scope whose receiver holds value (see valueKey), the occurrences of
 // value that are no such receiver or are written through it (`$x['k'] =
-// 1`). Nested functions are another scope. Cached per scope and value.
+// 1`), and whether a `goto` jumps in it. Nested functions are another scope. Cached per scope and value.
 func valueAccesses(ctx *analysis.Context, scope syntax.Node, value string) *valueUses {
 	return ctx.Shared(valueUsesKey{scope, value}, func() any {
 		u := &valueUses{}
@@ -92,8 +131,14 @@ func valueAccesses(ctx *analysis.Context, scope syntax.Node, value string) *valu
 			if n != root && syntax.IsVariableScope(n) {
 				return false
 			}
+			if _, ok := n.(*syntax.Goto); ok {
+				u.jumps = true
+			}
 			x, ok := n.(syntax.Expr)
-			if !ok || valueKey(x) != value {
+			if !ok {
+				return true
+			}
+			if valueKey(x) != value {
 				return true
 			}
 			if a := accessOf(ctx, x); a != nil {

@@ -80,19 +80,23 @@ Reported:
 - The code rules null out in a way D2 does not count: a PHPDoc type
   or assertion (`@var`, `@phpstan-assert`, `@psalm-assert`), or an
   `assert()` call, whatever the configuration says about assertions.
-- A property checked earlier in the function, read again after a call
+- E6. A property checked earlier in the function, read again after a call
   that may have written it: the check still stands for the code's author.
+  A repeated access on a property (E10) survives calls the same way, so a
+  dereference is never weaker than a check. Known limit: a call that sets
+  the property to null between the two (`$this->reset()`) is not seen.
 - A call whose identical call earlier in the function was checked by
   the conditions guarding the access (`if ($p->date() !== null) {
   $p->date()->format('c'); }`), or a local holding such a call's result.
 - `$this` inside a closure or an arrow function, which may run bound
   to another object.
 - E9. Class names (`Foo::bar()`), which are never null.
-- A repeated access: only the first access on a value is reported
+- E10. A repeated access: only the first access on a value is reported
   when later ones only run after it. The value is a local or a property of
   `$this` (`$this->last`); a later access on it is silent when an earlier
   access on the same value, which D1 to D3 cover and E1 to E9 do not
-  excuse, has run on every path reaching it:
+  excuse, and which is reported (no suppression comment silences it) or
+  is itself such a repeated access, has run on every path reaching it:
   - the earlier access is in a statement before the later one's, or in an
     earlier part of the same expression that is evaluated first (an
     operand, an argument, an array item, the receiver of a call whose
@@ -104,17 +108,26 @@ Reported:
     arm, `isset()`, a loop body or step, a `try`, `do` or `case` block, an
     argument or key after a nullsafe access, or a nested function;
   - between the two, and in any loop around the later access that does
-    not hold the earlier one, the value is used only as the receiver of
-    accesses: no assignment, element write, argument, comparison or other
-    read.
+    not run the earlier one on each of its iterations (one holding it in
+    the subject of a `foreach` or the initializer of a `for` runs it once),
+    the value is used only as the receiver of accesses: no assignment,
+    element write, argument, comparison or other read. For a property, a
+    call between them does not count, as for E6: an access that ran tells
+    the property is set just as a check does.
   An access inside the arguments of an earlier access on the same value
-  (`$x->m($x->n)`) is reported as well.
+  (`$x->m($x->n)`) is reported as well, and so is every access in a
+  function or file that holds a `goto`, which may jump past the earlier
+  access.
 - A call to `getInnerIterator()` of `IteratorIterator`,
   `FilterIterator`, `CachingIterator`, `LimitIterator` or
   `NoRewindIterator` (and their subclasses), or a local holding one: PHP
   declares it nullable, but it returns the iterator the constructor took,
-  and throws on an object whose constructor did not run. The one of
-  `AppendIterator`, null until an iterator is appended, still counts.
+  and throws on an object whose constructor did not run. The receiver's
+  type, proven without PHPDoc, must name classes whose subclasses, of PHP
+  or of the project, all keep that method: the one of `AppendIterator`,
+  null until an iterator is appended, still counts, and so does a
+  receiver typed `IteratorIterator`, which may be an `AppendIterator`, or
+  one a class of the project extends overriding the method.
 
 ## Fix
 

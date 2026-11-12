@@ -290,8 +290,12 @@ walk for this name, *skip* goes to the next usage:
   wrappers (`IteratorIterator`, `FilterIterator`, `CachingIterator`,
   `LimitIterator`, `NoRewindIterator` and their subclasses), dereferenced
   in a chain or through a local holding it: PHP declares it nullable, but
-  it returns the iterator the constructor took. `AppendIterator`'s, null
-  until an iterator is appended, still counts.
+  it returns the iterator the constructor took. The receiver's type,
+  proven without PHPDoc, must name classes whose subclasses, of PHP or of
+  the project, all keep that method. `AppendIterator`'s, null until an
+  iterator is appended, still counts, and so does the one of a receiver
+  typed `IteratorIterator`, which may be an `AppendIterator`, or of one a
+  class of the project extends overriding the method.
 
 ## Report
 
@@ -419,7 +423,9 @@ function visit(?Node $item) {
   dereferences in unreachable code, such as after a `break` in a `case`.
 - **E13 — custos diverges from upstream.** Upstream trusts the nullable
   return PHP declares for `getInnerIterator()` of the iterator wrappers,
-  which never returns null once the wrapper is constructed.
+  which never returns null once the wrapper is constructed, when no
+  subclass of the receiver's class, of PHP or of the project, may return
+  null instead.
 - Case-insensitive assertion names (custos diverges from upstream).
   Upstream compares the assertion method names (U5) and `is_null`
   case-sensitively, so `self::AssertNotNull($v)` or `IS_NULL($v)` — which

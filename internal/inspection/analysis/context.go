@@ -44,6 +44,8 @@ type Context struct {
 	failed map[string]envFailure
 	// disabled holds the rules skipped on this file after crashing on it.
 	disabled map[int]bool
+	// sup holds the file's suppression comments, built on first use.
+	sup *suppressions
 }
 
 // ProjectPath returns the file's path relative to its project root, with
@@ -133,6 +135,21 @@ func (c *Context) RuleEnabled(id string) bool {
 		}
 	}
 	return true
+}
+
+// Suppressed reports whether a finding of rule at span would be
+// suppressed by a comment of the file (see the suppression comments), so
+// that a check deciding from another finding's report can tell that it is
+// silenced.
+func (c *Context) Suppressed(rule string, span syntax.Span) bool {
+	return c.suppressions().suppressed(diagnostic.Finding{Rule: rule, Span: span})
+}
+
+func (c *Context) suppressions() *suppressions {
+	if c.sup == nil {
+		c.sup = newSuppressions(c.File)
+	}
+	return c.sup
 }
 
 // OptionSet reports whether the configuration sets option name of the

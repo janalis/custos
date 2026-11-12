@@ -82,6 +82,34 @@ class Repeat
         <warning descr="Check this value for null before the access: it is Shop\Item|null.">$this->last</warning>->price();
     }
 
+    // Known limit: as a check of a property outlives calls, so does an
+    // access on it. reset() setting it to null in between is not seen.
+    public function survives(): void
+    {
+        <warning descr="Check this value for null before the access: it is Shop\Item|null.">$this->last</warning>->price();
+        $this->reset();
+        $this->last->price();
+    }
+
+    public function reset(): void { $this->last = null; }
+
+    // A `foreach` subject or a `for` initializer runs once, before the
+    // first iteration: a write later in the loop reaches the next one.
+    public function once(?Item $a, ?Item $b, ?Item $c): void
+    {
+        foreach ([<warning descr="Check this value for null before the access: it is Shop\Item|null.">$a</warning>->qty] as $i) {
+            <warning descr="Check this value for null before the access: it is Shop\Item|null.">$a</warning>->price();
+            $a = $this->find();
+        }
+        for ($n = <warning descr="Check this value for null before the access: it is Shop\Item|null.">$b</warning>->qty; $n > 0; $n--) {
+            <warning descr="Check this value for null before the access: it is Shop\Item|null.">$b</warning>->price();
+            $b = $this->find();
+        }
+        foreach ([<warning descr="Check this value for null before the access: it is Shop\Item|null.">$c</warning>->qty] as $i) {
+            $c->price();
+        }
+    }
+
     // Elements: a read repeats a read; a write turns null into an array.
     public function elements(?array $rows, ?array $more): void
     {
@@ -106,3 +134,31 @@ class Repeat
 $top = (new Repeat())->find();
 <warning descr="Check this value for null before the access: it is Shop\Item|null.">$top</warning>->price();
 $top->price();
+
+// A `goto` may jump past the earlier access.
+function jumps(?Item $x, bool $skip): void
+{
+    if ($skip) {
+        goto later;
+    }
+    <warning descr="Check this value for null before the access: it is Shop\Item|null.">$x</warning>->price();
+    later:
+    <warning descr="Check this value for null before the access: it is Shop\Item|null.">$x</warning>->price();
+}
+
+// An earlier access whose finding is suppressed reports nothing: the next
+// access is reported in its place.
+function silenced(?Item $x, ?Item $y, ?Item $z): void
+{
+    /** @custos-ignore PossiblyNullAccess */
+    $x->price();
+    <warning descr="Check this value for null before the access: it is Shop\Item|null.">$x</warning>->price();
+    $x->price();
+    <warning descr="Check this value for null before the access: it is Shop\Item|null.">$y</warning>->price();
+    // @noinspection PossiblyNullAccess
+    $y->price();
+    $y->price();
+    // @noinspection NullPointerException
+    $z->price();
+    <warning descr="Check this value for null before the access: it is Shop\Item|null.">$z</warning>->price();
+}

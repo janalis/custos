@@ -221,7 +221,7 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 	if len(ctx.findings) == 0 {
 		return diagnostic.AnalysisResult{Incomplete: ctx.incomplete()}, -1, ""
 	}
-	sup := newSuppressions(f)
+	sup := ctx.suppressions()
 	out := ctx.findings[:0]
 	for _, fd := range ctx.findings {
 		if !sup.suppressed(fd) {
