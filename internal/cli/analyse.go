@@ -43,8 +43,8 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 	case *genBaseline != "":
 		// Every finding is recorded: a check that leaves a finding out
 		// because an earlier one is reported must report it too.
-		s.project.Engine = s.project.Engine.WithRecorded(func(string, []byte) func(diagnostic.Finding) bool {
-			return func(diagnostic.Finding) bool { return true }
+		s.project.Engine = s.project.Engine.WithRecorded(func(string, []byte) func(diagnostic.Finding, []diagnostic.Finding) bool {
+			return func(diagnostic.Finding, []diagnostic.Finding) bool { return true }
 		})
 	case *baselinePath != "":
 		b, err = baseline.Load(*baselinePath)

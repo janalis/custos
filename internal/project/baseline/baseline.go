@@ -192,27 +192,36 @@ func rel(dir, path string) string {
 }
 
 // Recorder returns, for the file at path whose source is src, whether
-// the baseline has an entry for one of its findings: one of the finding's
-// rule and message, or of a related rule (see related), at its line text,
-// taken as FilterFindings takes it. It returns nil when the file has no
-// entry. Unlike Filter, it consumes no entry, so a check can ask about a
-// finding before the baseline is applied (see analysis.Engine.WithRecorded);
-// a finding sharing its line text and key with another one may then be
-// told covered when the count only covers the other. The file's lines are
-// indexed once, on the first question.
-func (b *Baseline) Recorder(path string, src []byte) func(diagnostic.Finding) bool {
+// the baseline has an entry for one of its findings f: one of the
+// finding's rule and message, or of a related rule (see related), at its
+// line text, taken as FilterFindings takes it. It returns nil when the
+// file has no entry. Unlike Filter, it consumes no entry, so a check can
+// ask about a finding before the baseline is applied (see
+// analysis.Engine.WithRecorded): earlier lists the findings reported
+// before f with its rule and message, and those at the same line text take
+// the entry's count first, as FilterFindings consumes it in source order.
+// An entry of a related rule covers f whatever its count. The file's lines
+// are indexed once, on the first question.
+func (b *Baseline) Recorder(path string, src []byte) func(f diagnostic.Finding, earlier []diagnostic.Finding) bool {
 	p := rel(b.dir, path)
 	if !b.paths[p] {
 		return nil
 	}
 	var text func(uint32) string
-	return func(f diagnostic.Finding) bool {
+	return func(f diagnostic.Finding, earlier []diagnostic.Finding) bool {
 		if text == nil {
 			text = lineTexts(src)
 		}
 		t := text(f.Span.Start)
-		if b.counts[key{p, f.Rule, f.Message, t}] > 0 {
-			return true
+		if n := b.counts[key{p, f.Rule, f.Message, t}]; n > 0 {
+			for _, e := range earlier {
+				if text(e.Span.Start) == t {
+					n--
+				}
+			}
+			if n > 0 {
+				return true
+			}
 		}
 		for _, other := range related()[f.Rule] {
 			if len(b.byLoc[loc{p, other, t}]) > 0 {

@@ -42,7 +42,13 @@ before analysis, and `--generate-baseline` hands it one recording
 everything, so a generated baseline holds every access and a later added
 access is new. A file's recorder is built on the first question and
 indexes its lines once (keys as `FilterFindings` builds them); it
-consumes no count (see the spec's known limit).
+consumes no count, but `Context.Suppressed` hands it the findings of the
+same rule and message reported so far before the asked one (not silenced
+by a comment), and those at the same line text take the entry's count
+first, as `FilterFindings` consumes it in source order. Nodes are checked
+in source order, so those are the earlier findings; one reported later
+would only make an access count as recorded, as before counts were
+weighed.
 
 ## NullPointerException
 

@@ -175,6 +175,8 @@ records (an entry of this rule with its message, or of NullPointerException,
 on its line text) is reported, as after one a suppression comment silences,
 since it may be code written after the baseline. Generating a baseline
 therefore records every access E10 would leave out, so that analyzing with
-it reports nothing new. Known limit: whether the earlier access is recorded
-ignores entry counts, so when two accesses share the line text, rule and
-message and the baseline counts one, both count as recorded.
+it reports nothing new. An entry covers as many accesses as it counts,
+taken in source order: when the baseline counts one and three accesses on
+the same value share its line text, the first is recorded, the second is
+reported and the third repeats it. An entry of NullPointerException covers
+an access on its line whatever its count.

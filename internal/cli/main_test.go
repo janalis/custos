@@ -171,4 +171,13 @@ func TestBaselineShowsRepeatsOfRecordedFindings(t *testing.T) {
 	if got := analyse("--baseline", bl); len(got) != 1 || got[0] != 6 {
 		t.Fatalf("access added after the baseline: lines %v, want [6]", got)
 	}
+	// An entry covers as many findings as its count: the second access of
+	// the same text is shown, and the third repeats it.
+	if err := os.WriteFile(bl, []byte(entry), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	write("$a->getMessage();\n$a->getMessage();\n$a->getMessage();\n")
+	if got := analyse("--baseline", bl); len(got) != 1 || got[0] != 4 {
+		t.Fatalf("entry counted once: lines %v, want [4]", got)
+	}
 }

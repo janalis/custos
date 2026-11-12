@@ -50,7 +50,7 @@ type Context struct {
 	skipped, skippedNow, relied map[ruleCheck]bool
 	// recorded tells the findings of the file the engine's baseline
 	// records (see Engine.WithRecorded), set on first use (recordedSet).
-	recorded    func(diagnostic.Finding) bool
+	recorded    func(f diagnostic.Finding, earlier []diagnostic.Finding) bool
 	recordedSet bool
 	// sup holds the file's suppression comments, built on first use.
 	sup *suppressions
@@ -190,7 +190,19 @@ func (c *Context) Suppressed(rule string, span syntax.Span, message string) bool
 			c.recorded = c.engine.recorded(c.File.Path, c.Src)
 		}
 	}
-	return c.recorded != nil && c.recorded(f)
+	if c.recorded == nil {
+		return false
+	}
+	// The findings of rule with message reported so far before span and
+	// not suppressed by a comment come first in the baseline's count. A
+	// rule checks nodes in source order, so they are the ones before it.
+	var earlier []diagnostic.Finding
+	for _, e := range c.findings {
+		if e.Rule == rule && e.Message == message && e.Span.Start < span.Start && !c.sup.suppressed(e) {
+			earlier = append(earlier, e)
+		}
+	}
+	return c.recorded(f, earlier)
 }
 
 func (c *Context) suppressions() *suppressions {

@@ -37,8 +37,10 @@ type Engine struct {
 }
 
 // Recorded returns, for the file at path whose source is src, whether a
-// baseline records one of its findings; nil when it records none of them.
-type Recorded func(path string, src []byte) func(f diagnostic.Finding) bool
+// baseline records finding f of it, given the findings reported before f
+// with its rule and message (see Context.Suppressed), which take an
+// entry's count before f does; nil when it records none of them.
+type Recorded func(path string, src []byte) func(f diagnostic.Finding, earlier []diagnostic.Finding) bool
 
 // WithRecorded returns an engine copy whose checks see the findings
 // recorded tells a baseline hides as silenced (see Context.Suppressed),

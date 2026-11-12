@@ -300,7 +300,7 @@ func TestRecorder(t *testing.T) {
 	} {
 		rec := b.Recorder(c.path, []byte(c.src))
 		for _, k := range c.checks {
-			if got := rec(k.f); got != k.want {
+			if got := rec(k.f, nil); got != k.want {
 				t.Errorf("%s: recorder(%+v) = %v, want %v", c.path, k.f, got, k.want)
 			}
 			// The same key as FilterFindings, with an entry left.
@@ -308,6 +308,23 @@ func TestRecorder(t *testing.T) {
 				t.Errorf("%s: FilterFindings(%+v) covered = %v, recorder %v", c.path, k.f, filtered, k.want)
 			}
 		}
+	}
+	// Earlier findings at the same line text take the entry's count first,
+	// as FilterFindings consumes it; one at another line text does not; an
+	// entry of a related rule covers whatever its count.
+	src := []byte("<?php\n$a;\n$n->x();\n$a;\n")
+	rec := b.Recorder("src/a.php", src)
+	if rec(at("R", "m", 19), []diagnostic.Finding{at("R", "m", 6)}) {
+		t.Error("count taken by an earlier finding at the same line text")
+	}
+	if !rec(at("R", "m", 19), []diagnostic.Finding{at("R", "m", 10)}) {
+		t.Error("count taken by an earlier finding at another line text")
+	}
+	if !rec(at("PossiblyNullAccess", "m", 10), []diagnostic.Finding{at("PossiblyNullAccess", "m", 10)}) {
+		t.Error("related entry with its count taken")
+	}
+	if covered := b.Covered("src/a.php", src, []diagnostic.Finding{at("R", "m", 6), at("R", "m", 19)}); !covered[0] || covered[1] {
+		t.Errorf("FilterFindings consumes in source order: %v", covered)
 	}
 	if b.Recorder("src/b.php", []byte("<?php")) != nil {
 		t.Fatal("recorder of a file without entries")
@@ -331,7 +348,7 @@ func BenchmarkRecorder(b *testing.B) {
 	for b.Loop() {
 		rec := bl.Recorder("a.php", src)
 		for i := range uint32(lines) {
-			rec(diagnostic.Finding{Rule: "R", Message: "m", Span: syntax.Span{Start: 6 + 4*i, End: 9 + 4*i}})
+			rec(diagnostic.Finding{Rule: "R", Message: "m", Span: syntax.Span{Start: 6 + 4*i, End: 9 + 4*i}}, nil)
 		}
 	}
 }
