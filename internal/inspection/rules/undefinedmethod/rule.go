@@ -62,7 +62,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		return false
 	})
-	if !ok || semanticquery.MemberGuarded(ctx, n.(syntax.Expr), name.Value, false) {
+	if !ok || semanticquery.MemberGuarded(ctx, n.(syntax.Expr), name.Value, classes, false) {
 		return
 	}
 	ctx.ReportNode(name, "Fix the method name: "+label+" declares no "+name.Value+"().")

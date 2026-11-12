@@ -59,7 +59,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return c.Props[member] != nil || c.Methods["__get"] != nil || c.Methods["__isset"] != nil ||
 			c.HasAttr("AllowDynamicProperties") || strings.EqualFold(c.FQN, "stdClass")
 	})
-	if !ok || semanticquery.MemberGuarded(ctx, n.(syntax.Expr), member, true) {
+	if !ok || semanticquery.MemberGuarded(ctx, n.(syntax.Expr), member, classes, true) {
 		return
 	}
 	ctx.ReportNode(name, "Fix the property name: "+label+" declares no $"+member+".")

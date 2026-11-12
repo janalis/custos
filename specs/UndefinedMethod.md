@@ -68,7 +68,9 @@ any name (magic `__call`, `@method` and `@mixin` tags) are left alone.
 - E8. Calls guarded by a check of a method of that name: inside a branch
   whose condition calls `method_exists()` or `is_callable()` with that
   name as a literal string (also inside an array, as in
-  `is_callable([$cart, 'add'])`), or after such a check whose result
+  `is_callable([$cart, 'add'])`, or after `::` in a string whose class
+  part names the receiver's class, `self`, `static` or `parent`, as in
+  `is_callable('Shop\Cart::add')`), or after such a check whose result
   guards the call: an early exit, a short circuit
   (`method_exists($cart, 'add') && $cart->add()`), an else arm.
 - E9. `self::` and `parent::` outside a class, or `parent::` in a class

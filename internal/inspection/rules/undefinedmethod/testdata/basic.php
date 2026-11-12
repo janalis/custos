@@ -72,4 +72,8 @@ function guards(Cart $cart): void
     if (method_exists($cart, 'remove')) {
         $cart-><error descr="Fix the method name: Shop\Cart declares no empty().">empty</error>();
     }
+    // A `Class::method` string about another class or method does not either.
+    if (is_callable('Shop\Coupon::empty') || is_callable('Shop\Cart::clear')) {
+        $cart-><error descr="Fix the method name: Shop\Cart declares no empty().">empty</error>();
+    }
 }

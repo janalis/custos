@@ -24,7 +24,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `#[AllowDynamicProperties]`, members a subclass or an implementation
   declares, traits, closures that may be rebound, classes declared twice
   or conditionally, members PHP declares in another version, and
-  `method_exists()` or `property_exists()` checks keep them silent.
+  `method_exists()`, `is_callable()` (also of a `'Class::method'` string)
+  or `property_exists()` checks keep them silent.
 - UndefinedFunction and UndefinedClass (off by default) report calls and
   class names nothing declares. They report only when the project's world
   is complete: Composer's packages all installed and indexed, every

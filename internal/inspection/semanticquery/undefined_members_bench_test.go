@@ -29,14 +29,14 @@ function settle(Order $order) {
 		if label, ok := MissingMember(ctx, MemberReceiverClasses(ctx, method.Var), false, has); !ok || label != `App\Order` {
 			b.Fatalf("missing member = %q, %v", label, ok)
 		}
-		if MemberGuarded(ctx, method, "refund", false) {
+		if MemberGuarded(ctx, method, "refund", nil, false) {
 			b.Fatal("unguarded call reported guarded")
 		}
 		ran = true
 		b.ReportAllocs()
 		for b.Loop() {
 			MissingMember(ctx, MemberReceiverClasses(ctx, method.Var), false, has)
-			MemberGuarded(ctx, method, "refund", false)
+			MemberGuarded(ctx, method, "refund", nil, false)
 		}
 	}}
 	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}})

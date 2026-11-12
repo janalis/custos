@@ -136,6 +136,14 @@ function guarded(Note $note, Invoice $invoice): void
     while (method_exists($note, 'skip')) {
         $note->skip();
     }
+    // A `Class::method` string names the method of that class.
+    if (is_callable('Shop\Note::ring')) {
+        $note->ring();
+    }
+    if (is_callable('\shop\note::Make')) {
+        Note::make();
+    }
+    method_exists($note, 'self::mute') && $note->mute();
 }
 
 class Plain

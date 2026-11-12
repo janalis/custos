@@ -137,14 +137,15 @@ func memberKnown(ctx *analysis.Context, cls string) ([]*index.Class, bool) {
 // (property_exists).
 var memberChecks = map[string]bool{"method_exists": true, "is_callable": true, "property_exists": true}
 
-// MemberGuarded reports whether the access at may be meant to run only
-// when member exists: a condition enclosing it checks a member of that
-// name (method_exists(), property_exists(), is_callable() or, for a
-// property, isset() of a property of that name), or the conditions guarding
-// at narrow the result of such a check made earlier in its scope (an
-// early exit, an else arm, a short circuit). Property names compare
-// case-sensitively, method names not.
-func MemberGuarded(ctx *analysis.Context, at syntax.Expr, member string, property bool) bool {
+// MemberGuarded reports whether the access at, on an object of one of
+// classes (FQNs), may be meant to run only when member exists: a condition
+// enclosing it checks a member of that name (method_exists(),
+// property_exists(), is_callable() or, for a property, isset() of a
+// property of that name), or the conditions guarding at narrow the result
+// of such a check made earlier in its scope (an early exit, an else arm, a
+// short circuit). Property names compare case-sensitively, method names
+// not.
+func MemberGuarded(ctx *analysis.Context, at syntax.Expr, member string, classes []string, property bool) bool {
 	for child, p := syntax.Node(at), at.Parent(); p != nil; child, p = p, p.Parent() {
 		var conds []syntax.Expr
 		switch p := p.(type) {
@@ -163,13 +164,13 @@ func MemberGuarded(ctx *analysis.Context, at syntax.Expr, member string, propert
 			}
 		}
 		for _, cond := range conds {
-			if checksMember(ctx, cond, member, property) {
+			if checksMember(ctx, cond, member, classes, property) {
 				return true
 			}
 		}
 	}
 	return NativeEarlierCallProves(ctx, at, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
-		if !checksMember(ctx, x, member, property) {
+		if !checksMember(ctx, x, member, classes, property) {
 			return types.Unknown, nil
 		}
 		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") || t.OnlyOf("false") }
@@ -177,9 +178,9 @@ func MemberGuarded(ctx *analysis.Context, at syntax.Expr, member string, propert
 }
 
 // checksMember reports whether x calls a member check (see memberChecks)
-// given member as a literal string, directly or in an array, or, for a
-// property, holds isset() of a property named member.
-func checksMember(ctx *analysis.Context, x syntax.Expr, member string, property bool) bool {
+// given member as a literal string (see namesMember), directly or in an
+// array, or, for a property, holds isset() of a property named member.
+func checksMember(ctx *analysis.Context, x syntax.Expr, member string, classes []string, property bool) bool {
 	found := false
 	syntax.Inspect(x, func(n syntax.Node) bool {
 		switch n := n.(type) {
@@ -187,7 +188,7 @@ func checksMember(ctx *analysis.Context, x syntax.Expr, member string, property 
 			if memberChecks[ctx.GlobalFunctionName(n)] {
 				syntax.Inspect(n.Args, func(a syntax.Node) bool {
 					if lit, ok := a.(*syntax.Literal); ok {
-						if s, ok := syntax.LiteralStringValue(lit); ok && sameMember(s, member, property) {
+						if s, ok := syntax.LiteralStringValue(lit); ok && namesMember(s, member, classes, property) {
 							found = true
 						}
 					}
@@ -209,6 +210,31 @@ func checksMember(ctx *analysis.Context, x syntax.Expr, member string, property 
 		return !found
 	})
 	return found
+}
+
+// namesMember reports whether the string s names member: the bare name,
+// or `Class::name` whose class part is one of classes (compared
+// case-insensitively, leading backslash aside), or `self`, `static` or
+// `parent`, which the string alone cannot resolve.
+func namesMember(s, member string, classes []string, property bool) bool {
+	class, name, ok := strings.Cut(s, "::")
+	if !ok {
+		return sameMember(s, member, property)
+	}
+	if !sameMember(name, member, property) {
+		return false
+	}
+	class = strings.TrimPrefix(class, `\`)
+	switch strings.ToLower(class) {
+	case "self", "static", "parent":
+		return true
+	}
+	for _, c := range classes {
+		if strings.EqualFold(class, strings.TrimPrefix(c, `\`)) {
+			return true
+		}
+	}
+	return false
 }
 
 // sameMember compares member names: case-sensitively for properties,
