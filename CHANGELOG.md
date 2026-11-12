@@ -148,6 +148,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The editor offers to suppress a finding when the baseline hides another
+  finding of the same rule in the file; it used to refuse the suppression
+  comment because the hidden finding still counted after it.
 - LongInheritanceChain stops at a class of the project's vendor directory
   as Composer's `vendor-dir` configures it, instead of at any class under
   a directory named `vendor`: a project directory of that name now counts

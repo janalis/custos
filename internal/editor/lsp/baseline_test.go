@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -43,6 +44,12 @@ func TestBaselineHidesKnownFindings(t *testing.T) {
 	// A second occurrence of the same line exceeds the recorded count.
 	cl.change(uri, 2, "<?php\n ;\n;\n")
 	cl.diagsN(uri, 1)
+	// The shown one can be suppressed though the baseline hides the other.
+	line := map[string]any{"line": 2, "character": 0}
+	res := cl.call(2, "textDocument/codeAction", map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line, "end": line}, "context": map[string]any{"only": []string{"quickfix"}}})
+	if !strings.Contains(string(res.Result), "Suppress UnnecessarySemicolon") {
+		t.Fatalf("actions: %s", res.Result)
+	}
 	changed := map[string]any{"changes": []any{map[string]any{"uri": "file://" + filepath.Join(dir, "bl.json"), "type": 2}}}
 	write("bl.json", entry("2"))
 	_ = cl.c.notify("workspace/didChangeWatchedFiles", changed)
@@ -113,5 +120,16 @@ func TestBaselineShowsRepeatsOfRecordedFindings(t *testing.T) {
 	}
 	if len(p.Diagnostics) != 1 || p.Diagnostics[0].Range.Start.Line != 3 {
 		t.Fatalf("diagnostics: %+v", p.Diagnostics)
+	}
+	// The shown finding, when no access follows it, can be suppressed: the
+	// check of the edit analyzes with the baseline too.
+	cl.change(uri, 2, "<?php\nfunction f(?Exception $a) {\n$a->getMessage();\n$a->getCode();\n}\n")
+	cl.diagsN(uri, 1)
+	line := map[string]any{"line": 3, "character": 0}
+	res := cl.call(2, "textDocument/codeAction", map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line, "end": line}, "context": map[string]any{}})
+	var actions []codeAction
+	_ = json.Unmarshal(res.Result, &actions)
+	if len(actions) != 1 || actions[0].Title != "Suppress PossiblyNullAccess for this statement" || actions[0].Edit == nil {
+		t.Fatalf("actions: %s", res.Result)
 	}
 }

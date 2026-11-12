@@ -9,6 +9,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/meta"
 	"custos/internal/php/syntax"
+	"custos/internal/project/baseline"
 )
 
 // actionData identifies a fix for lazy resolution.
@@ -126,12 +127,12 @@ func (s *Server) buildEdit(data actionData) *workspaceEdit {
 		s.mu.Unlock()
 		return nil
 	}
-	text, lines, findings, path, e, cfg := d.text, d.lines, d.findings, d.path, s.engine, s.cfg
+	text, lines, findings, path, e, cfg, bl := d.text, d.lines, d.findings, d.path, s.engine, s.cfg, s.baseline
 	s.mu.Unlock()
 
 	var edits []diagnostic.TextEdit
 	if data.Suppress {
-		edit, ok := suppressEdit(e, path, text, findings, data, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+		edit, ok := suppressEdit(withBaseline(e, bl), bl, path, text, findings, data, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
 		if !ok {
 			return nil
 		}
@@ -156,7 +157,7 @@ func (s *Server) buildEdit(data actionData) *workspaceEdit {
 	edit := docEdit(data.URI, data.Version, lines, edits)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.docs[data.URI] != d || d.version != data.Version || d.analyzed != d.version || d.snapshot != data.Snapshot || s.engine != e {
+	if s.docs[data.URI] != d || d.version != data.Version || d.analyzed != d.version || d.snapshot != data.Snapshot || s.engine != e || s.baseline != bl {
 		return nil
 	}
 	return edit
@@ -222,8 +223,9 @@ func (s *Server) executeCommand(p executeCommandParams) (any, *rpcError) {
 // suppressEdit builds the `// @custos-ignore` edit for one finding and checks
 // it by re-analysing the edited source: exactly that finding must go away
 // (a comment before a file's first statement would silence the rule in the
-// whole file, so such an edit is refused).
-func suppressEdit(e *analysis.Engine, path string, text []byte, findings []diagnostic.Finding, data actionData, opt syntax.Options) (diagnostic.TextEdit, bool) {
+// whole file, so such an edit is refused). e analyzes with baseline bl,
+// which hides the findings it covers from both counts.
+func suppressEdit(e *analysis.Engine, bl *baseline.Baseline, path string, text []byte, findings []diagnostic.Finding, data actionData, opt syntax.Options) (diagnostic.TextEdit, bool) {
 	before := 0
 	found := false
 	for _, f := range findings {
@@ -241,8 +243,12 @@ func suppressEdit(e *analysis.Engine, path string, text []byte, findings []diagn
 	}
 	edited := make([]byte, 0, len(text)+len(edit.NewText))
 	edited = append(append(append(edited, text[:edit.Span.Start]...), edit.NewText...), text[edit.Span.Start:]...)
+	remaining := e.Analyze(syntax.ParseBest(path, edited, opt))
+	if bl != nil {
+		remaining = bl.FilterFindings(path, edited, remaining)
+	}
 	after := 0
-	for _, f := range e.Analyze(syntax.ParseBest(path, edited, opt)) {
+	for _, f := range remaining {
 		if f.Rule == data.Rule {
 			after++
 		}
