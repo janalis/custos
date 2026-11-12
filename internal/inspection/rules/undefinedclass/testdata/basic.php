@@ -42,3 +42,11 @@ function run($cb)
     }
     return new <error descr="Fix the name or install the package declaring App\Missingg.">Missingg</error>($cb);
 }
+
+// A condition about another extension.
+if (extension_loaded('other')) {
+    $other = new <error descr="Fix the name or install the package declaring Acme\Other\Handle.">\Acme\Other\Handle</error>();
+}
+if (class_exists($dynamic)) {
+    $dynamic = new <error descr="Fix the name or install the package declaring Acme\Other\Dynamic.">\Acme\Other\Dynamic</error>();
+}

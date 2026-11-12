@@ -59,13 +59,12 @@ Reported:
   not match its requirements (D3): a function may come from code that was
   not seen.
 - A file that asks for the function by name with `function_exists()` or
-  `is_callable()` (a literal name), or a call inside a branch whose
-  condition checks existence, a loaded extension, a constant's definition or
-  the PHP version (a conditional declaration or guarded code), or that such a
-  check guards by its result: an earlier early exit
+  `is_callable()` (a literal name), or a call that a check about it guards: a
+  branch whose condition makes the check (a conditional declaration or
+  guarded code), or an earlier check that guards by its result: an early exit
   (`if (!extension_loaded('x')) { return; }`), a short circuit
   (`defined('X') or die()`), an else arm, or a `switch (true)` case or
-  `match (true)` arm. Such an earlier check counts only when it checks the
+  `match (true)` arm. Such a check counts only when it checks the
   PHP version, the name itself (`method_exists()` included), or an
   extension or constant whose name or leading word is the leading word of
   the name (`extension_loaded('acme')`, `defined('ACME_READY')` for

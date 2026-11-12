@@ -64,15 +64,6 @@ var existenceChecks = map[string]bool{
 	"interface_exists": true, "trait_exists": true, "enum_exists": true,
 }
 
-// conditionChecks are the builtins whose presence in a condition makes the
-// guarded code depend on the runtime: existence, extensions and versions.
-var conditionChecks = map[string]bool{
-	"function_exists": true, "is_callable": true, "class_exists": true,
-	"interface_exists": true, "trait_exists": true, "enum_exists": true,
-	"extension_loaded": true, "version_compare": true, "phpversion": true,
-	"defined": true, "method_exists": true,
-}
-
 // versionConstants are the constants whose presence in a condition makes
 // the guarded code depend on the PHP version.
 var versionConstants = map[string]bool{
@@ -86,11 +77,11 @@ type existenceKey struct{}
 // when one of the class-likes or functions fqns exists: the file asks for
 // one of them by name (function_exists, is_callable, class_exists,
 // interface_exists, trait_exists or enum_exists with a literal name or a
-// `::class` fetch), a condition enclosing n checks existence, an extension
-// or the PHP version (a conditional declaration or guarded code), or the
-// conditions guarding n narrow the result of a check made earlier in its
-// scope (an early exit, a short circuit, a switch or match arm) that
-// concerns one of fqns (see guardsAny).
+// `::class` fetch), or a check that concerns one of fqns (see guardsAny)
+// guards n: it appears in a condition enclosing n (a conditional
+// declaration or guarded code), or the conditions guarding n narrow its
+// result, made earlier in n's scope (an early exit, a short circuit, a
+// switch or match arm).
 func ExistenceChecked(ctx *analysis.Context, n syntax.Node, fqns ...string) bool {
 	asked := ctx.Shared(existenceKey{}, func() any { return askedNames(ctx) }).(map[string]bool)
 	for _, fqn := range fqns {
@@ -114,7 +105,7 @@ func ExistenceChecked(ctx *analysis.Context, n syntax.Node, fqns ...string) bool
 			}
 		}
 		for _, cond := range conds {
-			if cond != nil && runtimeDependent(ctx, cond) {
+			if cond != nil && guardIn(ctx, cond, fqns) {
 				return true
 			}
 		}
@@ -143,13 +134,19 @@ func guardsAny(ctx *analysis.Context, x syntax.Expr, fqns []string) bool {
 	default:
 		return false
 	}
+	return guardIn(ctx, x, fqns)
+}
+
+// guardIn reports whether x holds a check that may decide whether one of
+// fqns exists (see guardsAny).
+func guardIn(ctx *analysis.Context, x syntax.Expr, fqns []string) bool {
 	found := false
 	syntax.Inspect(x, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.FuncCall:
-			found = guardsCall(ctx, n, fqns)
+			found = found || guardsCall(ctx, n, fqns)
 		case *syntax.ConstFetch:
-			found = versionConstants[strings.ToLower(strings.TrimPrefix(n.Name.Value, `\`))]
+			found = found || versionConstants[strings.ToLower(strings.TrimPrefix(n.Name.Value, `\`))]
 		}
 		return !found
 	})
@@ -236,25 +233,4 @@ func askedNames(ctx *analysis.Context) map[string]bool {
 		return true
 	})
 	return asked
-}
-
-// runtimeDependent reports whether cond calls a condition check or reads a
-// PHP version constant.
-func runtimeDependent(ctx *analysis.Context, cond syntax.Expr) bool {
-	found := false
-	syntax.Inspect(cond, func(n syntax.Node) bool {
-		switch n := n.(type) {
-		case *syntax.FuncCall:
-			if conditionChecks[ctx.GlobalFunctionName(n)] {
-				found = true
-			}
-		case *syntax.ConstFetch:
-			name := strings.ToLower(strings.TrimPrefix(n.Name.Value, `\`))
-			if versionConstants[name] {
-				found = true
-			}
-		}
-		return !found
-	})
-	return found
 }

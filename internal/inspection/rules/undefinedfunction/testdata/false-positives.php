@@ -33,7 +33,7 @@ class_exists(...);
 
 // Declared conditionally, here or in another file.
 if (!function_exists('App\polyfilled')) {
-    function polyfilled() { helperOfPolyfill(); }
+    function polyfilled() {}
 }
 polyfilled();
 

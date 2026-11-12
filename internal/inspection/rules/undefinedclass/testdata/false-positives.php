@@ -109,3 +109,12 @@ $matched = match (true) {
     extension_loaded('acme') => new \Acme\Matched\Handle(),
     default => null,
 };
+
+// A version check compared with another constant.
+function minimum()
+{
+    if (PHP_VERSION_ID < MIN_PHP) {
+        return;
+    }
+    new \Acme\Two();
+}

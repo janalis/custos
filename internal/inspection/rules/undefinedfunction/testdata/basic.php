@@ -31,3 +31,8 @@ function run($cb)
     }
     <error descr="Fix the name or install the package declaring App\Acme\stop().">Acme\stop</error>($cb);
 }
+
+// A conditional declaration about another function.
+if (!function_exists('App\shimmed')) {
+    function shimmed() { <error descr="Fix the name or install the package declaring helperOfShim().">helperOfShim</error>(); }
+}
