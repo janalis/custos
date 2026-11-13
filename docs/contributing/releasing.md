@@ -23,6 +23,11 @@ build everything without publishing. The workflow:
 5. rebuilds and deploys this documentation site, so the changelog and the
    version in the navigation bar are current.
 
+Release notes join the changelog's source-wrapped prose while preserving lists,
+code blocks and explicit line breaks. To reformat an existing notes file, run
+`go run ./tools/relprep -format-notes notes.md > formatted.md`; the original
+file is left intact.
+
 A failed publish can be retried with *Re-run failed jobs*; the tag is kept.
 
 To build a snapshot locally:
