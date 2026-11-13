@@ -109,3 +109,46 @@ func BenchmarkFlowAllocationHints(b *testing.B) {
 		}
 	}
 }
+
+func TestValueStoreDistinctEqualSpans(t *testing.T) {
+	first, second := &syntax.Literal{}, &syntax.Literal{}
+	store := newValueStore(2)
+	store.set(first, Value{Identity: 1})
+	store.set(second, Value{Identity: 2})
+	if store.at(first).Identity != 1 || store.at(second).Identity != 2 {
+		t.Fatal("equal spans aliased")
+	}
+}
+
+func TestValueStoreNarrowBlocks(t *testing.T) {
+	for _, capacity := range []int{1, 2, 3, 4} {
+		store := newValueStore(capacity)
+		expressions := make([]syntax.Expr, 19)
+		for i := range expressions {
+			expressions[i] = &syntax.Literal{}
+			store.set(expressions[i], Value{Identity: uint32(i + 1)})
+		}
+		for i, expr := range expressions {
+			if store.at(expr).Identity != uint32(i+1) {
+				t.Fatalf("capacity %d entry %d", capacity, i)
+			}
+			store.set(expr, Value{Identity: uint32(i + 20)})
+			if store.at(expr).Identity != uint32(i+20) {
+				t.Fatal("update failed")
+			}
+		}
+	}
+}
+
+func TestValueStoreTracksSimpleVariablesOnce(t *testing.T) {
+	store := newValueStore(4)
+	variable := &syntax.Variable{Name: "parameter"}
+	store.set(variable, Value{Identity: 1})
+	store.set(variable, Value{Identity: 2})
+	store.set(&syntax.Variable{NameExpr: &syntax.Literal{}}, Value{})
+	store.set(&syntax.Literal{}, Value{})
+	store.set(nil, Value{})
+	if len(store.variables) != 1 || store.variables[0] != variable || store.at(variable).Identity != 2 {
+		t.Fatal("variable iteration changed")
+	}
+}

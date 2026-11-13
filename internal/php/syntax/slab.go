@@ -1,16 +1,20 @@
 package syntax
 
-// slabChunk is the number of nodes allocated at once per node type.
+// slabChunk caps the number of nodes allocated at once per node type.
 const slabChunk = 64
 
 // slab hands out pointers into chunked backing arrays, turning one heap
-// allocation per node into one per slabChunk nodes. Nodes stay valid for the
+// allocation per node into one per chunk, growing to slabChunk. Nodes stay valid for the
 // lifetime of the File (chunks are never reused).
-type slab[T any] struct{ buf []T }
+type slab[T any] struct {
+	buf   []T
+	chunk int
+}
 
 func (s *slab[T]) next() *T {
 	if len(s.buf) == 0 {
-		s.buf = make([]T, slabChunk)
+		s.chunk = min(slabChunk, max(8, s.chunk*2))
+		s.buf = make([]T, s.chunk)
 	}
 	x := &s.buf[0]
 	s.buf = s.buf[1:]

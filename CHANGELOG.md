@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Reduce parser and flow storage allocation, avoid redundant tree traversal
+  and repeated flow expression counting, and release dependency source buffers
+  after extracting their metadata.
+
 - Refresh competitor benchmark measurements and pinned tool and project
   versions after the 0.1.12 release.
 

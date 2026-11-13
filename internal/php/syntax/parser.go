@@ -47,6 +47,9 @@ type Options struct {
 	// Permissive additionally accepts syntax removed in Version (e.g. legacy
 	// `$s{0}` offsets in PHP 8), the way IDEs parse code at any level.
 	Permissive bool
+	// CopyText gives node strings their own storage, so extracted metadata
+	// can outlive the tree without retaining its entire source buffer.
+	CopyText bool
 }
 
 // Parse parses src (which is retained by the returned File and must not be
@@ -65,7 +68,7 @@ func Parse(path string, src []byte, opt Options) *File {
 		return f
 	}
 	toks, lexErrs := Lex(src, LexOptions{Version: opt.Version, ShortOpenTag: opt.ShortOpenTag})
-	p := &parser{src: src, toks: toks, ver: opt.Version, permissive: opt.Permissive}
+	p := &parser{src: src, toks: toks, ver: opt.Version, permissive: opt.Permissive, copyText: opt.CopyText}
 	p.sig = make([]int32, 0, len(toks)/2+1)
 	for i, t := range toks {
 		if !t.Kind.IsTrivia() {
@@ -85,15 +88,15 @@ func Parse(path string, src []byte, opt Options) *File {
 			Msg:  fmt.Sprintf("more than %d syntax errors; the rest are not reported", MaxErrors),
 		})
 	}
-	if p.tooDeep || TreeDepth(f.Stmts) > MaxDepth {
+	if p.tooDeep || !linkParsedParents(f) {
 		// Pathologically nested input (generated or hostile): recursive
 		// consumers would exhaust the stack or go quadratic. Keep the
 		// tokens, drop the tree, report once.
 		f.Stmts = nil
+		SetParents(f)
 		p.errs = append(p.errs, Error{Span: Span{0, 0}, Msg: fmt.Sprintf("nesting deeper than %d levels; file not analysed", MaxDepth)})
 	}
 	f.Errors = p.errs
-	SetParents(f)
 	return f
 }
 
@@ -105,12 +108,13 @@ const MaxFileSize = 10 << 20
 const MaxErrors = 1000
 
 type parser struct {
-	src  []byte
-	toks []Token
-	sig  []int32 // indices of significant tokens
-	pos  int     // index into sig
-	ver  phpversion.Version
-	eof  Token
+	copyText bool
+	src      []byte
+	toks     []Token
+	sig      []int32 // indices of significant tokens
+	pos      int     // index into sig
+	ver      phpversion.Version
+	eof      Token
 	// permissive accepts removed legacy syntax regardless of ver.
 	permissive bool
 	// inDefault is set while parsing a property or parameter default: a
@@ -193,11 +197,14 @@ func (p *parser) errorAt(t Token, msg string) {
 	p.errs = append(p.errs, Error{Span: Span{t.Start, t.End}, Msg: msg})
 }
 
-// text returns the source text of t without copying: node strings alias the
-// source buffer, which Parse retains (callers must not mutate src afterwards).
+// text normally aliases the retained source buffer; metadata-only parses
+// copy token text so published names do not retain discarded source buffers.
 func (p *parser) text(t Token) string {
 	if t.End <= t.Start {
 		return ""
+	}
+	if p.copyText {
+		return string(p.src[t.Start:t.End])
 	}
 	return unsafe.String(&p.src[t.Start], int(t.End-t.Start))
 }
