@@ -5,6 +5,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Refresh competitor benchmark measurements and pinned tool and project
+  versions after the 0.1.12 release.
+
 ## [0.1.12] - 2026-11-13
 
 ### Added
