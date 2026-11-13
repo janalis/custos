@@ -17,59 +17,59 @@ rewrite code. Compare times within a kind, and read finding counts only as a sig
 a tool did its work: each counts what its own rules look for.
 :::
 
-Measured on 2026-11-09 on linux/amd64, AMD EPYC 9V45 96-Core Processor, 4 cores, 16 GB of memory, with PHP 8.4.27.
+Measured on 2026-11-13 on linux/amd64, AMD EPYC 7763 64-Core Processor, 4 cores, 16 GB of memory, with PHP 8.4.27.
 Each time is the median of 3 runs.
 
 ## guzzle
 
-[guzzle/guzzle](https://github.com/guzzle/guzzle) at `8.3.1`, 74 PHP files.
+[guzzle/guzzle](https://github.com/guzzle/guzzle) at `8.5.0`, 76 PHP files.
 
 | Tool | Kind | Version | Time | vs custos | Peak memory | Findings |
 | :--- | :--- | :--- | ---: | ---: | ---: | ---: |
-| Mago analyze | analyzer | 1.59.0 | 0.15 s | 0.4× | 201 MB | 584 |
-| **custos analyse** | analyzer | 0.1.11 | 0.39 s | 1.0× | 102 MB | 48 |
-| Phan | analyzer | 6.0.11 | 1.02 s | 2.6× | 214 MB | 281 |
-| PHPStan | analyzer | 2.3.5 | 3.53 s | 8.9× | 312 MB | 50 |
-| Psalm | analyzer | 7.2.0 | 3.65 s | 9.3× | 477 MB | 171 |
-| Mago lint | linter | 1.59.0 | 0.08 s | 0.2× | 157 MB | 846 |
-| PHP_CodeSniffer | linter | 4.0.4 | 0.65 s | 1.7× | 96 MB | 720 |
-| **custos fix** | fixer | 0.1.11 | 0.36 s | 1.0× | 100 MB | 25 |
-| PHP-CS-Fixer | fixer | 3.95.29 | 0.97 s | 2.7× | 157 MB | 0 |
-| Rector | fixer | 2.8.4 | 4.88 s | 13× | 498 MB | 26 |
+| Mago analyze | analyzer | 1.59.0 | 0.22 s | 0.4× | 201 MB | 589 |
+| **custos analyse** | analyzer | 0.1.12-3-g98bd30ec | 0.58 s | 1.0× | 105 MB | 48 |
+| Phan | analyzer | 6.0.11 | 1.54 s | 2.6× | 209 MB | 285 |
+| PHPStan | analyzer | 2.3.5 | 4.80 s | 8.2× | 333 MB | 50 |
+| Psalm | analyzer | 7.3.2 | 5.45 s | 9.3× | 473 MB | 172 |
+| Mago lint | linter | 1.59.0 | 0.11 s | 0.2× | 163 MB | 865 |
+| PHP_CodeSniffer | linter | 4.0.4 | 0.98 s | 1.7× | 97 MB | 727 |
+| **custos fix** | fixer | 0.1.12-3-g98bd30ec | 0.55 s | 1.0× | 102 MB | 25 |
+| PHP-CS-Fixer | fixer | 3.95.30 | 1.73 s | 3.2× | 155 MB | 0 |
+| Rector | fixer | 2.8.4 | 8.22 s | 15× | 511 MB | 26 |
 
 ## composer
 
-[composer/composer](https://github.com/composer/composer) at `2.11.1`, 321 PHP files.
+[composer/composer](https://github.com/composer/composer) at `2.11.2`, 321 PHP files.
 
 | Tool | Kind | Version | Time | vs custos | Peak memory | Findings |
 | :--- | :--- | :--- | ---: | ---: | ---: | ---: |
-| Mago analyze | analyzer | 1.59.0 | 0.39 s | 0.2× | 226 MB | 5050 |
-| **custos analyse** | analyzer | 0.1.11 | 1.87 s | 1.0× | 191 MB | 757 |
-| Phan | analyzer | 6.0.11 | 3.37 s | 1.8× | 543 MB | 2238 |
-| PHPStan | analyzer | 2.3.5 | 8.08 s | 4.3× | 820 MB | 242 |
-| Psalm | analyzer | 7.2.0 | 12.1 s | 6.5× | 1.2 GB | 1198 |
-| Mago lint | linter | 1.59.0 | 0.13 s | 0.07× | 192 MB | 4757 |
-| PHP_CodeSniffer | linter | 4.0.4 | 1.91 s | 1.0× | 104 MB | 10174 |
-| **custos fix** | fixer | 0.1.11 | 1.92 s | 1.0× | 189 MB | 511 |
-| PHP-CS-Fixer | fixer | 3.95.29 | 3.60 s | 1.9× | 162 MB | 320 |
-| Rector | fixer | 2.8.4 | 9.01 s | 4.7× | 1.9 GB | 138 |
+| Mago analyze | analyzer | 1.59.0 | 0.73 s | 0.2× | 227 MB | 5064 |
+| **custos analyse** | analyzer | 0.1.12-3-g98bd30ec | 3.31 s | 1.0× | 160 MB | 760 |
+| Phan | analyzer | 6.0.11 | 5.78 s | 1.7× | 532 MB | 2247 |
+| PHPStan | analyzer | 2.3.5 | 12.1 s | 3.7× | 830 MB | 242 |
+| Psalm | analyzer | 7.3.2 | 19.3 s | 5.8× | 1.1 GB | 1196 |
+| Mago lint | linter | 1.59.0 | 0.18 s | 0.05× | 196 MB | 4775 |
+| PHP_CodeSniffer | linter | 4.0.4 | 3.08 s | 0.9× | 106 MB | 10234 |
+| **custos fix** | fixer | 0.1.12-3-g98bd30ec | 3.28 s | 1.0× | 170 MB | 514 |
+| PHP-CS-Fixer | fixer | 3.95.30 | 6.80 s | 2.1× | 163 MB | 320 |
+| Rector | fixer | 2.8.4 | 14.5 s | 4.4× | 1.9 GB | 137 |
 
 ## laravel
 
-[laravel/framework](https://github.com/laravel/framework) at `v13.40.0`, 1746 PHP files.
+[laravel/framework](https://github.com/laravel/framework) at `v13.42.0`, 1750 PHP files.
 
 | Tool | Kind | Version | Time | vs custos | Peak memory | Findings |
 | :--- | :--- | :--- | ---: | ---: | ---: | ---: |
-| Mago analyze | analyzer | 1.59.0 | 0.67 s | 0.1× | 387 MB | 21385 |
-| **custos analyse** | analyzer | 0.1.11 | 5.49 s | 1.0× | 673 MB | 10997 |
-| Phan | analyzer | 6.0.11 | 14.2 s | 2.6× | 1.7 GB | 9102 |
-| PHPStan | analyzer | 2.3.5 | 18.1 s | 3.3× | 1.6 GB | 3826 |
-| Psalm | analyzer | 7.2.0 | 50.6 s | 9.2× | 3.1 GB | 7020 |
-| Mago lint | linter | 1.59.0 | 0.20 s | 0.04× | 201 MB | 9047 |
-| PHP_CodeSniffer | linter | 4.0.4 | 5.93 s | 1.1× | 132 MB | 9854 |
-| **custos fix** | fixer | 0.1.11 | 5.71 s | 1.0× | 643 MB | 4617 |
-| PHP-CS-Fixer | fixer | 3.95.29 | 7.84 s | 1.4× | 180 MB | 446 |
-| Rector | fixer | 2.8.4 | 24.2 s | 4.2× | 3.6 GB | 1325 |
+| Mago analyze | analyzer | 1.59.0 | 1.13 s | 0.2× | 396 MB | 21410 |
+| **custos analyse** | analyzer | 0.1.12-3-g98bd30ec | 7.33 s | 1.0× | 543 MB | 11005 |
+| Phan | analyzer | 6.0.11 | 21.9 s | 3.0× | 1.7 GB | 9099 |
+| PHPStan | analyzer | 2.3.5 | 29.5 s | 4.0× | 1.6 GB | 3838 |
+| Psalm | analyzer | 7.3.2 | 76.2 s | 10× | 3.1 GB | 6958 |
+| Mago lint | linter | 1.59.0 | 0.31 s | 0.04× | 201 MB | 9056 |
+| PHP_CodeSniffer | linter | 4.0.4 | 8.90 s | 1.2× | 134 MB | 9864 |
+| **custos fix** | fixer | 0.1.12-3-g98bd30ec | 7.24 s | 1.0× | 514 MB | 4619 |
+| PHP-CS-Fixer | fixer | 3.95.30 | 14.2 s | 2.0× | 180 MB | 447 |
+| Rector | fixer | 2.8.4 | 35.9 s | 5.0× | 3.5 GB | 1329 |
 
 ## Features
 

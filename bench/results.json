@@ -1,8 +1,8 @@
 {
-  "date": "2026-11-09",
+  "date": "2026-11-13",
   "runner": {
     "os": "linux/amd64",
-    "cpu": "AMD EPYC 9V45 96-Core Processor",
+    "cpu": "AMD EPYC 7763 64-Core Processor",
     "cores": 4,
     "memoryGB": 15.6
   },
@@ -12,31 +12,31 @@
     {
       "name": "guzzle",
       "repo": "https://github.com/guzzle/guzzle.git",
-      "tag": "8.3.1",
-      "files": 74,
+      "tag": "8.5.0",
+      "files": 76,
       "rows": [
         {
           "id": "custos",
           "label": "custos analyse",
           "kind": "analyzer",
-          "version": "0.1.11",
+          "version": "0.1.12-3-g98bd30ec",
           "status": "ok",
-          "median": 0.394027641,
-          "min": 0.382631433,
-          "max": 0.400147362,
-          "peakMB": 102.2880859375,
+          "median": 0.584254209,
+          "min": 0.58094226,
+          "max": 0.588599742,
+          "peakMB": 104.54296875,
           "findings": 48
         },
         {
           "id": "custos-fix",
           "label": "custos fix",
           "kind": "fixer",
-          "version": "0.1.11",
+          "version": "0.1.12-3-g98bd30ec",
           "status": "ok",
-          "median": 0.362977614,
-          "min": 0.360250142,
-          "max": 0.3664272,
-          "peakMB": 100.28125,
+          "median": 0.546189342,
+          "min": 0.542503189,
+          "max": 0.548185723,
+          "peakMB": 102.00390625,
           "findings": 25
         },
         {
@@ -45,23 +45,23 @@
           "kind": "analyzer",
           "version": "2.3.5",
           "status": "ok",
-          "median": 3.525524985,
-          "min": 3.419352107,
-          "max": 3.665448956,
-          "peakMB": 312.439453125,
+          "median": 4.798703538,
+          "min": 4.782262362,
+          "max": 5.114659696,
+          "peakMB": 333.1513671875,
           "findings": 50
         },
         {
           "id": "psalm",
           "label": "Psalm",
           "kind": "analyzer",
-          "version": "7.2.0",
+          "version": "7.3.2",
           "status": "ok",
-          "median": 3.652246909,
-          "min": 3.641980096,
-          "max": 3.82753724,
-          "peakMB": 477.0107421875,
-          "findings": 171
+          "median": 5.449304039,
+          "min": 5.393212503,
+          "max": 5.492887996,
+          "peakMB": 473.45703125,
+          "findings": 172
         },
         {
           "id": "phan",
@@ -69,11 +69,11 @@
           "kind": "analyzer",
           "version": "6.0.11",
           "status": "ok",
-          "median": 1.021977831,
-          "min": 0.963487507,
-          "max": 1.0475926740000001,
-          "peakMB": 214.27734375,
-          "findings": 281
+          "median": 1.54488014,
+          "min": 1.468837137,
+          "max": 1.569656448,
+          "peakMB": 208.8251953125,
+          "findings": 285
         },
         {
           "id": "mago-analyze",
@@ -81,11 +81,11 @@
           "kind": "analyzer",
           "version": "1.59.0",
           "status": "ok",
-          "median": 0.152646107,
-          "min": 0.144097521,
-          "max": 0.152962789,
-          "peakMB": 200.66015625,
-          "findings": 584
+          "median": 0.217803164,
+          "min": 0.213726294,
+          "max": 0.218425799,
+          "peakMB": 201.4052734375,
+          "findings": 589
         },
         {
           "id": "mago-lint",
@@ -93,11 +93,11 @@
           "kind": "linter",
           "version": "1.59.0",
           "status": "ok",
-          "median": 0.081791996,
-          "min": 0.081052663,
-          "max": 0.082244263,
-          "peakMB": 156.828125,
-          "findings": 846
+          "median": 0.108422435,
+          "min": 0.103266542,
+          "max": 0.115269489,
+          "peakMB": 163.4033203125,
+          "findings": 865
         },
         {
           "id": "phpcs",
@@ -105,22 +105,22 @@
           "kind": "linter",
           "version": "4.0.4",
           "status": "ok",
-          "median": 0.653580841,
-          "min": 0.651979024,
-          "max": 0.693949698,
-          "peakMB": 96.228515625,
-          "findings": 720
+          "median": 0.978540547,
+          "min": 0.933418063,
+          "max": 1.010215011,
+          "peakMB": 96.8935546875,
+          "findings": 727
         },
         {
           "id": "php-cs-fixer",
           "label": "PHP-CS-Fixer",
           "kind": "fixer",
-          "version": "v3.95.29",
+          "version": "v3.95.30",
           "status": "ok",
-          "median": 0.967282099,
-          "min": 0.961793964,
-          "max": 0.985124153,
-          "peakMB": 156.986328125,
+          "median": 1.7309902080000001,
+          "min": 1.69287883,
+          "max": 1.7367619159999999,
+          "peakMB": 155.298828125,
           "findings": 0
         },
         {
@@ -129,10 +129,10 @@
           "kind": "fixer",
           "version": "2.8.4",
           "status": "ok",
-          "median": 4.876308211,
-          "min": 4.788971353,
-          "max": 5.107890023,
-          "peakMB": 498.171875,
+          "median": 8.224501466,
+          "min": 8.134928932,
+          "max": 8.409364309,
+          "peakMB": 511.388671875,
           "findings": 26
         }
       ]
@@ -140,32 +140,32 @@
     {
       "name": "composer",
       "repo": "https://github.com/composer/composer.git",
-      "tag": "2.11.1",
+      "tag": "2.11.2",
       "files": 321,
       "rows": [
         {
           "id": "custos",
           "label": "custos analyse",
           "kind": "analyzer",
-          "version": "0.1.11",
+          "version": "0.1.12-3-g98bd30ec",
           "status": "ok",
-          "median": 1.866733712,
-          "min": 1.8368000169999998,
-          "max": 1.8917173680000001,
-          "peakMB": 190.83984375,
-          "findings": 757
+          "median": 3.313240222,
+          "min": 3.237142034,
+          "max": 3.772756079,
+          "peakMB": 160.1640625,
+          "findings": 760
         },
         {
           "id": "custos-fix",
           "label": "custos fix",
           "kind": "fixer",
-          "version": "0.1.11",
+          "version": "0.1.12-3-g98bd30ec",
           "status": "ok",
-          "median": 1.922733621,
-          "min": 1.913244062,
-          "max": 1.9311585089999999,
-          "peakMB": 188.9609375,
-          "findings": 511
+          "median": 3.279288184,
+          "min": 3.261492035,
+          "max": 3.294432927,
+          "peakMB": 170.2333984375,
+          "findings": 514
         },
         {
           "id": "phpstan",
@@ -173,23 +173,23 @@
           "kind": "analyzer",
           "version": "2.3.5",
           "status": "ok",
-          "median": 8.07957107,
-          "min": 8.00484083,
-          "max": 8.709072494,
-          "peakMB": 820.0966796875,
+          "median": 12.099182613,
+          "min": 11.92190813,
+          "max": 12.440779492,
+          "peakMB": 829.7470703125,
           "findings": 242
         },
         {
           "id": "psalm",
           "label": "Psalm",
           "kind": "analyzer",
-          "version": "7.2.0",
+          "version": "7.3.2",
           "status": "ok",
-          "median": 12.065068444,
-          "min": 11.982854511,
-          "max": 13.319296763,
-          "peakMB": 1188.4287109375,
-          "findings": 1198
+          "median": 19.330430118,
+          "min": 18.980370592,
+          "max": 19.768029665,
+          "peakMB": 1155.810546875,
+          "findings": 1196
         },
         {
           "id": "phan",
@@ -197,11 +197,11 @@
           "kind": "analyzer",
           "version": "6.0.11",
           "status": "ok",
-          "median": 3.374507627,
-          "min": 3.351879654,
-          "max": 3.655906277,
-          "peakMB": 543.2353515625,
-          "findings": 2238
+          "median": 5.782210899,
+          "min": 5.689074291,
+          "max": 6.021312244,
+          "peakMB": 531.8876953125,
+          "findings": 2247
         },
         {
           "id": "mago-analyze",
@@ -209,11 +209,11 @@
           "kind": "analyzer",
           "version": "1.59.0",
           "status": "ok",
-          "median": 0.385831614,
-          "min": 0.382822542,
-          "max": 0.39390667,
-          "peakMB": 226.3828125,
-          "findings": 5050
+          "median": 0.731330345,
+          "min": 0.730224541,
+          "max": 0.73500818,
+          "peakMB": 226.9150390625,
+          "findings": 5064
         },
         {
           "id": "mago-lint",
@@ -221,11 +221,11 @@
           "kind": "linter",
           "version": "1.59.0",
           "status": "ok",
-          "median": 0.125213385,
-          "min": 0.1225295,
-          "max": 0.127374146,
-          "peakMB": 191.5341796875,
-          "findings": 4757
+          "median": 0.181951867,
+          "min": 0.181238012,
+          "max": 0.184330619,
+          "peakMB": 195.7138671875,
+          "findings": 4775
         },
         {
           "id": "phpcs",
@@ -233,22 +233,22 @@
           "kind": "linter",
           "version": "4.0.4",
           "status": "ok",
-          "median": 1.906340331,
-          "min": 1.75490141,
-          "max": 1.960364647,
-          "peakMB": 103.939453125,
-          "findings": 10174
+          "median": 3.082408938,
+          "min": 3.055516336,
+          "max": 3.502589762,
+          "peakMB": 105.71484375,
+          "findings": 10234
         },
         {
           "id": "php-cs-fixer",
           "label": "PHP-CS-Fixer",
           "kind": "fixer",
-          "version": "v3.95.29",
+          "version": "v3.95.30",
           "status": "ok",
-          "median": 3.604864799,
-          "min": 3.547438768,
-          "max": 3.72916705,
-          "peakMB": 162.2138671875,
+          "median": 6.799695549,
+          "min": 6.738122971,
+          "max": 6.916220859,
+          "peakMB": 162.849609375,
           "findings": 320
         },
         {
@@ -257,43 +257,43 @@
           "kind": "fixer",
           "version": "2.8.4",
           "status": "ok",
-          "median": 9.012850076,
-          "min": 9.010337754,
-          "max": 9.030671218,
-          "peakMB": 1916.5009765625,
-          "findings": 138
+          "median": 14.477914686,
+          "min": 14.061059054,
+          "max": 14.680156859,
+          "peakMB": 1908.9072265625,
+          "findings": 137
         }
       ]
     },
     {
       "name": "laravel",
       "repo": "https://github.com/laravel/framework.git",
-      "tag": "v13.40.0",
-      "files": 1746,
+      "tag": "v13.42.0",
+      "files": 1750,
       "rows": [
         {
           "id": "custos",
           "label": "custos analyse",
           "kind": "analyzer",
-          "version": "0.1.11",
+          "version": "0.1.12-3-g98bd30ec",
           "status": "ok",
-          "median": 5.494411591,
-          "min": 5.366318994,
-          "max": 5.531627671,
-          "peakMB": 672.51171875,
-          "findings": 10997
+          "median": 7.326239645,
+          "min": 7.203380789,
+          "max": 7.684476139,
+          "peakMB": 543.3583984375,
+          "findings": 11005
         },
         {
           "id": "custos-fix",
           "label": "custos fix",
           "kind": "fixer",
-          "version": "0.1.11",
+          "version": "0.1.12-3-g98bd30ec",
           "status": "ok",
-          "median": 5.706992237,
-          "min": 5.666064293,
-          "max": 5.847090303,
-          "peakMB": 643.02734375,
-          "findings": 4617
+          "median": 7.23589484,
+          "min": 7.19176624,
+          "max": 7.270150233,
+          "peakMB": 513.77734375,
+          "findings": 4619
         },
         {
           "id": "phpstan",
@@ -301,23 +301,23 @@
           "kind": "analyzer",
           "version": "2.3.5",
           "status": "ok",
-          "median": 18.10260353,
-          "min": 17.922376564,
-          "max": 18.704853203,
-          "peakMB": 1596.931640625,
-          "findings": 3826
+          "median": 29.466671872,
+          "min": 29.281840809,
+          "max": 29.489274061,
+          "peakMB": 1607.1787109375,
+          "findings": 3838
         },
         {
           "id": "psalm",
           "label": "Psalm",
           "kind": "analyzer",
-          "version": "7.2.0",
+          "version": "7.3.2",
           "status": "ok",
-          "median": 50.559494292,
-          "min": 48.807360346,
-          "max": 50.784005416,
-          "peakMB": 3183.421875,
-          "findings": 7020
+          "median": 76.207222947,
+          "min": 75.796403673,
+          "max": 76.341617289,
+          "peakMB": 3133.794921875,
+          "findings": 6958
         },
         {
           "id": "phan",
@@ -325,11 +325,11 @@
           "kind": "analyzer",
           "version": "6.0.11",
           "status": "ok",
-          "median": 14.220016143,
-          "min": 14.065824726,
-          "max": 14.855762707,
-          "peakMB": 1753.25,
-          "findings": 9102
+          "median": 21.934598889,
+          "min": 21.337027075,
+          "max": 22.120715596,
+          "peakMB": 1751.302734375,
+          "findings": 9099
         },
         {
           "id": "mago-analyze",
@@ -337,11 +337,11 @@
           "kind": "analyzer",
           "version": "1.59.0",
           "status": "ok",
-          "median": 0.669436345,
-          "min": 0.646658457,
-          "max": 0.679859704,
-          "peakMB": 387.3515625,
-          "findings": 21385
+          "median": 1.134649081,
+          "min": 1.130637317,
+          "max": 1.200609007,
+          "peakMB": 395.783203125,
+          "findings": 21410
         },
         {
           "id": "mago-lint",
@@ -349,11 +349,11 @@
           "kind": "linter",
           "version": "1.59.0",
           "status": "ok",
-          "median": 0.197510474,
-          "min": 0.182684725,
-          "max": 0.197636068,
-          "peakMB": 200.9677734375,
-          "findings": 9047
+          "median": 0.311768674,
+          "min": 0.309860501,
+          "max": 0.336649234,
+          "peakMB": 201.4677734375,
+          "findings": 9056
         },
         {
           "id": "phpcs",
@@ -361,23 +361,23 @@
           "kind": "linter",
           "version": "4.0.4",
           "status": "ok",
-          "median": 5.929265573,
-          "min": 5.770959555,
-          "max": 5.968179733,
-          "peakMB": 132.14453125,
-          "findings": 9854
+          "median": 8.901164551,
+          "min": 8.692864295,
+          "max": 9.492514559,
+          "peakMB": 134.2392578125,
+          "findings": 9864
         },
         {
           "id": "php-cs-fixer",
           "label": "PHP-CS-Fixer",
           "kind": "fixer",
-          "version": "v3.95.29",
+          "version": "v3.95.30",
           "status": "ok",
-          "median": 7.835436603,
-          "min": 7.819436445,
-          "max": 7.947350687,
-          "peakMB": 179.9052734375,
-          "findings": 446
+          "median": 14.193196312,
+          "min": 14.184273283,
+          "max": 14.589326635,
+          "peakMB": 180.3544921875,
+          "findings": 447
         },
         {
           "id": "rector",
@@ -385,11 +385,11 @@
           "kind": "fixer",
           "version": "2.8.4",
           "status": "ok",
-          "median": 24.216968458,
-          "min": 23.598816846,
-          "max": 24.610072549,
-          "peakMB": 3684.232421875,
-          "findings": 1325
+          "median": 35.927071423,
+          "min": 34.903903478,
+          "max": 36.115892149,
+          "peakMB": 3539.4443359375,
+          "findings": 1329
         }
       ]
     }
