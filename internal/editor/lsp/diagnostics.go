@@ -52,8 +52,9 @@ func (s *Server) analyzeNow(uri string) {
 		<-s.sem
 		return
 	}
+	analyzer := withBaseline(e, bl)
 	result := s.guardedAnalysis(path, func() diagnostic.FileResult {
-		return project.AnalyzeBuffer(e, path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+		return project.AnalyzeBuffer(analyzer, path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
 	})
 	<-s.sem
 

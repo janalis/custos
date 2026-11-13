@@ -15,9 +15,10 @@ function spelling($a, $b, $c, $d) {
     } elseif ($d) {
         go(6);
     }
+    // So does a chain without elseif in a file that writes elseif.
     if ($a) {
         go(7);
-    } else if ($c) {
+    } elseif ($c) {
         go(8);
     }
 }

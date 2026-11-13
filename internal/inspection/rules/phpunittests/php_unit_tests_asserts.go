@@ -601,14 +601,12 @@ func putResourceExists(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Ex
 	if !ok || len(inner) != 1 {
 		return putSuggestion{}, false
 	}
-	name := "assert" + kind + "DoesNotExist"
-	if putVersion(ctx) < 91 { // the DoesNotExist names only exist from PHPUnit 9.1
-		name = "assert" + kind + "NotExists"
+	slots := putSlotsFrom(ctx, args, 1, len(args), ctx.Text(inner[0]), putOpt(ctx, args, 1))
+	if pos { // the positive names are the same at every version
+		return putSuggestion{name: "assert" + kind + "Exists", slots: slots}, true
 	}
-	if pos {
-		name = "assert" + kind + "Exists"
-	}
-	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 1, len(args), ctx.Text(inner[0]), putOpt(ctx, args, 1))}, true
+	// the DoesNotExist names only exist from PHPUnit 9.1
+	return putVersioned(ctx, "assert"+kind+"DoesNotExist", "assert"+kind+"NotExists", slots), true
 }
 
 // D24
@@ -637,7 +635,7 @@ func putCount(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (putS
 func putContains(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (putSuggestion, bool) {
 	// From 9.0 assertContains() compares strictly, unlike in_array(): a
 	// version merely assumed proves nothing.
-	if _, detected := phpunit.DetectedPHPUnitVersion(ctx); !detected && !ctx.OptionSet("PHP_UNIT_VERSION") || putVersion(ctx) >= 90 {
+	if !putVersionKnown(ctx) || putVersion(ctx) >= 90 {
 		return putSuggestion{}, false
 	}
 	pos, ok := putPositive(c.Name)
@@ -655,21 +653,38 @@ func putContains(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (p
 	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 1, len(args)+1, ctx.Text(inner[0]), ctx.Text(inner[1]), putOpt(ctx, args, 1))}, true
 }
 
-// putRegexName returns the regex assertion name for the configured PHPUnit
-// version: assertMatchesRegularExpression / assertDoesNotMatchRegularExpression
-// from 9.1 (where assertRegExp is deprecated), assertRegExp / assertNotRegExp
-// below.
-func putRegexName(ctx *analysis.Context, positive bool) string {
-	if putVersion(ctx) >= 91 {
-		if positive {
-			return "assertMatchesRegularExpression"
-		}
-		return "assertDoesNotMatchRegularExpression"
+// putVersionKnown reports a PHPUnit version that is configured (as a
+// version) or detected rather than assumed.
+func putVersionKnown(ctx *analysis.Context) bool {
+	if _, ok := putConfiguredVersion(ctx); ok {
+		return true
 	}
+	_, detected := phpunit.DetectedPHPUnitVersion(ctx)
+	return detected
+}
+
+// putRegexNames returns the regex assertion names introduced in PHPUnit 9.1
+// (assertMatchesRegularExpression / assertDoesNotMatchRegularExpression) and
+// the ones they replace (assertRegExp / assertNotRegExp).
+func putRegexNames(positive bool) (newName, oldName string) {
 	if positive {
-		return "assertRegExp"
+		return "assertMatchesRegularExpression", "assertRegExp"
 	}
-	return "assertNotRegExp"
+	return "assertDoesNotMatchRegularExpression", "assertNotRegExp"
+}
+
+// putVersioned suggests newName from PHPUnit 9.1 and oldName below. When the
+// version is only assumed, the message names both and no fix is offered:
+// oldName is gone from PHPUnit 10 and newName is missing before 9.1.
+func putVersioned(ctx *analysis.Context, newName, oldName string, slots []string) putSuggestion {
+	name := newName
+	if putVersion(ctx) < 91 {
+		name = oldName
+	}
+	if putVersionKnown(ctx) {
+		return putSuggestion{name: name, slots: slots}
+	}
+	return putSuggestion{name: name, slots: slots, noFix: true, msg: "Use '" + newName + "()' ('" + oldName + "()' before PHPUnit 9.1) instead."}
 }
 
 // D26
@@ -690,18 +705,17 @@ func putRegexNumeric(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr
 	if !ok || len(inner) != 2 {
 		return putSuggestion{}, false
 	}
-	name := putRegexName(ctx, ctx.Text(args[0]) == expected)
-	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 2, len(args), ctx.Text(inner[0]), ctx.Text(inner[1]), putOpt(ctx, args, 2))}, true
+	newName, oldName := putRegexNames(ctx.Text(args[0]) == expected)
+	return putVersioned(ctx, newName, oldName, putSlotsFrom(ctx, args, 2, len(args), ctx.Text(inner[0]), ctx.Text(inner[1]), putOpt(ctx, args, 2))), true
 }
 
 // D27
 func putRegexComparison(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (putSuggestion, bool) {
-	var name string
+	var positive bool
 	switch c.Name {
 	case "assertTrue":
-		name = putRegexName(ctx, true)
+		positive = true
 	case "assertFalse":
-		name = putRegexName(ctx, false)
 	default:
 		return putSuggestion{}, false
 	}
@@ -716,7 +730,8 @@ func putRegexComparison(ctx *analysis.Context, c phpunit.PuCall, args []syntax.E
 	if !ok || len(inner) != 2 {
 		return putSuggestion{}, false
 	}
-	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 1, len(args)+1, ctx.Text(inner[0]), ctx.Text(inner[1]), putOpt(ctx, args, 1))}, true
+	newName, oldName := putRegexNames(positive)
+	return putVersioned(ctx, newName, oldName, putSlotsFrom(ctx, args, 1, len(args)+1, ctx.Text(inner[0]), ctx.Text(inner[1]), putOpt(ctx, args, 1))), true
 }
 
 // putEnclosingFuncName returns the name of the nearest enclosing function

@@ -16,6 +16,9 @@ function legacy() { /* … */ }
   or, for EA rules, the PhpStorm name (`<ID>Inspection`). Comments written for
   Php Inspections (EA Extended) in PhpStorm therefore keep working. Native
   rules have no PhpStorm name: use their rule ID.
+- PossiblyNullAccess and PossiblyNullArgument take over the possible nulls
+  NullPointerException would otherwise report, so a suppression of
+  NullPointerException silences them too.
 - Names are case-sensitive: `@custos-ignore onetimeusevariables` suppresses
   nothing.
 - Several names can be listed: `// @custos-ignore UnusedGotoLabel, UnnecessarySemicolon`.
@@ -79,6 +82,12 @@ Baseline entries match on file, rule, message and the text of the flagged
 line, not on line numbers, so they survive code moving around. Each entry
 counts its occurrences: a second identical finding on an identical line is
 new. Regenerate the baseline after fixing old findings to keep it small.
+A possible null that NullPointerException recorded and that
+PossiblyNullAccess or PossiblyNullArgument now reports on the same line
+(or the reverse) stays covered, whatever the message. PossiblyNullAccess
+reports a value once, after its first reported access; a baseline entry
+of that access does not count as reported, so a later access is reported
+(the baseline you generate records them all).
 
 The file is JSON, sorted so that it diffs well:
 

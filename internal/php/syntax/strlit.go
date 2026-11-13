@@ -137,7 +137,15 @@ func LiteralStringValue(literal *Literal) (string, bool) {
 	if literal == nil || literal.LitKind != LitString {
 		return "", false
 	}
-	version := SourceVersion(literal)
+	return LiteralStringValueForVersion(literal, SourceVersion(literal))
+}
+
+// LiteralStringValueForVersion is LiteralStringValue under the escape rules
+// of the given PHP version (zero for the latest).
+func LiteralStringValueForVersion(literal *Literal, version phpversion.Version) (string, bool) {
+	if literal == nil || literal.LitKind != LitString {
+		return "", false
+	}
 	if value, ok := StringLiteralValueForVersion(literal.Raw, version); ok {
 		return value, true
 	}

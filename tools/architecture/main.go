@@ -107,13 +107,13 @@ func check(root string) ([]string, error) {
 					report("%s: forbidden dependency on %s", rel, target)
 				}
 			}
-			if from == sharedQueries {
+			if sharedPackages[from] {
 				declared := map[*ast.Ident]bool{}
 				for _, decl := range file.Decls {
 					switch decl := decl.(type) {
 					case *ast.FuncDecl:
 						if decl.Recv == nil && decl.Name.IsExported() {
-							shared[decl.Name.Name] = rel
+							shared[from+"."+decl.Name.Name] = rel
 							declared[decl.Name] = true
 						}
 					case *ast.GenDecl:
@@ -127,7 +127,7 @@ func check(root string) ([]string, error) {
 							}
 							for _, name := range names {
 								if name.IsExported() {
-									shared[name.Name] = rel
+									shared[from+"."+name.Name] = rel
 									declared[name] = true
 								}
 							}
@@ -136,15 +136,15 @@ func check(root string) ([]string, error) {
 				}
 				ast.Inspect(file, func(node ast.Node) bool {
 					if id, ok := node.(*ast.Ident); ok && !declared[id] && id.IsExported() {
-						use(id.Name, from)
+						use(from+"."+id.Name, from)
 					}
 					return true
 				})
 			}
 			ast.Inspect(file, func(node ast.Node) bool {
 				if sel, ok := node.(*ast.SelectorExpr); ok {
-					if x, ok := sel.X.(*ast.Ident); ok && imports[x.Name] == "custos/"+sharedQueries {
-						use(sel.Sel.Name, from)
+					if x, ok := sel.X.(*ast.Ident); ok && sharedPackages[strings.TrimPrefix(imports[x.Name], "custos/")] {
+						use(strings.TrimPrefix(imports[x.Name], "custos/")+"."+sel.Sel.Name, from)
 					}
 				}
 				return true
@@ -270,7 +270,7 @@ func check(root string) ([]string, error) {
 		if len(users[name]) == 1 {
 			for user := range users[name] {
 				if strings.HasPrefix(user, "internal/inspection/rules/") {
-					report("%s: %s is used only by %s; keep it in that rule", rel, name, user)
+					report("%s: %s is used only by %s; keep it in that rule", rel, name[strings.LastIndexByte(name, '.')+1:], user)
 				}
 			}
 		}
@@ -279,9 +279,13 @@ func check(root string) ([]string, error) {
 	return problems, nil
 }
 
-// sharedQueries holds semantic queries several rules share; a query only
-// one rule uses belongs in that rule.
-const sharedQueries = "internal/inspection/semanticquery"
+// sharedPackages hold the queries several rules share (syntax, flow and
+// semantic); a query only one rule uses belongs in that rule.
+var sharedPackages = map[string]bool{
+	"internal/inspection/astquery":      true,
+	"internal/inspection/flowquery":     true,
+	"internal/inspection/semanticquery": true,
+}
 
 func allowed(from, to string) bool {
 	within := func(prefix string) bool { return to == prefix || strings.HasPrefix(to, prefix+"/") }

@@ -1,0 +1,1 @@
+{ "with": ["NotOptimalIfConditions"], "options": { "NotOptimalIfConditions.REPORT_INSTANCE_OF_FLAWS": false } }

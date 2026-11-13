@@ -2,8 +2,8 @@ package infer_test
 
 import "testing"
 
-// Static properties narrow like `$this->prop`, and lose the fact on any
-// call or write in between.
+// Static properties narrow like `$this->prop`, and lose the fact on a
+// call that may run project code or a write in between.
 func TestStaticPropertyNarrowing(t *testing.T) {
 	checkAnywhere(t, `<?php
 class W {}
@@ -28,7 +28,7 @@ class S {
     public static function reset(): void {}
 }
 `, map[string]string{
-		"pop": `\W`, "static": `non-empty \W[]`, "cur": `\W`, "afterCall": `\W`, // as for $this->p, an early-exit guard survives calls "named": `\W`, "written": `\W`,
+		"pop": `\W`, "static": `non-empty \W[]`, "cur": `\W`, "afterCall": `\W|null`, "named": `\W`, "written": `\W`,
 	})
 }
 
@@ -84,6 +84,7 @@ class H {
 // either variable changed in between.
 func TestBooleanAliasNarrowing(t *testing.T) {
 	checkAnywhere(t, `<?php
+function t($label, $value) {}
 function f(object|string|null $r, ?int $n, $c) {
     if (($isObject = is_object($r)) && $c) {}
     if ($isObject) { t('true', $r); } else { t('false', $r); }
@@ -104,8 +105,8 @@ function f(object|string|null $r, ?int $n, $c) {
     t('replaceUnknown', str_replace('a', 'b', $c));
 }
 `, map[string]string{
-		"true": "object", "false": "null|string", "guard": "int", "changed": "int|null",
-		"twoDefs": "null|object|string", "aliasOfAlias": "int|null", "notBool": "null|object|string",
+		"true": "object", "false": "null|string", "guard": "int", "changed": "int<1, 1>|null",
+		"twoDefs": "null|object|string", "aliasOfAlias": "int<1, 1>|null", "notBool": "null|object|string",
 		"undefinedAlias": "null|object|string", "replaceUnknown": "?unknown",
 	})
 }
@@ -125,7 +126,7 @@ class A {
         if (self::$s) { t('static', self::$s); } else { t('staticElse', self::$s); }
     }
 }
-`, map[string]string{"reassigned": "null|string", "afterCall": "string", "static": "string", "staticElse": "null|string"})
+`, map[string]string{"reassigned": "null|string", "afterCall": "null|string", "static": "string", "staticElse": "null|string"})
 }
 
 // A call that may enter the function again ends what a condition proved of

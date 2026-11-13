@@ -67,8 +67,8 @@ one imported from another namespace, or a qualified non-global name such as
   - **D6a** `A0` is an array literal: collect its element values (as in D3).
     If none → no report. If the first element is a simple variable (incl.
     `$this`), its inferred type must be fully known and must not contain
-    `string`; otherwise (unknown/partially unknown type, or a string member)
-    → no report. `first` = 1st element, `second` = 2nd element (if any;
+    `string`, `callable` (which may be a string) or `mixed`; otherwise
+    (unknown/partially unknown type, or such a member) → no report. `first` = 1st element, `second` = 2nd element (if any;
     further elements ignored).
   - **D6b** Otherwise: if `A0` is a simple variable and the PHP level is
     **below 5.4** → no report. `first` = `A0`, no `second`.

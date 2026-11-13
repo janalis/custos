@@ -74,6 +74,22 @@ func TestParsedStringVersionAndHeredoc(t *testing.T) {
 	}
 }
 
+// LiteralStringValueForVersion decodes under the version given and
+// declines anything but a string literal.
+func TestLiteralStringValueForVersion(t *testing.T) {
+	if got, ok := LiteralStringValueForVersion(&Literal{LitKind: LitString, Raw: `"\u{41}"`}, phpversion.PHP56); !ok || got != `\u{41}` {
+		t.Errorf("PHP 5.6: %q/%v", got, ok)
+	}
+	if got, ok := LiteralStringValueForVersion(&Literal{LitKind: LitString, Raw: "<<<'T'\nab\nT"}, phpversion.PHP84); !ok || got != "ab" {
+		t.Errorf("nowdoc: %q/%v", got, ok)
+	}
+	for _, l := range []*Literal{nil, {LitKind: LitInt, Raw: "55"}} {
+		if _, ok := LiteralStringValueForVersion(l, phpversion.PHP84); ok {
+			t.Errorf("%v: decoded", l)
+		}
+	}
+}
+
 func BenchmarkParsedStringValue(b *testing.B) {
 	file := Parse("literal.php", []byte(`<?php "ordinary text";`), Options{})
 	literal := file.Stmts[0].(*ExprStmt).Expr.(*Literal)

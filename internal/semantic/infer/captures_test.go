@@ -89,7 +89,7 @@ function arrows() {
 }
 `, map[string]string{
 		"prefixArrow": "int", "postfixArrow": "null", "outer": "null", "nestedPrefix": "int",
-		"before": "string", "shape": "int[]{k: int}", "closureShape": "int[]{k: int}",
+		"before": "string<len 1, 1>", "shape": "int[]<int<1, 1>>{k: int<1, 1>}", "closureShape": "int[]<int<1, 1>>{k: int<1, 1>}",
 	})
 }
 
@@ -113,8 +113,8 @@ $global = fn() => t('global', $top);
 if (rand(0, 1)) { $choice = 'first'; } else { $choice = 'second'; }
 $globalChoice = fn() => t('globalBranch', $choice);
 `, map[string]string{
-		"backedge": "int|string", "unknownBackedge": "?unknown", "aliased": "int[]",
-		"unsetShape": "int[]", "initialized": "string", "global": "string", "globalBranch": "string",
+		"backedge": "int<1, 1>|string<len 1, 1>", "unknownBackedge": "?unknown", "aliased": "int[]<int<1, 1>>",
+		"unsetShape": "int[]<int<1, 1>>", "initialized": "string<len 1, 1>", "global": "string<len 1, 1>", "globalBranch": "string<len 5, 6>",
 	})
 }
 
@@ -145,8 +145,8 @@ function arrowDefinitions(bool $c, string $s) {
     $condition = fn() => [($x = 1) ? 2 : 3, t('condition', $x)];
 }
 `, map[string]string{
-		"assignment": "int", "conditional": "int|string", "ternary": "int|string", "match": "int|string",
+		"assignment": "int<1, 1>", "conditional": "int<1, 1>|string<len 1, 1>", "ternary": "int<1, 1>|string<len 1, 1>", "match": "int<1, 1>|string<len 1, 1>",
 		"out": "string[]", "increment": "float|int|string", "optionalIncrement": "float|int|string",
-		"arithmetic": "int", "condition": "int",
+		"arithmetic": "int<1, 1>", "condition": "int<1, 1>",
 	})
 }

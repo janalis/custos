@@ -1,7 +1,6 @@
 package longinheritancechain
 
 import (
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -62,7 +61,7 @@ func (longInheritanceChain) Check(ctx *analysis.Context, n syntax.Node) {
 			next = ix.Class(cur.Parent, ctx.PHP)
 		}
 		count++
-		if licThirdParty(cur, ctx.PHP) { // D3a: a library or builtin class ends the project's chain
+		if licThirdParty(ix, cur, ctx.PHP) { // D3a: a library or builtin class ends the project's chain
 			break
 		}
 		if next != nil {
@@ -84,7 +83,8 @@ func (longInheritanceChain) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // licThirdParty reports whether c is declared outside the project's own
-// sources: a builtin stub, or a file under a `vendor` directory.
-func licThirdParty(c *index.Class, ver phpversion.Version) bool {
-	return stubs.Index().Class(c.FQN, ver) == c || strings.Contains("/"+filepath.ToSlash(c.File), "/vendor/")
+// sources: a builtin stub, or a file in the project's vendor directory
+// (see index.World.Dependency).
+func licThirdParty(ix *index.Index, c *index.Class, ver phpversion.Version) bool {
+	return stubs.Index().Class(c.FQN, ver) == c || ix.World().Dependency(c.File)
 }

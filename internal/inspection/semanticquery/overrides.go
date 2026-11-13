@@ -1,6 +1,7 @@
 package semanticquery
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -87,6 +88,7 @@ func descendantMethods(ix *index.Index, fqn string, ver phpversion.Version, budg
 			if !ix.AncestorsComplete(child, ver) {
 				out.Complete = false
 			}
+			var composed map[string]bool
 			for _, ancestor := range ix.Ancestors(child, ver) {
 				if !charge() {
 					return out
@@ -105,9 +107,20 @@ func descendantMethods(ix *index.Index, fqn string, ver phpversion.Version, budg
 					}
 				}
 				if ancestor.Kind == syntax.KindTrait {
+					if composed == nil {
+						composed = composedTraits(ix, c, ver)
+					}
+					own := composed[strings.ToLower(strings.TrimPrefix(ancestor.FQN, `\`))]
 					for name := range ancestor.Methods {
 						if !charge() {
 							return out
+						}
+						// A method of a trait the child does not compose
+						// itself is owned by the class that does, unless
+						// one the child composes declares it too (even by
+						// an @method tag): looked up there.
+						if !own {
+							continue
 						}
 						if method := ix.FindMethod(child, name, ver); method != nil && strings.EqualFold(method.TypeClass, c.FQN) {
 							out.names[name] = true
@@ -129,4 +142,25 @@ func descendantMethods(ix *index.Index, fqn string, ver phpversion.Version, budg
 		}
 	}
 	return out
+}
+
+// composedTraits returns the traits c composes, directly or through other
+// traits, lower-case and without a leading backslash: by the name c uses
+// and, for a class_alias, by the name it declares.
+func composedTraits(ix *index.Index, c *index.Class, ver phpversion.Version) map[string]bool {
+	composed := map[string]bool{}
+	queue := slices.Clone(c.Traits)
+	for len(queue) > 0 {
+		name := strings.ToLower(strings.TrimPrefix(queue[0], `\`))
+		queue = queue[1:]
+		if composed[name] {
+			continue
+		}
+		composed[name] = true
+		if trait := ix.Class(name, ver); trait != nil {
+			composed[strings.ToLower(strings.TrimPrefix(trait.FQN, `\`))] = true
+			queue = append(queue, trait.Traits...)
+		}
+	}
+	return composed
 }

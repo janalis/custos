@@ -75,7 +75,7 @@ function f($code, $c2, $c3, $x) {
 }
 `, map[string]string{
 		"join": "string", "withElse": "string", "unknownWrite": "?unknown", "otherWrite": "?unknown",
-		"iface": `\Marker|string`, "leaves": "?unknown",
+		"iface": `\Marker|string<len 1, 1>`, "leaves": "?unknown",
 	})
 }
 

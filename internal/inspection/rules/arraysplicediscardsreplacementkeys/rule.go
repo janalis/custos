@@ -25,7 +25,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	local := semanticquery.CallArgument(call.Args, 0, "array")
-	if variable(local) == "" || flowquery.MayHaveSideEffects(call.Args) {
+	if astquery.VariableName(local) == "" || flowquery.MayHaveSideEffects(call.Args) {
 		return
 	}
 	stmt, ok := call.Parent().(*syntax.ExprStmt)
@@ -33,10 +33,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	access, ok := astquery.NextEcho(ctx.File, stmt).(*syntax.ArrayDimFetch)
-	if !ok || variable(access.Var) != variable(local) {
+	if !ok || astquery.VariableName(access.Var) != astquery.VariableName(local) {
 		return
 	}
-	original, known := initialEntries(ctx, stmt, variable(local))
+	original, known := initialEntries(ctx, stmt, astquery.VariableName(local))
 	if !known && private(ctx, call, local, access.Var) {
 		original, known = semanticquery.NativeArrayEntries(ctx, local)
 	}
@@ -70,7 +70,7 @@ func initialEntries(ctx *analysis.Context, s syntax.Stmt, name string) (map[stri
 		return nil, false
 	}
 	assign, ok := syntax.UnwrapParens(expr.Expr).(*syntax.Assign)
-	if !ok || assign.ByRef || assign.Op.Kind != syntax.TEqual || variable(assign.Var) != name {
+	if !ok || assign.ByRef || assign.Op.Kind != syntax.TEqual || astquery.VariableName(assign.Var) != name {
 		return nil, false
 	}
 	return semanticquery.NativeArrayEntries(ctx, assign.Value)
@@ -88,7 +88,7 @@ func private(ctx *analysis.Context, call *syntax.FuncCall, local, read syntax.Ex
 	if scope == nil || !syntax.IsFuncLike(scope) {
 		return false
 	}
-	name := variable(local)
+	name := astquery.VariableName(local)
 	for _, p := range syntax.FuncLikeParams(scope) {
 		if p.Var != nil && p.Var.Name == name {
 			return false
@@ -122,12 +122,4 @@ func private(ctx *analysis.Context, call *syntax.FuncCall, local, read syntax.Ex
 		return !rebinds
 	})
 	return !rebinds
-}
-
-func variable(e syntax.Expr) string {
-	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
-	if !ok {
-		return ""
-	}
-	return v.Name
 }

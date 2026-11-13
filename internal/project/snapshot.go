@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	"custos/internal/platform/safeio"
+	"custos/internal/project/baseline"
 	"custos/internal/project/config"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
@@ -48,6 +50,9 @@ type Snapshot struct {
 	Config       *config.Config
 	// Baseline is the captured baseline's key in Sources, "" without one.
 	Baseline string
+	// Recorded is that baseline once analyzed (see AnalyzeSnapshot), its
+	// entries naming files relative to its directory; nil without one.
+	Recorded *baseline.Baseline
 	// Paths are the requested inputs; empty selects the configured paths.
 	Paths    []string
 	Captured time.Time
@@ -55,6 +60,12 @@ type Snapshot struct {
 	root          *os.Root
 	cache         *VendorCache
 	vendorSymbols map[string]*index.FileSymbols
+	// installed is Composer's vendor/composer/installed.json at capture
+	// (nil when absent), read for the index world (see composerWorld). It
+	// changes only with the installed packages, which VendorDigest covers.
+	installed []byte
+	// unseen is what the capture walks left out (see Skipped).
+	unseen Skipped
 }
 
 // FileStat is the cheap identity of an input between two hash checks.
@@ -179,7 +190,10 @@ func capture(ctx context.Context, root *os.Root, rules []analysis.Rule, paths []
 		}
 	}
 	s.Files, s.OwnFiles, s.Vendor, s.Stats = l.selected, l.php, l.vendor, l.stats
-	s.Skipped, s.SkippedCount = l.skipped, l.skippedCount
+	if composer, ok := s.Sources["composer.json"]; ok {
+		s.installed, _ = ReadConfined(root, installedJSON(composer), MaxSnapshotBytes)
+	}
+	s.Skipped, s.SkippedCount, s.unseen = l.skipped, l.skippedCount, l.unseen
 	if err := s.readVendor(ctx, extractVendor); err != nil {
 		return nil, err
 	}
@@ -207,15 +221,19 @@ type listing struct {
 	stats                      map[string]FileStat
 	skipped                    []string
 	skippedCount               int
+	// unseen is what the walks left out below the paths they scanned (see
+	// Skipped), for the index world.
+	unseen Skipped
 }
 
 // found is what scanning one directory produced, in listing order.
 type found struct {
-	names []string
-	infos []fs.FileInfo
-	dirs  []string
-	links []string
-	err   error
+	names  []string
+	infos  []fs.FileInfo
+	dirs   []string
+	links  []string
+	pruned []string
+	err    error
 }
 
 // splitLevels is the depth at which a walk stops listing single directories
@@ -252,6 +270,9 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 				match = match || matchesAny(path.Base(name), patterns)
 			}
 			if !match {
+				if loadable(name) {
+					l.unseen.Files = append(l.unseen.Files, name)
+				}
 				return
 			}
 			if inVendor {
@@ -288,6 +309,9 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 				entries, err := fs.ReadDir(dir.FS(), ".")
 				for _, d := range entries {
 					child := path.Join(name, d.Name())
+					if child == packageToSkip && d.IsDir() {
+						f.pruned = append(f.pruned, child)
+					}
 					if child == packageToSkip || child == vendor {
 						continue
 					}
@@ -306,6 +330,7 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 						continue
 					}
 					if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, strings.TrimPrefix(child, scanned+"/")) || hidden(d.Name()) {
+						f.pruned = append(f.pruned, child)
 						continue
 					}
 					if !recurse {
@@ -339,6 +364,7 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 					for i, name := range f.names {
 						file(name, f.infos[i])
 					}
+					l.unseen.Dirs = append(l.unseen.Dirs, f.pruned...)
 					for _, name := range f.links {
 						l.skip(name, "symlink")
 					}
@@ -599,8 +625,21 @@ func ChangedInputs(ctx context.Context, s *Snapshot) ([]string, error) {
 	return changed, nil
 }
 
+// ErrBaseline marks the error of a snapshot whose captured baseline does
+// not decode.
+var ErrBaseline = errors.New("unreadable baseline")
+
 // AnalyzeSnapshot publishes index and flow copies before producing findings.
 func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
+	// A baseline that does not decode fails before the index and the flow
+	// summaries are built for nothing.
+	var bl *baseline.Baseline
+	if s.Baseline != "" {
+		var err error
+		if bl, err = baseline.Parse(s.Sources[s.Baseline], path.Dir(s.Baseline)); err != nil {
+			return nil, fmt.Errorf("%w %s: %w", ErrBaseline, s.Baseline, err)
+		}
+	}
 	if s.vendorSymbols == nil && len(s.Vendor) > 0 {
 		if err := s.readVendor(ctx, true); err != nil {
 			return nil, err
@@ -646,6 +685,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 		s.Index.DropStaleInferred(symbols)
 	}
 	s.Index.LinkTypeAliases()
+	s.Index.SetWorld(s.world())
 	s.Index.Freeze()
 	s.Engine = s.Engine.WithIndex(s.Index)
 
@@ -656,9 +696,15 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 		}
 		s.Engine = s.Engine.WithFlow(BuildFlowSnapshot(ctx, s.OwnFiles, srcs, opt, s.Index, WithVendorFlow(s.Config.Root, s.Index, opt, s.Config.Flow)))
 	}
+	analyzer := s.Engine
+	if bl != nil {
+		// Checks see the findings the baseline hides as silenced.
+		s.Recorded = bl
+		analyzer = s.Engine.WithRecorded(bl.Recorder)
+	}
 	results := make([]diagnostic.FileResult, len(s.Files))
 	if err := Each(ctx, len(s.Files), func(i int) {
-		results[i] = AnalyzeBuffer(s.Engine, s.Files[i], s.Sources[s.Files[i]], opt)
+		results[i] = AnalyzeBuffer(analyzer, s.Files[i], s.Sources[s.Files[i]], opt)
 		dropEdits(results[i].Findings)
 	}); err != nil {
 		return nil, err
@@ -706,4 +752,36 @@ func OverlaySnapshot(ctx context.Context, s *Snapshot, name string, src []byte) 
 	s.Symbols = nil
 	s.Index = index.New(stubs.Index())
 	return AnalyzeSnapshot(ctx, s)
+}
+
+// installedJSON is the path of the installed.json Composer writes into the
+// vendor directory composer.json configures.
+func installedJSON(composer []byte) string {
+	return path.Join(vendorDirBytes(composer), "composer", "installed.json")
+}
+
+// world derives the index world from the captured Composer metadata. Its
+// paths are relative to the project root, like the snapshot's.
+func (s *Snapshot) world() index.World {
+	composer := s.Sources["composer.json"]
+	vendor := index.World{Vendor: vendorDirBytes(composer)}
+	// A skipped vendor file may declare any name.
+	if s.installed == nil || s.SkippedCount > 0 {
+		return vendor
+	}
+	// composerWorld reads composer.json, then the installed.json it names.
+	read := func(name string) ([]byte, error) {
+		if name == "composer.json" {
+			return composer, nil
+		}
+		return s.installed, nil
+	}
+	scope := s.Paths
+	if len(scope) == 0 {
+		scope = s.Config.Paths
+	}
+	indexed := append(append([]string{}, s.OwnFiles...), s.Vendor...)
+	w := composerWorld(read, scope, indexed, s.unseen)
+	w.Vendor = vendor.Vendor
+	return w
 }

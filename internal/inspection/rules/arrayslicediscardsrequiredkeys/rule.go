@@ -82,7 +82,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	access, ok := astquery.NextEcho(ctx.File, stmt).(*syntax.ArrayDimFetch)
-	if !ok || variable(access.Var) == "" || variable(access.Var) != variable(assignment.Var) {
+	if !ok || astquery.VariableName(access.Var) == "" || astquery.VariableName(access.Var) != astquery.VariableName(assignment.Var) {
 		return
 	}
 	key, known := semanticquery.NativeInt(ctx, access.Dim)
@@ -96,12 +96,4 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
-}
-
-func variable(e syntax.Expr) string {
-	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
-	if !ok {
-		return ""
-	}
-	return v.Name
 }

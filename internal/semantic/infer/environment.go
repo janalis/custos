@@ -12,7 +12,14 @@ import (
 )
 
 // Options controls runtime assumptions used for type proofs.
-type Options struct{ Assertions bool }
+type Options struct {
+	// Assertions trusts assert() calls as guards.
+	Assertions bool
+	// PropertyFactsSurviveCalls keeps what a condition proved of a property
+	// across calls that may run project code (which may write it): a rule
+	// that reports only what holds even then asks such an environment.
+	PropertyFactsSurviveCalls bool
+}
 
 // Env infers expression types within one file. Not safe for concurrent use.
 type Env struct {
@@ -66,6 +73,9 @@ type Env struct {
 	// write of an unknown value to it keeps that type (see
 	// afterPropertyWrite).
 	seedUse syntax.Expr
+	// correlating is set while correlated asks what guards prove of
+	// another local, which then follows no correlation of its own.
+	correlating bool
 
 	// generics caches genBindings.
 	generics map[string]map[string]tplBindings
@@ -107,6 +117,10 @@ type Env struct {
 	// nativeTwin caches the native Env of this one.
 	native     bool
 	nativeTwin *Env
+	// proven: a native Env whose local reads exclude unseen writes (see
+	// Proven); provenTwin caches the proven Env of a native one.
+	proven     bool
+	provenTwin *Env
 }
 
 // Native returns an Env over the same file and index whose types ignore
@@ -135,6 +149,7 @@ func (e *Env) WithOptions(options Options) *Env {
 	}
 	configured := NewEnv(e.File, e.Names, e.Index, e.PHP, options)
 	configured.native = e.native
+	configured.proven = e.proven
 	configured.gapOwner = e.gapRoot()
 	return configured
 }

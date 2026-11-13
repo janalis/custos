@@ -48,6 +48,7 @@ type File struct {
 	PHP             string                  `json:"php,omitempty"`
 	ComparisonStyle string                  `json:"comparisonStyle,omitempty"` // regular | yoda
 	ShortOpenTag    *bool                   `json:"shortOpenTag,omitempty"`
+	ParseOnce       *bool                   `json:"parseOnce,omitempty"`
 	Paths           []string                `json:"paths,omitempty"`
 	Exclude         []string                `json:"exclude,omitempty"`
 	Baseline        string                  `json:"baseline,omitempty"` // baseline file, relative to the root
@@ -59,7 +60,10 @@ type Config struct {
 	Flow flow.Options
 	// FlowOrder summarizes cross-file flow in the order the last run saved
 	// (see project.Options.FlowOrder).
-	FlowOrder       bool
+	FlowOrder bool
+	// ParseOnce keeps each analysed file's syntax tree between phases (see
+	// project.Options.ParseOnce).
+	ParseOnce       bool
 	Root            string // directory of custos.json / composer.json (or cwd)
 	PHP             phpversion.Version
 	PHPSource       string // where PHP came from: config | composer | .php-version | default
@@ -145,6 +149,9 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 	}
 	if f.ShortOpenTag != nil {
 		c.ShortOpenTag = *f.ShortOpenTag
+	}
+	if f.ParseOnce != nil {
+		c.ParseOnce = *f.ParseOnce
 	}
 	for id, rs := range f.Rules {
 		m, ok := meta.Lookup(id)

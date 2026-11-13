@@ -9,6 +9,21 @@ import (
 	"custos/internal/semantic/types"
 )
 
+// conditionalDeclaration reports whether the class-like n is declared
+// inside anything but its file, a namespace, a declare statement or plain
+// braces.
+func conditionalDeclaration(n *syntax.ClassLike) bool {
+	for p := n.Parent(); ; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.File, nil:
+			return false
+		case *syntax.Namespace, *syntax.Declare, *syntax.Block:
+		default:
+			return true
+		}
+	}
+}
+
 func (x *extractor) classBody(n *syntax.ClassLike) {
 	at := n.Span().Start
 	fqn := x.r.SymbolFQN(n)
@@ -36,7 +51,9 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 			c.Attrs = append(c.Attrs, x.r.Class(a.Name.Value, a.Span().Start))
 		}
 	}
+	c.Conditional = n.Name != nil && conditionalDeclaration(n)
 	if d := x.doc(n); d != nil {
+		c.Mixin = d.Has("mixin") || d.Has("phpstan-mixin") || d.Has("psalm-mixin")
 		c.Deprecated = d.Has("deprecated")
 		c.Avail = x.avail(n.Attrs, d)
 		x.magicMembers(c, d, at)
@@ -59,7 +76,7 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 					Hooked:        len(m.Hooks) > 0, Attributed: len(m.Attrs) > 0,
 				}
 				if d != nil {
-					prop.DocType = x.docTypeStr(d.EffectiveVarType(p.Var.Name), at)
+					prop.DocType, prop.DocValues = x.docTypeStrs(d.EffectiveVarType(p.Var.Name), at)
 				}
 				c.Props[prop.Name] = prop
 			}
@@ -77,6 +94,9 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 		case *syntax.TraitUse:
 			for _, t := range m.Traits {
 				c.Traits = append(c.Traits, x.r.Class(t.Value, m.Span().Start))
+			}
+			if d := x.doc(m); d != nil {
+				x.supers(c, d, m.Span().Start, true)
 			}
 			for _, a := range m.Adaptations {
 				adapt := TraitAdaptation{Method: a.Method.Value}
@@ -233,10 +253,11 @@ func (x *extractor) params(ps []*syntax.Param, d *phpdoc.Doc, at uint32) []Param
 	out := make([]Param, 0, len(ps))
 	for _, p := range ps {
 		prm := Param{
-			Name: p.Var.Name, Type: x.typeStr(p.Type, at), DocType: x.docTypeStr(docTypes[p.Var.Name], at),
+			Name: p.Var.Name, Type: x.typeStr(p.Type, at),
 			Optional: p.Default != nil || p.Variadic, ByRef: p.ByRef, Variadic: p.Variadic,
 			Promoted: len(p.Modifiers) > 0, Default: x.text(p.Default), Avail: x.avail(p.Attrs, nil),
 		}
+		prm.DocType, prm.DocValues = x.docTypeStrs(docTypes[p.Var.Name], at)
 		if p.ByRef {
 			prm.Out = x.docTypeStr(outTypes[p.Var.Name], at)
 		}
@@ -677,15 +698,15 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 			// The constructor's `@param Foo[] $items` documents the
 			// promoted property too (as PhpStorm and PHPStan read it), else
 			// a `@var` doc comment written on the parameter itself.
-			doc := meth.Params[i].DocType
+			doc, values := meth.Params[i].DocType, meth.Params[i].DocValues
 			if pd := x.doc(p); doc == "" && pd != nil {
-				doc = x.docTypeStr(pd.EffectiveVarType(p.Var.Name), at)
+				doc, values = x.docTypeStrs(pd.EffectiveVarType(p.Var.Name), at)
 			}
 			c.Props[p.Var.Name] = &Property{
 				Name: p.Var.Name, Class: c.FQN, Visibility: visibility(p.Modifiers),
 				SetVisibility: setVisibility(p.Modifiers), Final: p.Modifiers.Has(syntax.TFinal) || p.Modifiers.Has(syntax.TPrivateSet),
 				Readonly: p.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(p.Type, at), Promoted: true,
-				DocType: doc, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span(),
+				DocType: doc, DocValues: values, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span(),
 				ReadsRunCode:  readsRunCode(p.Var.Name, p.Modifiers, p.Hooks),
 				WritesRunCode: writesRunCode(p.Var.Name, p.Modifiers, p.Hooks),
 				Hooked:        len(p.Hooks) > 0, Attributed: len(p.Attrs) > 0,

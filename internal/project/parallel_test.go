@@ -94,11 +94,11 @@ func TestFlowSurvivesSummaryPanic(t *testing.T) {
 	ix := BuildIndex([]string{good, bad}, opt, infer.Options{})
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
 		if strings.HasSuffix(f.Path, "bad.php") {
 			panic("simulated summary crash")
 		}
-		return old(f, ix, v, s, o)
+		return old(f, ix, v, s, o, prior, earlier)
 	}
 	build := BuildFlow(context.Background(), []string{good, bad}, nil, opt, ix, flow.Options{})
 	if build.results[0] == nil || build.results[1] != nil {

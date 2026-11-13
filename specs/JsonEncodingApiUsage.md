@@ -115,6 +115,9 @@ own fix.
   without `elseif` or `else` is skipped, since the failure value is no
   instance and never enters it), parentheses aside, is
   - the condition of a ternary (`?:` included), `if`, `elseif` or `while`;
+  - an operand of `&&`, `||`, `and` or `or`, tested for truth like a
+    condition (`$data || throw new \RuntimeException();`,
+    `$ready && $data`);
   - the operand of `!` or the argument of `empty()`;
   - compared with `==`, `!=`, `===` or `!==` to `false` or `null`;
   - the left operand of `instanceof`, which the failure value never

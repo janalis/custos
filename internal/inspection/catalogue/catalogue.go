@@ -12,6 +12,7 @@ import (
 	"custos/internal/inspection/rules/ambiguousmethodscallsinarraymapping"
 	"custos/internal/inspection/rules/ambiguousreplacementbackreference"
 	"custos/internal/inspection/rules/appendmodeseekusedforoverwrite"
+	"custos/internal/inspection/rules/argumentcountmismatch"
 	"custos/internal/inspection/rules/argumentunpackingcanbeused"
 	"custos/internal/inspection/rules/arraychunkinvalidsize"
 	"custos/internal/inspection/rules/arraycolumnduplicateindexloss"
@@ -137,6 +138,9 @@ import (
 	"custos/internal/inspection/rules/directoryiteratordotentries"
 	"custos/internal/inspection/rules/disallowwritingintostaticproperties"
 	"custos/internal/inspection/rules/disconnectedforeachinstruction"
+	"custos/internal/inspection/rules/documentedargumenttype"
+	"custos/internal/inspection/rules/documentedpropertyassignment"
+	"custos/internal/inspection/rules/documentedreturntype"
 	"custos/internal/inspection/rules/domappendmovesnodeunexpectedly"
 	"custos/internal/inspection/rules/domcrossdocumentappend"
 	"custos/internal/inspection/rules/domelementvaluecontainsbareampersand"
@@ -224,6 +228,7 @@ import (
 	"custos/internal/inspection/rules/imagicksingleblobdropsrequiredframes"
 	"custos/internal/inspection/rules/immutabledateresultignored"
 	"custos/internal/inspection/rules/implodeargumentsorder"
+	"custos/internal/inspection/rules/impossibletypecomparison"
 	"custos/internal/inspection/rules/inarraymissuse"
 	"custos/internal/inspection/rules/incorrectrandomrange"
 	"custos/internal/inspection/rules/incrementalinflateencodingmismatch"
@@ -240,6 +245,9 @@ import (
 	"custos/internal/inspection/rules/intlgregorianmonthoffbyone"
 	"custos/internal/inspection/rules/intltimezoneoffsetmillisecondsusedasseconds"
 	"custos/internal/inspection/rules/intltwelvehourfieldusedfortwentyfourhourtime"
+	"custos/internal/inspection/rules/invalidargumenttype"
+	"custos/internal/inspection/rules/invalidpropertyassignment"
+	"custos/internal/inspection/rules/invalidreturntype"
 	"custos/internal/inspection/rules/inversetriginvalidrealdomain"
 	"custos/internal/inspection/rules/invertedifelseconstructs"
 	"custos/internal/inspection/rules/iscountablecanbeused"
@@ -363,6 +371,8 @@ import (
 	"custos/internal/inspection/rules/phpunitdeprecations"
 	"custos/internal/inspection/rules/phpunittests"
 	"custos/internal/inspection/rules/posixaccountlookupfailuredereferenced"
+	"custos/internal/inspection/rules/possiblynullaccess"
+	"custos/internal/inspection/rules/possiblynullargument"
 	"custos/internal/inspection/rules/potentialmalware"
 	"custos/internal/inspection/rules/poweroperatorcanbeused"
 	"custos/internal/inspection/rules/pregmatchalllayoutmismatch"
@@ -396,6 +406,7 @@ import (
 	"custos/internal/inspection/rules/recursivetraversalomitsdirectories"
 	"custos/internal/inspection/rules/redirectcontinuesprotectedexecution"
 	"custos/internal/inspection/rules/redundantelseclause"
+	"custos/internal/inspection/rules/redundanttypecheck"
 	"custos/internal/inspection/rules/referencingobjects"
 	"custos/internal/inspection/rules/reflectioncompositetypeassumednamed"
 	"custos/internal/inspection/rules/reflectionnamedargumentmismatch"
@@ -513,6 +524,10 @@ import (
 	"custos/internal/inspection/rules/typeunsafecomparison"
 	"custos/internal/inspection/rules/umasksetterreturnmisread"
 	"custos/internal/inspection/rules/undeclareddynamicproperty"
+	"custos/internal/inspection/rules/undefinedclass"
+	"custos/internal/inspection/rules/undefinedfunction"
+	"custos/internal/inspection/rules/undefinedmethod"
+	"custos/internal/inspection/rules/undefinedproperty"
 	"custos/internal/inspection/rules/unescapedhtmloutput"
 	"custos/internal/inspection/rules/unicodenormalizationfailureconsumed"
 	"custos/internal/inspection/rules/uninitializedtypedpropertyread"
@@ -707,6 +722,7 @@ func All() []analysis.Rule {
 		abstractclassinstantiation.New(),
 		ambiguousreplacementbackreference.New(),
 		appendmodeseekusedforoverwrite.New(),
+		argumentcountmismatch.New(),
 		arraychunkinvalidsize.New(),
 		arraycolumnduplicateindexloss.New(),
 		arraycolumnmissingfield.New(),
@@ -797,6 +813,9 @@ func All() []analysis.Rule {
 		decompressionfailureconsumed.New(),
 		deflatestreamneverfinished.New(),
 		directoryiteratordotentries.New(),
+		documentedargumenttype.New(),
+		documentedpropertyassignment.New(),
+		documentedreturntype.New(),
 		domappendmovesnodeunexpectedly.New(),
 		domcrossdocumentappend.New(),
 		domelementvaluecontainsbareampersand.New(),
@@ -864,6 +883,7 @@ func All() []analysis.Rule {
 		imagickresizestatususedasimage.New(),
 		imagicksingleblobdropsrequiredframes.New(),
 		immutabledateresultignored.New(),
+		impossibletypecomparison.New(),
 		incorrectrandomrange.New(),
 		incrementalinflateencodingmismatch.New(),
 		infinityloop.New(),
@@ -877,6 +897,9 @@ func All() []analysis.Rule {
 		intlgregorianmonthoffbyone.New(),
 		intltimezoneoffsetmillisecondsusedasseconds.New(),
 		intltwelvehourfieldusedfortwentyfourhourtime.New(),
+		invalidargumenttype.New(),
+		invalidpropertyassignment.New(),
+		invalidreturntype.New(),
 		inversetriginvalidrealdomain.New(),
 		isoweekcalendaryearmismatch.New(),
 		issetargumentexistence.New(),
@@ -958,6 +981,8 @@ func All() []analysis.Rule {
 		pgidentifierescapedasliteral.New(),
 		pgreturnedrowsusedasaffectedrows.New(),
 		posixaccountlookupfailuredereferenced.New(),
+		possiblynullaccess.New(),
+		possiblynullargument.New(),
 		pregmatchalllayoutmismatch.New(),
 		pregmatchfailureasnonmatch.New(),
 		pregquoteusage.New(),
@@ -984,6 +1009,7 @@ func All() []analysis.Rule {
 		recursivereplaceretainslisttail.New(),
 		recursivetraversalomitsdirectories.New(),
 		redirectcontinuesprotectedexecution.New(),
+		redundanttypecheck.New(),
 		reflectioncompositetypeassumednamed.New(),
 		reflectionnamedargumentmismatch.New(),
 		regexbodydoesnotcompile.New(),
@@ -1065,6 +1091,10 @@ func All() []analysis.Rule {
 		truncationassumedtorewind.New(),
 		umasksetterreturnmisread.New(),
 		undeclareddynamicproperty.New(),
+		undefinedclass.New(),
+		undefinedfunction.New(),
+		undefinedmethod.New(),
+		undefinedproperty.New(),
 		unicodenormalizationfailureconsumed.New(),
 		uninitializedtypedpropertyread.New(),
 		unitenumjsonencoding.New(),

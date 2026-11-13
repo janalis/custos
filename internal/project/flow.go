@@ -2,12 +2,15 @@ package project
 
 import (
 	"context"
+	"hash/maphash"
 	"maps"
 	"runtime"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 )
@@ -49,7 +52,29 @@ type FlowBuild struct {
 	// sizes holds the length of each file's source as the build read it,
 	// nil when unknown (see summarize).
 	sizes []int
+	// steps holds, when the build records them, every summary of each file
+	// in the order the build made them, with the snapshot it was made
+	// against; hashes holds the hash of each file's source. A later build
+	// of the same source takes them as priors (see reuse).
+	steps  [][]flowStep
+	hashes []uint64
+	// priors holds, per file, the steps an earlier build made from the same
+	// source (see seed).
+	priors [][]flowStep
+	// made counts the summaries the build made instead of taking them from
+	// its priors.
+	made atomic.Int64
 }
+
+// flowStep is one summary a build made of a file, with the snapshot it
+// was made against.
+type flowStep struct {
+	result  *flow.File
+	against *flow.Snapshot
+}
+
+// sourceSeed keys the source hashes of every build of this process.
+var sourceSeed = maphash.MakeSeed()
 
 // Files returns the files the build summarized, in build order.
 func (b *FlowBuild) Files() []string { return b.files }
@@ -81,6 +106,25 @@ const maxWaves = 16
 // dependency order during composition; the supplied order is only a hint
 // that can avoid early repeated summaries.
 func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *FlowBuild {
+	return buildFlow(ctx, files, srcs, opt, ix, options, order, nil, false, nil)
+}
+
+// BuildFlowRecorded is BuildFlowOrdered keeping every summary it makes, so
+// that Update, when an edit within a recursion makes it summarize files
+// from none again, takes those the files' contracts still support instead
+// of summarizing them (see reuse). The language server, which updates the
+// build on every pause in editing, takes it; it costs memory a single run
+// does not spend.
+func BuildFlowRecorded(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *FlowBuild {
+	return buildFlow(ctx, files, srcs, opt, ix, options, order, nil, true, nil)
+}
+
+// buildFlow is BuildFlowOrdered taking, for each file whose source is the
+// one earlier read, the summaries earlier made of it as priors, and
+// recording its own steps when record is set. A file with a tree in trees
+// (parsed from its source in srcs) is summarized from it instead of being
+// parsed again.
+func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int, earlier *FlowBuild, record bool, trees []*syntax.File) *FlowBuild {
 	// Sources are read once. Each summary parses its file again and keeps
 	// no tree: compose then holds the trees of the files being summarized,
 	// not those of every file, which take about ten times their source. A
@@ -111,7 +155,17 @@ func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt sy
 	for i, src := range read {
 		b.sizes[i] = len(src)
 	}
+	if record {
+		b.steps, b.hashes = make([][]flowStep, len(files)), make([]uint64, len(files))
+		for i, src := range read {
+			b.hashes[i] = maphash.Bytes(sourceSeed, src)
+		}
+		b.seed(earlier, readable)
+	}
 	tree := func(i int) *syntax.File {
+		if i < len(trees) && trees[i] != nil {
+			return trees[i]
+		}
 		if !readable[i] {
 			return nil
 		}
@@ -133,6 +187,9 @@ func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt sy
 		}
 	}
 	b.Snapshot = b.compose(ctx, snapshot, against, ix, tree)
+	// The earlier build's steps are no longer needed: the build now
+	// published must not keep them alive.
+	b.priors = nil
 	return b
 }
 
@@ -214,7 +271,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	probe := make([]*flow.File, len(dirty))
 	_ = parallel(context.Background(), len(dirty), summaryWorkers(runtime.GOMAXPROCS(0)), func(j int) {
 		if file := tree(dirty[j]); file != nil {
-			probe[j] = extractFlow(file, ix, b.opt.Version, b.Snapshot, b.options)
+			probe[j] = extractFlow(file, ix, b.opt.Version, b.Snapshot, b.options, nil, nil)
 		}
 	}, nil)
 	for j, i := range dirty {
@@ -236,7 +293,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 		for i, path := range b.files {
 			srcs[i] = next.sources[path]
 		}
-		return BuildFlowOrdered(context.Background(), b.files, srcs, b.opt, ix, b.options, b.order), true
+		return buildFlow(context.Background(), b.files, srcs, b.opt, ix, b.options, b.order, b, b.steps != nil, nil), true
 	}
 	against := make([]*flow.Snapshot, len(b.files))
 	for i := range against {
@@ -244,6 +301,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	}
 	next.Snapshot = next.compose(context.Background(), flow.NewSnapshotWithOptions(b.options, next.results...), against, ix, tree)
 	b.retrace(next, dirty, probe)
+	b.restep(next, dirty, against)
 	return next, true
 }
 
@@ -285,6 +343,29 @@ func (b *FlowBuild) retrace(next *FlowBuild, dirty []int, probe []*flow.File) {
 		}
 	}
 	next.traced, next.seen, next.declares, next.stale = true, seen, declares, closure(seed, readers)
+}
+
+// restep carries the steps b recorded over to next, which Update made from
+// b: a file summarized again holds its last summary alone, with the source
+// it was made from.
+func (b *FlowBuild) restep(next *FlowBuild, dirty []int, against []*flow.Snapshot) {
+	if b.steps == nil {
+		return
+	}
+	next.steps, next.hashes = slices.Clone(b.steps), slices.Clone(b.hashes)
+	edited := make([]bool, len(b.files))
+	for _, i := range dirty {
+		next.hashes[i], edited[i] = maphash.Bytes(sourceSeed, next.sources[b.files[i]]), true
+	}
+	for i, r := range next.results {
+		// The steps of an edited file describe its former source.
+		if r != b.results[i] || edited[i] {
+			next.steps[i] = nil
+			if r != nil {
+				next.steps[i] = []flowStep{{r, r.Basis(against[i])}}
+			}
+		}
+	}
 }
 
 // rescope returns the build of all files from none after the files of dirty
@@ -343,7 +424,7 @@ func (b *FlowBuild) rescope(sources map[string][]byte, dirty []int, probe []*flo
 	if len(files) == len(b.files) {
 		return nil
 	}
-	part := BuildFlowOrdered(context.Background(), files, srcs, b.opt, ix, b.options, b.order)
+	part := buildFlow(context.Background(), files, srcs, b.opt, ix, b.options, b.order, b, b.steps != nil, nil)
 	for k, i := range at {
 		declares[i] = part.declares[k]
 	}
@@ -363,6 +444,12 @@ func (b *FlowBuild) rescope(sources map[string][]byte, dirty []int, probe []*flo
 	next := &FlowBuild{files: b.files, at: b.at, results: slices.Clone(b.results), sources: sources, opt: b.opt, options: b.options, order: b.order, traced: true, seen: slices.Clone(b.seen), declares: declares, sizes: b.sizes}
 	for k, i := range at {
 		next.results[i], next.seen[i] = part.results[k], part.seen[k]
+	}
+	if b.steps != nil {
+		next.steps, next.hashes = slices.Clone(b.steps), slices.Clone(b.hashes)
+		for k, i := range at {
+			next.steps[i], next.hashes[i] = part.steps[k], part.hashes[k]
+		}
 	}
 	next.Snapshot = flow.NewSnapshotWithOptions(b.options, next.results...)
 	return next
@@ -597,8 +684,9 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 					break
 				}
 				names := b.declared(work)
+				prev := b.resultsOf(work)
 				b.summarize(ctx, work, snapshot, against, ix, tree)
-				next := flow.NewSnapshotWithOptions(b.options, b.results...)
+				next := snapshot.Replace(prev, b.resultsOf(work))
 				// Only the files of work changed: the other contracts are
 				// those of snapshot.
 				if snapshot.EqualFor(next, b.declared(work, names...)) {
@@ -704,15 +792,74 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 		slices.SortStableFunc(work, func(x, y int) int { return b.sizes[y] - b.sizes[x] })
 	}
 	_ = parallel(ctx, len(work), summaryWorkers(runtime.GOMAXPROCS(0)), func(j int) {
-		if file := tree(work[j]); file != nil {
-			i := work[j]
-			b.results[i] = extractFlow(file, ix, b.opt.Version, snapshot, b.options)
-			against[i] = snapshot
-			if b.traced && b.results[i] != nil {
-				b.trace(i)
+		i := work[j]
+		var basis *flow.Snapshot
+		if step, ok := b.reuse(i, snapshot); ok {
+			b.results[i], basis = step.result, step.against
+		} else if file := tree(i); file != nil {
+			b.made.Add(1)
+			// The file's first summary starts from the first one the
+			// earlier build made, if any, which read the same contracts
+			// the closest.
+			prior, earlier := b.results[i], against[i]
+			if prior == nil && len(b.priors) > 0 && len(b.priors[i]) > 0 {
+				prior, earlier = b.priors[i][0].result, b.priors[i][0].against
 			}
+			b.results[i] = extractFlow(file, ix, b.opt.Version, snapshot, b.options, prior, earlier)
+		} else {
+			return
+		}
+		against[i] = snapshot
+		if b.steps != nil && b.results[i] != nil {
+			// A reused summary keeps the basis it was recorded with: it
+			// answers what it consulted as snapshot does.
+			if basis == nil {
+				basis = b.results[i].Basis(snapshot)
+			}
+			b.steps[i] = append(b.steps[i], flowStep{b.results[i], basis})
+		}
+		if b.traced && b.results[i] != nil {
+			b.trace(i)
 		}
 	}, nil)
+}
+
+// seed takes as priors the steps earlier recorded for the files whose
+// source this build reads unchanged (the same hash).
+func (b *FlowBuild) seed(earlier *FlowBuild, readable []bool) {
+	if earlier == nil {
+		return
+	}
+	b.priors = make([][]flowStep, len(b.files))
+	for i, path := range b.files {
+		if j, ok := earlier.at[path]; ok && readable[i] && earlier.hashes[j] == b.hashes[i] {
+			b.priors[i] = earlier.steps[j]
+		}
+	}
+}
+
+// reuse returns a step an earlier build made of file i from the same
+// source whose summary is current against snapshot; ok is false when there
+// is none.
+func (b *FlowBuild) reuse(i int, snapshot *flow.Snapshot) (step flowStep, ok bool) {
+	if len(b.priors) == 0 {
+		return flowStep{}, false
+	}
+	for _, step := range b.priors[i] {
+		if step.result.Current(step.against, snapshot) {
+			return step, true
+		}
+	}
+	return flowStep{}, false
+}
+
+// resultsOf returns the current summaries of the files of work.
+func (b *FlowBuild) resultsOf(work []int) []*flow.File {
+	out := make([]*flow.File, len(work))
+	for k, i := range work {
+		out[k] = b.results[i]
+	}
+	return out
 }
 
 // summaryWorkers is the number of files summarized side by side on cores
@@ -762,6 +909,13 @@ func (b *FlowBuild) unsettled(snapshot *flow.Snapshot, against []*flow.Snapshot)
 	}
 }
 
-// extractFlow is flow.Extract; tests replace it to simulate a crash. A file
-// whose summaries crash keeps none: calls into it read as unresolved.
-var extractFlow = flow.Extract
+// extractFlow summarizes a file, again when prior holds its summaries
+// computed against earlier (see flow.Reextract); tests replace it to
+// simulate a crash. A file whose summaries crash keeps none: calls into it
+// read as unresolved.
+var extractFlow = func(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *flow.Snapshot, options flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
+	if prior != nil && earlier != nil {
+		return flow.Reextract(file, ix, php, snapshot, options, prior, earlier)
+	}
+	return flow.Extract(file, ix, php, snapshot, options)
+}

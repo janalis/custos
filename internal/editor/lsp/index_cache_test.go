@@ -26,7 +26,7 @@ func TestWorkspaceIndexUsesCache(t *testing.T) {
 	t.Setenv("CUSTOS_CACHE_DIR", t.TempDir())
 	opt := syntax.Options{Version: phpversion.Default}
 	for range 2 {
-		if indexWorkspace(root, []string{path}, opt, infer.Options{}).Class("Lib", phpversion.Default) == nil {
+		if ix, unread := indexWorkspace(root, []string{path}, opt, infer.Options{}); ix.Class("Lib", phpversion.Default) == nil || len(unread) != 0 {
 			t.Fatal("class not indexed")
 		}
 	}
@@ -37,7 +37,7 @@ func TestWorkspaceIndexUsesCache(t *testing.T) {
 	t.Setenv("CUSTOS_CACHE_DIR", "")
 	t.Setenv("HOME", "")
 	t.Setenv("XDG_CACHE_HOME", "")
-	if indexWorkspace(root, []string{path}, opt, infer.Options{}).Class("Lib", phpversion.Default) == nil {
+	if ix, _ := indexWorkspace(root, []string{path}, opt, infer.Options{}); ix.Class("Lib", phpversion.Default) == nil {
 		t.Fatal("index without a cache directory")
 	}
 }

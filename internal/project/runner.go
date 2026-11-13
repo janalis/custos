@@ -27,6 +27,25 @@ func Discover(paths, exclude []string) ([]string, error) {
 // of patterns (path.Match syntax, e.g. "composer.json"), as requested by
 // rules implementing analysis.FilePatternRule (see Engine.FilePatterns).
 func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
+	return discoverSkipping(paths, exclude, patterns, nil)
+}
+
+// Skipped records what a walk for the index left out below the paths it
+// scanned, spelled as the walk spells paths: the directories it did not
+// enter and the files Composer may load (see loadable) it did not index.
+type Skipped struct {
+	Dirs, Files []string
+}
+
+// loadable reports whether Composer may load the file name: PSR-4 and
+// PSR-0 load *.php (and *.hh), a classmap scans *.php, *.inc and *.hh.
+func loadable(name string) bool {
+	return strings.HasSuffix(name, ".php") || strings.HasSuffix(name, ".inc") || strings.HasSuffix(name, ".hh")
+}
+
+// discoverSkipping is DiscoverWith recording into skipped, unless nil,
+// what it leaves out.
+func discoverSkipping(paths, exclude, patterns []string, skipped *Skipped) ([]string, error) {
 	var out []string
 	for _, root := range paths {
 		info, err := os.Stat(root)
@@ -45,13 +64,25 @@ func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
 				if p != root {
 					rel, _ := filepath.Rel(root, p)
 					if excluded(exclude, filepath.ToSlash(rel)) || hidden(d.Name()) {
+						if skipped != nil {
+							skipped.Dirs = append(skipped.Dirs, p)
+						}
 						return filepath.SkipDir
 					}
 				}
 				return nil
 			}
+			// A symlinked directory is never entered: what it holds is unseen.
+			if skipped != nil && d.Type()&fs.ModeSymlink != 0 {
+				if info, err := os.Stat(p); err == nil && info.IsDir() {
+					skipped.Dirs = append(skipped.Dirs, p)
+					return nil
+				}
+			}
 			if (strings.HasSuffix(p, ".php") && !declarationOnly(d.Name()) || matchesAny(d.Name(), patterns)) && (d.Type()&fs.ModeSymlink == 0 || linkInside(root, p)) {
 				out = append(out, p)
+			} else if skipped != nil && loadable(d.Name()) {
+				skipped.Files = append(skipped.Files, p)
 			}
 			return nil
 		})
@@ -124,7 +155,7 @@ func Run(e *analysis.Engine, files []string, opt syntax.Options) []diagnostic.Fi
 // RunSources is Run with sources already read (srcs[i] for files[i]; a nil
 // or missing entry is read from disk), e.g. by BuildIndexKeep.
 func RunSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options) []diagnostic.FileResult {
-	return runSources(e, files, srcs, opt, false)
+	return runSources(e, files, srcs, nil, opt, false)
 }
 
 // RunReport is RunSources for reporting only: each finding keeps its fix
@@ -132,10 +163,12 @@ func RunSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Op
 // hold the file's syntax tree and semantic data alive until the end of
 // the run (gigabytes on large legacy trees with many findings).
 func RunReport(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options) []diagnostic.FileResult {
-	return runSources(e, files, srcs, opt, true)
+	return runSources(e, files, srcs, nil, opt, true)
 }
 
-func runSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options, report bool) []diagnostic.FileResult {
+// runSources analyses files from their trees where given (each released
+// once analysed), else from srcs or disk.
+func runSources(e *analysis.Engine, files []string, srcs [][]byte, trees []*syntax.File, opt syntax.Options, report bool) []diagnostic.FileResult {
 	results := make([]diagnostic.FileResult, len(files))
 	// AnalyzeBuffer isolates crashes of its own; nothing else here can fail.
 	_ = parallel(context.Background(), len(files), 0, func(i int) {
@@ -143,7 +176,12 @@ func runSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Op
 		if i < len(srcs) {
 			src = srcs[i]
 		}
-		results[i] = analyzeFile(e, files[i], src, opt)
+		if i < len(trees) && trees[i] != nil {
+			results[i] = analyzeSource(e, files[i], src, opt, trees[i])
+			trees[i] = nil
+		} else {
+			results[i] = analyzeFile(e, files[i], src, opt)
+		}
 		if report {
 			dropEdits(results[i].Findings)
 		}

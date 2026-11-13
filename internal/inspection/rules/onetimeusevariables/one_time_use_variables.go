@@ -143,8 +143,8 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportNode(lhs, "Variable $"+name+" is used only once; inline its value.", diagnostic.Fix{
 		Title: "Inline the variable",
 		Edits: func() []diagnostic.TextEdit {
-			del := astquery.WithTrailingWhitespace(ctx.File, ps.Span())                                                                          // F2, F4
-			if doc, ok := astquery.DocCommentBefore(ctx.File, ps.Span().Start); ok && !otuForeignDoc(string(ctx.Src[doc.Start:doc.End]), name) { // F1
+			del := astquery.WithTrailingWhitespace(ctx.File, ps.Span())                                                                    // F2, F4
+			if doc, ok := otuDocCommentBefore(ctx.File, ps.Span().Start); ok && !otuForeignDoc(string(ctx.Src[doc.Start:doc.End]), name) { // F1
 				// custos: with the whitespace up to the statement, so no
 				// indentation-only line is left behind
 				del.Start = doc.Start
@@ -348,4 +348,20 @@ func otuNeedsParens(val syntax.Expr) bool {
 		return v.Heredoc
 	}
 	return astquery.NeedsParensAsUnaryOperand(val)
+}
+
+// otuDocCommentBefore returns the doc comment that precedes offset off,
+// separated from it by whitespace only.
+func otuDocCommentBefore(f *syntax.File, off uint32) (syntax.Token, bool) {
+	for i := astquery.TokenIndex(f, off) - 1; i >= 0; i-- {
+		t := f.Tokens[i]
+		switch t.Kind {
+		case syntax.TWhitespace:
+			continue
+		case syntax.TDocComment:
+			return t, true
+		}
+		break
+	}
+	return syntax.Token{}, false
 }

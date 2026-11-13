@@ -27,13 +27,13 @@ function run($unknown, array $args) {
  t('callback', array_filter($xs, fn($x) => true));
 }
 `, map[string]string{
-		"omitted": "int[]", "null": "int[]", "named": "int[]", "mode": "int[]",
-		"unknown": "false[]|int[]|null[]", "unpacked": "false[]|int[]|null[]",
-		"empty": "array{}", "falseOnly": "array{}", "callback": "false[]|int[]|null[]",
+		"omitted": "int[]<int<1, 1>>", "null": "int[]<int<1, 1>>", "named": "int[]<int<1, 1>>", "mode": "int[]<int<1, 1>>",
+		"unknown": "false[]|int[]|null[]<false|int<1, 1>|null>", "unpacked": "false[]|int[]|null[]<false|int<1, 1>|null>",
+		"empty": "array{}", "falseOnly": "array{}", "callback": "false[]|int[]|null[]<false|int<1, 1>|null>",
 	})
 	src := `<?php t('null', array_filter([1, null], null)); t('omitted', array_filter([1, null]));`
-	checkVer(t, phpversion.PHP74, false, src, map[string]string{"null": "int[]|null[]", "omitted": "int[]"})
-	checkVer(t, phpversion.PHP80, false, src, map[string]string{"null": "int[]", "omitted": "int[]"})
+	checkVer(t, phpversion.PHP74, false, src, map[string]string{"null": "int[]|null[]<int<1, 1>|null>", "omitted": "int[]<int<1, 1>>"})
+	checkVer(t, phpversion.PHP80, false, src, map[string]string{"null": "int[]<int<1, 1>>", "omitted": "int[]<int<1, 1>>"})
 }
 
 func TestArrayMapInputFacts(t *testing.T) {
@@ -70,14 +70,14 @@ function run($xs, $full, $optional, $unknown, array $args) {
  t('zipOptional', array_map(null, [1], $optional));
 }
 `, map[string]string{
-		"identity": "int[]|string[]{a: int, 4: string}", "identityEmpty": "array{}", "identityNamed": "int[]{a: int}",
+		"identity": "int[]|string[]<int<1, 1>|string<len 1, 1>>{a: int<1, 1>, 4: string<len 1, 1>}", "identityEmpty": "array{}", "identityNamed": "int[]<int<1, 1>>{a: int<1, 1>}",
 		"mapped": "string[]{a: string, 4: string}", "mappedEmpty": "int[]{}", "mappedOptional": "int[]{a?: int}",
 		"mappedTyped": "int[]", "mappedFull": "non-empty int[]", "multiNonEmpty": "non-empty int[]",
 		"multiMaybeEmpty": "int[]", "multiEmpty": "int[]", "multiInvalid": "int[]", "unknownCallback": "array",
 		"unknownSpread": "array", "mappedSpread": "int[]", "unknownNamed": "array", "missing": "array",
 		"invalid": "array", "invalidMulti": "array", "zipEmpty": "array{}",
-		"zip":     "array{0: array{0: int, 1: true}, 1: array{0: int, 1: null}}",
-		"zipRows": "array{0: array{0: int, 1: string}}", "zipGeneric": "array[]", "zipOptional": "non-empty array[]",
+		"zip":     "array{0: array{0: int<1, 1>, 1: true}, 1: array{0: int<2, 2>, 1: null}}",
+		"zipRows": "array{0: array{0: int<1, 1>, 1: string<len 1, 1>}}", "zipGeneric": "array[]", "zipOptional": "non-empty array[]",
 	})
 }
 

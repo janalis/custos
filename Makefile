@@ -9,7 +9,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
 
-.PHONY: architecture coverage fixcheck stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
+.PHONY: architecture coverage fixcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -117,10 +117,31 @@ cleanroom:
 	$(GO) run ./tools/cleanroom -ea "$(EA_PATH)"
 
 # Apply every quick-fix offered on the real-world corpus (CUSTOS_CORPUS, a list
-# of directories) and require the result to still parse (FIXCHECK=php
-# additionally runs php -l on samples).
+# of directories) and require the result to still parse, and each fix to
+# remove its finding (FIXCHECK=php additionally runs php -l on samples).
 fixcheck:
 	CUSTOS_FIXCHECK=$(FIXCHECK) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout 30m
+
+# Record the findings of every rule on the pinned benchmark corpora
+# (installed by `make compare`, or `go run ./tools/benchcmp install -tool
+# custos -corpus <name>`), then compare a later build with that record:
+# corpus-diff fails on any added or removed finding and writes them to
+# .cache/corpus-diff/<corpus>.diff. CORPORA= takes a comma-separated list.
+CORPORA ?= guzzle,composer,laravel
+corpus-baseline: build
+	$(GO) run ./tools/corpusdiff -record -corpora "$(CORPORA)"
+
+corpus-diff: build
+	$(GO) run ./tools/corpusdiff -corpora "$(CORPORA)"
+
+# Share of expressions whose inferred type is unknown on the corpora, by
+# kind and cause (TYPECOV: root=srcdir pairs separated by ';'). Writes
+# .cache/typecov/run.summary and run.unknown.tsv.
+CORPORA_DIR = $(CURDIR)/.cache/bench/corpora
+TYPECOV ?= $(CORPORA_DIR)/guzzle=src;$(CORPORA_DIR)/composer=src;$(CORPORA_DIR)/laravel=src
+typecov:
+	mkdir -p .cache/typecov
+	CUSTOS_TYPECOV="$(TYPECOV)" CUSTOS_TYPECOV_OUT="$(CURDIR)/.cache/typecov/run" $(GO) test ./internal/project -run '^TestTypeCoverage$$' -count=1 -timeout 30m
 
 architecture:
 	$(GO) run ./tools/architecture

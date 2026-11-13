@@ -72,17 +72,38 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 			Title: "Turn into else if",
 			Edits: func() []diagnostic.TextEdit {
 				text := npiWithComments(f, block, c, c)
-				// custos: a chain already written with `elseif` keeps that
+				// custos: a chain already written with `elseif`, or a file
+				// that writes it more often than `else if`, keeps that
 				// spelling when only whitespace separates `else` and `{`.
 				owner, _ := p.Parent().(*syntax.If)
 				between := f.Src[p.Span().Start+4 : block.Span().Start]
-				if (owner != nil && len(owner.ElseIfs) > 0 || len(c.ElseIfs) > 0) && strings.TrimSpace(string(between)) == "" {
+				if (owner != nil && len(owner.ElseIfs) > 0 || len(c.ElseIfs) > 0 || npiFileSpellsElseif(f)) && strings.TrimSpace(string(between)) == "" {
 					return []diagnostic.TextEdit{{Span: syntax.Span{Start: p.Span().Start, End: block.Span().End}, NewText: "else" + text}}
 				}
 				return []diagnostic.TextEdit{{Span: block.Span(), NewText: text}}
 			},
 		})
 	}
+}
+
+// npiFileSpellsElseif reports whether f writes `elseif` more often than
+// `else if`.
+func npiFileSpellsElseif(f *syntax.File) bool {
+	balance := 0
+	var prev syntax.TokenKind
+	for _, t := range f.Tokens {
+		if t.Kind.IsTrivia() {
+			continue
+		}
+		switch {
+		case t.Kind == syntax.TElseif:
+			balance++
+		case t.Kind == syntax.TIf && prev == syntax.TElse:
+			balance--
+		}
+		prev = t.Kind
+	}
+	return balance > 0
 }
 
 func npiIsOr(e syntax.Expr) bool {

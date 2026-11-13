@@ -104,7 +104,7 @@ function rewrite(array $m, array $keys) {
 		// A callable may be an array that stops being one; destructuring
 		// and references leave arrays of unknown values.
 		"callable":     "?unknown",
-		"bool":         "bool|int[]{x: int}", // false becomes an array, true keeps its type
+		"bool":         "bool|int[]<int<1, 1>>{x: int<1, 1>}", // false becomes an array, true keeps its type
 		"destructured": "array",
 		"reference":    "array",
 	})

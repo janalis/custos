@@ -1,8 +1,6 @@
 package astquery
 
 import (
-	"strings"
-
 	"custos/internal/php/syntax"
 )
 
@@ -72,9 +70,4 @@ func MethodStatements(b *syntax.Block) []syntax.Stmt {
 		}
 	}
 	return out
-}
-
-// SquashWhitespace removes all whitespace (text-level equivalence fallback).
-func SquashWhitespace(s string) string {
-	return strings.Join(strings.Fields(s), "")
 }

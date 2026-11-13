@@ -16,7 +16,7 @@ function f($unknown) {
  t('invalid',hrtime(...['wrong'=>true]));
  t('unknown',hrtime(...$unknown));
 }
-`, map[string]string{"clock": "false|float|int", "time": "float", "printed": "string", "normalPrint": "true", "replaced": "array", "path": "array{dirname?: string, basename: string, extension?: string, filename: string}", "values": "non-empty int[]", "keys": "int|string", "invalid": "false|float|int|int[]", "unknown": "false|float|int|int[]"})
+`, map[string]string{"clock": "false|float|int", "time": "float", "printed": "string", "normalPrint": "true", "replaced": "array", "path": "array{dirname?: string, basename: string, extension?: string, filename: string}", "values": "non-empty int[]<int<1, 1>>", "keys": "int|string", "invalid": "false|float|int|int[]", "unknown": "false|float|int|int[]"})
 }
 
 func TestTransformedArrayCount(t *testing.T) {

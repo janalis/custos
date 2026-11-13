@@ -74,11 +74,21 @@ function fallsThrough(string $s) {
     $errors = DateTime::getLastErrors();
     return <warning descr="Handle the false result before reading parsing diagnostics.">$errors['error_count']</warning>;
 }
+// Statements that parse nothing may run between the parse and the call.
 function notFirst(string $s) {
     if (!DateTime::createFromFormat('Y-m-d', $s)) {
         echo 'failed';
         $errors = DateTime::getLastErrors();
-        return <warning descr="Handle the false result before reading parsing diagnostics.">$errors['error_count']</warning>;
+        return $errors['error_count'];
+    }
+    return 0;
+}
+// Constructing a date between them parses again.
+function constructedBetween(string $s) {
+    if (!DateTime::createFromFormat('Y-m-d', $s)) {
+        $now = new DateTime();
+        $errors = DateTime::getLastErrors();
+        return [$now, <warning descr="Handle the false result before reading parsing diagnostics.">$errors['error_count']</warning>];
     }
     return 0;
 }

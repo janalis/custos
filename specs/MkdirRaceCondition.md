@@ -97,11 +97,14 @@ treated as an error, and its result must not be ignored.
   named private directory (`mkdir(sys_get_temp_dir() . '/gpg' .
   bin2hex(random_bytes(8)), 0700)`) must fail when it already exists, and an
   `is_dir()` fallback would accept a directory planted by someone else.
-- **E7** (custos, see Divergences) A D4 statement silenced with `@` that is
-  the body of an `if`, or a statement in its braced body, whose condition
-  calls `is_dir()` on the same directory:
-  `if (!is_dir($d)) { @mkdir($d, 0777, true); }` is a deliberate best
-  effort whose failure the code tolerates.
+- **E7** (custos, see Divergences) A call silenced with `@` whose outcome
+  is ignored (a D4 statement, or the right operand of a logical expression
+  that is itself a statement) and that only runs when an earlier `is_dir()`
+  call on the same directory returned false, as the conditions guarding it
+  prove: `if (!is_dir($d)) { @mkdir($d, 0777, true); }`, the `else` or
+  `elseif` arm of such a test, `if (is_dir($d)) { return; } @mkdir($d);`
+  and `is_dir($d) || @mkdir($d);` are deliberate best efforts whose failure
+  the code tolerates.
 
 ## Report
 

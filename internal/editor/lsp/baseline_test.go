@@ -1,12 +1,14 @@
 package lsp
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"custos/internal/inspection/rules/possiblynullaccess"
 	"custos/internal/project/baseline"
 	"custos/internal/project/config"
 )
@@ -42,6 +44,12 @@ func TestBaselineHidesKnownFindings(t *testing.T) {
 	// A second occurrence of the same line exceeds the recorded count.
 	cl.change(uri, 2, "<?php\n ;\n;\n")
 	cl.diagsN(uri, 1)
+	// The shown one can be suppressed though the baseline hides the other.
+	line := map[string]any{"line": 2, "character": 0}
+	res := cl.call(2, "textDocument/codeAction", map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line, "end": line}, "context": map[string]any{"only": []string{"quickfix"}}})
+	if !strings.Contains(string(res.Result), "Suppress UnnecessarySemicolon") {
+		t.Fatalf("actions: %s", res.Result)
+	}
 	changed := map[string]any{"changes": []any{map[string]any{"uri": "file://" + filepath.Join(dir, "bl.json"), "type": 2}}}
 	write("bl.json", entry("2"))
 	_ = cl.c.notify("workspace/didChangeWatchedFiles", changed)
@@ -84,5 +92,44 @@ func TestBaselineWithoutConfiguration(t *testing.T) {
 	s.watchedFilesChanged([]fileChange{{URI: "file:///w/bl.json", Type: 2}})
 	if baselinePath(nil) != "" || s.baseline != nil {
 		t.Fatal("baseline without configuration")
+	}
+}
+
+// TestBaselineShowsRepeatsOfRecordedFindings: PossiblyNullAccess reports
+// the access after one the baseline records on the same value, which it
+// leaves out after a reported one.
+func TestBaselineShowsRepeatsOfRecordedFindings(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(config.FileName, `{"baseline": "bl.json", "rules": {"PossiblyNullAccess": {"enabled": true}}}`)
+	write("bl.json", `{"version": 1, "entries": [{"path": "a.php", "rule": "PossiblyNullAccess", "message": "Check this value for null before the access: it is Exception|null.", "line": "$a->getMessage();", "count": 1}]}`)
+	useRules(t, possiblynullaccess.New())
+	cl := startServer(t)
+	cl.initialize(map[string]any{"rootUri": "file://" + dir})
+	_ = cl.c.notify("initialized", map[string]any{})
+	uri := "file://" + filepath.Join(dir, "a.php")
+	cl.open(uri, "<?php\nfunction f(?Exception $a) {\n$a->getMessage();\n$a->getCode();\n$a->getLine();\n}\n")
+	p := cl.diagsFor(uri)
+	for len(p.Diagnostics) == 0 { // published again once the project is indexed
+		p = cl.diagsFor(uri)
+	}
+	if len(p.Diagnostics) != 1 || p.Diagnostics[0].Range.Start.Line != 3 {
+		t.Fatalf("diagnostics: %+v", p.Diagnostics)
+	}
+	// The shown finding, when no access follows it, can be suppressed: the
+	// check of the edit analyzes with the baseline too.
+	cl.change(uri, 2, "<?php\nfunction f(?Exception $a) {\n$a->getMessage();\n$a->getCode();\n}\n")
+	cl.diagsN(uri, 1)
+	line := map[string]any{"line": 3, "character": 0}
+	res := cl.call(2, "textDocument/codeAction", map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line, "end": line}, "context": map[string]any{}})
+	var actions []codeAction
+	_ = json.Unmarshal(res.Result, &actions)
+	if len(actions) != 1 || actions[0].Title != "Suppress PossiblyNullAccess for this statement" || actions[0].Edit == nil {
+		t.Fatalf("actions: %s", res.Result)
 	}
 }

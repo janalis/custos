@@ -96,11 +96,11 @@ func noreCandidates(ctx *analysis.Context, n syntax.Node) (*syntax.FuncCall, str
 			if it == nil || it.Value == nil {
 				continue
 			}
-			if lit := flowquery.ConstantStringWithReferences(ctx.File, it.Value, mayWrite); lit != nil {
+			if lit := constantString(ctx.File, it.Value, mayWrite); lit != nil {
 				cands = append(cands, lit)
 			}
 		}
-	} else if lit := flowquery.ConstantStringWithReferences(ctx.File, first.Value, mayWrite); lit != nil {
+	} else if lit := constantString(ctx.File, first.Value, mayWrite); lit != nil {
 		cands = append(cands, lit)
 	}
 	return call, fn, cands, array
@@ -308,3 +308,27 @@ func noreHasLineTerminator(s string) bool {
 
 // noreCountDiff returns count(a) - count(b) (non-overlapping occurrences).
 func noreCountDiff(s, a, b string) int { return strings.Count(s, a) - strings.Count(s, b) }
+
+// constantString returns the only string literal among the possible values of
+// e (with mayWrite telling which arguments may write a variable), nil when
+// they are unknown or hold none or several.
+func constantString(f *syntax.File, e syntax.Expr, mayWrite func(*syntax.Arg) bool) syntax.Expr {
+	var found syntax.Expr
+	values, known := flowquery.PossibleValuesWithReferences(f, e, mayWrite)
+	if !known {
+		return nil
+	}
+	for _, value := range values {
+		literal, ok := value.(*syntax.Literal)
+		if !ok {
+			continue
+		}
+		if _, ok := syntax.LiteralStringValue(literal); ok {
+			if found != nil {
+				return nil
+			}
+			found = value
+		}
+	}
+	return found
+}

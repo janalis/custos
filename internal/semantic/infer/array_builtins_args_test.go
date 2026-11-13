@@ -63,7 +63,7 @@ func TestArrayBuiltinArguments(t *testing.T) {
 		"diff":               "int[]",
 		"diffUnknown":        "array",
 		"file":               "false|string[]",
-		"fill":               "string[]",
+		"fill":               "string[]<string<len 1, 1>>",
 		"fillKeys":           "true[]",
 		"fillKeysUnknown":    "array",
 		"fillUnknown":        "array",
@@ -73,7 +73,7 @@ func TestArrayBuiltinArguments(t *testing.T) {
 		"i2aList":            "\\DateTime[]",
 		"i2aPlain":           "mixed[]",
 		"i2aUnknown":         "mixed[]",
-		"intersectKey":       "int[]|string[]{a?: int, b?: string}",
+		"intersectKey":       "int[]|string[]<int<1, 1>|string<len 1, 1>>{a?: int<1, 1>, b?: string<len 1, 1>}",
 		"keys":               "string[]",
 		"keysList":           "non-empty string[]",
 		"keysPlain":          "int[]|string[]",
@@ -84,9 +84,9 @@ func TestArrayBuiltinArguments(t *testing.T) {
 		"mergeNone":          "array{}",
 		"mergeNotArray":      "array",
 		"mergePlain":         "array",
-		"mergeShapes":        "array{a: string, 0: string, 1: true}",
+		"mergeShapes":        "array{a: string<len 1, 1>, 0: string<len 1, 1>, 1: true}",
 		"mergeSpread":        "array",
-		"pad":                "int[]|string[]",
+		"pad":                "int[]|string[]<int|string<len 1, 1>>",
 		"padPlain":           "array",
 		"padUnknown":         "array",
 		"range":              "non-empty int[]",
@@ -94,7 +94,7 @@ func TestArrayBuiltinArguments(t *testing.T) {
 		"rangeStep":          "non-empty int[]",
 		"rangeStr":           "array",
 		"replaceNone":        "array",
-		"replaceShapes":      "array{a: int, 5: true, 9: float}",
+		"replaceShapes":      "array{a: int<1, 1>, 5: true, 9: float}",
 		"split":              "false|string[]",
 		"splitAnd":           "array[]|false|string[]<array{0: string, 1: int}>",
 		"splitDynamic":       "array[]|false|string[]<array{0: string, 1: int}>",
@@ -103,9 +103,9 @@ func TestArrayBuiltinArguments(t *testing.T) {
 		"splitOffset":        "array[]|false<array{0: string, 1: int}>",
 		"splitZero":          "false|string[]",
 		"strCsv":             "non-empty null[]|string[]",
-		"unique":             "non-empty int[]",
+		"unique":             "non-empty int[]<int<1, 1>>",
 		"url":                "array|false{scheme?: string, host?: string, port?: int, user?: string, pass?: string, path?: string, query?: string, fragment?: string}",
-		"values":             "non-empty int[]|string[]",
+		"values":             "non-empty int[]|string[]<int<1, 1>|string<len 1, 1>>",
 		"valuesEmpty":        "array",
 	})
 	checkVer(t, phpversion.PHP73, false, arrayBuiltinsSrc, map[string]string{
@@ -125,5 +125,5 @@ func TestArrayMergeOverShapeCap(t *testing.T) {
 	}
 	checkShape(t, `<?php
 t('merged', array_merge([`+a.String()+`], [`+b.String()+`]));
-`, map[string]string{"merged": "non-empty int[]|string[]"})
+`, map[string]string{"merged": "non-empty int[]|string[]<int<0, 19>|string<len 1, 1>>"})
 }

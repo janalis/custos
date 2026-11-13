@@ -22,7 +22,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	appendTo, ok := assignment.Var.(*syntax.ArrayDimFetch)
-	if !ok || appendTo.Dim != nil || variable(appendTo.Var) == "" {
+	if !ok || appendTo.Dim != nil || astquery.VariableName(appendTo.Var) == "" {
 		return
 	}
 	stmt, ok := assignment.Parent().(*syntax.ExprStmt)
@@ -38,10 +38,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	init, ok := loop.Init[0].(*syntax.Assign)
-	if !ok || init.ByRef || variable(init.Var) == "" {
+	if !ok || init.ByRef || astquery.VariableName(init.Var) == "" {
 		return
 	}
-	counter := variable(init.Var)
+	counter := astquery.VariableName(init.Var)
 	captured := false
 	for _, use := range closure.Uses {
 		if use.ByRef && use.Var.Name == counter {
@@ -56,7 +56,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	consume, ok := next.(*syntax.Foreach)
-	if !ok || consume.ByRef || variable(consume.Expr) != variable(appendTo.Var) || variable(consume.Value) == "" {
+	if !ok || consume.ByRef || astquery.VariableName(consume.Expr) != astquery.VariableName(appendTo.Var) || astquery.VariableName(consume.Value) == "" {
 		return
 	}
 	called := false
@@ -64,7 +64,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if syntax.IsVariableScope(n) {
 			return false
 		}
-		if c, ok := n.(*syntax.FuncCall); ok && variable(c.Name) == variable(consume.Value) {
+		if c, ok := n.(*syntax.FuncCall); ok && astquery.VariableName(c.Name) == astquery.VariableName(consume.Value) {
 			called = true
 		}
 		return true
@@ -111,12 +111,4 @@ func writeOnly(v *syntax.Variable) bool {
 			return false
 		}
 	}
-}
-
-func variable(e syntax.Expr) string {
-	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
-	if !ok {
-		return ""
-	}
-	return v.Name
 }

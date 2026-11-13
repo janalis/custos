@@ -32,8 +32,6 @@ func (s *Server) beginIndexing() bool {
 	return true
 }
 
-// buildIndex indexes the workspace (and vendor) after beginIndexing, then
-// re-analyses open documents.
 // abandonIndex ends a failed index build, unless a later one replaced it:
 // analyses go on without a project index.
 func (s *Server) abandonIndex(e *analysis.Engine, generation uint64) {
@@ -44,6 +42,8 @@ func (s *Server) abandonIndex(e *analysis.Engine, generation uint64) {
 	}
 }
 
+// buildIndex indexes the workspace (and vendor) after beginIndexing, then
+// re-analyses open documents.
 func (s *Server) buildIndex() {
 	s.mu.Lock()
 	e, cfg, generation := s.engine, s.cfg, s.indexGeneration
@@ -51,6 +51,7 @@ func (s *Server) buildIndex() {
 	// It runs on its own goroutine, outside the request guards.
 	defer s.guard("index", func() { s.abandonIndex(e, generation) })
 	start := time.Now()
+	worldKey := project.ComposerWorldKey(cfg.Root)
 	var paths []string
 	for _, p := range cfg.Paths {
 		paths = append(paths, filepath.Join(cfg.Root, p))
@@ -61,14 +62,30 @@ func (s *Server) buildIndex() {
 		s.abandonIndex(e, generation)
 		return
 	}
-	ix := buildIndexSymbols(cfg.Root, project.IndexSources(cfg.Root, files, paths, cfg.Exclude), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	indexed, skipped := project.IndexSourcesSkipping(cfg.Root, files, paths, cfg.Exclude)
+	ix, unread := buildIndexSymbols(cfg.Root, indexed, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	skipped.Files = append(skipped.Files, unread...)
+	ix.SetWorld(project.ComposerWorld(cfg.Root, paths, indexed, skipped))
+	// The disk holds no unsaved edit: index the open buffers again, parsed
+	// outside the lock.
+	s.mu.Lock()
+	buffers := make(map[*document][]byte, len(s.docs))
+	for _, d := range s.docs {
+		buffers[d] = d.text
+	}
+	s.mu.Unlock()
+	parsed := make(map[*document]*index.FileSymbols, len(buffers))
+	for d, text := range buffers {
+		parsed[d] = extractSource(cfg, d.path, text)
+	}
 	s.mu.Lock()
 	if s.engine != e || s.indexGeneration != generation {
 		s.mu.Unlock()
 		return
 	}
+	indexBuffers(ix, cfg, s.docs, buffers, parsed)
 	s.engine = e.WithIndex(ix)
-	s.index = ix
+	s.index, s.worldKey = ix, worldKey
 	s.indexing = false
 	queued := s.pending
 	s.pending = nil
@@ -83,6 +100,20 @@ func (s *Server) buildIndex() {
 	s.reanalyzeAll()
 }
 
+// indexBuffers adds the declarations of the open documents docs to ix:
+// those parsed from buffers when a document still holds that text, else
+// parsed again (an edit or an open landed meanwhile).
+func indexBuffers(ix *index.Index, cfg *config.Config, docs map[string]*document, buffers map[*document][]byte, parsed map[*document]*index.FileSymbols) {
+	for _, d := range docs {
+		fs, ok := parsed[d]
+		if !ok || !bytes.Equal(buffers[d], d.text) {
+			fs = extractSource(cfg, d.path, d.text)
+		}
+		ix.DropStaleInferred(fs)
+		ix.Add(fs)
+	}
+}
+
 // fileChange is one workspace/didChangeWatchedFiles event.
 type fileChange struct {
 	URI  string `json:"uri"`
@@ -94,13 +125,22 @@ type fileChange struct {
 // Changes arriving while the initial index is built are queued and replayed.
 func (s *Server) watchedFilesChanged(changes []fileChange) {
 	s.mu.Lock()
-	bl := baselinePath(s.cfg)
+	cfg := s.cfg
 	s.mu.Unlock()
+	bl := baselinePath(cfg)
 	for _, ch := range changes {
 		if bl != "" && filepath.Clean(uriToPath(ch.URI)) == bl {
 			s.reloadBaseline()
 			break
 		}
+	}
+	// The index world follows Composer's metadata: build the index again,
+	// which reads every other change from disk too.
+	if cfg != nil && s.worldChanged(cfg.Root, changes) {
+		if s.beginIndexing() {
+			go s.buildIndex()
+		}
+		return
 	}
 	s.mu.Lock()
 	if s.indexing {
@@ -109,6 +149,11 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 		return
 	}
 	ix, cfg := s.index, s.cfg
+	// An open document's buffer, not the disk, holds its declarations.
+	opened := make(map[string]bool, len(s.docs))
+	for _, d := range s.docs {
+		opened[d.path] = true
+	}
 	s.mu.Unlock()
 	if ix == nil || len(changes) == 0 {
 		return
@@ -116,7 +161,7 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 	touched := false
 	for _, ch := range changes {
 		path := uriToPath(ch.URI)
-		if !strings.HasSuffix(strings.ToLower(path), ".php") {
+		if !strings.HasSuffix(strings.ToLower(path), ".php") || opened[path] {
 			continue
 		}
 		touched = true
@@ -135,6 +180,28 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 		s.refreshFlow()
 		s.reanalyzeAll()
 	}
+}
+
+// worldChanged reports whether changes touch what the index world reads:
+// the vendor directory's installed.json, or the part of composer.json
+// project.ComposerWorldKey summarizes (another field, such as the
+// description, changes nothing).
+func (s *Server) worldChanged(root string, changes []fileChange) bool {
+	composer, installed := project.WorldInputs(root)
+	for _, ch := range changes {
+		switch filepath.Clean(uriToPath(ch.URI)) {
+		case installed:
+			return true
+		case composer:
+			s.mu.Lock()
+			key := s.worldKey
+			s.mu.Unlock()
+			if project.ComposerWorldKey(root) != key {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // indexDoc refreshes the index entry of an open document from its buffer.
@@ -292,7 +359,7 @@ func (s *Server) refreshFlow() {
 	}
 	// Compose every unsaved dependency in the same bounded fixed point.
 	if builder == nil {
-		builder = project.BuildFlowOrdered
+		builder = project.BuildFlowRecorded
 	}
 	// Dependency contracts are summarized on demand against this index.
 	build := builder(context.Background(), files, sources, opt, ix, project.WithVendorFlow(cfg.Root, ix, opt, cfg.Flow), order)
@@ -308,14 +375,14 @@ func (s *Server) refreshFlow() {
 }
 
 // indexWorkspace indexes files, taking the declarations of unchanged ones
-// from the cache the command line shares (see project.SymbolCache).
-func indexWorkspace(root string, files []string, opt syntax.Options, options infer.Options) *index.Index {
+// from the cache the command line shares (see project.SymbolCache), and
+// returns the files whose declarations it could not read.
+func indexWorkspace(root string, files []string, opt syntax.Options, options infer.Options) (*index.Index, []string) {
 	var cache *project.SymbolCache
 	if dir := project.CacheDir(); dir != "" {
 		cache = project.OpenSymbolCache(dir, root, opt, options)
 	}
-	ix, _ := project.BuildIndexCached(files, 0, opt, options, cache)
-	return ix
+	return project.BuildIndexUnread(files, opt, options, cache)
 }
 
 // Test seams also keep each build's filesystem/index operations explicit.

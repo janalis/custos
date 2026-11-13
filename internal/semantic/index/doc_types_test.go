@@ -71,6 +71,38 @@ func TestExtractBackedEnumAndUnsupportedGenericDocs(t *testing.T) {
 	}
 }
 
+// Parameter and property PHPDoc types keep their integer ranges and
+// non-empty strings beside the plain type; a promoted property takes those
+// of its constructor parameter, or of its own @var.
+func TestExtractDocValues(t *testing.T) {
+	fs := extract(t, "values.php", `<?php namespace Demo;
+ /**
+  * @param positive-int $n
+  * @param string $s
+  * @param non-empty-string|null $code
+  */
+ function f($n, $s, $code) {}
+ class Cart {
+   /** @var int<1, 9> */
+   public $digit;
+   /** @var int */
+   public $plain;
+   /** @param negative-int $offset */
+   public function __construct(public $offset, /** @var non-empty-string */ public $label) {}
+ }
+ `)
+	ps := fs.Functions[0].Params
+	if ps[0].DocType != "int" || ps[0].DocValues != "positive-int" || ps[1].DocValues != "" || ps[2].DocValues != "non-empty-string|null" {
+		t.Fatalf("%+v", ps)
+	}
+	props := fs.Classes[0].Props
+	for name, want := range map[string]string{"digit": "int<1, 9>", "plain": "", "offset": "negative-int", "label": "non-empty-string"} {
+		if p := props[name]; p == nil || p.DocValues != want {
+			t.Errorf("%s: %+v want %q", name, p, want)
+		}
+	}
+}
+
 func BenchmarkExtractConstantDocTypes(b *testing.B) {
 	var src strings.Builder
 	src.WriteString("<?php namespace Demo; enum State {case Active;} class Constants {const int NUMBER=1;}\n")

@@ -44,3 +44,19 @@ func TestFlowOrderConfiguration(t *testing.T) {
 		}
 	}
 }
+
+func TestParseOnceConfiguration(t *testing.T) {
+	for _, tc := range []struct {
+		json string
+		want bool
+	}{{`{}`, false}, {`{"parseOnce":false}`, false}, {`{"parseOnce":true}`, true}} {
+		var file File
+		if err := json.Unmarshal([]byte(tc.json), &file); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Resolve(t.TempDir(), file)
+		if err != nil || cfg.ParseOnce != tc.want {
+			t.Fatalf("%s: config=%+v err=%v", tc.json, cfg, err)
+		}
+	}
+}

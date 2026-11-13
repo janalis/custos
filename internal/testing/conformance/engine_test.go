@@ -63,6 +63,7 @@ func target(req Request) phpversion.Version {
 
 func (a *adapter) engineFor(req Request) (*analysis.Engine, error) {
 	cfg := analysis.Config{PHP: target(req), Only: req.Rules, Rules: map[string]analysis.RuleConfig{}}
+	cfg.Flow.Assertions = req.Assertions
 	if req.ComparisonStyle == "yoda" {
 		cfg.ComparisonStyle = analysis.StyleYoda
 	}
@@ -91,11 +92,12 @@ func (a *adapter) engineFor(req Request) (*analysis.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(req.Companions) > 0 {
+	if len(req.Companions) > 0 || req.CompleteWorld {
 		ix := index.New(stubs.Index())
 		for path, src := range req.Companions {
 			ix.Add(index.Extract(syntax.Parse(path, src, parseOpts())))
 		}
+		ix.SetWorld(index.World{Complete: req.CompleteWorld, Vendor: req.Vendor})
 		e = e.WithIndex(ix)
 	}
 	return e, nil

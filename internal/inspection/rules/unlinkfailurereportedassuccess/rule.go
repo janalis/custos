@@ -32,12 +32,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 
 // scratch reports an unlink of the file tempnam() made in the function
 // (E3): deleting it cleans up after the function's own work, whose success
-// the return reports.
+// the return reports. An unqualified call names PHP's tempnam() even where
+// the namespace declares a same-named test double.
 func scratch(ctx *analysis.Context, c *syntax.FuncCall) bool {
 	path := semanticquery.CallArgument(c.Args, 0, "filename")
 	if path == nil {
 		return false
 	}
 	made, ok := semanticquery.NativeLocalValue(ctx, path).(*syntax.FuncCall)
-	return ok && semanticquery.NativeBuiltin(ctx, made, "tempnam")
+	return ok && ctx.FunctionName(made) == "tempnam"
 }

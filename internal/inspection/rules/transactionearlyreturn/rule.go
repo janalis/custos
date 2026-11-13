@@ -98,9 +98,11 @@ func transactionClosedByExpr(ctx *analysis.Context, e, receiver syntax.Expr) boo
 }
 
 // transactionGuardedFinally accepts the cleanup idiom of a surrounding
-// finally block that closes the transaction only while one is still active:
-// `if ($pdo->inTransaction()) { $pdo->rollBack(); }`. Other conditions do not
-// prove cleanup, and a return inside the finally block itself is not covered.
+// finally block that closes the transaction whenever one is still active:
+// `if ($pdo->inTransaction()) { $pdo->rollBack(); }`, the else arm of the
+// negated test, or `$pdo->inTransaction() && $pdo->rollBack();` (`!… ||`,
+// `and`, `or`). Other conditions do not prove cleanup, and a return inside
+// the finally block itself is not covered.
 func transactionGuardedFinally(ctx *analysis.Context, ret *syntax.Return, receiver syntax.Expr) bool {
 	for p := ret.Parent(); p != nil; p = p.Parent() {
 		tr, ok := p.(*syntax.Try)
@@ -108,23 +110,69 @@ func transactionGuardedFinally(ctx *analysis.Context, ret *syntax.Return, receiv
 			continue
 		}
 		for _, s := range tr.Finally.Body.Stmts {
-			guard, ok := s.(*syntax.If)
-			if !ok {
-				continue
+			if transactionCleanup(ctx, s, receiver) {
+				return true
 			}
-			cond, ok := guard.Cond.(*syntax.MethodCall)
-			if !ok || !semanticquery.NativeMethod(ctx, cond, "PDO", "inTransaction") || !semanticquery.NativeSameValue(ctx, receiver, cond.Var) {
-				continue
-			}
-			stmts := []syntax.Stmt{guard.Body}
-			if block, ok := guard.Body.(*syntax.Block); ok {
-				stmts = block.Stmts
-			}
-			for _, inner := range stmts {
-				if st, ok := inner.(*syntax.ExprStmt); ok && transactionCloseCall(ctx, st.Expr, receiver) {
-					return true
-				}
-			}
+		}
+	}
+	return false
+}
+
+// transactionCleanup reports whether statement s closes the transaction
+// whenever inTransaction() holds.
+func transactionCleanup(ctx *analysis.Context, s syntax.Stmt, receiver syntax.Expr) bool {
+	switch st := s.(type) {
+	case *syntax.If:
+		active, ok := transactionActiveTest(ctx, st.Cond, receiver)
+		switch {
+		case !ok || len(st.ElseIfs) > 0:
+			return false
+		case active:
+			return transactionClosesIn(ctx, st.Body, receiver)
+		}
+		return st.Else != nil && transactionClosesIn(ctx, st.Else.Body, receiver)
+	case *syntax.ExprStmt:
+		b, ok := syntax.UnwrapParens(st.Expr).(*syntax.Binary)
+		if !ok || !transactionCloseCall(ctx, syntax.UnwrapParens(b.Right), receiver) {
+			return false
+		}
+		active, ok := transactionActiveTest(ctx, b.Left, receiver)
+		switch b.Op.Kind {
+		case syntax.TBooleanAnd, syntax.TAnd:
+			return ok && active
+		case syntax.TBooleanOr, syntax.TOr:
+			return ok && !active
+		}
+	}
+	return false
+}
+
+// transactionActiveTest reports whether cond is inTransaction() on the
+// connection, possibly negated, and whether it holds when the transaction
+// is active.
+func transactionActiveTest(ctx *analysis.Context, cond, receiver syntax.Expr) (active, ok bool) {
+	switch c := syntax.UnwrapParens(cond).(type) {
+	case *syntax.Unary:
+		if c.Op.Kind == syntax.TExclaim {
+			active, ok = transactionActiveTest(ctx, c.Expr, receiver)
+			return !active, ok
+		}
+	case *syntax.MethodCall:
+		return true, semanticquery.NativeMethod(ctx, c, "PDO", "inTransaction") && semanticquery.NativeSameValue(ctx, receiver, c.Var)
+	}
+	return false, false
+}
+
+// transactionClosesIn reports whether body holds, as one of its statements,
+// a commit or rollBack call on the connection.
+func transactionClosesIn(ctx *analysis.Context, body syntax.Stmt, receiver syntax.Expr) bool {
+	stmts := []syntax.Stmt{body}
+	if block, ok := body.(*syntax.Block); ok {
+		stmts = block.Stmts
+	}
+	for _, inner := range stmts {
+		if st, ok := inner.(*syntax.ExprStmt); ok && transactionCloseCall(ctx, st.Expr, receiver) {
+			return true
 		}
 	}
 	return false

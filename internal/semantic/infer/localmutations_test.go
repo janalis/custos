@@ -91,12 +91,12 @@ function elementMutations(bool $condition, string $key, $unknown) {
     $paren = ['x' => null]; ++($paren)['x']; t('paren', $paren['x']);
 }
 `, map[string]string{
-		"prefix": "int", "stored": "int|null", "sibling": "string", "copy": "int|null|string",
-		"capture": "int|null|string", "array": "non-empty int[]|null[]|string[]", "key": "string", "element": "int|null|string",
+		"prefix": "int", "stored": "int|null", "sibling": "string<len 1, 1>", "copy": "int|null|string<len 1, 1>",
+		"capture": "int|null|string<len 1, 1>", "array": "non-empty int[]|null[]|string[]<int|null|string<len 1, 1>>", "key": "string", "element": "int|null|string<len 1, 1>",
 		"postfix": "null", "postfixStored": "int|null", "decrement": "null", "decrementStored": "null",
 		"conditional": "int|null", "optional": "int|null", "computed": "false|int|null",
-		"nested": "int[]|null[]{y: int|null}", "nestedSibling": "string", "nestedArray": "non-empty array",
+		"nested": "int[]|null[]{y: int|null}", "nestedSibling": "string<len 1, 1>", "nestedArray": "non-empty array",
 		"nestedAbsent": "?unknown", "nestedComputed": "int[]|null[]{y: int|null}",
-		"invalid": "?unknown", "unknown": "?unknown", "reset": "string", "loop": "int|null", "paren": "int|null",
+		"invalid": "?unknown", "unknown": "?unknown", "reset": "string<len 1, 1>", "loop": "int|null", "paren": "int|null",
 	})
 }

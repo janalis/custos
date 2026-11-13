@@ -479,7 +479,7 @@ func decodedAsserted(ctx *analysis.Context, arg *syntax.Arg, decodesNull bool) b
 			other = args[1]
 		}
 		o, ok := other.(*syntax.Arg)
-		return ok && nonEmptyArray(o.Value)
+		return ok && o.Value != nil && expectedRejectsFailure(ctx, o.Value, name == "assertsame")
 	case "assertnotnull":
 		return decodesNull && args[0] == syntax.Node(arg)
 	case "assertnotfalse":
@@ -584,6 +584,32 @@ func assertedText(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool 
 		return !slices.Contains(phpunit.FailurePassing(ctx, x, args, true), input)
 	}
 }
+
+// expectedRejectsFailure reports whether the expected value e of a
+// comparison assertion differs from both false and null: for assertSame,
+// any value whose known type holds neither; for the loose comparisons,
+// which equate false and null with empty values, a non-empty array literal,
+// or a value known to be a non-empty array or an object of a named class.
+func expectedRejectsFailure(ctx *analysis.Context, e syntax.Expr, strict bool) bool {
+	if nonEmptyArray(e) {
+		return true
+	}
+	t := ctx.TypeOf(e)
+	if t.IsUnknown() {
+		return false
+	}
+	for _, a := range t.Atoms() {
+		switch {
+		case strict && slices.Contains(definiteAtoms, a), strings.HasPrefix(a, `\`), strings.HasSuffix(a, "[]"):
+		default:
+			return false
+		}
+	}
+	return strict || len(t.Classes()) == len(t.Atoms()) || t.IsNonEmptyArray()
+}
+
+// definiteAtoms are the type atoms that hold neither false nor null.
+var definiteAtoms = []string{"int", "float", "string", "true", "array", "callable", "iterable", "object", "resource"}
 
 // nonEmptyArray reports an array literal with an item.
 func nonEmptyArray(e syntax.Expr) bool {

@@ -52,7 +52,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	inner, ok := outer.Var.(*syntax.ArrayDimFetch)
-	if !ok || variable(inner.Var) == "" || variable(inner.Var) != variable(assignment.Var) {
+	if !ok || astquery.VariableName(inner.Var) == "" || astquery.VariableName(inner.Var) != astquery.VariableName(assignment.Var) {
 		return
 	}
 	key, known := semanticquery.NativeArrayKey(ctx, inner.Dim)
@@ -87,14 +87,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if shorter {
 		ctx.ReportNode(call, message)
 	}
-}
-
-func variable(e syntax.Expr) string {
-	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
-	if !ok {
-		return ""
-	}
-	return v.Name
 }
 
 func list(a *syntax.Array) bool {

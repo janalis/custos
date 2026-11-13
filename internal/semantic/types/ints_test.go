@@ -57,3 +57,29 @@ func TestInts(t *testing.T) {
 		t.Error("a plain int is unconstrained")
 	}
 }
+
+// IntValue and StringLength build the exact types Ints and StringLengths
+// do, small values included; a union of equal value sets keeps them and
+// one of different sets merges them.
+func TestSingleValues(t *testing.T) {
+	for _, v := range []int64{smallLo - 1, smallLo, 0, 7, smallHi, smallHi + 1, math.MinInt64, math.MaxInt64} {
+		if got, want := IntValue(v).ShapeString(), Ints(IntRange{v, v}).ShapeString(); got != want {
+			t.Errorf("IntValue(%d): %s want %s", v, got, want)
+		}
+		if v < 0 {
+			continue
+		}
+		if got, want := StringLength(v).ShapeString(), StringLengths(IntRange{v, v}).ShapeString(); got != want {
+			t.Errorf("StringLength(%d): %s want %s", v, got, want)
+		}
+	}
+	if got := Union(IntValue(3), IntValue(3), Null).ShapeString(); got != "int<3, 3>|null" {
+		t.Errorf("same: %s", got)
+	}
+	if got := Union(IntValue(3), IntValue(1), IntValue(2)).ShapeString(); got != "int<1, 3>" {
+		t.Errorf("merged: %s", got)
+	}
+	if got := Union(StringLength(2), StringLength(0)).ShapeString(); got != "string<len 0, 0>|string<len 2, 2>" {
+		t.Errorf("lengths: %s", got)
+	}
+}

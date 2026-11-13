@@ -1,6 +1,7 @@
 package conformance
 
 import (
+	"cmp"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -140,6 +141,18 @@ type fixtureConfig struct {
 	// directory, plain PHP, conventionally *.inc so they are not fixtures
 	// themselves) whose symbols are indexed next to the fixture.
 	Companions []string `json:"companions"`
+	// CompleteWorld indexes the fixture and its companions as the whole
+	// world the project can load (as with every Composer dependency
+	// installed), so a name they do not declare exists nowhere.
+	CompleteWorld bool `json:"completeWorld"`
+	// VendorDir is the project's vendor directory, relative to the
+	// testdata directory like companions (default `vendor`).
+	VendorDir string `json:"vendorDir"`
+	// Assertions trusts assert() calls as guards (flow.assertions).
+	Assertions bool `json:"assertions"`
+	// With lists other rules enabled in the same run, whose findings the
+	// fixture marks up too (rules that leave findings to one another).
+	With []string `json:"with"`
 }
 
 // TestOwnFixtures checks each rule package's testdata/*.php (with optional
@@ -188,19 +201,26 @@ func TestOwnFixtures(t *testing.T) {
 				}
 				opts := map[string]string{}
 				for k, v := range cfg.Options {
+					key := k
+					if !strings.Contains(k, ".") { // `Rule.OPTION` sets an option of a `with` rule
+						key = rule + "." + k
+					}
 					if list, ok := v.([]any); ok { // list option: passed as JSON
 						b, _ := json.Marshal(list)
-						opts[rule+"."+k] = string(b)
+						opts[key] = string(b)
 						continue
 					}
-					opts[rule+"."+k] = fmt.Sprint(v)
+					opts[key] = fmt.Sprint(v)
 				}
 				var calls []string
 				for _, c := range cfg.Calls {
 					calls = append(calls, rule+"."+c)
 				}
 				fixed, _ := os.ReadFile(base + ".fixed" + ext)
-				req := Request{Path: f, Rules: []string{rule}, PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls}
+				req := Request{
+					Path: f, Rules: append([]string{rule}, cfg.With...), PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls, CompleteWorld: cfg.CompleteWorld,
+					Vendor: filepath.Join(dir, cmp.Or(cfg.VendorDir, "vendor")), Assertions: cfg.Assertions,
+				}
 				for _, comp := range cfg.Companions {
 					p := filepath.Join(dir, comp)
 					src, err := os.ReadFile(p)
@@ -258,6 +278,9 @@ func TestEAFixturesParse(t *testing.T) {
 	idx, err := LoadEAIndex(eaIndexPath)
 	if err != nil {
 		t.Skipf("no EA index: %v", err)
+	}
+	if _, err := os.Stat(idx.EAPath); err != nil {
+		t.Skipf("EA checkout not found at %s", idx.EAPath)
 	}
 	seen := map[string]bool{}
 	bad := 0

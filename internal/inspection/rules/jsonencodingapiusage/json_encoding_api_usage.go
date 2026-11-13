@@ -825,8 +825,8 @@ func jsonIndexedConst(ctx *analysis.Context, c syntax.Expr) bool {
 }
 
 // jsonFailureTest reports whether x is tested for a failed JSON call: the
-// condition of a ternary (`?:` included) or of an if, elseif or while,
-// negated with `!`, given to empty(), compared with false or null, tested
+// condition of a ternary (`?:` included) or of an if, elseif or while, an
+// operand of `&&`, `||`, `and` or `or`, negated with `!`, given to empty(), compared with false or null, tested
 // with instanceof, given to a type test (is_array() and the like) or to a PHPUnit assertion that
 // rejects the failure value, or, for json_decode (null on failure), given
 // to isset() or the left operand of `??`.
@@ -853,6 +853,10 @@ func jsonFailureTest(ctx *analysis.Context, x syntax.Expr, decode bool) bool {
 		return decode
 	case *syntax.Binary:
 		switch p.Op.Kind {
+		case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
+			// Tested for truth like a condition: `$data || throw …;`,
+			// `$ready && $data`.
+			return true
 		case syntax.TCoalesce:
 			return decode && syntax.Node(p.Left) == x
 		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:

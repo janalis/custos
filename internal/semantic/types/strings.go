@@ -6,10 +6,11 @@ import (
 	"strings"
 )
 
-// strFacts are the values the string member may hold. They are tracked only
-// where a caller seeded them (TrackedStrings), so ordinary
-// inference never carries them; like int values (see ints.go) they ride on
-// the atom: String and Equal ignore them, ShapeString shows them.
+// strFacts are the values the string member may hold. A string literal
+// (StringLiteral) and a PHPDoc literal string type carry its value; other
+// strings track values only where a caller seeded them (TrackedStrings).
+// Like int values (see ints.go) they ride on the atom: String and Equal
+// ignore them, ShapeString shows them.
 type strFacts struct {
 	only []string // sorted, unique; nil when not limited to a list
 	not  []string // sorted, unique values ruled out (only when only is nil)
@@ -35,6 +36,37 @@ func stringValues(values ...string) Type {
 	}
 	return TrackedStrings().withStrs(sortedUnique(values), nil)
 }
+
+// maxLiteralValue bounds the byte length of a literal string whose value
+// StringLiteral keeps: longer literals (SQL, templates) keep their length.
+const maxLiteralValue = 64
+
+// literalStr holds the facts of one string literal in a single allocation.
+type literalStr struct {
+	facts strFacts
+	value [1]string
+}
+
+// StringLiteral is the string type of literal value v: its byte length and,
+// for a short value, the value itself.
+func StringLiteral(v string) Type {
+	t := StringLength(int64(len(v)))
+	if len(v) <= maxLiteralValue {
+		l := &literalStr{value: [1]string{v}}
+		l.facts.only = l.value[:]
+		t.strs = &l.facts
+	}
+	return t
+}
+
+// literalStrs holds string facts and their values.
+type literalStrs struct {
+	facts  strFacts
+	values []string
+}
+
+// trackedAny is the facts of a tracked string with no known value.
+var trackedAny = &strFacts{}
 
 // StringsTracked reports whether the string member's values are tracked.
 func (t Type) StringsTracked() bool { return t.strs != nil && t.Has("string") }
@@ -111,6 +143,8 @@ func (t Type) withStrs(only, not []string) Type {
 func unionStrs(ts []Type) *strFacts {
 	var lists [][]string
 	var nots [][]string
+	var first *strFacts // the facts of the first member holding a string
+	same := true        // every such member shares them
 	for _, t := range ts {
 		if !t.Has("string") {
 			continue
@@ -118,22 +152,36 @@ func unionStrs(ts []Type) *strFacts {
 		if t.strs == nil {
 			return nil
 		}
+		if first == nil {
+			first = t.strs
+		}
+		same = same && t.strs == first
 		if t.strs.only != nil {
 			lists = append(lists, t.strs.only)
 		} else {
 			nots = append(nots, t.strs.not)
 		}
 	}
+	if same {
+		return first // facts are immutable
+	}
 	if len(nots) == 0 {
-		var all []string
+		n := 0
 		for _, l := range lists {
-			all = append(all, l...)
+			n += len(l)
 		}
-		all = sortedUnique(all)
-		if len(all) > maxStringValues {
-			return &strFacts{}
+		// One allocation holds the facts and their values.
+		f := &literalStrs{values: make([]string, 0, n)}
+		for _, l := range lists {
+			f.values = append(f.values, l...)
 		}
-		return &strFacts{only: all}
+		slices.Sort(f.values)
+		f.values = slices.Compact(f.values)
+		if len(f.values) > maxStringValues {
+			return trackedAny
+		}
+		f.facts.only = f.values
+		return &f.facts
 	}
 	var not []string
 	for _, v := range nots[0] {

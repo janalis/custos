@@ -49,7 +49,7 @@ function merge_cases($u, $v, $w) {
 function else_cases($u, $v) {
     if ($u) {
         run();
-    } else if ($v) {
+    } elseif ($v) {
         // fallback
         stop(); } else {
             halt();

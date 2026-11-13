@@ -161,24 +161,24 @@ type globalWriter struct {
 	name  string
 }
 
-func (e *Env) addWriter(scope syntax.Node, name string) {
+func (g *globalsState) addWriter(scope syntax.Node, name string) {
 	if name == "" {
 		return
 	}
-	if e.writers == nil {
-		e.writers = map[globalWriter]bool{}
+	if g.writers == nil {
+		g.writers = map[globalWriter]bool{}
 	}
-	e.writers[globalWriter{scope, name}] = true
+	g.writers[globalWriter{scope, name}] = true
 }
 
-func (e *Env) bindGlobal(name string, table bool) {
+func (g *globalsState) bindGlobal(name string, table bool) {
 	if name == "" && !table {
 		return
 	}
-	if e.global == nil {
-		e.global = map[string]bool{}
+	if g.global == nil {
+		g.global = map[string]bool{}
 	}
-	e.global[name] = true
+	g.global[name] = true
 }
 
 func (e *Env) globalsTable() bool { return e.globals()[""] }

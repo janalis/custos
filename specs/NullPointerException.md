@@ -276,10 +276,28 @@ walk for this name, *skip* goes to the next usage:
 - **E8** Chained calls on a call previously null-tested in the unit;
   chained calls whose base is a parenthesised expression or a variable.
 - **E9** Abstract methods; methods in test contexts.
+- **E12** (custos) When PossiblyNullAccess or PossiblyNullArgument runs
+  in the same analysis, a dereference that rule reports on the same value
+  (the receiver of the access, the argument, or an access repeating one it
+  reports) is left to it, so that one possible null is reported once. Run
+  alone or skipped on a file after failing there, it leaves nothing, and
+  where its check of that access or call was skipped for lack of data the
+  analysis failed to build, it leaves that dereference. A
+  suppression of either rule there silences the dereference.
 - **E11** Dereferences in code that control never reaches: a statement
   that follows, in its statement list (or in an enclosing one), a `return`,
   `throw`, `break`, `continue`, `exit` or another statement that never
   completes, unless a `goto` label lets a jump land in between.
+- **E13** (custos) The result of `getInnerIterator()` of PHP's iterator
+  wrappers (`IteratorIterator`, `FilterIterator`, `CachingIterator`,
+  `LimitIterator`, `NoRewindIterator` and their subclasses), dereferenced
+  in a chain or through a local holding it: PHP declares it nullable, but
+  it returns the iterator the constructor took. The receiver's type,
+  PHPDoc included, must name classes whose subclasses, of PHP or of
+  the project, all keep that method. `AppendIterator`'s, null until an
+  iterator is appended, still counts, and so does the one of a receiver
+  typed `IteratorIterator`, which may be an `AppendIterator`, or of one a
+  class of the project extends overriding the method.
 
 ## Report
 
@@ -399,8 +417,17 @@ function visit(?Node $item) {
 - **U13 — custos diverges from upstream.** Upstream reports every
   dereference of the same nullable value, even after one that always runs
   and would already have thrown.
+- **E12 — custos only.** The PossiblyNullAccess and PossiblyNullArgument
+  rules prove null from native types and flow; when either runs with this
+  rule, the dereferences it reports are not reported here again. Upstream
+  has no such rules.
 - **E11 — custos diverges from upstream.** Upstream also reports
   dereferences in unreachable code, such as after a `break` in a `case`.
+- **E13 — custos diverges from upstream.** Upstream trusts the nullable
+  return PHP declares for `getInnerIterator()` of the iterator wrappers,
+  which never returns null once the wrapper is constructed, when no
+  subclass of the receiver's class, of PHP or of the project, may return
+  null instead.
 - Case-insensitive assertion names (custos diverges from upstream).
   Upstream compares the assertion method names (U5) and `is_null`
   case-sensitively, so `self::AssertNotNull($v)` or `IS_NULL($v)` — which
