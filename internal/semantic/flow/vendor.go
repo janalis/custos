@@ -113,6 +113,8 @@ func (v *Vendor) summarize(path string) map[string]Summary {
 	if err != nil || len(src) > MaxVendorBytes {
 		return nil
 	}
-	tree := syntax.ParseBest(path, src, v.parse)
+	parse := v.parse
+	parse.CopyText = true
+	tree := syntax.ParseBest(path, src, parse)
 	return Extract(tree, v.index, v.php, nil, Options{Assertions: v.assert}).Summaries
 }
