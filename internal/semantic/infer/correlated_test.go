@@ -1,6 +1,10 @@
 package infer_test
 
-import "testing"
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
 
 // TestCorrelatedNullExit covers an early exit taken when two values are
 // both null: once a later condition proves one of them null, the other is
@@ -73,6 +77,31 @@ func TestCorrelatedExitOfMoreValues(t *testing.T) {
 			native, proven := provenProbe(t, head+c.body)
 			if native != c.want || proven != c.want {
 				t.Errorf("native %s, proven %s; want %s", native, proven, c.want)
+			}
+		})
+	}
+}
+
+func TestCorrelatedExitOperandBudget(t *testing.T) {
+	for _, count := range []int{8, 9} {
+		t.Run(fmt.Sprint(count), func(t *testing.T) {
+			var params, checks, guards []string
+			for i := range count {
+				name := fmt.Sprintf("$v%d", i)
+				params = append(params, "?A "+name)
+				checks = append(checks, name+" === null")
+				if i > 0 {
+					guards = append(guards, name+" === null")
+				}
+			}
+			src := "<?php class A {} function f(" + strings.Join(params, ",") + ") { if (" + strings.Join(checks, " && ") + ") return; if (" + strings.Join(guards, " && ") + ") { t('v', $v0); } }"
+			native, proven := provenProbe(t, src)
+			want := `\A`
+			if count == 9 {
+				want = `\A|null`
+			}
+			if native != want || proven != want {
+				t.Fatalf("native %s proven %s want %s", native, proven, want)
 			}
 		})
 	}

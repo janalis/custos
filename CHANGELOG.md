@@ -148,6 +148,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Drop null from nullable values after a definite offset write.
+- Report redundant `is_null()` checks of DOM attributes when the specialized
+  comparison rule does not handle the predicate.
+- Use the captured baseline while preparing MCP quick-fixes.
+
 - The editor offers to suppress a finding when the baseline hides another
   finding of the same rule in the file; it used to refuse the suppression
   comment because the hidden finding still counted after it.

@@ -156,3 +156,24 @@ func TestTypeChecksVersionHelpers(t *testing.T) {
 		}
 	})
 }
+
+func TestComparisonOwnersSkipUnsupportedContexts(t *testing.T) {
+	for _, tc := range []struct {
+		source, literal string
+		recovery        bool
+	}{
+		{`function f($p, string $s) { probe(xml_parse($p, $s) === false); }`, "false", true},
+		{`function f($p, string $s) { return; probe(xml_parse($p, $s) === false); }`, "false", false},
+		{`function f(Collator $c) { return; probe($c->compare('a', 'b') === true); }`, "true", false},
+	} {
+		probeArgs(t, tc.source, func(ctx *analysis.Context, _ *syntax.FuncCall, args []syntax.Expr) {
+			if tc.recovery {
+				ctx.File.Errors = []syntax.Error{{}}
+			}
+			cmp := args[0].(*syntax.Binary)
+			if ownedComparison(ctx, cmp, cmp.Left, tc.literal) {
+				t.Fatal("comparison delegated to a skipped owner")
+			}
+		})
+	}
+}

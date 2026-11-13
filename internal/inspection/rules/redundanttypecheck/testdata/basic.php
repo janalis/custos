@@ -52,3 +52,9 @@ function chain(array|string $value, int|string $key): string
     }
     return 'other';
 }
+
+function writtenNullableArray(?array $items, bool $write): array
+{
+    $items['key'] = 1;
+    return [<warning descr="This check is always false: the value is array.">is_null($items)</warning>];
+}

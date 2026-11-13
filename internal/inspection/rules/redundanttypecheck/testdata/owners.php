@@ -15,6 +15,7 @@ function owners(int $qty, DOMElement $el): array
         <warning descr="This check is always true: the value is int.">is_int($qty)</warning>,
         <warning descr="This check is always false: the value is int.">is_double($qty)</warning>,
         <warning descr="Use hasAttribute to test whether an attribute exists.">$el->getAttribute('id') === null</warning>,
+        <warning descr="This check is always false: the value is string.">is_null($el->getAttribute('id'))</warning>,
         $f,
     ];
 }

@@ -442,14 +442,18 @@ func (missingRule) Kinds() []syntax.NodeKind             { return nil }
 func (missingRule) Check(*analysis.Context, syntax.Node) {}
 
 type editRule struct {
-	edit   string
-	before func()
-	crash  bool
+	edit          string
+	before        func()
+	crash         bool
+	baselineAware bool
 }
 
 func (editRule) ID() string               { return "NestedNotOperators" }
 func (editRule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KUnary} }
 func (r editRule) Check(ctx *analysis.Context, n syntax.Node) {
+	if r.baselineAware && !ctx.Suppressed("PossiblyNullAccess", n.Span(), "recorded") {
+		return
+	}
 	if r.before != nil {
 		r.before()
 	}
@@ -907,5 +911,29 @@ func TestBaselineCoversSyntaxErrors(t *testing.T) {
 	tmp := &checkpoint{}
 	if err := collect(tmp, snap); err != nil || len(tmp.Findings) != 0 {
 		t.Fatal(tmp.Findings, err)
+	}
+}
+
+func TestPreparationUsesCapturedBaseline(t *testing.T) {
+	for _, iterative := range []bool{false, true} {
+		t.Run(fmt.Sprint(iterative), func(t *testing.T) {
+			s, ctx, root := fixture(t)
+			s.rules = []analysis.Rule{editRule{edit: "$token", baselineAware: true}}
+			writeFile(t, filepath.Join(root, "custos.json"), `{"php":"8.2","baseline":"baseline.json"}`)
+			writeFile(t, filepath.Join(root, "baseline.json"), `{"version":1,"entries":[{"path":"a.php","rule":"PossiblyNullAccess","message":"recorded","line":"$x = !!!$token; function sample(): int { return 1; }","count":10}]}`)
+			a := invoke(ctx, t, s, "analyze", Input{})
+			id := a["checkpointId"].(string)
+			if len(s.checkpoints[id].Findings) == 0 {
+				t.Fatal("baseline-dependent rule did not run")
+			}
+			in := Input{CheckpointID: id, Iterative: iterative}
+			if !iterative {
+				in.Choices = []Choice{{FindingID: s.checkpoints[id].Findings[0].ID}}
+			}
+			p := invoke(ctx, t, s, "prepare_fixes", in)
+			if len(s.plans[p["planId"].(string)].Changes) == 0 {
+				t.Fatal("baseline-dependent edit lost")
+			}
+		})
 	}
 }

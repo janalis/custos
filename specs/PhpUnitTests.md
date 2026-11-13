@@ -367,7 +367,8 @@ integer/float literal, optionally with a unary minus.
 - **Version-dependent names.** A version is known when `PHP_UNIT_VERSION`
   is configured as one of its values, or when it is inferred from the indexed PHPUnit, from
   composer.json or from phpunit.xml. When none of these gives a version,
-  D26, D27 and the negative D23 names rest on the assumed `PHPUNIT80`
+  D20 assumes PHPUnit 8.0 or later and offers the corresponding `assertIs`
+  quick-fix. D26, D27 and the negative D23 names rest on the assumed `PHPUNIT80`
   default, while the old names no longer exist from PHPUnit 10. Those calls
   are then reported without a fix, and the message names both methods:
   "use the 9.1 name (the old name before PHPUnit 9.1)" (custos diverges,

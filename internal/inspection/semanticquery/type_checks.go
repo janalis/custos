@@ -929,6 +929,12 @@ func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool
 	owners := comparisonOwners[lit]
 	for i, v := range origins(ctx, x) {
 		for key, o := range owners {
+			if key == "xml_parse" && (len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, cmp)) {
+				continue
+			}
+			if key == "collator::compare" && !flowquery.Reachable(cmp, syntax.EnclosingFuncLike(cmp)) {
+				continue
+			}
 			if (i == 0 || o.locals) && ownerShape(o, cmp, v) && ownerCall(ctx, v, key) && ctx.RuleChecks(o.rule, ownerNode(o, cmp, v)) {
 				return true
 			}
@@ -941,6 +947,11 @@ func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool
 // not wrapped in parentheses when o needs a bare operand, and cmp is an
 // equality when o reports only those.
 func ownerShape(o comparisonOwner, cmp, v syntax.Expr) bool {
+	if o.onComparison {
+		if _, ok := cmp.(*syntax.Binary); !ok {
+			return false
+		}
+	}
 	if o.bare && v.Parent() != syntax.Node(cmp) {
 		return false
 	}
