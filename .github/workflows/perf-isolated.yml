@@ -1,0 +1,97 @@
+name: perf-isolated
+on:
+  push:
+    branches: [perf/engine-runtime-memory]
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer
+          coverage: none
+      - name: Prepare fixed inputs and binaries
+        env:
+          BASE_SHA: ed248f14f3257d29ac6f025f4cf7469f36434db8
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/custos-base" "$BASE_SHA"
+          make build
+          make -C "$RUNNER_TEMP/custos-base" build
+          go run ./tools/benchcmp install -tool custos
+          mkdir -p .cache/perf-isolated
+          lscpu > .cache/perf-isolated/environment.txt
+          free -b >> .cache/perf-isolated/environment.txt
+          git rev-parse HEAD >> .cache/perf-isolated/environment.txt
+      - name: Compare baseline and candidate
+        env:
+          GOMAXPROCS: "4"
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, statistics, subprocess, tempfile, time
+          root = pathlib.Path.cwd()
+          output = root / '.cache/perf-isolated'
+          binaries = {'base': pathlib.Path(os.environ['RUNNER_TEMP']) / 'custos-base/bin/custos', 'head': root / 'bin/custos'}
+          available = sorted(os.sched_getaffinity(0))
+          assert len(available) >= 4, available
+          os.sched_setaffinity(0, available[:4])
+          metadata = dict(affinity=available[:4], available_cpus=available, go=subprocess.check_output(['go', 'version'], text=True), php=subprocess.check_output(['php', '--version'], text=True), commits={}, binaries={})
+          metadata['commits']['head'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          metadata['commits']['base'] = subprocess.check_output(['git', '-C', str(pathlib.Path(os.environ['RUNNER_TEMP']) / 'custos-base'), 'rev-parse', 'HEAD'], text=True).strip()
+          for name, binary in binaries.items():
+              metadata['binaries'][name] = hashlib.sha256(binary.read_bytes()).hexdigest()
+          for corpus in ['guzzle', 'composer', 'laravel']:
+              directory = root / '.cache/bench/corpora' / corpus
+              metadata['commits'][corpus] = subprocess.check_output(['git', '-C', str(directory), 'rev-parse', 'HEAD'], text=True).strip()
+          (output / 'metadata.json').write_text(json.dumps(metadata, indent=2))
+          results = []
+          for corpus in ['guzzle', 'composer', 'laravel']:
+              os.chdir(root / '.cache/bench/corpora' / corpus)
+              for mode in ['analyse', 'fix']:
+                  expected = None
+                  for run in range(10):
+                      for name in (['base', 'head'] if run % 2 == 0 else ['head', 'base']):
+                          argv = [str(binaries[name]), mode, '-no-cache'] + (['-format', 'json', '-fail-on', 'never'] if mode == 'analyse' else ['-dry-run']) + ['src']
+                          with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+                              start = time.monotonic()
+                              pid = os.posix_spawn(argv[0], argv, dict(os.environ), file_actions=[(os.POSIX_SPAWN_DUP2, stdout.fileno(), 1), (os.POSIX_SPAWN_DUP2, stderr.fileno(), 2)])
+                              _, status, usage = os.wait4(pid, 0)
+                              wall = time.monotonic() - start
+                              code = os.waitstatus_to_exitcode(status)
+                              stdout.seek(0)
+                              data = stdout.read()
+                              stderr.seek(0)
+                              errors = stderr.read()
+                          if code != 0:
+                              raise RuntimeError(errors.decode())
+                          if mode == 'analyse':
+                              json.loads(data)
+                          digest = hashlib.sha256(data).hexdigest()
+                          error_digest = hashlib.sha256(errors).hexdigest()
+                          (output / f'{corpus}-{mode}-{name}-{run}.stderr').write_bytes(errors)
+                          if expected is None:
+                              expected = (digest, error_digest)
+                          elif (digest, error_digest) != expected:
+                              raise RuntimeError((corpus, mode, 'output changed'))
+                          results.append(dict(corpus=corpus, mode=mode, run=run, binary=name, wall=wall, cpu=usage.ru_utime+usage.ru_stime, rss=usage.ru_maxrss*1024, sha256=digest, stderr_sha256=error_digest, load=os.getloadavg()))
+                          (output / 'results.json').write_text(json.dumps(results, indent=2))
+                  print(corpus, mode, {name: {key: statistics.median(row[key] for row in results if row['corpus']==corpus and row['mode']==mode and row['binary']==name and row['run']>0) for key in ['wall', 'cpu', 'rss']} for name in binaries}, flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf-isolated
+          path: .cache/perf-isolated/
+          if-no-files-found: error
+          retention-days: 7

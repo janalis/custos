@@ -247,6 +247,8 @@ func indexTree(path string, opt syntax.Options, options infer.Options) (fs *inde
 // indexCached is indexOne for a file whose source is not kept: its
 // declarations come from cache while its stat is unchanged.
 func indexCached(path string, opt syntax.Options, options infer.Options, cache *SymbolCache) *index.FileSymbols {
+	// Only declarations survive this parse; names must not pin discarded sources.
+	opt.CopyText = true
 	if cache == nil {
 		fs, _ := indexOne(path, opt, options)
 		return fs

@@ -59,7 +59,7 @@ func TestReferenceResultUnavailable(t *testing.T) {
 	}
 	r := e.scope(nil)
 	saved := r.values.at(arg.Value)
-	delete(r.values.slots, arg.Value)
+	delete(r.values.slots, syntax.Identity(arg.Value))
 	if _, known := e.ReferenceResult(call, arg); known {
 		t.Fatal("invented result for unevaluated argument")
 	}
