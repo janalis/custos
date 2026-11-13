@@ -145,6 +145,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Release notes join source-wrapped prose while preserving Markdown lists,
+  code blocks and explicit line breaks.
+
 - Drop null from nullable values after a definite offset write.
 - Report redundant `is_null()` checks of DOM attributes when the specialized
   comparison rule does not handle the predicate.

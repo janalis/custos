@@ -26,12 +26,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 	bump := fs.String("bump", "", "new version X.Y.Z, or patch | minor | major")
 	date := fs.String("date", time.Now().UTC().Format(time.DateOnly), "release date (YYYY-MM-DD)")
 	notes := fs.String("notes", "", "write the release notes to this file")
+	formatNotes := fs.String("format-notes", "", "print a notes file with prose continuations joined")
 	changelog := fs.String("changelog", "CHANGELOG.md", "changelog to update")
 	launcher := fs.String("launcher", "composer/custos", "Composer launcher whose VERSION is pinned")
 	dir := fs.String("git", ".", "git repository holding the release tags")
-	if err := fs.Parse(args); err != nil || *bump == "" || fs.NArg() != 0 {
-		fmt.Fprintln(stderr, "usage: relprep -bump X.Y.Z|patch|minor|major [-date YYYY-MM-DD] [-notes file] [-changelog file] [-launcher file] [-git dir]")
+	if err := fs.Parse(args); err != nil || (*bump == "" && *formatNotes == "") || (*bump != "" && *formatNotes != "") || fs.NArg() != 0 {
+		fmt.Fprintln(stderr, "usage: relprep -bump X.Y.Z|patch|minor|major [-date YYYY-MM-DD] [-notes file] [-changelog file] [-launcher file] [-git dir] | relprep -format-notes file")
 		return 2
+	}
+	if *formatNotes != "" {
+		body, err := os.ReadFile(*formatNotes)
+		if err != nil {
+			fmt.Fprintln(stderr, "relprep:", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, formatReleaseNotes(string(body)))
+		return 0
 	}
 	version, err := prepare(*bump, *date, *notes, *changelog, *launcher, *dir)
 	if err != nil {
@@ -71,7 +81,7 @@ func prepare(bump, date, notes, changelog, launcher, dir string) (string, error)
 		return "", err
 	}
 	if notes != "" {
-		if err := os.WriteFile(notes, []byte(body+"\n"), 0o644); err != nil {
+		if err := os.WriteFile(notes, []byte(formatReleaseNotes(body)+"\n"), 0o644); err != nil {
 			return "", err
 		}
 	}
