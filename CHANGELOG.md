@@ -98,17 +98,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   PHP 8.0, PHP's own functions are left alone.
 - `--parse-once` (or `"parseOnce": true` in `custos.json`) parses each
   analysed file once and keeps its syntax tree from indexing until its
-  analysis, instead of parsing it again in each phase. On laravel's `src`
-  a run takes about 5–15% less time for about 40% more memory at peak.
-  Findings are the same.
+  analysis, instead of parsing it again in each phase. This trades memory
+  for avoiding repeated parsing; findings are the same.
 - `analyse` and `fix` keep the cross-file summaries of the checked files in
   the cache, next to the declarations of dependencies. A run after an edit
   summarizes again only what the edit reaches, as the language server does;
   the summaries are set aside when declarations, dependency files, the set
   of checked files or the working directory change. Findings are the same
-  with or without them, and `--no-cache` bypasses them too. A re-run of
-  composer's `src` after editing one file took about 0.55 s instead of
-  1.1 s, at no more memory; the cache keeps about 5 MB for laravel's `src`.
+  with or without them, and `--no-cache` bypasses them too.
 
 ### Changed
 
@@ -132,19 +129,19 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `analyse` and `fix` are faster on projects with large classes in
   dependency cycles: the cross-file summaries no longer rebuild their
   collection each round, and a file summarized again keeps the summaries
-  of the methods that no changed contract reaches. Runs on the `src` of
-  laravel, composer and guzzle take about 15%, 11% and 7% less time.
+  of the methods that no changed contract reaches.
 - The language server updates cross-file summaries much faster after an
   edit within a dependency cycle: files whose source did not change keep
-  the summaries their contracts still support. In laravel, the update after
-  an edit to `Str.php` takes about 0.3 s instead of 2.2 s, and to the
-  Eloquent `Model.php` about 0.6 s instead of 2.4 s. The server keeps up
-  to about 30 MB more on a project of that size.
+  the summaries their contracts still support. Five alternating runs on the
+  same pinned laravel checkout, with four Go processors and 20 edits per
+  run, measured median time including flow updates of 3.063 s to 0.350 s
+  for `Str.php` and 3.071 s to 0.533 s for Eloquent `Model.php`. These
+  measurements apply to those workloads.
 - The language server reports findings faster in a class with many
   descendants that inherits many trait methods: ReturnTypeCanBeDeclared no
   longer looks up, for each descendant, the trait methods it only inherits.
-  Each edit to laravel's Eloquent `Model.php` takes about 60% less time
-  to analyze.
+  In the same paired runs, median time to diagnostics for Eloquent
+  `Model.php` fell from 170 ms to 69 ms; `Str.php` stayed around 27 ms.
 
 ### Fixed
 
