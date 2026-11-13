@@ -42,6 +42,13 @@
     "hasFix": false
   },
   {
+    "id": "ArgumentCountMismatch",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "ArrayChunkInvalidSize",
     "group": "Probable bugs",
     "severity": "error",
@@ -674,6 +681,20 @@
     "hasFix": false
   },
   {
+    "id": "DocumentedArgumentType",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "DocumentedReturnType",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "DomAppendMovesNodeUnexpectedly",
     "group": "Probable bugs",
     "severity": "warning",
@@ -1188,6 +1209,13 @@
     "hasFix": false
   },
   {
+    "id": "ImpossibleTypeComparison",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "IncrementalInflateEncodingMismatch",
     "group": "Probable bugs",
     "severity": "warning",
@@ -1263,6 +1291,36 @@
     "severity": "warning",
     "enabledByDefault": true,
     "hasFix": true
+  },
+  {
+    "id": "InvalidArgumentType",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "PossiblyNullAccess",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "suppressedBy": ["NullPointerException"]
+  },
+  {
+    "id": "PossiblyNullArgument",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "suppressedBy": ["NullPointerException"]
+  },
+  {
+    "id": "InvalidReturnType",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
   },
   {
     "id": "InverseTrigInvalidRealDomain",
@@ -1996,6 +2054,13 @@
     "hasFix": false
   },
   {
+    "id": "RedundantTypeCheck",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "ReflectionCompositeTypeAssumedNamed",
     "group": "Probable bugs",
     "severity": "error",
@@ -2537,6 +2602,34 @@
     "hasFix": false
   },
   {
+    "id": "UndefinedClass",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "UndefinedFunction",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "UndefinedMethod",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "UndefinedProperty",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "UnescapedHtmlOutput",
     "group": "Security",
     "severity": "error",
@@ -2879,6 +2972,20 @@
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "DocumentedPropertyAssignment",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "InvalidPropertyAssignment",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
     "hasFix": false
   }
 ]

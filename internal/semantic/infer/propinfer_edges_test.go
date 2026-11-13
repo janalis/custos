@@ -111,7 +111,7 @@ class Dyn {
 		"concat": "string", "counter": "int", "elemInc": "array", "elemArr": "array",
 		"elemStr": "?unknown", "byRefLoop": "?unknown", "keyTarget": "?unknown", "unsetMe": "?unknown",
 		"unsetElem": "array", "staticRef": "?unknown", "methodRef": "?unknown", "incStr": "?unknown",
-		"guarded": "int", "setInIf": "int|null", "neverWritten": "?unknown", "prom": "int|string",
+		"guarded": "int<2, 2>", "setInIf": "int<1, 1>|null", "neverWritten": "?unknown", "prom": "int|string",
 		"objCount": "float|int", "viaList": "?unknown", "lazyArr": "array|null", "hooked": "?unknown", "ph": "?unknown", "dyn": "?unknown",
 	})
 }

@@ -1,6 +1,7 @@
 package project
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -48,5 +49,38 @@ func TestVendorWrapperSinks(t *testing.T) {
 				t.Fatalf("findings=%d want %d", count, tc.want)
 			}
 		})
+	}
+}
+
+// Relative paths, as the CLI passes them, resolve against the working
+// directory read once, the way filepath.Abs resolves them on each call.
+func TestVendorWrapperSinksRelative(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "vendor", "acme", "run", "Runner.php"), `<?php namespace Acme; final class Runner { public function run($command) { system($command); } }`)
+	writeFile(t, filepath.Join(root, "src", "main.php"), `<?php function go(\Acme\Runner $r) { $r->run($_GET['c']); }`)
+	t.Chdir(root)
+	opt := syntax.Options{Version: phpversion.PHP84}
+	p, err := Open([]analysis.Rule{untrustedshellcommand.New()}, Options{Root: ".", Paths: []string{"src"}, Scope: []string{"src"}, Parse: opt, Analysis: analysis.Config{PHP: phpversion.PHP84}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for _, result := range p.AnalyzeReport() {
+		count += len(result.Findings)
+	}
+	if count != 1 {
+		t.Fatalf("findings=%d want 1", count)
+	}
+}
+
+func TestAbsoluteFrom(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"a/b.php", "./a/../b.php", "..", filepath.Join(cwd, "x", "..", "y.php")} {
+		if got, want := absoluteFrom(cwd, p), absolute(p); got != want {
+			t.Errorf("absoluteFrom(%q)=%q want %q", p, got, want)
+		}
 	}
 }

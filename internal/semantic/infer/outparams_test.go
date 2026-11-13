@@ -87,7 +87,7 @@ function f(string $host, $pid, array $items) {
     $read = 'x'; stream_select($read, $write, $except, 0); t('read', $read);
     $code = 'x'; msg_receive($queue, 0, $type, 1, $message, true, 0, $code); t('code', $code);
 }
-`, map[string]string{"hosts": "?unknown", "status": "?unknown", "list": "int[]{0: int, 1: int}", "popped": "int[]", "walked": "array", "object": "?unknown", "weights": "?unknown", "read": "array|null", "code": "int"})
+`, map[string]string{"hosts": "?unknown", "status": "?unknown", "list": "int[]<int<1, 2>>{0: int<1, 1>, 1: int<2, 2>}", "popped": "int[]<int<1, 2>>", "walked": "array", "object": "?unknown", "weights": "?unknown", "read": "array|null", "code": "int"})
 }
 
 // preg_match_all() lists strings per group or, with PREG_SET_ORDER, per

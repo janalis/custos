@@ -32,14 +32,18 @@ func (a Avail) In(v phpversion.Version) bool {
 // Param is a function/method parameter. Types are normalised type strings
 // (see internal/semantic/types), "" when undeclared.
 type Param struct {
-	Name     string `json:"n"`
-	Type     string `json:"t,omitempty"`
-	DocType  string `json:"d,omitempty"`
-	Optional bool   `json:"o,omitempty"`
-	ByRef    bool   `json:"r,omitempty"`
-	Variadic bool   `json:"v,omitempty"`
-	Promoted bool   `json:"p,omitempty"`
-	Default  string `json:"def,omitempty"` // default value source text
+	Name    string `json:"n"`
+	Type    string `json:"t,omitempty"`
+	DocType string `json:"d,omitempty"`
+	// DocValues is the documented type keeping its integer ranges and
+	// non-empty strings, which DocType drops (see Type.ValueDocString); ""
+	// when it has none.
+	DocValues string `json:"dv,omitempty"`
+	Optional  bool   `json:"o,omitempty"`
+	ByRef     bool   `json:"r,omitempty"`
+	Variadic  bool   `json:"v,omitempty"`
+	Promoted  bool   `json:"p,omitempty"`
+	Default   string `json:"def,omitempty"` // default value source text
 	// Out is the type a by-reference parameter holds after the call
 	// (`@param-out`, phpstan-/psalm- variants); "" when not documented.
 	Out string `json:"out,omitempty"`
@@ -197,11 +201,14 @@ type Property struct {
 	// the declaration uses its read visibility (subject to readonly rules).
 	SetVisibility *Visibility `json:"setVis,omitempty"`
 	// Final includes the implicit finality of private(set) declarations.
-	Final      bool   `json:"final,omitempty"`
-	Static     bool   `json:"static,omitempty"`
-	Readonly   bool   `json:"ro,omitempty"`
-	Type       string `json:"t,omitempty"`
-	DocType    string `json:"d,omitempty"`
+	Final    bool   `json:"final,omitempty"`
+	Static   bool   `json:"static,omitempty"`
+	Readonly bool   `json:"ro,omitempty"`
+	Type     string `json:"t,omitempty"`
+	DocType  string `json:"d,omitempty"`
+	// DocValues is DocType keeping its integer ranges and non-empty
+	// strings (see Param.DocValues).
+	DocValues  string `json:"dv,omitempty"`
 	HasDefault bool   `json:"hasDef,omitempty"`
 	Default    string `json:"def,omitempty"`
 	Promoted   bool   `json:"promoted,omitempty"`
@@ -299,6 +306,15 @@ type Class struct {
 	Consts           map[string]*ClassConst `json:"consts,omitempty"`
 	Deprecated       bool                   `json:"dep,omitempty"`
 	Avail            Avail                  `json:"a,omitempty"`
+	// Mixin is set when the class's PHPDoc carries a @mixin tag (or its
+	// phpstan- or psalm- variant): its objects document members of
+	// another class, which they usually forward through magic methods.
+	Mixin bool `json:"mixin,omitempty"`
+	// Conditional is set for a named class-like declared inside a function,
+	// a condition, a loop or a try block rather than at the top level of
+	// its file (namespaces, declare statements and plain braces aside): it
+	// exists only when that code runs.
+	Conditional bool `json:"cond,omitempty"`
 	// Templates are the class-level @template parameters, in order.
 	Templates []Template `json:"tpl,omitempty"`
 	// Supers lists the generic arguments given to parents, interfaces and
@@ -426,6 +442,9 @@ type FileSymbols struct {
 	// ClassAliases lists the class_alias(original, alias) calls of the
 	// file with literal names: [alias FQN, original FQN].
 	ClassAliases [][2]string `json:"aliases,omitempty"`
+	// DynamicAliases is set when the file calls class_alias() with names
+	// the index cannot read: it may declare any class name.
+	DynamicAliases bool `json:"dynAliases,omitempty"`
 	// ClassAliasFallbacks records the namespaced function candidate for each
 	// provisional alias, keyed by its position in ClassAliases.
 	ClassAliasFallbacks map[int]string `json:"aliasFallbacks,omitempty"`

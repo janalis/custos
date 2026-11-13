@@ -134,9 +134,10 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, forward bool) (
 		if len(vals) > 1 {
 			second = vals[1]
 		}
+		// A string, or a callable that may be one, names a class.
 		if _, isVar := astquery.PlainVariableName(first); isVar {
 			t := ctx.TypeOf(first)
-			if t.IsUnknown() || t.HasAny("mixed", "string") {
+			if t.IsUnknown() || t.HasAny("mixed", "string", "callable") {
 				return "", false
 			}
 		}

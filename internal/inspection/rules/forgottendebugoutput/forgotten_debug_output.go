@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 // forgottenDebugOutput reports calls of dumping/tracing helpers that were
@@ -306,56 +307,31 @@ func debugGated(call syntax.Node) bool {
 }
 
 // debugFeatureChecked reports whether call only runs once
-// `function_exists('name')` held (E7): in the body of an `if`/`elseif`, the
-// right operand of `&&`/`and` or the first branch of a ternary whose
-// condition asks for that very function. Code that probes for an extension
-// (`xdebug_get_function_stack()` to build a trace) uses it on purpose.
-func debugFeatureChecked(ctx *analysis.Context, call syntax.Node, name string) bool {
-	child := call
-	for n := call.Parent(); n != nil && !syntax.IsFuncLike(n); child, n = n, n.Parent() {
-		var cond syntax.Expr
-		switch x := n.(type) {
-		case *syntax.If:
-			if child == syntax.Node(x.Body) {
-				cond = x.Cond
-			}
-		case *syntax.ElseIf:
-			if child == syntax.Node(x.Body) {
-				cond = x.Cond
-			}
-		case *syntax.Binary:
-			if (x.Op.Kind == syntax.TBooleanAnd || x.Op.Kind == syntax.TAnd) && child == syntax.Node(x.Right) {
-				cond = x.Left
-			}
-		case *syntax.Ternary:
-			if x.Then != nil && child == syntax.Node(x.Then) {
-				cond = x.Cond
-			}
+// `function_exists('name')` held (E7): the conditions guarding call prove
+// that an earlier call of the builtin function_exists() asking for that very
+// function returned true (an if or elseif arm, an early exit, a
+// short-circuit operand, a ternary branch, or a test of the local holding
+// it). Code that probes for an extension (`xdebug_get_function_stack()` to
+// build a trace) uses it on purpose.
+func debugFeatureChecked(ctx *analysis.Context, call *syntax.FuncCall, name string) bool {
+	return semanticquery.NativeEarlierCallProves(ctx, call, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		if !debugAsksFunction(ctx, x, name) {
+			return types.Unknown, nil
 		}
-		if cond != nil && debugAsksFunction(ctx, cond, name) {
-			return true
-		}
-	}
-	return false
+		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") }
+	})
 }
 
-// debugAsksFunction reports whether cond, or one of the operands of `&&`
-// or `and` it is made of, is a call of the builtin function_exists() with
-// the literal name.
-func debugAsksFunction(ctx *analysis.Context, cond syntax.Expr, name string) bool {
-	switch x := syntax.UnwrapParens(cond).(type) {
-	case *syntax.Binary:
-		if x.Op.Kind == syntax.TBooleanAnd || x.Op.Kind == syntax.TAnd {
-			return debugAsksFunction(ctx, x.Left, name) || debugAsksFunction(ctx, x.Right, name)
-		}
-	case *syntax.FuncCall:
-		if ctx.IsGlobalFunctionCall(x, "function_exists") {
-			lit, ok := syntax.UnwrapParens(semanticquery.CallArgument(x.Args, 0, "function")).(*syntax.Literal)
-			return ok && lit.LitKind == syntax.LitString && len(lit.Raw) > 2 &&
-				strings.EqualFold(strings.TrimLeft(lit.Raw[1:len(lit.Raw)-1], `\`), name)
-		}
+// debugAsksFunction reports whether x is a call of the builtin
+// function_exists() with the literal name.
+func debugAsksFunction(ctx *analysis.Context, x syntax.Expr, name string) bool {
+	c, ok := x.(*syntax.FuncCall)
+	if !ok || !ctx.IsGlobalFunctionCall(c, "function_exists") {
+		return false
 	}
-	return false
+	lit, ok := syntax.UnwrapParens(semanticquery.CallArgument(c.Args, 0, "function")).(*syntax.Literal)
+	return ok && lit.LitKind == syntax.LitString && len(lit.Raw) > 2 &&
+		strings.EqualFold(strings.TrimLeft(lit.Raw[1:len(lit.Raw)-1], `\`), name)
 }
 
 // debugNamed reports whether e mentions a variable, property, constant,

@@ -40,6 +40,11 @@ type SymbolCache struct {
 	missed    bool
 	// order is the flow order FlowOrder read.
 	order map[string]int
+	// racy is set when a file modified within racyWindow was not stored;
+	// prints holds the fingerprints of the analysed files' declarations
+	// (see flowSteps).
+	racy   bool
+	prints [][sha256.Size]byte
 }
 
 type cachedSymbols struct {
@@ -142,8 +147,13 @@ func (c *SymbolCache) store(path string, info os.FileInfo, fs *index.FileSymbols
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.missed = true
-	if fs != nil && info.ModTime().Before(c.started.Add(-racyWindow)) {
+	switch {
+	case fs == nil:
+	case info.ModTime().Before(c.started.Add(-racyWindow)):
 		c.fresh[absolute(path)] = cachedSymbols{Size: info.Size(), ModTime: info.ModTime().UnixNano(), Symbols: fs}
+	default:
+		// It may change again without its stat changing.
+		c.racy = true
 	}
 }
 
@@ -161,12 +171,17 @@ func writeCache(path string, v any) error {
 	var buf bytes.Buffer
 	// Encoding plain exported data into memory cannot fail.
 	_ = gob.NewEncoder(&buf).Encode(v)
+	return writeCacheBytes(path, buf.Bytes())
+}
+
+// writeCacheBytes writes b to path, creating its directory.
+func writeCacheBytes(path string, b []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
 	// Write aside and rename, so a concurrent run reads a whole file.
 	tmp := fmt.Sprintf("%s.%d", path, os.Getpid())
-	if err := os.WriteFile(tmp, buf.Bytes(), 0o600); err != nil {
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
 		return err
 	}
 	if err := os.Rename(tmp, path); err != nil {

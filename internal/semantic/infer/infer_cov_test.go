@@ -172,9 +172,9 @@ function g(array $arr, $u) {
     $sf = fn() => t('arrowshape', $s);
 }
 `, map[string]string{
-		"arrow": "int", "use": "?unknown", "catch": `\MyEx|\TypeError`,
-		"byref": "?unknown", "dynkey": "?unknown", "branch": "int|string",
-		"compound": "int|string", "loopwhole": "non-empty int[]", "arrowshape": "int[]{a: int}",
+		"arrow": "int<1, 1>", "use": "?unknown", "catch": `\MyEx|\TypeError`,
+		"byref": "?unknown", "dynkey": "?unknown", "branch": "int<1, 1>|string<len 1, 1>",
+		"compound": "int<1, 1>|string", "loopwhole": "non-empty int[]<int<1, 1>>", "arrowshape": "int[]<int<1, 1>>{a: int<1, 1>}",
 	})
 }
 
@@ -221,7 +221,7 @@ function f($u, P $p, iterable $raw, $it, string $s) {
 }
 `, map[string]string{
 		"assertunknown": "string", "assertnone": "?unknown", "first": "int", "second": "mixed", "traitself": "?unknown",
-		"bare": "int|null", "abstract": "?unknown", "rec": "?unknown", "deep": "?unknown", "closure": "int", "gen": `\Generator<int, int, mixed, int>`,
+		"bare": "int<1, 1>|null", "abstract": "?unknown", "rec": "?unknown", "deep": "?unknown", "closure": "int<1, 1>", "gen": `\Generator<int, int, mixed, int>`,
 		"iterv": `\Pair`, "m": "?unknown", "strdestruct": "?unknown",
 	})
 	// Without stubs no Traversable class is known: iterating an object is unknown.

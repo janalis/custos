@@ -134,8 +134,8 @@ function f(int $x, string $k) {
     t('destructured', $d['b']);
 }
 `, map[string]string{
-		"nested": "int[]{s: int}", "otherKey": "?unknown", "written": "string", "append": "?unknown",
-		"appendStr": "?unknown", "computed": "string", "destructured": "?unknown",
+		"nested": "int[]<int<1, 1>>{s: int<1, 1>}", "otherKey": "?unknown", "written": "string<len 1, 1>", "append": "?unknown",
+		"appendStr": "?unknown", "computed": "string<len 1, 1>", "destructured": "?unknown",
 	})
 }
 
@@ -168,12 +168,12 @@ function f($id, array $rows) {
 `, map[string]string{
 		"coal":          "array{}",
 		"expr":          "array{}",
-		"expr2":         "int|string",
+		"expr2":         "int<1, 1>|string<len 1, 1>",
 		"nested":        "array",
-		"computed":      "int|string",
+		"computed":      "int<1, 1>|string<len 1, 1>",
 		"emptyComputed": "?unknown",
 		"mixedBase":     "?unknown",
-		"literalBase":   "int",
+		"literalBase":   "int<1, 2>",
 		"unknownWrite":  "?unknown",
 		"objDim":        "?unknown",
 		"propCoalesce":  "?unknown",
@@ -210,7 +210,7 @@ function f(array $files, int $n) {
     t('listed', $k[5]);
 }
 `, map[string]string{
-		"first": "string", "stringKey": "?unknown", "mixedAppends": "int|string",
+		"first": "string", "stringKey": "?unknown", "mixedAppends": "int<1, 1>|string<len 1, 1>",
 		"withLiteral": "int", "unknownAppend": "?unknown", "listed": "?unknown",
 	})
 }

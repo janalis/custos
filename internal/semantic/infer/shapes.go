@@ -451,6 +451,7 @@ const (
 	mutUnset                  // unset($x) / unset($x[…])
 	mutPointer                // passed to an internal-pointer function (next, prev, end, each, reset)
 	mutCall                   // any call (recorded under anyCall): may change properties of $this
+	mutRuns                   // a call that may run project code (see runsCode)
 )
 
 // anyCall is the mutations key listing every call of the scope.
@@ -473,6 +474,13 @@ type mutation struct {
 	call syntax.Expr // mutCallArg: the call
 	arg  *syntax.Arg // mutCallArg: the argument
 	idx  int         // mutCallArg: argument position
+	// alias marks the mutRef of a `global` or `static` statement, which
+	// binds the local outside the scope's own references.
+	alias bool
+	// unseen marks a mutCallArg checked for writes a value does not show
+	// (see unproven; set by brokenByAs, never stored): a callee that cannot
+	// be resolved may take the argument by reference, as in a native Env.
+	unseen bool
 }
 
 // mutations returns the operations that may change variable name in scope
@@ -624,12 +632,12 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 				}
 			case *syntax.Global:
 				for _, x := range n.Vars {
-					add(x, mutation{span: n.Span(), kind: mutRef})
+					add(x, mutation{span: n.Span(), kind: mutRef, alias: true})
 				}
 			case *syntax.StaticStmt:
 				for _, sv := range n.Vars {
 					if sv.Var != nil {
-						add(sv.Var, mutation{span: n.Span(), kind: mutRef})
+						add(sv.Var, mutation{span: n.Span(), kind: mutRef, alias: true})
 					}
 				}
 			case *syntax.FuncCall:
@@ -679,9 +687,13 @@ func writtenPropName(x syntax.Expr) string {
 }
 
 // byRefArg reports whether the argument of mutation m binds a by-reference
-// parameter of a resolvable callee.
+// parameter of a resolvable callee. In a native Env, and for a mutation
+// marked unseen, an unknown callee (a function called through a variable,
+// a method or class named at run time, a receiver of unknown class) may
+// take it by reference too.
 func (e *Env) byRefArg(m mutation) bool {
-	var params [][]index.Param
+	var buf [4][]index.Param // the usual receivers fit: no allocation
+	params := buf[:0]
 	// unresolved: some callee the call may reach is unknown. Where
 	// declarations are proofs, it may take the argument by reference.
 	unresolved := false
@@ -693,7 +705,7 @@ func (e *Env) byRefArg(m mutation) bool {
 	case *syntax.MethodCall:
 		id, ok := c.Name.(*syntax.Identifier)
 		if !ok {
-			return e.native
+			return e.native || m.unseen
 		}
 		recv := e.TypeOf(c.Var)
 		unresolved = recv.HasAny("mixed", "object")
@@ -707,7 +719,7 @@ func (e *Env) byRefArg(m mutation) bool {
 	case *syntax.StaticCall:
 		id, ok := c.Name.(*syntax.Identifier)
 		if !ok {
-			return e.native
+			return e.native || m.unseen
 		}
 		if cls := e.classRef(c.Class); cls != "" {
 			if mm := e.Index.FindMethod(cls, id.Value, e.PHP); mm != nil {
@@ -717,7 +729,7 @@ func (e *Env) byRefArg(m mutation) bool {
 	case *syntax.New:
 		cls := e.classRef(c.Class)
 		if cls == "" {
-			return e.native
+			return e.native || m.unseen
 		}
 		if mm := e.Index.FindMethod(cls, "__construct", e.PHP); mm != nil {
 			params = append(params, mm.Params)
@@ -725,7 +737,7 @@ func (e *Env) byRefArg(m mutation) bool {
 			return false // no constructor: the arguments are not bound
 		}
 	}
-	if e.native && (unresolved || len(params) == 0) {
+	if (e.native || m.unseen) && (unresolved || len(params) == 0) {
 		return true
 	}
 	for _, ps := range params {
@@ -825,7 +837,7 @@ func (e *Env) shapeClobberedAt(scope syntax.Node, name string, from uint32, use 
 // or the use sits in a loop (entered after from) that mutates it. Moving
 // the internal pointer does not count.
 func (e *Env) nonEmptyBroken(scope syntax.Node, name string, from uint32, use syntax.Node) bool {
-	if strings.Contains(name, "->") || strings.Contains(name, "::") {
+	if (strings.Contains(name, "->") || strings.Contains(name, "::")) && !e.options.PropertyFactsSurviveCalls {
 		// A property may also be changed by any (non-builtin) call.
 		return e.brokenBy(scope, from, use, e.mutations(scope, name), e.mutations(scope, anyCall))
 	}
@@ -842,6 +854,12 @@ const maxMutScan = 512
 // order, as collectMutations records them) may change a fact established
 // at position from before use (see nonEmptyBroken).
 func (e *Env) brokenBy(scope syntax.Node, from uint32, use syntax.Node, lists ...[]mutation) bool {
+	return e.brokenByAs(false, scope, from, use, lists...)
+}
+
+// brokenByAs is brokenBy, the call arguments of lists marked unseen when
+// unseen is set (see mutation.unseen).
+func (e *Env) brokenByAs(unseen bool, scope syntax.Node, from uint32, use syntax.Node, lists ...[]mutation) bool {
 	empty := true
 	for _, l := range lists {
 		empty = empty && len(l) == 0
@@ -894,6 +912,7 @@ func (e *Env) brokenBy(scope syntax.Node, from uint32, use syntax.Node, lists ..
 			if scanned++; scanned > maxMutScan {
 				return true
 			}
+			m.unseen = unseen
 			if e.mutBreaks(m, at, loops, exclusive) {
 				return true
 			}

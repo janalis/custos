@@ -17,8 +17,10 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/meta"
+	"custos/internal/inspection/rules/possiblynullaccess"
 	"custos/internal/php/syntax"
 	"custos/internal/project"
+	"custos/internal/project/baseline"
 	"custos/internal/project/config"
 )
 
@@ -440,14 +442,18 @@ func (missingRule) Kinds() []syntax.NodeKind             { return nil }
 func (missingRule) Check(*analysis.Context, syntax.Node) {}
 
 type editRule struct {
-	edit   string
-	before func()
-	crash  bool
+	edit          string
+	before        func()
+	crash         bool
+	baselineAware bool
 }
 
 func (editRule) ID() string               { return "NestedNotOperators" }
 func (editRule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KUnary} }
 func (r editRule) Check(ctx *analysis.Context, n syntax.Node) {
+	if r.baselineAware && !ctx.Suppressed("PossiblyNullAccess", n.Span(), "recorded") {
+		return
+	}
 	if r.before != nil {
 		r.before()
 	}
@@ -838,5 +844,96 @@ func TestGlobalCheckpointCountSupportsRestart(t *testing.T) {
 	s.prune()
 	if len(s.checkpoints) != 1000 {
 		t.Fatalf("retained %d checkpoints", len(s.checkpoints))
+	}
+}
+
+// TestBaselineShowsRepeatsOfRecordedFindings: PossiblyNullAccess reports
+// the access after one the baseline records on the same value, which it
+// leaves out after a reported one; entries name files relative to the
+// baseline's directory.
+func TestBaselineShowsRepeatsOfRecordedFindings(t *testing.T) {
+	root, storage := t.TempDir(), t.TempDir()
+	if err := os.Chmod(storage, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "ci"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(root, "a.php"), "<?php\nfunction f(?Exception $a) {\n$a->getMessage();\n$a->getCode();\n$a->getLine();\n}\n")
+	writeFile(t, filepath.Join(root, "custos.json"), `{"php": "8.2", "baseline": "ci/bl.json", "rules": {"PossiblyNullAccess": {"enabled": true}}}`)
+	writeFile(t, filepath.Join(root, "ci", "bl.json"), `{"version": 1, "entries": [{"path": "../a.php", "rule": "PossiblyNullAccess", "message": "Check this value for null before the access: it is Exception|null.", "line": "$a->getMessage();", "count": 1}]}`)
+	s, err := New(Options{Default: "default", Storage: storage, Workspaces: []Workspace{{ID: "default", Root: root, Readers: []string{"local"}, Writers: []string{"local"}}}}, []analysis.Rule{possiblynullaccess.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+	ctx := context.WithValue(context.WithValue(context.Background(), identityKey{}, "local"), writeScopeKey{}, true)
+	a := invoke(ctx, t, s, "analyze", Input{})
+	cp := s.checkpoints[a["checkpointId"].(string)]
+	if len(cp.Findings) != 1 || cp.Findings[0].Line != 4 {
+		t.Fatalf("findings: %+v", cp.Findings)
+	}
+}
+
+// TestBaselineCoversSyntaxErrors: like the CLI's filter, an analysis
+// leaves out a parse error the baseline has an entry for.
+func TestBaselineCoversSyntaxErrors(t *testing.T) {
+	root, storage := t.TempDir(), t.TempDir()
+	if err := os.Chmod(storage, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(root, "a.php"), "<?php\nfunction f() {\n$a = ;\n}\n")
+	writeFile(t, filepath.Join(root, "custos.json"), `{"php": "8.2", "baseline": "bl.json"}`)
+	writeFile(t, filepath.Join(root, "bl.json"), `{"version": 1, "entries": []}`)
+	s, err := New(Options{Default: "default", Storage: storage, Workspaces: []Workspace{{ID: "default", Root: root, Readers: []string{"local"}, Writers: []string{"local"}}}}, []analysis.Rule{possiblynullaccess.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+	ctx := context.WithValue(context.WithValue(context.Background(), identityKey{}, "local"), writeScopeKey{}, true)
+	a := invoke(ctx, t, s, "analyze", Input{})
+	cp := s.checkpoints[a["checkpointId"].(string)]
+	if len(cp.Findings) != 1 || cp.Findings[0].Rule != "syntax" {
+		t.Fatalf("findings: %+v", cp.Findings)
+	}
+	b, _ := json.Marshal(map[string]any{"version": 1, "entries": []any{map[string]any{"path": "a.php", "rule": "syntax", "message": cp.Findings[0].Message, "line": "$a = ;", "count": 1}}})
+	writeFile(t, filepath.Join(root, "bl.json"), string(b))
+	a = invoke(ctx, t, s, "analyze", Input{})
+	if cp := s.checkpoints[a["checkpointId"].(string)]; len(cp.Findings) != 0 {
+		t.Fatalf("baselined syntax error reported: %+v", cp.Findings)
+	}
+	// A read error too.
+	bl, err := baseline.Parse([]byte(`{"entries": [{"path": "missing.php", "rule": "io", "message": "unreadable", "line": ""}]}`), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap := &project.Snapshot{Recorded: bl, Results: []diagnostic.FileResult{{Path: "missing.php", Err: errors.New("unreadable")}}}
+	tmp := &checkpoint{}
+	if err := collect(tmp, snap); err != nil || len(tmp.Findings) != 0 {
+		t.Fatal(tmp.Findings, err)
+	}
+}
+
+func TestPreparationUsesCapturedBaseline(t *testing.T) {
+	for _, iterative := range []bool{false, true} {
+		t.Run(fmt.Sprint(iterative), func(t *testing.T) {
+			s, ctx, root := fixture(t)
+			s.rules = []analysis.Rule{editRule{edit: "$token", baselineAware: true}}
+			writeFile(t, filepath.Join(root, "custos.json"), `{"php":"8.2","baseline":"baseline.json"}`)
+			writeFile(t, filepath.Join(root, "baseline.json"), `{"version":1,"entries":[{"path":"a.php","rule":"PossiblyNullAccess","message":"recorded","line":"$x = !!!$token; function sample(): int { return 1; }","count":10}]}`)
+			a := invoke(ctx, t, s, "analyze", Input{})
+			id := a["checkpointId"].(string)
+			if len(s.checkpoints[id].Findings) == 0 {
+				t.Fatal("baseline-dependent rule did not run")
+			}
+			in := Input{CheckpointID: id, Iterative: iterative}
+			if !iterative {
+				in.Choices = []Choice{{FindingID: s.checkpoints[id].Findings[0].ID}}
+			}
+			p := invoke(ctx, t, s, "prepare_fixes", in)
+			if len(s.plans[p["planId"].(string)].Changes) == 0 {
+				t.Fatal("baseline-dependent edit lost")
+			}
+		})
 	}
 }

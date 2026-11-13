@@ -20,14 +20,20 @@ type Options struct {
 	// besides the analysed ones, so cross-file facts do not depend on which
 	// files a run names. Empty means Paths.
 	Scope []string
-	// Cache is the directory keeping the declarations of files indexed but
-	// not analysed between runs (see SymbolCache); empty disables it.
+	// Cache is the directory keeping, between runs, the declarations of
+	// files indexed but not analysed (see SymbolCache) and the flow
+	// summaries of the analysed ones (see flowSteps); empty disables it.
 	Cache string
 	// FlowOrder summarizes the flow of the analysed files in the order the
 	// last run with the cache saved, and saves this run's (see
 	// BuildFlowOrdered). A call chain composing without an order gives up
 	// on may then settle, so results may differ from a run without it.
 	FlowOrder bool
+	// ParseOnce keeps the syntax tree of each analysed file from indexing
+	// until its analysis, so it is parsed once instead of once per phase
+	// and per flow summary: faster, but every analysed file's tree stays in
+	// memory until the analysis reaches it.
+	ParseOnce bool
 	Analysis  analysis.Config
 	Parse     syntax.Options
 }
@@ -55,25 +61,30 @@ func Open(rules []analysis.Rule, opt Options) (*Project, error) {
 // AnalyzeReport indexes project and vendor declarations, reuses read sources,
 // and releases lazy edit closures after analysis. Results retain input order.
 func (p *Project) AnalyzeReport() []diagnostic.FileResult {
-	engine, sources := p.prepare()
-	return RunReport(engine, p.Files, sources, p.Options.Parse)
+	engine, sources, trees, saved := p.prepare(p.Options.ParseOnce)
+	defer saved()
+	return runSources(engine, p.Files, sources, trees, p.Options.Parse, true)
 }
 
 // PrepareFixes computes changes without writing; the adapter owns writes.
 func (p *Project) PrepareFixes() []PreparedFix {
-	engine, sources := p.prepare()
+	engine, sources, _, saved := p.prepare(false)
+	defer saved()
 	return PrepareFixes(engine, p.Files, sources, p.Options.Parse)
 }
 
 // prepare attaches the project index and flow snapshot the engine needs. It
 // returns the project sources the index read (nil where unread), so analysis
-// and fixes see the same bytes without reading each file again. Files that
-// rules request by name, such as composer.json, are analysed but never
-// indexed or summarized as PHP.
-func (p *Project) prepare() (*analysis.Engine, [][]byte) {
-	engine := p.Engine
+// and fixes see the same bytes without reading each file again, and, with
+// keepTrees, the syntax trees it parsed of them (see Options.ParseOnce). The
+// flow steps are saved while the files are analysed: saved waits until they
+// are.
+// Files that rules request by name, such as composer.json, are analysed but
+// never indexed or summarized as PHP.
+func (p *Project) prepare(keepTrees bool) (engine *analysis.Engine, sources [][]byte, trees []*syntax.File, saved func()) {
+	engine, saved = p.Engine, func() {}
 	if !engine.NeedsIndex() {
-		return engine, nil
+		return engine, nil, nil, saved
 	}
 	scope := p.Options.Scope
 	if len(scope) == 0 {
@@ -91,8 +102,14 @@ func (p *Project) prepare() (*analysis.Engine, [][]byte) {
 	var cache *SymbolCache
 	if p.Options.Cache != "" {
 		cache = OpenSymbolCache(p.Options.Cache, p.Options.Root, p.Options.Parse, inferOpt)
+		if engine.NeedsFlow() {
+			cache.fingerprint(len(php))
+		}
 	}
-	ix, read := BuildIndexCached(IndexSources(p.Options.Root, php, scope, p.Options.Exclude), len(php), p.Options.Parse, inferOpt, cache)
+	indexed, skipped := IndexSourcesSkipping(p.Options.Root, php, scope, p.Options.Exclude)
+	ix, read, parsed, unread := buildIndex(indexed, len(php), p.Options.Parse, inferOpt, cache, keepTrees)
+	skipped.Files = append(skipped.Files, unread...)
+	ix.SetWorld(ComposerWorld(p.Options.Root, scope, indexed, skipped))
 	ix.Freeze()
 	engine = engine.WithIndex(ix)
 	if engine.NeedsFlow() {
@@ -101,27 +118,54 @@ func (p *Project) prepare() (*analysis.Engine, [][]byte) {
 		if p.Options.FlowOrder {
 			order = cache.FlowOrder(php, options)
 		}
-		build := BuildFlowOrdered(context.Background(), php, read, p.Options.Parse, ix, options, order)
+		steps := cache.flowSteps(p.Options.Root, php, read, options)
+		var earlier *FlowBuild
+		if steps != nil {
+			earlier = steps.earlier
+		}
+		build := buildFlow(context.Background(), php, read, p.Options.Parse, ix, options, order, earlier, steps != nil, parsed)
 		if p.Options.FlowOrder && cache != nil {
 			_ = cache.SaveFlowOrder(build.Order(), options)
 		}
+		// The cache only saves time: a failure to write it changes no result.
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			_ = steps.save(build)
+		}()
+		saved = func() { <-done }
+		preparedFlow(build)
 		engine = engine.WithFlow(build.Snapshot)
 	}
-	sources := make([][]byte, len(p.Files))
+	sources = make([][]byte, len(p.Files))
+	if keepTrees {
+		trees = make([]*syntax.File, len(p.Files))
+	}
 	for j, i := range at {
 		sources[i] = read[j]
+		if keepTrees {
+			trees[i] = parsed[j]
+		}
 	}
-	return engine, sources
+	return engine, sources, trees, saved
 }
 
 // AnalyzeBuffer analyzes supplied bytes without reading the filesystem.
-func AnalyzeBuffer(engine fixing.Analyzer, path string, src []byte, opt syntax.Options) (result diagnostic.FileResult) {
+func AnalyzeBuffer(engine fixing.Analyzer, path string, src []byte, opt syntax.Options) diagnostic.FileResult {
+	return analyzeSource(engine, path, src, opt, nil)
+}
+
+// analyzeSource is AnalyzeBuffer analysing file, when given, as the tree
+// of src instead of parsing it.
+func analyzeSource(engine fixing.Analyzer, path string, src []byte, opt syntax.Options, file *syntax.File) (result diagnostic.FileResult) {
 	defer func() {
 		if r := recover(); r != nil {
 			result = internalFailure(path, src, r)
 		}
 	}()
-	file := syntax.ParseBest(path, src, opt)
+	if file == nil {
+		file = syntax.ParseBest(path, src, opt)
+	}
 	result = diagnostic.FileResult{Path: path, Src: src, Errors: file.Errors}
 	if detailed, ok := engine.(interface {
 		AnalyzeResult(*syntax.File) diagnostic.AnalysisResult
@@ -136,3 +180,6 @@ func AnalyzeBuffer(engine fixing.Analyzer, path string, src []byte, opt syntax.O
 	}
 	return result
 }
+
+// preparedFlow sees each flow build prepare makes; tests replace it.
+var preparedFlow = func(*FlowBuild) {}

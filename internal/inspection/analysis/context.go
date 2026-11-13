@@ -42,6 +42,18 @@ type Context struct {
 	// failed holds the shared data whose build crashed on this file, kept
 	// across the engine's runs over it; once one did, checks run isolated.
 	failed map[string]envFailure
+	// disabled holds the rules skipped on this file after crashing on it.
+	disabled map[int]bool
+	// skipped holds the isolated checks an earlier run over the file
+	// skipped; skippedNow those of this run, and relied the checks
+	// RuleChecks told running (see Engine.AnalyzeResult).
+	skipped, skippedNow, relied map[ruleCheck]bool
+	// recorded tells the findings of the file the engine's baseline
+	// records (see Engine.WithRecorded), set on first use (recordedSet).
+	recorded    func(f diagnostic.Finding, earlier []diagnostic.Finding) bool
+	recordedSet bool
+	// sup holds the file's suppression comments, built on first use.
+	sup *suppressions
 }
 
 // ProjectPath returns the file's path relative to its project root, with
@@ -118,13 +130,97 @@ const MaxFindingsPerFile = 10000
 // RuleID returns the ID of the rule currently running.
 func (c *Context) RuleID() string { return c.cur.meta.ID }
 
+// ruleCheck is the check of rule (an index in the engine's rules) on
+// node, nil for a FileRule's check of the whole file.
+type ruleCheck struct {
+	rule int
+	node syntax.Node
+}
+
+// RuleChecks reports whether the run enables rule id and its check on n
+// runs on this file: the rule not skipped after crashing on it, and that
+// check not skipped for lack of shared data that failed to build, so that
+// a rule can leave n to it when both would report it. n is the node the
+// engine hands that rule's check (ignored for a FileRule, whose one check
+// covers the file).
+func (c *Context) RuleChecks(id string, n syntax.Node) bool {
+	i, ok := c.engine.ids[id]
+	if !ok || c.disabled[i] {
+		return false
+	}
+	k := ruleCheck{i, n}
+	if c.engine.rules[i].file {
+		k.node = nil
+	}
+	if c.skipped[k] {
+		return false
+	}
+	// Only a run isolating its checks (once shared data failed) skips
+	// some, and asks whether one it skips was relied on.
+	if len(c.failed) == 0 {
+		return true
+	}
+	if c.relied == nil {
+		c.relied = map[ruleCheck]bool{}
+	}
+	c.relied[k] = true
+	return true
+}
+
+// RuleBool returns boolean option name of rule id, false when the run
+// does not enable that rule.
+func (c *Context) RuleBool(id, name string) bool {
+	i, ok := c.engine.ids[id]
+	return ok && boolOption(c.engine.rules[i].options, name)
+}
+
+// Suppressed reports whether a finding of rule at span with message would
+// be hidden: suppressed by a comment of the file (see the suppression
+// comments) or recorded in the baseline the engine was given (see
+// Engine.WithRecorded), so that a check deciding from another finding's
+// report can tell that it is silenced.
+func (c *Context) Suppressed(rule string, span syntax.Span, message string) bool {
+	f := diagnostic.Finding{Rule: rule, Span: span, Message: message}
+	if c.suppressions().suppressed(f) {
+		return true
+	}
+	if !c.recordedSet {
+		c.recordedSet = true
+		if c.engine.recorded != nil {
+			c.recorded = c.engine.recorded(c.File.Path, c.Src)
+		}
+	}
+	if c.recorded == nil {
+		return false
+	}
+	// The findings of rule with message reported so far before span and
+	// not suppressed by a comment come first in the baseline's count. A
+	// rule checks nodes in source order, so they are the ones before it.
+	var earlier []diagnostic.Finding
+	for _, e := range c.findings {
+		if e.Rule == rule && e.Message == message && e.Span.Start < span.Start && !c.sup.suppressed(e) {
+			earlier = append(earlier, e)
+		}
+	}
+	return c.recorded(f, earlier)
+}
+
+func (c *Context) suppressions() *suppressions {
+	if c.sup == nil {
+		c.sup = newSuppressions(c.File)
+	}
+	return c.sup
+}
+
 // OptionSet reports whether the configuration sets option name of the
 // current rule explicitly (false when the catalogue default applies).
 func (c *Context) OptionSet(name string) bool { return c.cur.explicit[name] }
 
 // Bool returns a boolean option of the current rule.
-func (c *Context) Bool(name string) bool {
-	switch v := c.cur.options[name].(type) {
+func (c *Context) Bool(name string) bool { return boolOption(c.cur.options, name) }
+
+func boolOption(options map[string]any, name string) bool {
+	switch v := options[name].(type) {
 	case bool:
 		return v
 	case string:

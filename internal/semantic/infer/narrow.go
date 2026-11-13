@@ -231,7 +231,7 @@ func callMatches(x syntax.Expr, name string) bool {
 	}
 	c := unsilenced(x) // `@f()` is f()'s result
 	switch c.(type) {
-	case *syntax.FuncCall, *syntax.MethodCall, *syntax.Binary:
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.Binary:
 	default:
 		return false
 	}
@@ -358,7 +358,7 @@ func (e *Env) onlyAssign(name string, at, scope syntax.Node) *syntax.Assign {
 // (parenthesised or silenced) or a local holding it where it is read.
 func (e *Env) holds(value, c syntax.Expr, scope syntax.Node, hops int) bool {
 	switch v := unsilenced(value).(type) {
-	case *syntax.FuncCall, *syntax.MethodCall, *syntax.Binary:
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.Binary:
 		return v == c
 	case *syntax.Variable:
 		if hops >= maxHolderHops || v.Name == "" || v.NameExpr != nil {
@@ -561,6 +561,9 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	// too, which may not run) is a definition reaching use: callers skip the
 	// conditions written before it (see narrowExprAfter's after).
 	r := e.applyCond(t, c, key, truthy)
+	if !truthy && !isPropKey(key) && !isDimKey(key) {
+		r = e.correlated(r, use, scope, t, c, key, from)
+	}
 	// Different atoms render differently: only equal atoms need the
 	// rendered facts compared.
 	if (!slices.Equal(r.Atoms(), t.Atoms()) || r.ShapeString() != t.ShapeString()) && e.factBroken(scope, key, from, use) {
@@ -580,10 +583,122 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	return r
 }
 
+// correlated refines r, what condition c found false (ending at from)
+// proves of local key at use, when c is a conjunction of tests all of which
+// but one test another local on its own (see soleTest) that the conditions
+// guarding use prove true: then the remaining test was false.
+// `if ($a === null && $b === null) { return; }` followed by
+// `if ($b === null) { … $a … }` leaves $a non-null there, and so does
+// `if ($a === null && $b === null && $c === null) { return; }` followed by
+// `if ($b === null && $c === null)`. The other locals must not have changed
+// between c and use. At most maxCorrelatedTests tests; inside, no further
+// correlation is followed.
+func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, from uint32) types.Type {
+	if e.correlating {
+		return r
+	}
+	tests, ok := conjuncts(c, nil)
+	if !ok || len(tests) < 2 {
+		return r
+	}
+	var left []syntax.Expr // the tests not proven true
+	for _, x := range tests {
+		if len(left) > 1 {
+			break
+		}
+		if other := soleTest(x); other != nil && other.Name != key && e.provenTrueAt(x, other, use, scope, from) {
+			continue
+		}
+		left = append(left, x)
+	}
+	// None left: every test held, so c was true and use is unreachable.
+	if len(left) != 1 {
+		return r
+	}
+	return e.applyCond(t, left[0], key, false)
+}
+
+// maxCorrelatedTests bounds the tests of a conjunction correlated follows:
+// each costs a narrowing of another local.
+const maxCorrelatedTests = 8
+
+// conjuncts appends to out the operands of c, a chain of `&&` and `and`
+// (parentheses aside), and reports false past maxCorrelatedTests.
+func conjuncts(c syntax.Expr, out []syntax.Expr) ([]syntax.Expr, bool) {
+	c = syntax.UnwrapParens(c)
+	if b, ok := c.(*syntax.Binary); ok && (b.Op.Kind == syntax.TBooleanAnd || b.Op.Kind == syntax.TAnd) {
+		out, ok := conjuncts(b.Left, out)
+		if !ok {
+			return nil, false
+		}
+		return conjuncts(b.Right, out)
+	}
+	if len(out) == maxCorrelatedTests {
+		return nil, false
+	}
+	return append(out, c), true
+}
+
+// provenTrueAt reports whether test x of local v, evaluated at position
+// from, was true: v has not changed since, and the conditions guarding use
+// leave its value there nothing for which x is false. The value is not
+// typed (typing it from here would re-enter the inference of the value
+// being narrowed): it is taken as any value (anyValue), which only those
+// guards narrow away that hold whatever the value's type.
+func (e *Env) provenTrueAt(x syntax.Expr, v *syntax.Variable, use syntax.Expr, scope syntax.Node, from uint32) bool {
+	if e.brokenBy(scope, from, use, e.mutations(scope, v.Name)) || e.factBroken(scope, v.Name, from, use) {
+		return false
+	}
+	e.correlating = true
+	at := e.NarrowedVarAt(v.Name, use, anyValue)
+	e.correlating = false
+	return e.applyCond(at, x, v.Name, false).IsBottom()
+}
+
+// anyValue seeds provenTrueAt: every kind of value, spelled out so that
+// guards narrow it (mixed stays mixed).
+var anyValue = types.Of("null", "bool", "int", "float", "string", "array", "object", "resource")
+
+// soleTest returns the local that condition c tests on its own: compares
+// with null (strictly or loosely), tests for truthiness, or negates such
+// a test (nil otherwise). Its outcome depends on that local's value only.
+func soleTest(c syntax.Expr) *syntax.Variable {
+	switch x := syntax.UnwrapParens(c).(type) {
+	case *syntax.Variable:
+		return plainLocal(x)
+	case *syntax.Unary:
+		if x.Op.Kind == syntax.TExclaim {
+			return soleTest(x.Expr)
+		}
+	case *syntax.Binary:
+		switch x.Op.Kind {
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+			l, r := syntax.UnwrapParens(x.Left), syntax.UnwrapParens(x.Right)
+			if syntax.IsNullConst(l) {
+				l = r
+			} else if !syntax.IsNullConst(r) {
+				return nil
+			}
+			return plainLocal(l)
+		}
+	}
+	return nil
+}
+
+// plainLocal returns x when it is a local named statically other than
+// $this (nil otherwise).
+func plainLocal(x syntax.Expr) *syntax.Variable {
+	v, ok := x.(*syntax.Variable)
+	if !ok || v.NameExpr != nil || v.Name == "" || v.Name == "this" {
+		return nil
+	}
+	return v
+}
+
 // factBroken reports whether what a condition ending at from established
 // about key may no longer hold at use: for a property, a write to it or
-// along its chain (where facts are proofs, also a call of the project or a
-// write through another receiver); for an element, a change of it or of its
+// along its chain, or a call that may run project code (where facts are
+// proofs, also a write through another receiver); for an element, a change of it or of its
 // array (see dimBroken); for a local, a write the definitions do not show
 // (through a reference, a global or static alias, a by-reference callee).
 func (e *Env) factBroken(scope syntax.Node, key string, from uint32, use syntax.Expr) bool {
@@ -596,9 +711,14 @@ func (e *Env) factBroken(scope syntax.Node, key string, from uint32, use syntax.
 		// have changed since the condition.
 		return e.dimBroken(scope, key, from, use)
 	case isPropKey(key):
-		// The property itself was written since, or (where facts are
-		// proofs) code may have run that writes it.
-		return e.brokenBy(scope, from, use, e.mutations(scope, key)) || e.native && e.memberBroken(scope, key, from, use)
+		// The property itself was written since, or a call may have run
+		// code that writes it (a builtin function does not reach it),
+		// unless the options keep property facts across calls.
+		var calls []mutation
+		if !e.options.PropertyFactsSurviveCalls {
+			calls = e.mutations(scope, anyCall)
+		}
+		return e.brokenBy(scope, from, use, e.mutations(scope, key), calls) || e.native && e.memberBroken(scope, key, from, use)
 	}
 	sv := e.scopeVars(scope)
 	if e.native && sv.refs[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyWrite), e.mutations(scope, anyCall)) {
@@ -812,14 +932,11 @@ func (e *Env) assertCall(x syntax.Expr) syntax.Expr {
 
 // memberBroken reports, for the native environment, which proves rather
 // than assumes, whether a fact a condition established at from about
-// property key may no longer hold at use: a call that may run code of the
-// project lies between them, a property of that name is written through
-// another receiver (which may hold the same object), or reading use may run
-// code itself (see plainMember).
+// property key may no longer hold at use beyond the calls factBroken
+// checks: a property of that name is written through another receiver
+// (which may hold the same object), or reading use may run code itself
+// (see plainMember).
 func (e *Env) memberBroken(scope syntax.Node, key string, from uint32, use syntax.Expr) bool {
-	if e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
-		return true
-	}
 	pf, ok := syntax.UnwrapParens(use).(*syntax.PropertyFetch)
 	if !ok {
 		return false // a static property: no other receiver, no hook

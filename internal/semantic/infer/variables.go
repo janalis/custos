@@ -76,6 +76,9 @@ type scopeVars struct {
 	// name changes (see condAt).
 	shared, refs map[string]bool
 	pairs        []refPair
+	// runs caches runsCode once runsDone is set.
+	runs     []mutation
+	runsDone bool
 }
 
 // widenElem unions the element type el of the array read by n with every
@@ -280,17 +283,26 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 			other = append(other, a)
 		}
 	}
-	// A write into null creates an array (`?array $n; $n['k'] = 1;`).
-	nullOnly := len(other) == 1 && other[0] == "null"
-	if len(arr) == 0 && !nullOnly {
+	// A write into null creates an array (`?array $n; $n['k'] = 1;`),
+	// also when the value may be a string instead (`?string $s; $s[0] =
+	// 'x';` makes null an array, see below for the string).
+	if len(arr) == 0 && !slices.Contains(other, "null") {
+		// A write into a string offset (`$s[0] = 'x'`) changes its value
+		// and may lengthen it: keep the type, not the string's values (an
+		// int member keeps its own).
+		if slices.Contains(other, "string") && t.HasStringValues() {
+			if ws, _ := e.reachingWritesAt(name, use, scope); len(ws) > 0 {
+				return t.WithoutStringValues(), true
+			}
+		}
 		return t, false
 	}
 	ws, back := e.reachingWritesAt(name, use, scope)
 	if len(ws) == 0 {
 		return t, false
 	}
-	if nullOnly && e.writeDominatesAt(name, use, scope) {
-		other = nil // every path to v writes into the array: no longer null
+	if slices.Contains(other, "null") && e.writeDominatesAt(name, use, scope) {
+		other = slices.DeleteFunc(other, func(a string) bool { return a == "null" }) // every path to v writes into the array: no longer null
 	}
 	el := t.Elem()
 	switch {
@@ -332,6 +344,9 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		return types.Unknown
 	}
 	if v.Name == "this" {
+		if e.proven && rebindable(v) {
+			return types.Unknown
+		}
 		fqn := e.selfClass(syntax.EnclosingClass(v))
 		if fqn == "" {
 			return e.traitRequired(v)
@@ -345,6 +360,17 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		return t
 	}
 	return e.variableBaseAt(v.Name, v, v)
+}
+
+// rebindable reports whether the `$this` read v sits in a closure or an
+// arrow function, which Closure::bind, bindTo or call may run bound to
+// another object (a static one cannot read `$this` at all).
+func rebindable(v *syntax.Variable) bool {
+	switch syntax.EnclosingFuncLike(v).(type) {
+	case *syntax.Closure, *syntax.ArrowFunction:
+		return true
+	}
+	return false
 }
 
 // TypeOfVarAt types variable name as a read written at expression at would
@@ -393,22 +419,31 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	if len(defs) > maxVarDefs {
 		return types.Unknown
 	}
+	// A method argument binding a by-value parameter is no definition: kept,
+	// it would hide the guards between the definitions before it and use.
+	defs = e.changing(defs)
 	fwd, back, from := e.reaching(defs, use, scope)
 	clob := e.clobbered(sv, fwd, back, use, scope)
 	undef := !clob && len(fwd)+len(back) > 0 && e.maybeUndefinedAt(sv, defs, fwd, name, use, scope)
 	if read != nil {
 		e.noteDynRead(read, clob, undef)
 	}
-	if clob {
+	if clob || e.proven && e.unproven(sv, fwd, back, name, use, scope) {
 		return types.Unknown
 	}
 	ts := make([]types.Type, 0, len(fwd)+len(back))
+	// tsAfter holds, for each of ts, where its definition ends: the
+	// conditions after it narrow its value (see narrowEach).
+	tsAfter := make([]uint32, 0, len(fwd)+1)
 	// Values carried by a loop's back edge (and the step of a for loop
 	// around v) never passed the conditions outside that loop: they are
 	// narrowed apart, from the start of the innermost loop holding both
 	// the definition and v.
 	var backTs []types.Type
 	after, backAfter := uint32(0), uint32(0)
+	// partial: a back-edge value was left out, so the values (not the
+	// atoms) the other definitions give are not all the variable may hold.
+	partial := redefinedInLoop(defs, use, scope)
 	for _, d := range fwd {
 		t := d.typ()
 		if !t.IsUnknown() && e.forStep(d, use, scope) {
@@ -421,6 +456,7 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 			continue
 		}
 		ts = append(ts, t)
+		tsAfter = append(tsAfter, max(d.pos, d.end))
 		after = max(after, d.pos, d.end)
 	}
 	for _, d := range back {
@@ -429,13 +465,30 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 		if t := d.typ(); !t.IsUnknown() {
 			backTs = append(backTs, e.loopCondNarrow(t, d, name, use, scope))
 			backAfter = max(backAfter, loopAround(d, use, scope))
+		} else {
+			partial = true
 		}
 	}
 	if len(ts)+len(backTs) == 0 {
 		return types.Unknown
 	}
+	// The values of the definitions hold only where no write they do not
+	// show may have replaced them (see ProvenTypeOf): the proven Env makes
+	// such a read unknown, the others keep its atoms.
+	if !partial && !e.proven && carriesValues(ts, backTs) {
+		partial = e.unproven(sv, fwd, back, name, use, scope)
+	}
+	if partial {
+		for i := range ts {
+			ts[i] = ts[i].WithoutValues()
+		}
+		for i := range backTs {
+			backTs[i] = backTs[i].WithoutValues()
+		}
+	}
 	if undef {
 		ts = append(ts, types.Null) // read before any assignment on some path
+		tsAfter = append(tsAfter, after)
 	}
 	settle := func(t types.Type) types.Type {
 		if t.HasShape() || !t.ArrayKey().IsUnknown() || t.IsNonEmptyArray() {
@@ -449,7 +502,7 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 		return t
 	}
 	if len(backTs) == 0 {
-		return e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after)
+		return e.narrowEach(ts, tsAfter, settle, use, name, scope, after)
 	}
 	// A union with an unknown member is unknown: keep that rule.
 	if all := settle(types.Union(append(ts, backTs...)...)); all.IsUnknown() {
@@ -457,9 +510,70 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	}
 	parts := []types.Type{e.narrowExprAfter(settle(types.Union(backTs...)), use, name, scope, backAfter)}
 	if len(ts) > 0 {
-		parts = append(parts, e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after))
+		parts = append(parts, e.narrowEach(ts, tsAfter, settle, use, name, scope, after))
 	}
 	return types.Union(parts...)
+}
+
+// carriesValues reports whether one of the types carries values.
+func carriesValues(lists ...[]types.Type) bool {
+	for _, l := range lists {
+		for _, t := range l {
+			if t.HasValues() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// maxNarrowEach bounds the definitions narrowEach narrows apart: beyond
+// it they are narrowed together, from the last one (reads of variables
+// with many conditional definitions would cost a walk each).
+const maxNarrowEach = 4
+
+// narrowEach narrows the types ts of the forward definitions reaching use
+// (each ending at the matching tsAfter, the last at after) by the
+// conditions guarding use, together from the last definition. When the
+// result holds null, the definitions are also narrowed apart, each from
+// where it ends: a condition between an earlier definition and a later,
+// conditional one (`if ($x === null) { return; } if ($c) { $x = f($x); }`)
+// still rules null out of the earlier value. Past maxNarrowEach
+// definitions, or when one comes out unknown (an impossible path, or the
+// analysis gave up), null stays.
+func (e *Env) narrowEach(ts []types.Type, tsAfter []uint32, settle func(types.Type) types.Type, use syntax.Expr, name string, scope syntax.Node, after uint32) types.Type {
+	all := e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after)
+	if !all.Has("null") || len(ts) > maxNarrowEach || !slices.ContainsFunc(tsAfter, func(a uint32) bool { return a != after }) {
+		return all
+	}
+	for i, t := range ts {
+		nt := e.narrowExprAfter(settle(t), use, name, scope, tsAfter[i])
+		if nt.IsUnknown() || nt.Has("null") {
+			return all
+		}
+	}
+	// Each value rules null out: the rest of what the conditions left (no
+	// type at all, which says nothing, when that was null alone).
+	return all.Without("null")
+}
+
+// redefinedInLoop reports a use inside one of the definitions of its
+// variable (`$i++`, `$x = $x + 1`) in a loop: the value that definition
+// stored on the previous iteration reaches the use too, which reaching
+// definitions do not list.
+func redefinedInLoop(defs []varDef, use, scope syntax.Node) bool {
+	pos := use.Span().Start
+	for _, d := range defs {
+		if d.pos > pos {
+			break
+		}
+		if d.end > pos && !d.barrier {
+			if loop := outermostLoop(use, scope); loop != nil && d.pos >= loop.Span().Start {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // loopAround returns the start of the innermost loop holding both
@@ -506,7 +620,10 @@ func (e *Env) loopCondNarrow(t types.Type, d varDef, name string, use, scope syn
 	for p := use.Parent(); p != nil && p != scope; p = p.Parent() {
 		switch n := p.(type) {
 		case *syntax.DoWhile:
-			if in(n.Cond) {
+			// A value the body stores comes back to the top of the body
+			// only once the condition held (this loop being the innermost
+			// holding both).
+			if in(n.Cond) || in(n.Body) {
 				return e.applyCond(t, n.Cond, name, true)
 			}
 		case *syntax.For:
@@ -517,6 +634,13 @@ func (e *Env) loopCondNarrow(t types.Type, d varDef, name string, use, scope syn
 				if in(x) {
 					return e.applyCond(t, n.Cond[len(n.Cond)-1], name, true)
 				}
+			}
+			if in(n.Body) {
+				return t // the innermost loop holding both
+			}
+		case *syntax.While, *syntax.Foreach:
+			if in(n) {
+				return t // the innermost loop holding both
 			}
 		}
 	}
@@ -539,20 +663,28 @@ func iterElem(t types.Type) types.Type {
 // scope, or nil. The array a foreach iterates and the initializers of a for
 // loop are evaluated once, before the loop: they are not within it.
 func outermostLoop(n, scope syntax.Node) syntax.Node {
+	return outermostLoopAfter(n, scope, 0)
+}
+
+// outermostLoopAfter is outermostLoop among the loops starting after
+// position after.
+func outermostLoopAfter(n, scope syntax.Node, after uint32) syntax.Node {
 	var loop syntax.Node
 	child := n
 	for p := n.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
 		switch p := p.(type) {
 		case *syntax.Foreach:
-			if syntax.Node(p.Expr) != child {
+			if syntax.Node(p.Expr) != child && p.Span().Start > after {
 				loop = p
 			}
 		case *syntax.For:
-			if !slices.ContainsFunc(p.Init, func(e syntax.Expr) bool { return syntax.Node(e) == child }) {
+			if !slices.ContainsFunc(p.Init, func(e syntax.Expr) bool { return syntax.Node(e) == child }) && p.Span().Start > after {
 				loop = p
 			}
 		case *syntax.While, *syntax.DoWhile:
-			loop = p
+			if p.Span().Start > after {
+				loop = p
+			}
 		}
 	}
 	return loop
@@ -655,8 +787,10 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 				end := n.Span().End
 				var kill syntax.Span
 				// Any assignment replaces the value (`.=` is a string, `+=` a
-				// number), not only `=` (by reference: not a kill).
-				if _, plain := n.Var.(*syntax.Variable); plain && !n.ByRef {
+				// number), not only `=` (by reference: not a kill). So does
+				// destructuring by value, which writes null where the key is
+				// missing.
+				if _, plain := n.Var.(*syntax.Variable); (plain || destructuresByValue(n.Var)) && !n.ByRef {
 					kill = e.arrowDefinitionSpan(n)
 					if es, ok := n.Parent().(*syntax.ExprStmt); ok {
 						switch parent := es.Parent().(type) {
@@ -884,6 +1018,37 @@ func (e *Env) collectTargets(target syntax.Expr, pos uint32, t func() types.Type
 	}
 }
 
+// destructuresByValue reports whether target is a list() or `[...]`
+// destructuring pattern none of whose items, at any depth, binds by
+// reference: each variable in it is assigned, null when its key is
+// missing.
+func destructuresByValue(target syntax.Expr) bool {
+	var items []*syntax.ArrayItem
+	switch l := target.(type) {
+	case *syntax.List:
+		items = l.Items
+	case *syntax.Array:
+		items = l.Items
+	default:
+		return false
+	}
+	for _, it := range items {
+		if it == nil || it.Value == nil {
+			continue
+		}
+		if it.ByRef {
+			return false
+		}
+		switch it.Value.(type) {
+		case *syntax.List, *syntax.Array:
+			if !destructuresByValue(it.Value) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // collectAssignTargets registers the targets of assignment n. Destructuring
 // a variable (`[$a, $b] = $v`) reads its keys as `$v[0]`, `$v[1]` would:
 // from its base type, with the element writes reaching n applied key by key.
@@ -1017,15 +1182,35 @@ func (e *Env) bindAtClass(t types.Type, n syntax.Node) types.Type {
 	return t.BindRelative(self, parent, self)
 }
 
+// collected is the array a variadic parameter of element type t holds.
+func collected(t types.Type) types.Type {
+	atoms := make([]string, 0, len(t.Atoms()))
+	for _, a := range t.Atoms() {
+		atoms = append(atoms, a+"[]")
+	}
+	return types.Of(atoms...)
+}
+
+// variadicDoc is the array a variadic parameter holds, from its tag type t.
+// A tag without an array type (`string ...$names`) types each collected
+// value. An array or iterable tag (`string[] ...$names`) is ambiguous: the
+// PHPStan and Psalm convention reads it as each value's type, while much
+// code writes the collected array. Either guess is wrong for some code and
+// would report its correct uses, so such a tag gives an unknown type.
+func variadicDoc(t types.Type) types.Type {
+	for _, a := range t.Atoms() {
+		if a == "array" || a == "iterable" || strings.HasSuffix(a, "[]") {
+			return types.Unknown
+		}
+	}
+	return collected(t) // unknown stays unknown
+}
+
 func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 	at := p.Span().Start
 	declared := e.declaredParam(p)
 	if p.Variadic && !declared.IsUnknown() {
-		atoms := make([]string, 0, len(declared.Atoms()))
-		for _, a := range declared.Atoms() {
-			atoms = append(atoms, a+"[]")
-		}
-		declared = types.Of(atoms...)
+		declared = collected(declared)
 	}
 	if lit, ok := p.Default.(*syntax.ConstFetch); ok && strings.EqualFold(lit.Name.Value, "null") && !declared.IsUnknown() {
 		declared = types.Union(declared, types.Null)
@@ -1040,6 +1225,9 @@ func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 	}
 	if doc != "" {
 		dt := e.docType(doc, e.resolverFor(scope, at))
+		if p.Variadic {
+			dt = variadicDoc(dt)
+		}
 		if narrowed, ok := e.narrowerDoc(declared, dt); ok {
 			return narrowed
 		}

@@ -89,6 +89,8 @@ make coverage       # 100% gates: internal/inspection/rules from own fixtures + 
 make architecture   # package boundaries and complete inspection catalogue
 make verify         # definition of done: architecture + lint + test + fixtures + coverage + cleanroom
 make stubs          # rebuild embedded PHP stubs index
+make corpus-baseline / corpus-diff  # record every rule's findings on the pinned bench corpora / fail on any change (CORPORA= filter)
+make typecov        # share of unknown inferred types on the bench corpora, by kind and cause (.cache/typecov/)
 make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable output (FIXCHECK=php adds php -l samples; ~1-4 min)
 make clean          # remove bin/, dist/ and docs build output
 go generate ./internal/php/syntax  # regenerate node kinds after editing ast.go

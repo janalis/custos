@@ -71,7 +71,10 @@ type Server struct {
 	nextSnapshot    uint64
 	pending         []fileChange
 	index           *index.Index
-	flow            *flow.Snapshot
+	// worldKey summarizes the composer.json the index world was built
+	// from (see project.ComposerWorldKey).
+	worldKey string
+	flow     *flow.Snapshot
 	// flowBuild is the build flow was published from, and flowSymbols the
 	// symbols of each open buffer it was built with: an edit keeping a
 	// buffer's declarations updates the build instead of redoing it.

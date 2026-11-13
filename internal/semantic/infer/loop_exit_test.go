@@ -165,6 +165,7 @@ class X {
 // followed by continue, does.
 func TestBackEdgeLeftFirst(t *testing.T) {
 	checkWith(t, nil, `<?php
+function t($label, $value) {}
 function f(bool $c, array $a) {
     $x = 1;
     while ($c) {
@@ -210,5 +211,5 @@ function g(bool $c) {
         }
     }
 }
-`, map[string]string{"return": "int", "break": "int", "nested": "int|string", "outer": "int", "continue": "int|string"})
+`, map[string]string{"return": "int<1, 1>", "break": "int<1, 1>", "nested": "int<1, 1>|string<len 4, 4>", "outer": "int<1, 1>", "continue": "int<1, 1>|string<len 4, 4>"})
 }

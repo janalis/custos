@@ -6,6 +6,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Validate the trusted proxy boundary before trusting forwarded addresses."
@@ -35,7 +36,16 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 		if forwardedServerKey(ctx, fetch) == "HTTP_X_FORWARDED_FOR" {
 			for p := binary.Parent(); p != nil; p = p.Parent() {
 				if branch, ok := p.(*syntax.If); ok && branch.Cond != nil && syntax.UnwrapParens(branch.Cond) == binary && protectedBranch(ctx, branch.Body) {
-					if !forwardedProxyGuarded(ctx, branch) {
+					if !forwardedProxyGuarded(ctx, branch) && !forwardedProxyDecided(ctx, binary) {
+						ctx.ReportNode(binary, message)
+					}
+					return
+				}
+				// An elseif arm runs once the earlier conditions of its
+				// chain failed: they guard it as an enclosing chain would.
+				if arm, ok := p.(*syntax.ElseIf); ok && syntax.UnwrapParens(arm.Cond) == binary && protectedBranch(ctx, arm.Body) {
+					owner := arm.Parent().(*syntax.If)
+					if !earlierArmTests(ctx, owner, arm) && !forwardedProxyGuarded(ctx, owner) && !forwardedProxyDecided(ctx, binary) {
 						ctx.ReportNode(binary, message)
 					}
 					return
@@ -74,6 +84,36 @@ func forwardedProxyGuarded(ctx *analysis.Context, branch *syntax.If) bool {
 					return true
 				}
 			}
+		}
+	}
+	return false
+}
+
+// forwardedProxyDecided reports whether the result of an earlier test that
+// may validate the proxy boundary is known where cmp runs: the conditions
+// guarding cmp (a short-circuit exit such as `knownProxy() or exit;`, or a
+// test of the local holding the result) decide it.
+func forwardedProxyDecided(ctx *analysis.Context, cmp syntax.Expr) bool {
+	return semanticquery.NativeEarlierCallProves(ctx, cmp, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		if !forwardedProxyTest(ctx, x) {
+			return types.Unknown, nil
+		}
+		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") || t.OnlyOf("false") }
+	})
+}
+
+// earlierArmTests reports whether a condition of chain before arm may
+// validate the proxy boundary.
+func earlierArmTests(ctx *analysis.Context, chain *syntax.If, arm *syntax.ElseIf) bool {
+	if forwardedProxyTest(ctx, chain.Cond) {
+		return true
+	}
+	for _, earlier := range chain.ElseIfs {
+		if earlier == arm {
+			break
+		}
+		if forwardedProxyTest(ctx, earlier.Cond) {
+			return true
 		}
 	}
 	return false

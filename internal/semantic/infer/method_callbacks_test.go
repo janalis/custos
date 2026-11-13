@@ -74,7 +74,7 @@ function run(C $c, $box, array $xs, $method, $unknown) {
 }
 `, map[string]string{
 		"string": "string", "absolute": "string", "arraystring": "string", "class": "int", "object": "float", "generic": "int", "void": "null", "doc": "string", "map": "string[]", "reduce": "int", "args": "float", "pipe": "string",
-		"objectmissing": "mixed", "function": "int", "emptyfunction": "mixed", "closure": "int", "missing": "mixed", "relative": "mixed", "private": "mixed", "protected": "mixed", "nonstatic": "mixed", "template": "mixed", "condition": "mixed", "dynamic": "mixed", "unknown": "mixed", "scalar": "mixed", "badsize": "mixed", "key": "mixed", "ref": "mixed", "spread": "mixed", "badmethod": "mixed", "empty": "mixed", "emptyclass": "mixed", "badcolon": "mixed", "emptycolon": "mixed", "emptytail": "mixed", "triple": "mixed", "const": "mixed", "dynamicclass": "mixed",
+		"objectmissing": "mixed", "function": "int", "emptyfunction": "mixed", "closure": "int<1, 1>", "missing": "mixed", "relative": "mixed", "private": "mixed", "protected": "mixed", "nonstatic": "mixed", "template": "mixed", "condition": "mixed", "dynamic": "mixed", "unknown": "mixed", "scalar": "mixed", "badsize": "mixed", "key": "mixed", "ref": "mixed", "spread": "mixed", "badmethod": "mixed", "empty": "mixed", "emptyclass": "mixed", "badcolon": "mixed", "emptycolon": "mixed", "emptytail": "mixed", "triple": "mixed", "const": "mixed", "dynamicclass": "mixed",
 	})
 }
 

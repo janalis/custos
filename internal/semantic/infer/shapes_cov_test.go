@@ -75,15 +75,15 @@ EOT => 1]);
 }
 `)
 	expectShapes(t, got, map[string]string{
-		"overflow":    "non-empty int[]", // out of int64 range: no literal key, no shape
-		"binary":      "int[]{k: int}",
-		"nowdoc":      "non-empty int[]", // heredoc/nowdoc keys are not plain strings
-		"dq":          "int[]{k: int}",
-		"big":         "non-empty int[]", // more items than MaxShapeKeys
-		"dyn":         "int",             // computed key: element type
-		"byref":       "?unknown",        // a reference write into the key
+		"overflow":    "non-empty int[]<int<1, 1>>", // out of int64 range: no literal key, no shape
+		"binary":      "int[]<int<1, 1>>{k: int<1, 1>}",
+		"nowdoc":      "non-empty int[]<int<1, 1>>", // heredoc/nowdoc keys are not plain strings
+		"dq":          "int[]<int<1, 1>>{k: int<1, 1>}",
+		"big":         "non-empty int[]<int<1, 1>>", // more items than MaxShapeKeys
+		"dyn":         "int<1, 1>",                  // computed key: element type
+		"byref":       "?unknown",                   // a reference write into the key
 		"emptyLit":    "?unknown",
-		"emptyNested": "int[]{y: int}", // a nested write creates the element
+		"emptyNested": "int[]<int<1, 1>>{y: int<1, 1>}", // a nested write creates the element
 		"keyNested":   "string",
 		"keyLit":      "string",
 		"target":      "?unknown", // destructured key absent from the shape
@@ -152,17 +152,17 @@ $arrow = fn() => [$a = ['k' => 1], sort($a), t('arrow', $a)];
 		"arrRef":       "?unknown",
 		"useRef":       "?unknown",
 		"global":       "?unknown",
-		"static":       "int[]|null",    // its initializer (none) or any plain assignment
-		"dynMethod":    "int[]{k: int}", // unresolvable callee: not clobbered
-		"dynStatic":    "int[]{k: int}",
-		"newDyn":       "int[]{k: int}",
-		"new":          "?unknown",      // by-reference constructor parameter
-		"named":        "?unknown",      // named by-reference parameter
-		"namedMissing": "int[]{k: int}", // no parameter of that name
-		"variadic":     "?unknown",      // by-reference variadic
-		"extra":        "int[]{k: int}", // beyond the parameters, not variadic
-		"elseif":       "int[]{0: int}", // mutations only in exclusive branches
-		"arrow":        "int[]",         // sort() inside the arrow function
+		"static":       "int[]|null<int<1, 1>>",          // its initializer (none) or any plain assignment
+		"dynMethod":    "int[]<int<1, 1>>{k: int<1, 1>}", // unresolvable callee: not clobbered
+		"dynStatic":    "int[]<int<1, 1>>{k: int<1, 1>}",
+		"newDyn":       "int[]<int<1, 1>>{k: int<1, 1>}",
+		"new":          "?unknown",                       // by-reference constructor parameter
+		"named":        "?unknown",                       // named by-reference parameter
+		"namedMissing": "int[]<int<1, 1>>{k: int<1, 1>}", // no parameter of that name
+		"variadic":     "?unknown",                       // by-reference variadic
+		"extra":        "int[]<int<1, 1>>{k: int<1, 1>}", // beyond the parameters, not variadic
+		"elseif":       "int[]<int<1, 1>>{0: int<1, 1>}", // mutations only in exclusive branches
+		"arrow":        "int[]<int<1, 1>>",               // sort() inside the arrow function
 	})
 }
 
@@ -185,14 +185,14 @@ function f() {
 `)
 	got2 := shapesAt(t, phpversion.PHP84, `<?php t('neg84', [-5 => 'a', 'b']);`)
 	expectShapes(t, got, map[string]string{
-		"neg82":          "string[]{-5: string, 0: string}",
-		"never":          "?unknown", // only never-typed writes into []
-		"callRef":        "int[]",    // call-time pass-by-reference (PHP < 5.4)
-		"manyKey":        "?unknown", // past maxVarDefs element writes
+		"neg82":          "string[]<string<len 1, 1>>{-5: string<len 1, 1>, 0: string<len 1, 1>}",
+		"never":          "?unknown",         // only never-typed writes into []
+		"callRef":        "int[]<int<1, 1>>", // call-time pass-by-reference (PHP < 5.4)
+		"manyKey":        "?unknown",         // past maxVarDefs element writes
 		"manyForeachKey": "int|string",
 		"manyForeachVal": "?unknown",
 	})
-	expectShapes(t, got2, map[string]string{"neg84": "string[]{-5: string, -4: string}"})
+	expectShapes(t, got2, map[string]string{"neg84": "string[]<string<len 1, 1>>{-5: string<len 1, 1>, -4: string<len 1, 1>}"})
 }
 
 // A destructuring element write (`[$w['y']] = …`) is an unknown write: the
@@ -210,7 +210,7 @@ function f() {
 	expectShapes(t, got, map[string]string{
 		"key":        "?unknown",
 		"foreachKey": "int|string",
-		"badOctal":   "non-empty int[]", // invalid integer literal: no key
+		"badOctal":   "non-empty int[]<int<1, 1>>", // invalid integer literal: no key
 	})
 }
 
@@ -231,7 +231,7 @@ function f(array $ints, ?array $map, array $plain) {
     [[$n]] = [$ints]; t('nested', $n);
 }
 `, map[string]string{
-		"a": "int", "b": "int", "k": "string", "plain": "?unknown", "widened": "int|string",
+		"a": "int", "b": "int", "k": "string", "plain": "?unknown", "widened": "int|string<len 1, 1>",
 		"call": "string", "nested": "int",
 	})
 }
@@ -250,6 +250,6 @@ function f(array $xs, bool $c) {
 }
 `, map[string]string{
 		"before": "string[][]<array{n: string}>", "after": "string[][]<array{n: string}>",
-		"loopFirst": "int[]{k: int}", "inLoop": "int[]", "ref": "non-empty int[]",
+		"loopFirst": "int[]<int<1, 1>>{k: int<1, 1>}", "inLoop": "int[]<int<1, 1>>", "ref": "non-empty int[]<int<1, 1>>",
 	})
 }

@@ -5,6 +5,238 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- ImpossibleTypeComparison (error) and RedundantTypeCheck (warning), both
+  off by default, report a `===`/`!==` whose operands share no value, a
+  `==`/`!=` whose operands PHP 8 never finds equal (objects of unrelated
+  classes, an object against an array, null or false, an array against a
+  number or a string), and an `instanceof`, `is_*()` or `null` check
+  whose answer is always the same, when the code alone (not PHPDoc)
+  decides it. Unknown or mixed values, constants, values written later in
+  a loop, builtins whose return type changes in a later PHP version,
+  classes of dependencies (in Composer's `vendor-dir`), tests and
+  `assert()`, other loose comparisons, integer ranges and string lengths
+  stay silent, and so does an always-true last `elseif`. Checks other
+  rules already report (CallableParameterUseCaseInTypeContext,
+  NotOptimalIfConditions with its instanceof checks on,
+  ArraySearchUsedAsInArray, XmlParseZeroComparedWithFalse,
+  CollatorComparisonTruthinessReversed, DomMissingAttributeCheckedAsNull)
+  are left to them where they run and report them.
+- PossiblyNullAccess and PossiblyNullArgument (warnings, off by default)
+  report a value the code alone (not PHPDoc) shows may be null, accessed
+  with `->`, `::` or `[]`, or passed to a parameter whose declared type
+  rejects null. Null checks, early exits (also one taken when several
+  values are all null, once later checks show all of them but one are),
+  destructuring that replaces an earlier null, `isset()`, `?->`, `??`,
+  `assert()`, PHPDoc assertions, a check of the same call made earlier
+  and a check of a property before a call keep them silent, and so does
+  null passed to a scalar parameter of PHP's own functions outside strict
+  mode, or the inner iterator of PHP's iterator wrappers, which PHP
+  declares nullable but never returns null (an `IteratorIterator` may be
+  an `AppendIterator`, though, and a class of the project may override
+  the method). PossiblyNullAccess reports a value once: an access that
+  only runs after a reported access on the same value is left out, unless
+  a suppression comment or a baseline entry silences that one, a loop may
+  change the value before the next iteration, or the function holds a
+  `goto`; a generated baseline records every access.
+  NullPointerException leaves to them what they report when they run in
+  the same analysis (not where their check failed), and its
+  suppression comments and baseline entries cover them too.
+- UndefinedMethod and UndefinedProperty (errors, off by default) report a
+  method call, a property read or a static property access that the
+  receiver's class does not declare, when the code alone (not PHPDoc)
+  shows the class and its whole hierarchy is known. Magic methods,
+  `@method`, `@property` and `@mixin` tags, `stdClass` and
+  `#[AllowDynamicProperties]`, members a subclass or an implementation
+  declares, traits, closures that may be rebound, classes declared twice
+  or conditionally, members PHP declares in another version, and
+  `method_exists()`, `is_callable()` (also of a `'Class::method'` string)
+  or `property_exists()` checks keep them silent.
+- UndefinedFunction and UndefinedClass (off by default) report calls and
+  class names nothing declares. They report only when the project's world
+  is complete: Composer's packages all installed and indexed, every
+  required `ext-*` described by the stubs, and nothing the analysis skips
+  (excluded, hidden, symlinked or vendor test directories, files too large
+  to analyze) able to declare the name. Existence, extension and version
+  checks about the name, early exits included, keep them silent. The
+  language server indexes the project again when `installed.json` changes
+  or when `composer.json` changes its autoload configuration,
+  requirements, suggestions or vendor directory, keeping unsaved edits.
+- InvalidArgumentType (error) and DocumentedArgumentType (warning), both
+  off by default, report an argument the parameter type can never accept.
+  The first judges the argument by the code alone, where PHP would throw a
+  `TypeError`; the second takes PHPDoc into account: a `@param` type, or an
+  argument typed only by PHPDoc. Both follow PHP's weak-mode conversions
+  outside `declare(strict_types=1)` and check PHP's own functions from PHP
+  8.0, except those whose stubs declare other parameter types than PHP.
+  A value read from `$this` in a closure or an arrow function, which may
+  be bound to another object, is reported only when its type does not
+  depend on that object (by InvalidArgumentType and InvalidReturnType).
+- InvalidPropertyAssignment (error) and DocumentedPropertyAssignment
+  (warning), both off by default, report a value stored in a property
+  whose type can never accept it, through plain and compound assignments,
+  `??=`, by-reference assignments of a local, list destructuring
+  (`[$this->a, $this->b] = $pair`), foreach keys and values, and `++`
+  (`null` incremented to an integer). The first judges the value by the
+  code alone, where PHP would throw a `TypeError`; the second also checks
+  `@var` types, made nullable by a `null` default or, on an untyped
+  property, by no default, and values typed only by PHPDoc. Both stay
+  silent on hooked properties, classes with `__set`, writes the scope
+  cannot perform and readonly writes that may be re-initializations.
+- InvalidReturnType (error) and DocumentedReturnType (warning), both off
+  by default, report a returned value the function's own return type can
+  never accept, closures and arrow functions included. The first judges
+  the value by the code alone; the second takes PHPDoc into account: a
+  `@return` type, or a value typed only by PHPDoc. Generators, `void` and
+  `never`, `self` and `static` in traits, templates and inherited
+  declarations are left alone.
+- `ArgumentCountMismatch` (off by default) reports a call that leaves a
+  required parameter without an argument, and a call passing more arguments
+  than a PHP function or method declares. Overrides in subtypes that accept
+  the call, unpacked or unknown named arguments, magic methods and, before
+  PHP 8.0, PHP's own functions are left alone.
+- `--parse-once` (or `"parseOnce": true` in `custos.json`) parses each
+  analysed file once and keeps its syntax tree from indexing until its
+  analysis, instead of parsing it again in each phase. On laravel's `src`
+  a run takes about 5–15% less time for about 40% more memory at peak.
+  Findings are the same.
+- `analyse` and `fix` keep the cross-file summaries of the checked files in
+  the cache, next to the declarations of dependencies. A run after an edit
+  summarizes again only what the edit reaches, as the language server does;
+  the summaries are set aside when declarations, dependency files, the set
+  of checked files or the working directory change. Findings are the same
+  with or without them, and `--no-cache` bypasses them too. A re-run of
+  composer's `src` after editing one file took about 0.55 s instead of
+  1.1 s, at no more memory; the cache keeps about 5 MB for laravel's `src`.
+
+### Changed
+
+- DocumentedReturnType, DocumentedArgumentType and
+  DocumentedPropertyAssignment compare integer and string literals with
+  integer ranges and non-empty strings: `return -1;` under
+  `@return positive-int`, `f(0)` against `@param positive-int` and
+  `$this->label = ''` against `@var non-empty-string` are reported, as is
+  `f('up')` against `@param 'asc'|'desc'` (literal string values), and the
+  message names the value (`not 0.`). Inference gives an integer literal its
+  value and a string literal its byte length and value, which a variable
+  keeps only when no write its assignments do not show may have replaced
+  it: through a reference, a `global` or `static` local, or a call that may
+  take it by reference, such as one whose function, method or class is
+  named at run time (`$fn($n)`, `$obj->$m($n)`, `new $cls($n)`), or a
+  write into a string offset (`$s[0] = 'x'`), which keeps the values of
+  an integer the variable may hold instead and turns a null it may hold
+  into an array, as PHP does.
+- The NestedPositiveIfStatements quick-fix writes `elseif` instead of
+  `else if` in a file that uses `elseif` more often than `else if`.
+- `analyse` and `fix` are faster on projects with large classes in
+  dependency cycles: the cross-file summaries no longer rebuild their
+  collection each round, and a file summarized again keeps the summaries
+  of the methods that no changed contract reaches. Runs on the `src` of
+  laravel, composer and guzzle take about 15%, 11% and 7% less time.
+- The language server updates cross-file summaries much faster after an
+  edit within a dependency cycle: files whose source did not change keep
+  the summaries their contracts still support. In laravel, the update after
+  an edit to `Str.php` takes about 0.3 s instead of 2.2 s, and to the
+  Eloquent `Model.php` about 0.6 s instead of 2.4 s. The server keeps up
+  to about 30 MB more on a project of that size.
+- The language server reports findings faster in a class with many
+  descendants that inherits many trait methods: ReturnTypeCanBeDeclared no
+  longer looks up, for each descendant, the trait methods it only inherits.
+  Each edit to laravel's Eloquent `Model.php` takes about 60% less time
+  to analyze.
+
+### Fixed
+
+- Drop null from nullable values after a definite offset write.
+- Report redundant `is_null()` checks of DOM attributes when the specialized
+  comparison rule does not handle the predicate.
+- Use the captured baseline while preparing MCP quick-fixes.
+
+- The editor offers to suppress a finding when the baseline hides another
+  finding of the same rule in the file; it used to refuse the suppression
+  comment because the hidden finding still counted after it.
+- LongInheritanceChain stops at a class of the project's vendor directory
+  as Composer's `vendor-dir` configures it, instead of at any class under
+  a directory named `vendor`: a project directory of that name now counts
+  as the project's own, and a configured `vendor-dir` as a library.
+- NullPointerException no longer reports the result of
+  `getInnerIterator()` of PHP's iterator wrappers (`FilterIterator`,
+  `LimitIterator` and the like), which PHP declares nullable but never
+  returns null once the wrapper is constructed. It still reports it on an
+  `IteratorIterator`, which may be an `AppendIterator`, or when a class
+  of the project overrides the method.
+- Type inference no longer reads a local as null after
+  `if ($x !== null) { $x = trim($x); }` (the new value was dropped), nor
+  loses an assignment made earlier in the same `elseif` body as the read.
+- Type inference keeps more null checks: a local passed to a by-value
+  parameter of a method inside a branch, or reassigned on one branch
+  after an early exit, a variable assigned in the left operand of `&&`
+  (read in its right operand or the body it guards), an `if`/`else`
+  whose other branches `continue` or `break`, a `return` inside `try`,
+  a value stored in a `do`/`while` body and tested by its condition, a
+  test of `$a['k'] ?? null`, and a property set to `x ?? []`.
+- The language server no longer replaces the declarations of an open
+  document's unsaved edits with the file on disk: file changes replayed
+  after a re-index skip open documents, and their buffers are indexed
+  again once the rebuild ends.
+- A condition on a property (`if ($this->buffer === null)`) no longer holds
+  past a call that may run project code, which may write the property: rules
+  using PHPDoc types no longer read a property refilled by `$this->send()`
+  as still null (a DocumentedReturnType false positive).
+- UntrustedForwardedClientAddress takes a proxy check that leaves on
+  failure (`knownProxy($ip) or exit;`) or whose stored result is tested
+  (`$trusted = knownProxy($ip); if (!$trusted) { return; }`) as a guard.
+- ForgottenDebugOutput no longer reports a debug function called after
+  `function_exists()` confirmed it through an early exit
+  (`if (!function_exists('f')) { return; }`), an `else` arm, a
+  short-circuit operand or a stored result.
+- DateLastErrorsFalseUnchecked no longer reports `getLastErrors()` read
+  after a failed parse when the failure is known from an `else` or `elseif`
+  arm, a short-circuit operand (`DateTime::createFromFormat(…) ?: throw …`),
+  a stored result, or statements between them that parse nothing.
+- JsonEncodingApiUsage takes a result tested as an operand of `&&`, `||`,
+  `and` or `or` (`$data || throw …;`, `if ($ready && $data)`) as a
+  handled failure.
+- TransactionEarlyReturn accepts a `finally` cleanup written as
+  `$pdo->inTransaction() && $pdo->rollBack();` (or `!… || …`) or as the
+  `else` arm of `if (!$pdo->inTransaction())`.
+- UntrustedForwardedClientAddress reports a forwarded-address comparison
+  written as the condition of an `elseif` arm; it only looked at `if`
+  conditions. The earlier conditions of the chain count as proxy guards.
+- MkdirRaceCondition no longer reports a silenced `@mkdir()` that only runs
+  once `is_dir()` returned false when the guard is an early exit
+  (`if (is_dir($d)) { return; }`), an `else` or `elseif` arm, or a
+  short-circuit operand (`is_dir($d) || @mkdir($d);`).
+- VariableFunctionsUsage no longer rewrites `call_user_func([$cb, 'm'])`
+  into `$cb->m()` when `$cb` is typed `callable`: a callable may be a class
+  name, which the direct call cannot take.
+- UnlinkFailureReportedAsSuccess no longer reports the deletion of a
+  `tempnam()` file when the namespace declares its own `tempnam()` (a test
+  double).
+- FileReadFailureUnchecked no longer reports `unserialize()` or
+  `json_decode()` of a read compared by `assertSame` with an expected value
+  typed as neither false nor null (`array $expected`, an object, `[]`), or by
+  `assertEquals` with a non-empty array or an object: the failure value
+  fails the assertion.
+- Arithmetic operators on a `\GMP` or `\BcMath\Number` operand, and shift
+  and bitwise operators on a `\GMP` operand, are typed as that object
+  instead of an int or a number, so type-based rules no longer treat the
+  result as a scalar.
+- Generic arguments given to a trait by an `@use` tag on the `use`
+  statement inside the class (`/** @use EnumeratesValues<TKey, TValue> */`),
+  as Laravel writes them, are now read; only the class's own doc was. The
+  trait's methods then return, and pass to callbacks, the class's element
+  type, which can add ReturnTypeCanBeDeclared suggestions.
+- PhpUnitTests no longer rewrites to `assertRegExp()`, `assertNotRegExp()`,
+  `assertFileNotExists()` or `assertDirectoryNotExists()` when the PHPUnit
+  version is only assumed, not configured or detected: those methods no
+  longer exist from PHPUnit 10. The call is still reported, and the message
+  names both the PHPUnit 9.1 method and the one it replaced.
+- PhpUnitTests treats a `PHP_UNIT_VERSION` that names no version as unset:
+  the version is taken from the installed PHPUnit when it is indexed, and
+  is otherwise unknown, not PHPUnit 8.
+
 ## [0.1.11] - 2026-11-09
 
 ### Added

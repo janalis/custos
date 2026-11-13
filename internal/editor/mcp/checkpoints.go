@@ -311,18 +311,18 @@ func (s *Server) analyze(ctx context.Context, w *workspace, in Input) (Output, e
 	if in.Buffer != nil {
 		cp.Buffer = true
 		snap, err = project.OverlaySnapshot(ctx, snap, in.Path, []byte(*in.Buffer))
-		if err != nil {
-			return nil, err
-		}
 	}
-	for i := range snap.Results {
-		for j := range snap.Results[i].Findings {
-			for k := range snap.Results[i].Findings[j].Fixes {
-				snap.Results[i].Findings[j].Fixes[k].Edits = nil
+	if err == nil {
+		for i := range snap.Results {
+			for j := range snap.Results[i].Findings {
+				for k := range snap.Results[i].Findings[j].Fixes {
+					snap.Results[i].Findings[j].Fixes[k].Edits = nil
+				}
 			}
 		}
+		err = collect(cp, snap)
 	}
-	if err := collect(cp, snap); err != nil {
+	if err != nil {
 		return nil, err
 	}
 	s.checkpoints[cp.ID] = cp
@@ -341,23 +341,6 @@ func (s *Server) analyze(ctx context.Context, w *workspace, in Input) (Output, e
 }
 
 func collect(cp *checkpoint, snap *project.Snapshot) error {
-	// Baseline matching uses captured bytes rather than reopening untrusted paths.
-	var baseline struct {
-		Entries []struct {
-			Path, Rule, Message, Line string
-			Count                     int
-		}
-	}
-	counts := map[string]int{}
-	if snap.Baseline != "" {
-		if err := json.Unmarshal(snap.Sources[snap.Baseline], &baseline); err != nil {
-			return err
-		}
-		for _, e := range baseline.Entries {
-			p := pathJoinBaseline(snap.Baseline, e.Path)
-			counts[p+"\x00"+e.Rule+"\x00"+e.Message+"\x00"+e.Line] += max(1, e.Count)
-		}
-	}
 	evidenceBytes := 0
 	for _, r := range snap.Results {
 		items := diagnostic.Items([]diagnostic.FileResult{r})
@@ -365,7 +348,17 @@ func collect(cp *checkpoint, snap *project.Snapshot) error {
 			cp.Complete = false
 		}
 		lines := strings.Split(string(r.Src), "\n")
+		// The snapshot's baseline matches captured bytes rather than
+		// reopening untrusted paths, and covers every item as the CLI's
+		// filter does, read and parse errors included.
+		var covered []bool
+		if snap.Recorded != nil && len(items) > 0 {
+			covered = snap.Recorded.Covered(r.Path, r.Src, itemFindings(r))
+		}
 		for i, it := range items {
+			if covered != nil && covered[i] {
+				continue
+			}
 			ev := evidence{Item: it}
 			if i >= len(r.Errors) && r.Err == nil {
 				fd := r.Findings[i-len(r.Errors)]
@@ -383,10 +376,6 @@ func collect(cp *checkpoint, snap *project.Snapshot) error {
 				line = strings.TrimSpace(lines[it.Line-1])
 			}
 			key := it.Path + "\x00" + it.Rule + "\x00" + it.Message + "\x00" + line
-			if counts[key] > 0 {
-				counts[key]--
-				continue
-			}
 			ev.Fingerprint = project.Fingerprint([]byte(key))
 			ev.ID = strconv.Itoa(len(cp.Findings))
 			encoded, _ := json.Marshal(ev)
@@ -398,6 +387,20 @@ func collect(cp *checkpoint, snap *project.Snapshot) error {
 		}
 	}
 	return nil
+}
+
+// itemFindings returns the items diagnostic.Items lists for r, in its
+// order, as findings the baseline can match: the read error, else the
+// parse errors and the findings.
+func itemFindings(r diagnostic.FileResult) []diagnostic.Finding {
+	if r.Err != nil {
+		return []diagnostic.Finding{{Rule: "io", Message: r.Err.Error()}}
+	}
+	out := make([]diagnostic.Finding, 0, len(r.Errors)+len(r.Findings))
+	for _, e := range r.Errors {
+		out = append(out, diagnostic.Finding{Rule: "syntax", Message: e.Msg, Span: e.Span})
+	}
+	return append(out, r.Findings...)
 }
 
 // expire marks a checkpoint stale when inputs changed and names the first ones.
@@ -452,11 +455,14 @@ func (s *Server) validate(ctx context.Context, w *workspace, cp *checkpoint, reb
 	}
 	if !cp.Buffer && rebuild {
 		rebuilt, err = project.AnalyzeSnapshot(ctx, rebuilt)
-		if err != nil {
+		current := &checkpoint{Complete: true}
+		if err == nil {
+			err = collect(current, rebuilt)
+		} else if !errors.Is(err, project.ErrBaseline) {
 			return err
 		}
-		current := &checkpoint{Complete: true}
-		if err := collect(current, rebuilt); err != nil {
+		if err != nil {
+			// The evidence cannot be compared again.
 			cp.Stale = true
 			_ = s.persist(cp)
 			return err
@@ -613,8 +619,4 @@ func pageLazy(ctx context.Context, scope string, in Input, count int, at func(in
 		out["nextCursor"] = base64.RawURLEncoding.EncodeToString([]byte(binding + ":" + strconv.Itoa(next)))
 	}
 	return out, nil
-}
-
-func pathJoinBaseline(baseline, file string) string {
-	return path.Clean(path.Join(path.Dir(baseline), file))
 }

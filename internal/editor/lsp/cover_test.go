@@ -18,6 +18,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/project/config"
+	"custos/internal/semantic/index"
 )
 
 func frame(body string) string {
@@ -497,6 +498,50 @@ func TestChangesQueuedWhileIndexing(t *testing.T) {
 	s.buildIndex()
 	if s.indexing || s.pending != nil || s.index.Function("helper", phpversion.Default) == nil {
 		t.Fatalf("after build: indexing=%v pending=%v", s.indexing, s.pending)
+	}
+}
+
+// TestQueuedChangeKeepsOpenBuffer: a change queued while the index is
+// built does not replace an open document's unsaved buffer with the disk.
+func TestQueuedChangeKeepsOpenBuffer(t *testing.T) {
+	dir := t.TempDir()
+	s := whiteBox(t, dir, io.Discard, unknownFuncRule{})
+	helper := filepath.Join(dir, "helper.php")
+	if err := os.WriteFile(helper, []byte("<?php\nfunction saved() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	uri := "file://" + helper
+	s.docs[uri] = &document{uri: uri, path: helper, text: []byte("<?php\nfunction unsaved() {}\n")}
+	if !s.beginIndexing() {
+		t.Fatal("semantic rule enabled but no index wanted")
+	}
+	s.watchedFilesChanged([]fileChange{{URI: uri, Type: 2}})
+	s.buildIndex()
+	if s.index.Function("unsaved", phpversion.Default) == nil || s.index.Function("saved", phpversion.Default) != nil {
+		t.Fatal("the replayed change replaced the open buffer")
+	}
+}
+
+// TestIndexBuffersParsesLateEdits: a buffer edited, or a document opened,
+// after the buffers were parsed outside the lock is parsed again.
+func TestIndexBuffersParsesLateEdits(t *testing.T) {
+	dir := t.TempDir()
+	s := whiteBox(t, dir, io.Discard, unknownFuncRule{})
+	kept := &document{path: filepath.Join(dir, "kept.php"), text: []byte("<?php\nfunction kept() {}\n")}
+	edited := &document{path: filepath.Join(dir, "edited.php"), text: []byte("<?php\nfunction before() {}\n")}
+	opened := &document{path: filepath.Join(dir, "opened.php"), text: []byte("<?php\nfunction opened() {}\n")}
+	buffers := map[*document][]byte{kept: kept.text, edited: edited.text}
+	parsed := map[*document]*index.FileSymbols{}
+	for d, text := range buffers {
+		parsed[d] = extractSource(s.cfg, d.path, text)
+	}
+	edited.text = []byte("<?php\nfunction after() {}\n")
+	ix := index.New(nil)
+	indexBuffers(ix, s.cfg, map[string]*document{"k": kept, "e": edited, "o": opened}, buffers, parsed)
+	for name, want := range map[string]bool{"kept": true, "after": true, "opened": true, "before": false} {
+		if got := ix.Function(name, phpversion.Default) != nil; got != want {
+			t.Errorf("%s indexed: %v", name, got)
+		}
 	}
 }
 

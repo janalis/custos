@@ -156,10 +156,17 @@ func (c *Context) Index() *index.Index {
 func (c *Context) Types() *infer.Env {
 	if c.types == nil {
 		c.build("type inference", func() {
-			c.types = infer.NewEnv(c.File, c.Names(), c.Index(), c.PHP, infer.Options{Assertions: c.engine.cfg.Flow.Assertions})
+			c.types = infer.NewEnv(c.File, c.Names(), c.Index(), c.PHP, c.InferOptions())
 		})
 	}
 	return c.types
+}
+
+// InferOptions returns the inference options the engine is configured
+// with, for a rule building another environment of the file (another PHP
+// version, say) that must reason the same way.
+func (c *Context) InferOptions() infer.Options {
+	return infer.Options{Assertions: c.engine.cfg.Flow.Assertions}
 }
 
 // TypeOf is shorthand for c.Types().TypeOf(x).

@@ -13,7 +13,7 @@ summarize the same responsibilities.
 | Root | Responsibilities |
 |---|---|
 | `internal/php` | `syntax`: lexer, parser, arena AST, traversal and positions; `version`: PHP 5.3–8.5; `phpdoc`: doc tags and type expressions. |
-| `internal/semantic` | `names`, `types`, `index`, `infer` and embedded `stubs`: resolution, declarations, inheritance, inference and narrowing. |
+| `internal/semantic` | `names`, `types`, `index`, `infer` and embedded `stubs`: resolution, declarations, inheritance, inference and narrowing; `wire`: the binary form semantic values take in caches kept between runs. |
 | `internal/semantic/flow` | Bounded file-local value and state analysis (possible values, origins, integer ranges, receiver state) and immutable project-local callable summaries, exposed through `Context.Flow()`. |
 | `internal/inspection` | `analysis`: dispatch, context and suppressions; `meta`: independent rule facts and descriptions; `catalogue`: explicit constructors; `rules`: one package per lowercase inspection ID. |
 | `internal/inspection/astquery` | Lexical queries over nodes and tokens, plus exact source-edit builders. Written names do not imply resolved symbols. |
@@ -74,6 +74,45 @@ An inspection implementing `analysis.SemanticRule` makes the runner build the
 project index first; one implementing `analysis.FlowRule` requests
 project-local callable summaries.
 
+Project-local summaries reach a fixed point over rounds: a file is
+summarized again when a contract it read changed. Each summary records, per
+callable, the contracts it read, and a file summarized again keeps the
+summaries of the callables that no changed contract reaches, directly or
+through another callable of the file. Every cache that reads contracts
+while building file-wide state must replay those reads to later readers,
+as the globals, static and overrides caches do, or such a callable could
+be kept wrongly. `TestResummaryOracle` in `internal/project` compares each
+of these summaries with a full one; set `CUSTOS_ORACLE_CORPUS` to a
+project directory to run it over that project's `src`.
+
+An edit within a recursion makes the language server's build summarize
+files from none again, as a full build would, since the fixed point can
+depend on where it starts. Its builds (`BuildFlowRecorded`) record every
+summary they make with the contracts it read, and such a rebuild takes, for
+a file whose source is unchanged, a recorded summary those contracts still
+support instead of summarizing it. `TestRecordedUpdateOracle` compares each
+update with a full build (`CUSTOS_ORACLE_CORPUS` as above;
+`CUSTOS_ORACLE_EDITS` picks the edited files).
+
+The command line keeps these steps between runs in the project's cache
+directory, next to the symbol cache, and records a build's steps to save
+them. A summary also depends on the project index and on the dependency
+files the vendor provider summarizes, which no contract records, so the
+saved steps are taken only while those are unchanged: the key holds the
+binary, the options, the working directory, the vendor directory and the
+size and modification time of every file indexed without being analyzed
+(a run in which one changed within the racy window neither takes nor saves
+steps), and every analyzed file must declare what it declared
+(`index.Fingerprint`, which ignores positions as an update does). A file
+whose source is unchanged then takes its saved steps as priors. The flow
+types are written by a hand-written codec (`flow/wire.go`, on
+`semantic/wire`) that keeps nil slices and maps distinct from empty ones,
+so a decoded summary is `reflect.DeepEqual` to the one encoded;
+`TestWireFields` lists every field it writes and fails when one is added,
+and summaries still holding a syntax node are refused, not encoded.
+`TestFlowCacheOracle` compares cached runs with runs without the cache
+after edits (`CUSTOS_ORACLE_CORPUS` and `CUSTOS_ORACLE_EDITS` as above).
+
 `Engine.WithIndex` and `Engine.WithFlow` return configured copies; published
 engines are never reconfigured in place. Project indexes are built in memory.
 The LSP builds its workspace index in the background and publishes
@@ -82,6 +121,41 @@ context-dependent member lookup.
 
 Source positions remain `uint32` byte offsets; diagnostic items use rune
 columns and LSP uses UTF-16 columns.
+
+### The index world
+
+A missing declaration proves nothing by itself: the index may simply not hold
+the file that declares it. `Index.World` says how much of the project's
+loadable code the index holds. The project layer (`project.ComposerWorld` for
+the CLI and the LSP, the snapshot's captured metadata for MCP) sets it before
+freezing the index (the LSP builds its index again, open buffers included, when
+the vendor directory's `installed.json` or the part of `composer.json` the
+world reads changes: `project.ComposerWorldKey`), and layers over that index
+report the same world. It is complete only when `composer.json` and the vendor
+directory's `composer/installed.json` exist, every package the project
+requires, requires for development or suggests is installed (or replaced or
+provided), every installed package that autoloads code has indexed files, no
+vendor file was skipped, every required `ext-*` is one the stubs describe
+(`stubs.Extensions`), every classmap entry (the project's or a package's) was
+read whole and every files entry was read. PSR-4 and PSR-0 prefixes whose
+directories lie outside the indexed paths or in a skipped directory are listed
+as blind (`World.Blind`, namespace prefixes), and so are, below a PSR-4
+directory, the namespaces of skipped directories (`World.Blind`) and of
+skipped files (`World.BlindExact`), each with its sub-namespaces: a skipped
+file may declare anything there once loaded. "Skipped" is recorded by the walks
+themselves (`project.Skipped`: excluded, hidden, symlinked and vendor test
+directories, declaration-only and non-`.php` loadable files) and by the
+indexing (files too large or unreadable), so the world never re-derives
+discovery's rules; a directory the project walk skipped that holds the vendor
+directory does not hide the packages the vendor walk reads. `World.Vendor`
+names the vendor directory (composer.json's `config.vendor-dir`), complete
+world or not, in the form the index's file paths take, and `World.Dependency`
+tells a dependency's file. `Index.DynamicAliases` reports a
+`class_alias()` with computed names, and `Index.BuiltinPrefixes` the namespaces
+and leading words (of functions and of class-likes) PHP extensions use. Rules
+ask `semanticquery.UndeclaredEverywhere`, which combines them, rather than
+reading the world directly; fixtures opt in with the `completeWorld` sidecar
+key.
 
 A `diagnostic.Fix` builds exact edits lazily. Fixing depends on an `Analyzer`
 interface returning findings for a parsed file. It selects one fix per finding,
@@ -190,6 +264,57 @@ PHPDoc supplies useful analysis evidence, but it does not enforce runtime types.
 When a fix requires native type evidence, use `Env.Native()` to exclude user
 PHPDoc. Unsupported operations, escaped values and exhausted analysis budgets
 must discard definite facts rather than authorize a finding or fix.
+
+### Native and proven types
+
+`Env.Native()` ignores user PHPDoc and index-time inferred types, and its
+narrowing facts are proofs: a condition on a property also stops holding
+after a write of a property of that name through another receiver and at a
+read that may run code (a hook, `__get`), and a condition on an aliased local
+(a reference, a `global` or `static` local, a by-reference parameter) after
+any write or call that may reach it. In every environment, a condition on a
+property stops holding after a call that may run project code. A local read still takes the type of its
+reaching definitions, so `$a = 1; unknown_fn($a);` types `$a` as `int` there.
+
+`Env.ProvenTypeOf(x)` (the `Env.Proven()` environment) is the stricter
+contract a check needs before calling a value wrong. Over the native rules, a
+local read is unknown when, between its reaching definitions and the read:
+
+- it, or one of its elements, is passed to a callee that takes it by
+  reference or that cannot be resolved (an unknown function, a callable
+  variable, a method of an unknown receiver, a class held in a string);
+- it is bound by reference (either side of `=&`, a by-reference `foreach`
+  over it or into it, a by-reference closure capture anywhere in the scope,
+  an array holding a reference to it) and a write or a call that
+  may run project code occurs;
+- it is a `global` or `static` local, a by-reference parameter or a variable
+  of the file's top-level scope, and a call that may run project code or a
+  write to `$GLOBALS` occurs.
+
+A call may run project code unless it resolves to a builtin function without
+a callable parameter. `extract()`, one-argument `parse_str()`, `$$name`
+writes, `eval()` and `include` already make the locals defined before them
+unknown in every environment. Properties need nothing more: native property
+types are their declarations, and native narrowing of a property ends at the
+next call. Code run implicitly (magic methods, destructors, autoloaders,
+property hooks) is not modelled. The proven environment has its own caches:
+use it only for the values a check is about to report, after the default or
+native environment already found a candidate.
+
+`types.Accepts(expected, actual, ctx)` answers whether a value of `actual`
+may be passed where `expected` is declared: `Yes`, `No`, or `Maybe` whenever
+the answer depends on what the types do not show (unknown, `mixed`,
+templates, `static`/`self`, unresolved classes, weak-mode scalar coercion,
+null to a builtin's scalar parameter outside strict mode, value refinements
+against a value without facts). `AllRejected` (every member rejected) and
+`SomeRejected` (at least one member rejected, such as a nullable value where
+null is not allowed) split definite from possible mismatches. The types
+package cannot see the index: `semanticquery.AcceptContext` supplies the
+strict mode of the file and index-backed class relations
+(`semanticquery.IndexRelations`). A known non-subtype is rejected only when
+the actual class is final or both are classes; an interface the actual class
+does not implement stays `Maybe`, since a subclass may implement it. Pair
+`Accepts` with `ProvenTypeOf` for proven findings.
 
 ## Flow and project summaries
 
@@ -511,9 +636,9 @@ standard packages that reach the system (`os`, `os/...`, `syscall`, `net`,
 `net/http`): what a rule needs from outside the source, such as the project
 root of a file (`Context.ProjectPath`), comes from the adapter through the
 analysis configuration. A package missing from the tool's table may import
-nothing internal until it is added there. An exported `semanticquery`
-declaration that a single inspection uses is reported: it belongs in that
-inspection's package. Test imports may cross boundaries
+nothing internal until it is added there. An exported `astquery`,
+`flowquery` or `semanticquery` declaration that a single inspection uses is
+reported: it belongs in that inspection's package. Test imports may cross boundaries
 to exercise complete execution paths.
 
 ## Extending features

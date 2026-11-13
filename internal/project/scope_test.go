@@ -86,7 +86,8 @@ func TestRequestedFilesNotIndexed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, sources := p.prepare()
+	_, sources, _, saved := p.prepare(false)
+	saved()
 	if len(p.Files) != 2 || sources[0] != nil || sources[1] == nil || !reflect.DeepEqual(extracted, []string{"a.php"}) {
 		t.Fatalf("files %v sources %q extracted %v", p.Files, sources, extracted)
 	}

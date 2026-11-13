@@ -18,10 +18,4 @@ func TestPrevStmtNoDoc(t *testing.T) {
 	if _, ok := PrevStmtNoDoc(f, f.Stmts[0]); ok {
 		t.Fatal("first stmt has no previous")
 	}
-	if tok, ok := DocCommentBefore(f, f.Stmts[2].Span().Start); !ok || string(f.Src[tok.Start:tok.End]) != "/** d */" {
-		t.Fatal("DocCommentBefore")
-	}
-	if _, ok := DocCommentBefore(f, f.Stmts[3].Span().Start); ok {
-		t.Fatal("block comment is not a doc comment")
-	}
 }

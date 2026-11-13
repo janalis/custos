@@ -43,7 +43,7 @@ function a(array $xs) {
     t('mixedInit', array_reduce($xs, fn($c, $x) => 1, $GLOBALS['x']));
     t('unknownCb', array_reduce($xs, 'nope', 0));
 }
-`, map[string]string{"box": `\Box`, "noInit": "int|null", "mixedInit": "?unknown", "unknownCb": "?unknown"})
+`, map[string]string{"box": `\Box`, "noInit": "int<1, 1>|null", "mixedInit": "?unknown", "unknownCb": "?unknown"})
 }
 
 func TestAbsentShapeKey(t *testing.T) {
@@ -59,7 +59,7 @@ function a(string $k, array $open) {
     $b[$k] = 'z';
     t('computedWrite', $b['other']);
 }
-`, map[string]string{"unsealed": "?unknown", "literal": "?unknown", "var": "?unknown", "present": "string", "computedWrite": "string"})
+`, map[string]string{"unsealed": "?unknown", "literal": "?unknown", "var": "?unknown", "present": "string<len 1, 1>", "computedWrite": "string<len 1, 1>"})
 }
 
 // A condition storing a test is that test for the variables it reads, not

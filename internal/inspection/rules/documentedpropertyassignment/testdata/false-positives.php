@@ -1,0 +1,109 @@
+<?php
+declare(strict_types=1);
+
+namespace Shop;
+
+class Order {}
+
+final class Cart
+{
+    /** @var positive-int */
+    public int $count = 1;
+    /** @var Order */
+    public int $stale = 0;
+    public int $total = 0;
+    /** @var int */
+    public $loose;
+
+    public function fill(int $n)
+    {
+        // Ranges and lengths count only against exact values.
+        $this->count = $n;
+        $this->count = 2;
+        // A PHPDoc type the native type rejects is stale.
+        $this->stale = 3;
+        // Values the native types already reject are
+        // InvalidPropertyAssignment's.
+        $this->total = 'x';
+        // Unknown values.
+        $this->loose = $this->unknown();
+    }
+}
+
+// Template-typed properties.
+/** @template T */
+final class Box
+{
+    /** @var T */
+    public $value;
+
+    public function put()
+    {
+        $this->value = 'x';
+    }
+}
+
+// A receiver typed only by PHPDoc.
+/** @param Cart $cart */
+function documentedReceiver($cart) { $cart->loose = 'x'; }
+
+// PHP's own classes: their PHPDoc is not a contract.
+class Failure extends \Exception
+{
+    public function rename() { $this->message = 1; }
+}
+
+// A subtype that redeclares the property with another PHPDoc type.
+class Ledger
+{
+    /** @var int */
+    public $entry;
+}
+
+class Journal extends Ledger
+{
+    /** @var int|string */
+    public $entry;
+}
+
+function post(Ledger $l) { $l->entry = 'x'; }
+
+// A null default makes the PHPDoc type nullable.
+final class Link
+{
+    /** @var Order */
+    private $prev = null;
+
+    public function unlink() { $this->prev = null; }
+}
+
+// So does the lack of a default on an untyped property: PHP starts it as
+// null.
+final class Chain
+{
+    /** @var Order */
+    private $next;
+    /** @var Order */
+    private static $first;
+
+    public function cut()
+    {
+        $this->next = null;
+        self::$first = null;
+    }
+}
+
+// Writes the reaching definitions do not show leave no exact value.
+final class Shelf
+{
+    /** @var positive-int */
+    public int $n = 1;
+
+    public function viaReference()
+    {
+        $c = 0;
+        $p = &$c;
+        $p = 4;
+        $this->n = $c;
+    }
+}

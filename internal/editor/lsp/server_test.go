@@ -243,7 +243,7 @@ func TestWatchedFilesUpdateIndex(t *testing.T) {
 		t.Fatal(res.Error)
 	}
 	_ = cl.c.notify("initialized", map[string]any{})
-	if reg := cl.wait("client/registerCapability"); !strings.Contains(string(reg.Params), "**/*.php") {
+	if reg := cl.wait("client/registerCapability"); !strings.Contains(string(reg.Params), "**/*.php") || !strings.Contains(string(reg.Params), "**/composer.json") || !strings.Contains(string(reg.Params), "**/installed.json") {
 		t.Fatalf("registration: %s", reg.Params)
 	}
 	uri := "file://" + main

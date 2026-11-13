@@ -31,19 +31,3 @@ func DocCommentBetween(f *syntax.File, start, end uint32) bool {
 	}
 	return false
 }
-
-// DocCommentBefore returns the doc comment token immediately preceding off
-// (only whitespace in between).
-func DocCommentBefore(f *syntax.File, off uint32) (syntax.Token, bool) {
-	for i := TokenIndex(f, off) - 1; i >= 0; i-- {
-		t := f.Tokens[i]
-		switch t.Kind {
-		case syntax.TWhitespace:
-			continue
-		case syntax.TDocComment:
-			return t, true
-		}
-		break
-	}
-	return syntax.Token{}, false
-}

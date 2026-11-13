@@ -6,7 +6,6 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
 )
@@ -303,7 +302,7 @@ func dfiVariable(ctx *analysis.Context, v *syntax.Variable, m, dep map[string]bo
 			}
 		}
 		if call, ok := list.Parent().(*syntax.MethodCall); ok { // D8a
-			obj := flowquery.MethodReceiverEffect(call).Root
+			obj := receiverRoot(call)
 			if ov, ok := obj.(*syntax.Variable); ok && ov.Name != "" {
 				m[ov.Name] = true
 				return
@@ -665,4 +664,24 @@ func dfiCalleeParams(ctx *analysis.Context, call syntax.Node) []index.Param {
 		}
 	}
 	return nil
+}
+
+// receiverRoot follows the receiver of call through member and element
+// accesses and fluent calls to the storage the call may mutate.
+func receiverRoot(call *syntax.MethodCall) syntax.Expr {
+	root := call.Var
+	for {
+		switch node := root.(type) {
+		case *syntax.Paren:
+			root = node.Expr
+		case *syntax.PropertyFetch:
+			root = node.Var
+		case *syntax.ArrayDimFetch:
+			root = node.Var
+		case *syntax.MethodCall:
+			root = node.Var
+		default:
+			return root
+		}
+	}
 }

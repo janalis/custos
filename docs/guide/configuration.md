@@ -30,6 +30,7 @@ custos reads `custos.json` from the project root. Every key is optional.
 | `comparisonStyle` | `"regular"` (`$x === null`) or `"yoda"` (`null === $x`): the operand order that comparison rules expect and that quick-fixes write. Without it, the project's PHP-CS-Fixer or Mago configuration decides (see [Comparison style](#comparison-style)); otherwise `"regular"`. |
 | `shortOpenTag` | Treat `<?` as an opening tag, as with PHP's `short_open_tag` setting. Default `false`. |
 | `flow.assertions` | Trust `assert()` calls as guards. Default `false`. See [Assertions](#assertions). |
+| `parseOnce` | Keep each analysed file's syntax tree between phases, as [`--parse-once`](./cli#paths) does: faster, more memory. The language server ignores it. Default `false`. |
 | `flow.order` | Summarize cross-file flow in the order the last run saved, as [`--flow-order`](./cli#paths) does; the language server honors it too. Default `false`. |
 | `paths` | What `custos analyse` and `custos fix` check when no path is given. Relative to the root; must stay inside it. Default: the root. |
 | `exclude` | Extra directories to skip. See [Excluded directories](#excluded-directories). |
@@ -52,6 +53,12 @@ that holds `custos.json` or `composer.json`; if none does, it is the start
 directory itself. The start directory is the `--config` directory if given,
 else the first path on the command line (its directory, for a file), else
 the current directory.
+
+The PHP version, the `vendor/` declarations and the PHPUnit version are read
+from that root. When `composer.json` sits in a subdirectory (`src/`), run
+custos from there, or pass that directory as `--config`. Otherwise custos
+uses the default PHP version, does not see the types declared in `vendor/`,
+and offers no quick-fix for the PHPUnit assertions renamed in 9.1.
 
 ## Validation
 
@@ -137,6 +144,16 @@ rules that look for unchecked failures know the value is not the failure
 value. Other functions and methods documented with `@phpstan-assert` or
 `@psalm-assert` refine inferred types, but those rules do not take their
 documentation as proof.
+
+## Cache
+
+`analyse` and `fix` keep, between runs, the declarations of the files they
+index without checking them and the cross-file summaries of the checked
+files, under `custos` in the user cache directory or in `$CUSTOS_CACHE_DIR`.
+A change to the configuration that changes what a run checks or how
+(`php`, `shortOpenTag`, `flow.assertions`, `paths`, `exclude`) sets the
+affected parts aside; findings are the same with or without the cache. See
+[Paths](./cli#paths) for what invalidates it, and `--no-cache` to bypass it.
 
 ## In the language server
 

@@ -610,10 +610,17 @@ func (e *Env) memberType(declared, doc string) types.Type {
 
 // narrowerDoc returns the doc type dt of a member declared d when dt only
 // names classes that extend or implement every class d names (`@var
-// Message` on a `MessageInterface` property), with null when d admits it:
-// the doc promises a subtype of what the declaration allows.
+// Message` on a `MessageInterface` property), or refines its int or string
+// (see refinedScalar), with null when d admits it: the doc promises a
+// subtype of what the declaration allows.
 func (e *Env) narrowerDoc(d, dt types.Type) (types.Type, bool) {
 	declared, documented := d.Without("null"), dt.Without("null")
+	if refined, ok := refinedScalar(declared, documented); ok {
+		if d.Has("null") {
+			return types.Union(refined, types.Null), true
+		}
+		return refined, true
+	}
 	if !classesOnly(declared) || !classesOnly(documented) || dt.Has("null") && !d.Has("null") {
 		return types.Type{}, false
 	}
@@ -634,6 +641,24 @@ func (e *Env) narrowerDoc(d, dt types.Type) (types.Type, bool) {
 		return types.Union(documented, types.Of("null")), true
 	}
 	return documented, true
+}
+
+// refinedScalar returns documented when it is the declared int or string
+// with the values it may hold (`@param positive-int` on an `int`,
+// `@param non-empty-string` on a `string`), which the declaration alone
+// leaves open.
+func refinedScalar(declared, documented types.Type) (types.Type, bool) {
+	switch {
+	case declared.OnlyOf("int") && documented.OnlyOf("int"):
+		_, ranged := documented.IntRanges()
+		_, open := declared.IntRanges()
+		return documented, ranged && !open
+	case declared.OnlyOf("string") && documented.OnlyOf("string"):
+		_, ranged := documented.StringLengthRanges()
+		_, open := declared.StringLengthRanges()
+		return documented, ranged && !open
+	}
+	return types.Type{}, false
 }
 
 // classesOnly reports a type naming one class or more and nothing else.

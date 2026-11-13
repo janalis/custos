@@ -66,6 +66,26 @@ func chainBaseNonNull(t types.Type, x syntax.Expr, name string) types.Type {
 	return r
 }
 
+// nullDefaulted returns x of `x ?? null`.
+func nullDefaulted(c syntax.Expr) (syntax.Expr, bool) {
+	b, ok := syntax.UnwrapParens(c).(*syntax.Binary)
+	if !ok || b.Op.Kind != syntax.TCoalesce || !syntax.IsNullConst(syntax.UnwrapParens(b.Right)) {
+		return nil, false
+	}
+	return b.Left, true
+}
+
+// isNonNullLiteral reports a string, integer or float literal, or `true`.
+func isNonNullLiteral(x syntax.Expr) bool {
+	switch n := syntax.UnwrapParens(x).(type) {
+	case *syntax.Literal:
+		return true
+	case *syntax.ConstFetch:
+		return strings.EqualFold(strings.TrimPrefix(n.Name.Value, `\`), "true")
+	}
+	return false
+}
+
 func chainBase(t types.Type, x syntax.Expr, name string) (types.Type, bool) {
 	x = syntax.UnwrapParens(x)
 	for {
@@ -176,6 +196,16 @@ func (e *Env) eqCond(t types.Type, c *syntax.Binary, name string, truthy bool, s
 		return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
 	}
 	l, r := syntax.UnwrapParens(c.Left), syntax.UnwrapParens(c.Right)
+	if strict && holds {
+		// `($x['k'] ?? null) === 'v'`: the chain was set, so its base is.
+		for _, p := range [2][2]syntax.Expr{{l, r}, {r, l}} {
+			if x, ok := nullDefaulted(p[0]); ok && isNonNullLiteral(p[1]) {
+				if out, ok := chainBase(t, x, name); ok {
+					return out
+				}
+			}
+		}
+	}
 	for _, p := range [2][2]syntax.Expr{{l, r}, {r, l}} {
 		if !e.lengthOperand(p[0], name) {
 			continue

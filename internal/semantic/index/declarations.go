@@ -125,12 +125,14 @@ func (x *extractor) define(call *syntax.FuncCall) {
 func (x *extractor) classAlias(call *syntax.FuncCall) {
 	args, ok := x.declarationArgs(call, [3]string{"class", "alias", "autoload"})
 	if !ok {
+		x.out.DynamicAliases = true
 		return
 	}
 	var fqns [2]string
 	for i := range fqns {
 		value, known := x.declarationName(args[i].Value)
 		if !known {
+			x.out.DynamicAliases = true
 			return
 		}
 		fqns[i] = strings.TrimPrefix(value, `\`)

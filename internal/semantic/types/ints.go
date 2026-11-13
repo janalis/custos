@@ -160,6 +160,12 @@ func normalizeInts(rs []IntRange) []IntRange {
 			out = append(out, r)
 		}
 	}
+	return normalizeOwned(out)
+}
+
+// normalizeOwned is normalizeInts over non-empty intervals the caller owns:
+// it reorders and merges them in place.
+func normalizeOwned(out []IntRange) []IntRange {
 	slices.SortFunc(out, func(a, b IntRange) int {
 		switch {
 		case a.Lo < b.Lo:
@@ -200,19 +206,40 @@ func unionInts(ts []Type) []IntRange {
 }
 
 // unionRanges merges the value sets field gives for atom over a union.
+// Members all holding the same (normalized) set share it.
 func unionRanges(ts []Type, atom string, field func(Type) []IntRange) []IntRange {
-	var all []IntRange
+	var first []IntRange
+	same := true
 	for _, t := range ts {
 		if !t.Has(atom) {
 			continue
 		}
 		rs := field(t)
-		if rs == nil {
+		switch {
+		case rs == nil:
 			return nil
+		case first == nil:
+			first = rs
+		default:
+			same = same && slices.Equal(rs, first)
 		}
-		all = append(all, rs...)
 	}
-	return normalizeInts(all)
+	if same {
+		return first
+	}
+	n := 0
+	for _, t := range ts {
+		if t.Has(atom) {
+			n += len(field(t))
+		}
+	}
+	all := make([]IntRange, 0, n)
+	for _, t := range ts {
+		if t.Has(atom) {
+			all = append(all, field(t)...)
+		}
+	}
+	return normalizeOwned(all)
 }
 
 // intsString renders the int member with its values: `int<-1, 0>`, joined
@@ -235,4 +262,64 @@ func rangesString(prefix string, rs []IntRange) string {
 		parts[i] = prefix + bound(r.Lo, true) + ", " + bound(r.Hi, false) + ">"
 	}
 	return strings.Join(parts, "|")
+}
+
+// smallValues backs the value sets of IntValue and StringLength for values
+// in [smallLo, smallHi], so typing a literal allocates nothing: value sets
+// are never written in place.
+var smallValues = func() []IntRange {
+	rs := make([]IntRange, smallHi-smallLo+1)
+	for i := range rs {
+		v := int64(i) + smallLo
+		rs[i] = IntRange{v, v}
+	}
+	return rs
+}()
+
+const smallLo, smallHi = -64, 1024
+
+// single is the value set {v}.
+func single(v int64) []IntRange {
+	if v < smallLo || v > smallHi {
+		return []IntRange{{v, v}}
+	}
+	i := v - smallLo
+	return smallValues[i : i+1 : i+1]
+}
+
+// IntValue is the int type holding exactly v: Ints(IntRange{v, v}).
+func IntValue(v int64) Type {
+	t := Int
+	t.ints = single(v)
+	return t
+}
+
+// HasValues reports whether t carries int values, string lengths or string
+// values (see WithoutValues).
+func (t Type) HasValues() bool {
+	return t.ints != nil || t.HasStringValues()
+}
+
+// HasStringValues reports whether t carries string lengths or string
+// values (see WithoutStringValues).
+func (t Type) HasStringValues() bool {
+	return t.lens != nil || t.strs != nil && (t.strs.only != nil || t.strs.not != nil)
+}
+
+// WithoutValues drops the int values, string lengths and string values of
+// t, keeping its atoms and other facts (a tracked string stays tracked).
+func (t Type) WithoutValues() Type {
+	t.ints = nil
+	return t.WithoutStringValues()
+}
+
+// WithoutStringValues drops the string lengths and string values of t,
+// keeping its int values, atoms and other facts (a tracked string stays
+// tracked).
+func (t Type) WithoutStringValues() Type {
+	t.lens = nil
+	if t.strs != nil {
+		t.strs = trackedAny
+	}
+	return t
 }

@@ -33,8 +33,8 @@ then gate. This runs the analysis twice, once per format:
 
 `--fail-on=never` keeps the report step from failing on findings while
 still failing on configuration errors, which `|| true` would hide. The
-second run reuses the vendor declarations the first one
-[cached](./cli#paths). To keep that cache between pipeline runs, point
+second run reuses the vendor declarations and cross-file summaries the first
+one [cached](./cli#paths). To keep that cache between pipeline runs, point
 `CUSTOS_CACHE_DIR` at a directory your CI caches (keyed on `composer.lock`).
 
 These snippets assume `composer require --dev janalis/custos`. Without

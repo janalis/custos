@@ -37,7 +37,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	a, ok := call.Parent().(*syntax.Assign)
-	if !ok || a.ByRef || variable(a.Var) == "" {
+	if !ok || a.ByRef || astquery.VariableName(a.Var) == "" {
 		return
 	}
 	stmt, ok := a.Parent().(*syntax.ExprStmt)
@@ -61,7 +61,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	dim, ok := prop.Var.(*syntax.ArrayDimFetch)
-	if !ok || variable(dim.Var) != variable(a.Var) {
+	if !ok || astquery.VariableName(dim.Var) != astquery.VariableName(a.Var) {
 		return
 	}
 	index, ik := semanticquery.NativeInt(ctx, dim.Dim)
@@ -73,7 +73,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	other, ok := read.Var.(*syntax.ArrayDimFetch)
-	if !ok || variable(other.Var) != variable(a.Var) {
+	if !ok || astquery.VariableName(other.Var) != astquery.VariableName(a.Var) {
 		return
 	}
 	second, jk := semanticquery.NativeInt(ctx, other.Dim)
@@ -82,12 +82,4 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if jk && pk && qk && p.Value == q.Value && second >= start && second < start+count && second != index {
 		ctx.ReportNode(call, message)
 	}
-}
-
-func variable(e syntax.Expr) string {
-	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
-	if !ok {
-		return ""
-	}
-	return v.Name
 }

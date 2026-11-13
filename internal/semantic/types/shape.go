@@ -421,7 +421,7 @@ func (t Type) ShapeString() string {
 			if a == "string" && t.lens != nil {
 				parts[i] = rangesString("string<len ", t.lens)
 			}
-			if a == "string" && t.strs != nil {
+			if a == "string" && t.strs != nil && t.lens == nil { // a literal's length stands for its value
 				parts[i] = strsString(t.strs)
 			}
 			if t.cases != nil && a == t.cases.class {

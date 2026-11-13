@@ -88,3 +88,11 @@ func (t Type) withLens(rs []IntRange) Type {
 func unionLens(ts []Type) []IntRange {
 	return unionRanges(ts, "string", func(t Type) []IntRange { return t.lens })
 }
+
+// StringLength is the string type of byte length n (n >= 0):
+// StringLengths(IntRange{n, n}).
+func StringLength(n int64) Type {
+	t := String
+	t.lens = single(n)
+	return t
+}

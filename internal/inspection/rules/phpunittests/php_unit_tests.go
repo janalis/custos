@@ -37,20 +37,29 @@ func (phpUnitTests) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // putVersion returns the configured PHPUnit version as a number (80 for
-// PHPUNIT80). When the option is not configured, the version is inferred
-// from the indexed PHPUnit (detectedPHPUnitVersion). The EA harness strips
-// enum prefixes (`PhpUnitVersion.PHPUNIT75`) before options reach the rule.
+// PHPUNIT80). When the option is not configured, or not as a version, the
+// version is inferred from the indexed PHPUnit (detectedPHPUnitVersion),
+// else assumed to be 80. The EA harness strips enum prefixes
+// (`PhpUnitVersion.PHPUNIT75`) before options reach the rule.
 func putVersion(ctx *analysis.Context) int {
-	if !ctx.OptionSet("PHP_UNIT_VERSION") {
-		if v, ok := phpunit.DetectedPHPUnitVersion(ctx); ok {
-			return v
-		}
+	if v, ok := putConfiguredVersion(ctx); ok {
+		return v
 	}
-	v := strings.ToUpper(ctx.String("PHP_UNIT_VERSION"))
-	if strings.HasPrefix(v, "PHPUNIT") {
-		if n, err := strconv.Atoi(v[len("PHPUNIT"):]); err == nil {
-			return n
-		}
+	if v, ok := phpunit.DetectedPHPUnitVersion(ctx); ok {
+		return v
 	}
 	return 80
+}
+
+// putConfiguredVersion returns the PHP_UNIT_VERSION option as a number when
+// it is configured and names a version.
+func putConfiguredVersion(ctx *analysis.Context) (int, bool) {
+	if !ctx.OptionSet("PHP_UNIT_VERSION") {
+		return 0, false
+	}
+	v := strings.ToUpper(ctx.String("PHP_UNIT_VERSION"))
+	if n, err := strconv.Atoi(strings.TrimPrefix(v, "PHPUNIT")); err == nil && strings.HasPrefix(v, "PHPUNIT") {
+		return n, true
+	}
+	return 0, false
 }

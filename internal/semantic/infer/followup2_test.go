@@ -188,8 +188,8 @@ function f(Res $res, int $k) {
     t('nested', $n[0]);
 }
 `, map[string]string{
-		"zero": "null|string", "one": "null|string|string[]", "user": "null|string", "privs": "int[]|null|string{0: int}",
-		"appendInt": "int|null|string", "appendStr": "null|string", "computed": "float|null|string", "nested": "int[]|null|string{1: int}",
+		"zero": "null|string", "one": "null|string|string[]", "user": "null|string", "privs": "int[]|null|string<int<1, 1>>{0: int<1, 1>}",
+		"appendInt": "int<5, 5>|null|string", "appendStr": "null|string", "computed": "float|null|string", "nested": "int[]|null|string<int<2, 2>>{1: int<2, 2>}",
 	})
 }
 
@@ -382,7 +382,7 @@ namespace {
 		"values": "array", "isset": "bool", "clone": "?unknown", "offset": "string", "fallbackConst": "?unknown",
 		"globalConst": "int", "missingConst": "?unknown", "anon": identity, "dynStatic": "?unknown", "magic": "int",
 		"yield": "?unknown", "intConst": "int", "dynName": "?unknown", "bare": "?unknown", "staticProp": "?unknown", "unknownClass": "?unknown", "destructCall": "?unknown",
-		"dup": "int[]|string[]{a: string}", "destructString": "?unknown", "dq": "int", "ternaryOther": "non-empty array",
+		"dup": "int[]|string[]<int<1, 1>|string<len 1, 1>>{a: string<len 1, 1>}", "destructString": "?unknown", "dq": "int<1, 1>", "ternaryOther": "non-empty array",
 	})
 }
 

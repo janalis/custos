@@ -37,16 +37,16 @@ function run(array $plain, $unknown, string $key) {
  t('nestedValue', [...[[1]], [2]]);
 }
 `, map[string]string{
-		"union":    "float[]|int[]|string[]|true[]{keep: int, 7: string, new: true, 8: float}",
-		"assigned": "float[]|int[]|string[]|true[]{keep: int, 7: string, new: true, 8: float}", "key": "int",
-		"empty": "array{}", "leftEmpty": "int[]{0: int}", "rightEmpty": "int[]{0: int}",
-		"spread":  "float[]|int[]|string[]|true[]{0: int, 1: string, 2: true, 3: float}",
-		"strings": "false[]|int[]|string[]{x: string, y: int}", "nested": "int[]{0: int, 1: int, 2: int}", "emptySpread": "array{}",
-		"unknown": "array", "unknownExplicit": "non-empty array", "plain": "array", "computed": "non-empty int[]",
+		"union":    "float[]|int[]|string[]|true[]<float|int<1, 1>|string<len 3, 3>|true>{keep: int<1, 1>, 7: string<len 3, 3>, new: true, 8: float}",
+		"assigned": "float[]|int[]|string[]|true[]<float|int<1, 1>|string<len 3, 3>|true>{keep: int<1, 1>, 7: string<len 3, 3>, new: true, 8: float}", "key": "int<1, 1>",
+		"empty": "array{}", "leftEmpty": "int[]<int<1, 1>>{0: int<1, 1>}", "rightEmpty": "int[]<int<1, 1>>{0: int<1, 1>}",
+		"spread":  "float[]|int[]|string[]|true[]<float|int<9, 9>|string<len 1, 1>|true>{0: int<9, 9>, 1: string<len 1, 1>, 2: true, 3: float}",
+		"strings": "false[]|int[]|string[]<false|int<1, 2>|string<len 5, 5>>{x: string<len 5, 5>, y: int<2, 2>}", "nested": "int[]<int<1, 3>>{0: int<1, 1>, 1: int<2, 2>, 2: int<3, 3>}", "emptySpread": "array{}",
+		"unknown": "array", "unknownExplicit": "non-empty array", "plain": "array", "computed": "non-empty int[]<int<1, 2>>",
 		"arrayUnknown": "non-empty array", "typed": "int[]", "typedUnion": "non-empty int[]",
 		"optional": "int[]", "optionalUnion": "int[]", "open": "non-empty array", "openUnion": "non-empty array",
-		"negative": "int[]{-4: int, -3: int, -2: int}", "numeric": "int", "numericAssign": "int",
-		"nestedValue": "int[][]{0: int[]{0: int}, 1: int[]{0: int}}<array{0: int}>",
+		"negative": "int[]<int<1, 3>>{-4: int<1, 1>, -3: int<2, 2>, -2: int<3, 3>}", "numeric": "int", "numericAssign": "int",
+		"nestedValue": "int[][]<int[]<int<1, 2>>{0: int<1, 2>}>{0: int[]<int<1, 1>>{0: int<1, 1>}, 1: int[]<int<2, 2>>{0: int<2, 2>}}",
 	})
 }
 
@@ -56,10 +56,10 @@ func TestArraySpreadVersions(t *testing.T) {
 		src, want string
 	}{
 		{phpversion.PHP73, `return [...[1]];`, "array"},
-		{phpversion.PHP74, `return [...[9=>1], 2];`, "int[]{0: int, 1: int}"},
+		{phpversion.PHP74, `return [...[9=>1], 2];`, "int[]<int<1, 2>>{0: int<1, 1>, 1: int<2, 2>}"},
 		{phpversion.PHP80, `return [...['x'=>1]];`, "non-empty array"},
-		{phpversion.PHP81, `return [...['x'=>1], 'x'=>'a'];`, "int[]|string[]{x: string}"},
-		{phpversion.PHP82, `return [-4=>1, ...[2]];`, "int[]{-4: int, 0: int}"},
+		{phpversion.PHP81, `return [...['x'=>1], 'x'=>'a'];`, "int[]|string[]<int<1, 1>|string<len 1, 1>>{x: string<len 1, 1>}"},
+		{phpversion.PHP82, `return [-4=>1, ...[2]];`, "int[]<int<1, 2>>{-4: int<1, 1>, 0: int<2, 2>}"},
 	} {
 		t.Run(fmt.Sprintf("%s_%s", tc.version, tc.src), func(t *testing.T) {
 			// Parse permissively at a modern version, then infer at the target.
@@ -108,7 +108,7 @@ func TestArrayOperationsShapeLimit(t *testing.T) {
 					if len(got.ShapeKeys()) != 32 {
 						t.Errorf("duplicate union lost shape: %s", got.ShapeString())
 					}
-				} else if got.HasShape() || got.ShapeString() != "non-empty int[]" {
+				} else if got.HasShape() || got.ShapeString() != "non-empty int[]<int<1, 2>>" {
 					t.Errorf("%s: %s", label, got.ShapeString())
 				}
 			}

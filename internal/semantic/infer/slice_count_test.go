@@ -22,6 +22,6 @@ function f($unknown,$offset,$length,$flag){
  t('emptyFilter',array_filter([false,null],...[]));
 }
 `, map[string]string{
-		"one": "int<1, 1>", "tail": "int<2, 2>", "negativeLength": "int<2, 2>", "negativeBoth": "int<1, 1>", "past": "int<0, 0>", "before": "int<3, 3>", "nullLength": "int<2, 2>", "empty": "int<0, 0>", "unknownOffset": "int<0, 3>", "unknownLength": "int<0, 3>", "unknownInput": "int", "range": "int<0, 1>", "emptyAlt": "string[]{0?: string}", "emptyFilter": "array{}",
+		"one": "int<1, 1>", "tail": "int<2, 2>", "negativeLength": "int<2, 2>", "negativeBoth": "int<1, 1>", "past": "int<0, 0>", "before": "int<3, 3>", "nullLength": "int<2, 2>", "empty": "int<0, 0>", "unknownOffset": "int<0, 3>", "unknownLength": "int<0, 3>", "unknownInput": "int", "range": "int<0, 1>", "emptyAlt": "string[]<string<len 1, 1>>{0?: string<len 1, 1>}", "emptyFilter": "array{}",
 	})
 }

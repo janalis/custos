@@ -1,6 +1,7 @@
 package mkdirracecondition
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/diagnostic"
@@ -8,6 +9,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 // mkdirRaceCondition reports mkdir() calls whose failure is not re-checked
@@ -144,7 +146,7 @@ locate:
 	case *syntax.ExprStmt: // D4
 		// custos: `if (!is_dir($d)) { mkdir($d); } return is_dir($d);`
 		// re-checks in a later statement.
-		if laterIsDirCall(ctx, c, keys) || silenced && guardedByIsDir(ctx, c, keys) { // E7
+		if laterIsDirCall(ctx, c, keys) || silenced && guardedByIsDir(ctx, call, keys) { // E7
 			return
 		}
 		thrown := dir
@@ -190,6 +192,11 @@ locate:
 			}
 		}
 		if hasIsDirCall(ctx, outer.Right, keys) || mkdirRetryLoop(ctx, c, keys) {
+			return
+		}
+		// E7: `is_dir($d) || @mkdir($d);` ignores the outcome of a guarded,
+		// silenced call.
+		if _, ignored := c.Parent().(*syntax.ExprStmt); ignored && silenced && c.Right == target && guardedByIsDir(ctx, call, keys) {
 			return
 		}
 		// custos: the re-check form follows the call's polarity, not the
@@ -395,16 +402,17 @@ func neverReturns(ctx *analysis.Context, e syntax.Expr) bool {
 	return throws || syntax.ExitInvocation(last.Expr)
 }
 
-// guardedByIsDir reports whether statement st is the body, or in the body,
-// of an `if` whose condition checks the same directory with is_dir(): with
-// `@`, `if (!is_dir($d)) { @mkdir($d); }` is a deliberate best effort (E7).
-func guardedByIsDir(ctx *analysis.Context, st syntax.Stmt, keys []string) bool {
-	p := st.Parent()
-	if _, ok := p.(*syntax.Block); ok {
-		p = p.Parent()
-	}
-	i, ok := p.(*syntax.If)
-	return ok && hasIsDirCall(ctx, i.Cond, keys)
+// guardedByIsDir reports whether the conditions guarding call prove that an
+// earlier is_dir() of the same directory returned false: with `@`,
+// `if (!is_dir($d)) { @mkdir($d); }` (or `if (is_dir($d)) { return; }`,
+// `is_dir($d) || @mkdir($d);`) is a deliberate best effort (E7).
+func guardedByIsDir(ctx *analysis.Context, call *syntax.FuncCall, keys []string) bool {
+	return semanticquery.NativeEarlierCallProves(ctx, call, func(e syntax.Expr) (types.Type, func(types.Type) bool) {
+		if c, ok := e.(*syntax.FuncCall); !ok || !checksDir(ctx, c, keys, isDirOnly) {
+			return types.Unknown, nil
+		}
+		return types.Bool, func(t types.Type) bool { return t.OnlyOf("false") }
+	})
 }
 
 // hasIsDirCall reports whether e contains an is_dir() call whose first
@@ -426,21 +434,25 @@ var (
 func hasCheckCall(ctx *analysis.Context, e syntax.Node, keys []string, names map[string]bool) bool {
 	found := false
 	syntax.Inspect(e, func(n syntax.Node) bool {
-		call, ok := n.(*syntax.FuncCall)
-		if !ok || !names[strings.ToLower(astquery.CallLastName(call))] || call.Args == nil || len(call.Args.Args) == 0 {
-			return true
-		}
-		if a, ok := call.Args.Args[0].(*syntax.Arg); ok && a.Value != nil && !a.Unpack {
-			k := mkdirNorm(ctx.Text(syntax.UnwrapParens(a.Value)))
-			for _, want := range keys {
-				if k == want {
-					found = true
-				}
-			}
+		if call, ok := n.(*syntax.FuncCall); ok && checksDir(ctx, call, keys, names) {
+			found = true
 		}
 		return !found
 	})
 	return found
+}
+
+// checksDir reports whether call is a call to one of names whose first
+// argument is one of the directory expressions in keys.
+func checksDir(ctx *analysis.Context, call *syntax.FuncCall, keys []string, names map[string]bool) bool {
+	if !names[strings.ToLower(astquery.CallLastName(call))] || call.Args == nil || len(call.Args.Args) == 0 {
+		return false
+	}
+	a, ok := call.Args.Args[0].(*syntax.Arg)
+	if !ok || a.Unpack {
+		return false
+	}
+	return slices.Contains(keys, mkdirNorm(ctx.Text(syntax.UnwrapParens(a.Value))))
 }
 
 // mkdirDirKeys returns the normalised texts an is_dir() re-check may use for

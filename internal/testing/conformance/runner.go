@@ -23,6 +23,13 @@ type Request struct {
 	// Companions are extra project files (path -> clean source) whose
 	// symbols are visible to the analysed file.
 	Companions map[string][]byte
+	// CompleteWorld marks the indexed files as everything the project can
+	// load (see index.World).
+	CompleteWorld bool
+	// Vendor is the project's vendor directory (see index.World.Vendor).
+	Vendor string
+	// Assertions trusts assert() calls as guards (flow.assertions).
+	Assertions bool
 }
 
 // Finding is one reported problem, as seen by the harness.

@@ -1,6 +1,7 @@
 package project
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -15,9 +16,12 @@ import (
 // directory of root that declare them.
 func WithVendorFlow(root string, ix *index.Index, parse syntax.Options, options flow.Options) flow.Options {
 	// Both sides are absolute (see absolute): a dependency is any file below.
+	// The working directory is read once: filepath.Abs asks the system for
+	// it on every relative path, and flow asks for each callable it meets.
 	dir := absolute(filepath.Join(root, vendorDir(root)))
+	cwd, _ := os.Getwd()
 	within := func(path string) bool {
-		return dir != "" && strings.HasPrefix(absolute(path), dir+string(filepath.Separator))
+		return dir != "" && strings.HasPrefix(absoluteFrom(cwd, path), dir+string(filepath.Separator))
 	}
 	read := func(path string) ([]byte, error) { return safeio.ReadFile(path, flow.MaxVendorBytes) }
 	options.Vendor = flow.NewVendor(ix, parse, options.Assertions, within, read)

@@ -129,6 +129,19 @@ func (s *Server) loadBaseline(cfg *config.Config) *baseline.Baseline {
 	return bl
 }
 
+// withBaseline returns the engine analyzing with baseline bl: a copy of e
+// whose checks see the findings bl hides as silenced, e itself without a
+// baseline. The diagnostics and the check of a suppression go through it,
+// so that both find the same findings. The server keeps e itself: a
+// baseline reloaded while the index or the flow summaries build must not
+// discard them.
+func withBaseline(e *analysis.Engine, bl *baseline.Baseline) *analysis.Engine {
+	if bl == nil {
+		return e
+	}
+	return e.WithRecorded(bl.Recorder)
+}
+
 // loadBaselineFile reads a baseline file (a test seam).
 var loadBaselineFile = baseline.Load
 

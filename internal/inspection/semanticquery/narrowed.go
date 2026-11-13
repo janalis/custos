@@ -66,7 +66,7 @@ func NativeEarlierCallProvesIn(ctx *analysis.Context, root syntax.Node, at synta
 			return false
 		}
 		switch n.(type) {
-		case *syntax.FuncCall, *syntax.MethodCall, *syntax.Binary:
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.Binary:
 			if n.Span().End > at.Span().Start {
 				return true // a node holding at: its result comes later
 			}

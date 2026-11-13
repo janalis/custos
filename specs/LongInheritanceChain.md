@@ -46,7 +46,9 @@ Applies to every named class-like declaration that can have a parent class
   stop class at grandparent level or above.
 - **D3a** (custos, see Divergences) A third-party ancestor ends the walk too:
   when `cur` (the direct parent included) is a builtin class or is declared
-  in a file under a `vendor` directory, it is counted and the walk stops.
+  in a file of the project's vendor directory (Composer's `vendor-dir`,
+  `vendor` by default), it is counted and the walk stops. A directory
+  merely named `vendor` elsewhere in the project is the project's own.
   The project only controls its own layers: `class UserRepository extends
   ServiceEntityRepository` counts 1, however deep the library's own
   hierarchy is.

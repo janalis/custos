@@ -119,9 +119,10 @@ body content. This only happens when `C`'s body is a braced block.
 - F2 (Case B): the `else` branch's braced block (from `{` to `}`) is replaced
   by the full text of `C` (including `C`'s own `elseif`/`else` branches), with
   preserved comments inserted into `C`'s body. The text between `else` and
-  `{` is kept, giving `else if (…) …`. (custos) When the parent `if` or `C`
-  already has an `elseif` branch and only whitespace separates `else` from
-  `{`, the result is spelled `elseif (…) …` like the rest of the chain.
+  `{` is kept, giving `else if (…) …`. (custos) When only whitespace
+  separates `else` from `{` and either the parent `if` or `C` already has an
+  `elseif` branch, or the file writes the `elseif` keyword more often than
+  `else if`, the result is spelled `elseif (…) …` like the rest of the file.
 - Indentation (both cases): the moved text (`C`'s body in Case A, `C` in
   Case B) loses one level: each of its lines after the first that starts
   with the indentation of `C`'s line is moved to the indentation of the

@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **578 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **593 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -178,6 +178,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [AbstractClassInstantiation](./probable-bugs/AbstractClassInstantiation) | native | error | on |  | any |
 | [AmbiguousReplacementBackreference](./probable-bugs/AmbiguousReplacementBackreference) | native | warning | off | ✓ | any |
 | [AppendModeSeekUsedForOverwrite](./probable-bugs/AppendModeSeekUsedForOverwrite) | native | warning | on |  | any |
+| [ArgumentCountMismatch](./probable-bugs/ArgumentCountMismatch) | native | error | off |  | any |
 | [ArrayChunkInvalidSize](./probable-bugs/ArrayChunkInvalidSize) | native | error | on |  | any |
 | [ArrayColumnDuplicateIndexLoss](./probable-bugs/ArrayColumnDuplicateIndexLoss) | native | warning | on |  | any |
 | [ArrayColumnMissingField](./probable-bugs/ArrayColumnMissingField) | native | warning | off |  | any |
@@ -268,6 +269,9 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [DecompressionFailureConsumed](./probable-bugs/DecompressionFailureConsumed) | native | warning | on |  | PHP ≥ 5.3 |
 | [DeflateStreamNeverFinished](./probable-bugs/DeflateStreamNeverFinished) | native | warning | off |  | PHP ≥ 7.0 |
 | [DirectoryIteratorDotEntries](./probable-bugs/DirectoryIteratorDotEntries) | native | warning | on |  | any |
+| [DocumentedArgumentType](./probable-bugs/DocumentedArgumentType) | native | warning | off |  | any |
+| [DocumentedPropertyAssignment](./probable-bugs/DocumentedPropertyAssignment) | native | warning | off |  | any |
+| [DocumentedReturnType](./probable-bugs/DocumentedReturnType) | native | warning | off |  | any |
 | [DomAppendMovesNodeUnexpectedly](./probable-bugs/DomAppendMovesNodeUnexpectedly) | native | warning | off |  | any |
 | [DomCrossDocumentAppend](./probable-bugs/DomCrossDocumentAppend) | native | error | on |  | any |
 | [DomElementValueContainsBareAmpersand](./probable-bugs/DomElementValueContainsBareAmpersand) | native | warning | on |  | any |
@@ -335,6 +339,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ImagickResizeStatusUsedAsImage](./probable-bugs/ImagickResizeStatusUsedAsImage) | native | warning | on |  | any |
 | [ImagickSingleBlobDropsRequiredFrames](./probable-bugs/ImagickSingleBlobDropsRequiredFrames) | native | warning | off |  | any |
 | [ImmutableDateResultIgnored](./probable-bugs/ImmutableDateResultIgnored) | native | warning | on | ✓ | PHP ≥ 5.5 |
+| [ImpossibleTypeComparison](./probable-bugs/ImpossibleTypeComparison) | native | error | off |  | any |
 | [IncorrectRandomRange](./probable-bugs/IncorrectRandomRange) | EA | error | on |  | any |
 | [IncrementalInflateEncodingMismatch](./probable-bugs/IncrementalInflateEncodingMismatch) | native | warning | on |  | PHP ≥ 7.0 |
 | [InfinityLoop](./probable-bugs/InfinityLoop) | EA | error | on |  | any |
@@ -348,6 +353,9 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [IntlGregorianMonthOffByOne](./probable-bugs/IntlGregorianMonthOffByOne) | native | warning | off |  | PHP ≥ 5.5 |
 | [IntlTimezoneOffsetMillisecondsUsedAsSeconds](./probable-bugs/IntlTimezoneOffsetMillisecondsUsedAsSeconds) | native | warning | on | ✓ | PHP ≥ 5.5 |
 | [IntlTwelveHourFieldUsedForTwentyFourHourTime](./probable-bugs/IntlTwelveHourFieldUsedForTwentyFourHourTime) | native | warning | on | ✓ | PHP ≥ 5.5 |
+| [InvalidArgumentType](./probable-bugs/InvalidArgumentType) | native | error | off |  | any |
+| [InvalidPropertyAssignment](./probable-bugs/InvalidPropertyAssignment) | native | error | off |  | any |
+| [InvalidReturnType](./probable-bugs/InvalidReturnType) | native | error | off |  | any |
 | [InverseTrigInvalidRealDomain](./probable-bugs/InverseTrigInvalidRealDomain) | native | warning | on |  | any |
 | [IsoWeekCalendarYearMismatch](./probable-bugs/IsoWeekCalendarYearMismatch) | native | warning | on | ✓ | any |
 | [IssetArgumentExistence](./probable-bugs/IssetArgumentExistence) | EA | warning | on |  | any |
@@ -429,6 +437,8 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [PgIdentifierEscapedAsLiteral](./probable-bugs/PgIdentifierEscapedAsLiteral) | native | warning | on | ✓ | PHP ≥ 5.4 |
 | [PgReturnedRowsUsedAsAffectedRows](./probable-bugs/PgReturnedRowsUsedAsAffectedRows) | native | warning | on |  | any |
 | [PosixAccountLookupFailureDereferenced](./probable-bugs/PosixAccountLookupFailureDereferenced) | native | warning | on |  | any |
+| [PossiblyNullAccess](./probable-bugs/PossiblyNullAccess) | native | warning | off |  | any |
+| [PossiblyNullArgument](./probable-bugs/PossiblyNullArgument) | native | warning | off |  | any |
 | [PregMatchAllLayoutMismatch](./probable-bugs/PregMatchAllLayoutMismatch) | native | warning | on |  | any |
 | [PregMatchFailureAsNonMatch](./probable-bugs/PregMatchFailureAsNonMatch) | native | warning | off |  | any |
 | [PregQuoteUsage](./probable-bugs/PregQuoteUsage) | EA | error | on |  | any |
@@ -455,6 +465,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [RecursiveReplaceRetainsListTail](./probable-bugs/RecursiveReplaceRetainsListTail) | native | warning | off |  | any |
 | [RecursiveTraversalOmitsDirectories](./probable-bugs/RecursiveTraversalOmitsDirectories) | native | warning | off |  | PHP ≥ 5.3 |
 | [RedirectContinuesProtectedExecution](./probable-bugs/RedirectContinuesProtectedExecution) | native | warning | on |  | any |
+| [RedundantTypeCheck](./probable-bugs/RedundantTypeCheck) | native | warning | off |  | any |
 | [ReflectionCompositeTypeAssumedNamed](./probable-bugs/ReflectionCompositeTypeAssumedNamed) | native | error | on |  | PHP ≥ 8.0 |
 | [ReflectionNamedArgumentMismatch](./probable-bugs/ReflectionNamedArgumentMismatch) | native | error | on |  | PHP ≥ 8.0 |
 | [RegexBodyDoesNotCompile](./probable-bugs/RegexBodyDoesNotCompile) | native | error | on |  | any |
@@ -536,6 +547,10 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [TruncationAssumedToRewind](./probable-bugs/TruncationAssumedToRewind) | native | warning | on |  | any |
 | [UmaskSetterReturnMisread](./probable-bugs/UmaskSetterReturnMisread) | native | warning | off |  | any |
 | [UndeclaredDynamicProperty](./probable-bugs/UndeclaredDynamicProperty) | native | warning | on |  | PHP ≥ 8.2 |
+| [UndefinedClass](./probable-bugs/UndefinedClass) | native | error | off |  | any |
+| [UndefinedFunction](./probable-bugs/UndefinedFunction) | native | error | off |  | any |
+| [UndefinedMethod](./probable-bugs/UndefinedMethod) | native | error | off |  | any |
+| [UndefinedProperty](./probable-bugs/UndefinedProperty) | native | error | off |  | any |
 | [UnicodeNormalizationFailureConsumed](./probable-bugs/UnicodeNormalizationFailureConsumed) | native | warning | on |  | PHP ≥ 5.3 |
 | [UninitializedTypedPropertyRead](./probable-bugs/UninitializedTypedPropertyRead) | native | error | on |  | PHP ≥ 7.4 |
 | [UnitEnumJsonEncoding](./probable-bugs/UnitEnumJsonEncoding) | native | error | on |  | PHP ≥ 8.1 |

@@ -305,6 +305,36 @@ func TestKnownIntBudget(t *testing.T) {
 	}
 }
 
+// A static call's result is narrowed like a function's: directly, through a
+// short-circuit exit or through the local holding it.
+func TestCallResultAtStatic(t *testing.T) {
+	src := `<?php
+function f() {
+    if (!Proxies::knows()) { u(); }
+    Proxies::knows() or exit; u();
+    $k = Proxies::knows(); if (!$k) { return; } u();
+    Proxies::knows(); u();
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
+	var last *syntax.StaticCall
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		switch c := n.(type) {
+		case *syntax.StaticCall:
+			last = c
+		case *syntax.FuncCall:
+			got = append(got, env.CallResultAsAt(last, c, types.Bool).String())
+		}
+		return true
+	})
+	if s := strings.Join(got, " "); s != "false true true bool" {
+		t.Fatalf("got %s", s)
+	}
+}
+
 // A method call's result is narrowed like a function's: directly, silenced,
 // assigned in place or through the local holding it.
 func TestCallResultAtMethod(t *testing.T) {

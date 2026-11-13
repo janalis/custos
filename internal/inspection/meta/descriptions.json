@@ -35,6 +35,9 @@
   "AppendModeSeekUsedForOverwrite": {
     "summary": "Use an overwrite-capable stream mode."
   },
+  "ArgumentCountMismatch": {
+    "summary": "Report a call that leaves a required parameter without an argument, and a\ncall to a PHP function or method that passes more arguments than it\ndeclares. Since PHP 7.1 a missing argument throws an `ArgumentCountError`\nfor functions of the project, and PHP's own functions reject both missing\nand extra arguments."
+  },
   "ArgumentUnpackingCanBeUsed": {
     "phpMin": "5.6",
     "summary": "Since PHP 5.6, `call_user_func_array('fn', $args)` with a literal function\nname can be written as a direct call with argument unpacking, `fn(...$args)`,\nwhich is faster and easier to read and analyse.",
@@ -493,6 +496,15 @@
     "summary": "A statement inside a `foreach` body that uses no loop variable and nothing the\nloop body changes produces the same effect on every iteration; it most likely\nbelongs before or after the loop. Optionally (off by default) the rule also\npoints at objects instantiated on every iteration that could be built once and\ncloned.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_CLONE | bool | false | Reports object creation on every iteration. |"
   },
+  "DocumentedArgumentType": {
+    "summary": "Report an argument that breaks a parameter's contract when PHPDoc is taken\ninto account: the `@param` type of a project function rejects it, or the\ndeclared type rejects a value whose type only PHPDoc describes. PHP may run\nsuch a call, but the code and its documentation disagree. Mismatches the\ncode alone proves are InvalidArgumentType's."
+  },
+  "DocumentedPropertyAssignment": {
+    "summary": "Report a value stored in a property that breaks the property's contract\nwhen PHPDoc is taken into account: the `@var` type of the property rejects\nit, or the declared type rejects a value whose type only PHPDoc describes.\nPHP may run such an assignment, but the code and its documentation\ndisagree. Mismatches the code alone proves are InvalidPropertyAssignment's."
+  },
+  "DocumentedReturnType": {
+    "summary": "Report a returned value that breaks the function's return contract when\nPHPDoc is taken into account: the `@return` type rejects it, or the\ndeclared return type rejects a value whose type only PHPDoc describes. PHP\nmay run such a `return`, but the code and its documentation disagree.\nMismatches the code alone proves are InvalidReturnType's."
+  },
   "DomAppendMovesNodeUnexpectedly": {
     "summary": "Clone the node when preserving its existing parent. This inspection is disabled by default; enabling it selects the stated policy.",
     "options": "None. Use normal rule configuration to enable or disable the inspection."
@@ -830,6 +842,9 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
     "fix": true
   },
+  "ImpossibleTypeComparison": {
+    "summary": "Report a strict comparison (`===`, `!==`) whose operands can never be\nidentical, because the code itself shows they have no value in common: an\n`int` against a `string`, an object against a scalar, two classes no\nobject can belong to at once, two locals holding different literals. Also\nreport a loose comparison (`==`, `!=`, `\u003c\u003e`) that PHP 8's conversions can\nnever make true, such as objects of two unrelated classes or an array\nagainst a number. Such a comparison always gives the same answer, so the\nbranch it guards is dead or always taken. Types that come only from PHPDoc\nnever count."
+  },
   "InArrayMissUse": {
     "summary": "Two wasteful `in_array()` shapes:\n\n- searching the keys list built by `array_keys($a)` — a direct key lookup\n  (`array_key_exists`) avoids building the list;\n- searching a one-element array literal — that is just a comparison with the\n  single element.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. |\n\nComparison style (`regular`/`yoda`) is the global setting.",
@@ -894,6 +909,15 @@
     "phpMin": "5.5",
     "summary": "Use the 24-hour calendar field.",
     "fix": true
+  },
+  "InvalidArgumentType": {
+    "summary": "Report an argument that the parameter's declared type can never accept,\njudging the argument only by what the code itself shows. PHP throws a\n`TypeError` when such a call runs. Mismatches that rest on PHPDoc are left\nto DocumentedArgumentType."
+  },
+  "InvalidPropertyAssignment": {
+    "summary": "Report a value stored in a typed property whose declared type can never\naccept it, judging the value only by what the code itself shows. PHP throws\na `TypeError` when such an assignment runs. Mismatches that rest on PHPDoc\nare left to DocumentedPropertyAssignment."
+  },
+  "InvalidReturnType": {
+    "summary": "Report a returned value that the function's declared return type can never\naccept, judging the value only by what the code itself shows. PHP throws a\n`TypeError` when such a `return` runs. Mismatches that rest on PHPDoc are\nleft to DocumentedReturnType."
   },
   "InverseTrigInvalidRealDomain": {
     "summary": "Keep the inverse trigonometric argument within minus one and one.",
@@ -1355,11 +1379,17 @@
   },
   "PhpUnitTests": {
     "summary": "A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the\ntargets of `@covers`, `@depends` and `@dataProvider` and their PHPUnit\nattribute equivalents, flags a redundant `@test`\nand (optionally) unnamed datasets. On assertion and mock-builder calls it\npoints at generic assertions that have a dedicated, more expressive PHPUnit\ncounterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,\n`assertSame(1, count($l))` → `assertCount(1, $l)`, `-\u003ewill($this-\u003ereturnValue(…))`\n→ `-\u003ewillReturn(…)`, …) and rewrites them.\n\nThe rule has two independent halves:\n\n- **Part A** — docblock tags on methods and PHPUnit metadata attributes.\n- **Part B** — method calls whose name starts with `assert`, or is `expects`\n  or `will`.\n\nNeither half checks that the class extends a PHPUnit test case: every method\nof every class-like and every matching method call is examined.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 the internal-type check suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. The contains check only runs below 9.0. The resource check uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. The regex checks use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |\n| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Suggests `assertSame` over `assertEquals` (and their negations). |\n| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Asks data providers to name their datasets. |\n| `PROMOTE_PHPUNIT_API` | bool | `true` | Suggests dedicated assertions (empty, internal type, instanceof, class, file and resource checks, count, contains, regex, file equality). |\n| `PROMOTE_MOCKING_ONCE` | bool | `true` | Suggests `once()` over `exactly(1)`. |\n| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Suggests `willReturn…()` over `will($this-\u003ereturn…())`. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 the internal-type check suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. The contains check only runs below 9.0. The resource check uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. The regex checks use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset, or set to a value that is not a version, → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |\n| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Suggests `assertSame` over `assertEquals` (and their negations). |\n| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Asks data providers to name their datasets. |\n| `PROMOTE_PHPUNIT_API` | bool | `true` | Suggests dedicated assertions (empty, internal type, instanceof, class, file and resource checks, count, contains, regex, file equality). |\n| `PROMOTE_MOCKING_ONCE` | bool | `true` | Suggests `once()` over `exactly(1)`. |\n| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Suggests `willReturn…()` over `will($this-\u003ereturn…())`. |",
     "fix": true
   },
   "PosixAccountLookupFailureDereferenced": {
     "summary": "Identify array indexing on a direct or unchanged posix_getpwnam/posix_getpwuid result that a failed lookup (`false`) can still reach."
+  },
+  "PossiblyNullAccess": {
+    "summary": "Report a property, method, class-member or array-element access on a value\nthat the code itself shows may be null. Calling a method or writing a\nproperty on null throws an `Error`; reading a property or an element of\nnull raises a warning and yields null. Null that comes only from PHPDoc is\nnot reported."
+  },
+  "PossiblyNullArgument": {
+    "summary": "Report an argument that the code itself shows may be null, passed to a\nparameter whose declared type rejects null. PHP throws a `TypeError` when\nthe call runs with null. Null that comes only from PHPDoc is not reported."
   },
   "PotentialMalware": {
     "summary": "Flags code shapes typical of injected web-shells and backdoors: `eval()` of\ndecoded or fetched payloads, small decoder functions, timestamp forging\nwith `touch()`, and enumeration of all defined functions."
@@ -1488,6 +1518,9 @@
   "RedundantElseClause": {
     "summary": "When an `if` body always leaves the current flow (return, throw, break,\ncontinue, exit/die), the following `else`/`elseif` keyword is superfluous: its\ncode can simply follow the `if`. Removing it flattens nesting.",
     "fix": true
+  },
+  "RedundantTypeCheck": {
+    "summary": "Report a type test whose answer the code already decides: `instanceof`,\n`is_int()` and the other type predicates, or a strict comparison with\n`null`, on a value whose native type makes it always true or always\nfalse. An always-true check is dead defensive code; an always-false one\nguards a branch that never runs, often a sign that the value is not what\nthe author thinks. Types that come only from PHPDoc never count, so a\nguard that enforces a documented type at run time stays silent."
   },
   "ReferencingObjects": {
     "summary": "Since PHP 5, object handles are passed and assigned by value of the handle:\nthe callee already works on the same object. Taking objects by reference\n(`Foo \u0026$x` parameters, `$x = \u0026new Foo()`) is a PHP 4 leftover that only\nconfuses readers — unless the reference is really used to replace the\ncaller's variable.",
@@ -1955,6 +1988,18 @@
     "phpMin": "8.2",
     "summary": "Detect assigning a missing instance property on a resolved PHP 8.2+ class with a complete known hierarchy.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UndefinedClass": {
+    "summary": "Report a class, interface, trait or enum name that nothing declares, used\nwhere PHP must load it: not the project, not an installed Composer package\nand not PHP or a known extension. Such code throws an `Error` when it runs;\nthe name usually has a typo or a missing `use` import. The rule needs a\ncomplete view of the code the project can load, so it reports nothing\nunless every Composer dependency is installed."
+  },
+  "UndefinedFunction": {
+    "summary": "Report a call to a function that nothing declares: not the project, not an\ninstalled Composer package and not PHP or a known extension. Such a call\nthrows an `Error` when it runs; the name usually has a typo or lacks its\n`use function` import. The rule needs a complete view of the code the\nproject can load, so it reports nothing unless every Composer dependency is\ninstalled."
+  },
+  "UndefinedMethod": {
+    "summary": "Report a method call on an object or a class that declares no method of\nthat name, judging the object only by what the code itself shows. PHP\nthrows an `Error` when such a call runs; the name usually has a typo, or\nthe method belongs to another class. Objects whose classes may answer\nany name (magic `__call`, `@method` and `@mixin` tags) are left alone."
+  },
+  "UndefinedProperty": {
+    "summary": "Report a read of a property that the object's class does not declare,\njudging the object only by what the code itself shows, and any access to an\nundeclared static property. PHP warns and reads `null` for the first, and\nthrows an `Error` for the second; the name usually has a typo. Objects\nthat accept any property (magic `__get`, `@property` and `@mixin` tags,\n`stdClass`, `#[AllowDynamicProperties]`) are left alone, and so are writes,\nwhich create a dynamic property (see UndeclaredDynamicProperty)."
   },
   "UnescapedHtmlOutput": {
     "summary": "Detect request-derived text emitted into proven HTML text nodes, script or style element text, or classified attribute values without the escaping that context needs.",

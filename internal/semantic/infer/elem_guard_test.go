@@ -26,3 +26,17 @@ function run(array $a, $v) {
 		"early":        "string",
 	})
 }
+
+func TestNullableArrayOffsetWriteDropsNull(t *testing.T) {
+	check(t, `<?php function f(?array $a, ?array $b, bool $write) {
+ $a['k'] = 1; t('written', $a);
+ if ($write) { $b['k'] = 1; } t('conditional', $b);
+ }`, map[string]string{"written": "array", "conditional": "array|null"})
+}
+
+func TestNullableNonArrayOffsetWriteDropsNull(t *testing.T) {
+	check(t, `<?php function f(?int $a, ?ArrayAccess $b) {
+ $a['k'] = 1; t('scalar', $a);
+ $b['k'] = 1; t('object', $b);
+ }`, map[string]string{"scalar": "int|int[]", "object": `\ArrayAccess|int[]`})
+}

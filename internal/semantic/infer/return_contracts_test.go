@@ -72,7 +72,7 @@ function f(Impl $i, J $j) {
     t('mixed', $i->m());
     t('json', $j->jsonSerialize());
 }
-`, map[string]string{"value": "mixed", "count": "int", "own": "int", "mixed": "mixed", "json": "mixed"})
+`, map[string]string{"value": "mixed", "count": "int", "own": "int<2, 2>", "mixed": "mixed", "json": "mixed"})
 }
 
 // A documented `void` return contradicted by the body is dropped.
@@ -89,5 +89,5 @@ final class K {
     public function v() { }
 }
 function f(K $k) { t('func', pair(1)); t('closure', nothing()); t('method', $k->m()); t('really', $k->v()); }
-`, map[string]string{"func": "int[]{0: int, 1: int}", "closure": "void", "method": "string", "really": "void"})
+`, map[string]string{"func": "int[]<int<1, 2>>{0: int<1, 1>, 1: int<2, 2>}", "closure": "void", "method": "string<len 1, 1>", "really": "void"})
 }

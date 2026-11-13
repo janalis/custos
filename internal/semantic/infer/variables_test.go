@@ -30,7 +30,7 @@ function l(array $rows) {
 }
 `
 	checkAnywhere(t, src, map[string]string{
-		"extract": "?unknown", "after": "int", "parse": "?unknown", "parse2": "int", "varvar": "?unknown", "loop": "?unknown",
+		"extract": "?unknown", "after": "int<1, 1>", "parse": "?unknown", "parse2": "int<1, 1>", "varvar": "?unknown", "loop": "?unknown",
 	})
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
@@ -61,13 +61,14 @@ function f() {
     $n = 1;
     t('later', $n);
 }
-`, map[string]string{"after": "?unknown", "later": "int"})
+`, map[string]string{"after": "?unknown", "later": "int<1, 1>"})
 }
 
 // Every assignment replaces the variable's value: `.=` yields a string
 // whatever the variable held.
 func TestCompoundAssignmentReplaces(t *testing.T) {
 	checkAnywhere(t, `<?php
+function t($label, $value) {}
 function f($f, int $i) {
     $h = file_get_contents($f);
     $h .= 'x';

@@ -31,10 +31,10 @@ func TestBaseTypeRecursionGuard(t *testing.T) {
 		t.Error("busy: nothing recorded")
 	}
 	delete(e.busy, last)
-	if got := e.baseType(last).ShapeString(); got != "int[]{k: int}" {
+	if got := e.baseType(last).ShapeString(); got != "int[]<int<1, 1>>{k: int<1, 1>}" {
 		t.Errorf("base: %s", got)
 	}
-	if got := e.TypeOf(last).ShapeString(); got != "non-empty int[]" {
+	if got := e.TypeOf(last).ShapeString(); got != "non-empty int[]<int<1, 2>>" {
 		t.Errorf("whole: %s", got)
 	}
 }

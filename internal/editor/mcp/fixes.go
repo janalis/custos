@@ -46,9 +46,13 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 	}
 	selected := map[string][]diagnostic.TextEdit{}
 	parse := syntax.Options{Version: snap.Config.PHP, ShortOpenTag: snap.Config.ShortOpenTag}
+	analyzer := snap.Engine
+	if snap.Recorded != nil {
+		analyzer = analyzer.WithRecorded(snap.Recorded.Recorder)
+	}
 	for _, choice := range in.Choices {
 		ev := cp.finding(choice.FindingID)
-		result := project.AnalyzeBuffer(snap.Engine, ev.Path, snap.Sources[ev.Path], parse)
+		result := project.AnalyzeBuffer(analyzer, ev.Path, snap.Sources[ev.Path], parse)
 		found := false
 		for _, fd := range result.Findings {
 			if fd.Rule != ev.Rule || fd.Span.Start != ev.Start || fd.Span.End != ev.End || choice.Fix >= len(fd.Fixes) {
@@ -84,7 +88,7 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 	if in.Iterative {
 		filter := func(fd diagnostic.Finding) bool { return rule == "" || fd.Rule == rule }
 		if err := project.Each(ctx, len(names), func(i int) {
-			fixed[i] = fixing.FixSourceContext(ctx, snap.Engine, names[i], snap.Sources[names[i]], fixing.Options{Parse: parse, Filter: filter}).Source
+			fixed[i] = fixing.FixSourceContext(ctx, analyzer, names[i], snap.Sources[names[i]], fixing.Options{Parse: parse, Filter: filter}).Source
 		}); err != nil {
 			return nil, err
 		}

@@ -540,6 +540,10 @@
             "link": "/rules/probable-bugs/AppendModeSeekUsedForOverwrite"
           },
           {
+            "text": "ArgumentCountMismatch",
+            "link": "/rules/probable-bugs/ArgumentCountMismatch"
+          },
+          {
             "text": "ArrayChunkInvalidSize",
             "link": "/rules/probable-bugs/ArrayChunkInvalidSize"
           },
@@ -912,6 +916,18 @@
             "link": "/rules/probable-bugs/DirectoryIteratorDotEntries"
           },
           {
+            "text": "DocumentedArgumentType",
+            "link": "/rules/probable-bugs/DocumentedArgumentType"
+          },
+          {
+            "text": "DocumentedPropertyAssignment",
+            "link": "/rules/probable-bugs/DocumentedPropertyAssignment"
+          },
+          {
+            "text": "DocumentedReturnType",
+            "link": "/rules/probable-bugs/DocumentedReturnType"
+          },
+          {
             "text": "DomAppendMovesNodeUnexpectedly",
             "link": "/rules/probable-bugs/DomAppendMovesNodeUnexpectedly"
           },
@@ -1192,6 +1208,10 @@
             "link": "/rules/probable-bugs/ImmutableDateResultIgnored"
           },
           {
+            "text": "ImpossibleTypeComparison",
+            "link": "/rules/probable-bugs/ImpossibleTypeComparison"
+          },
+          {
             "text": "IncorrectRandomRange",
             "link": "/rules/probable-bugs/IncorrectRandomRange"
           },
@@ -1242,6 +1262,18 @@
           {
             "text": "IntlTwelveHourFieldUsedForTwentyFourHourTime",
             "link": "/rules/probable-bugs/IntlTwelveHourFieldUsedForTwentyFourHourTime"
+          },
+          {
+            "text": "InvalidArgumentType",
+            "link": "/rules/probable-bugs/InvalidArgumentType"
+          },
+          {
+            "text": "InvalidPropertyAssignment",
+            "link": "/rules/probable-bugs/InvalidPropertyAssignment"
+          },
+          {
+            "text": "InvalidReturnType",
+            "link": "/rules/probable-bugs/InvalidReturnType"
           },
           {
             "text": "InverseTrigInvalidRealDomain",
@@ -1580,6 +1612,14 @@
             "link": "/rules/probable-bugs/PosixAccountLookupFailureDereferenced"
           },
           {
+            "text": "PossiblyNullAccess",
+            "link": "/rules/probable-bugs/PossiblyNullAccess"
+          },
+          {
+            "text": "PossiblyNullArgument",
+            "link": "/rules/probable-bugs/PossiblyNullArgument"
+          },
+          {
             "text": "PregMatchAllLayoutMismatch",
             "link": "/rules/probable-bugs/PregMatchAllLayoutMismatch"
           },
@@ -1688,6 +1728,10 @@
           {
             "text": "RedirectContinuesProtectedExecution",
             "link": "/rules/probable-bugs/RedirectContinuesProtectedExecution"
+          },
+          {
+            "text": "RedundantTypeCheck",
+            "link": "/rules/probable-bugs/RedundantTypeCheck"
           },
           {
             "text": "ReflectionCompositeTypeAssumedNamed",
@@ -1974,7 +2018,7 @@
         ]
       },
       {
-        "text": "T–Z",
+        "text": "T–X",
         "collapsed": true,
         "items": [
           {
@@ -2024,6 +2068,22 @@
           {
             "text": "UndeclaredDynamicProperty",
             "link": "/rules/probable-bugs/UndeclaredDynamicProperty"
+          },
+          {
+            "text": "UndefinedClass",
+            "link": "/rules/probable-bugs/UndefinedClass"
+          },
+          {
+            "text": "UndefinedFunction",
+            "link": "/rules/probable-bugs/UndefinedFunction"
+          },
+          {
+            "text": "UndefinedMethod",
+            "link": "/rules/probable-bugs/UndefinedMethod"
+          },
+          {
+            "text": "UndefinedProperty",
+            "link": "/rules/probable-bugs/UndefinedProperty"
           },
           {
             "text": "UnicodeNormalizationFailureConsumed",
@@ -2132,7 +2192,13 @@
           {
             "text": "XslTransformationFailureConsumed",
             "link": "/rules/probable-bugs/XslTransformationFailureConsumed"
-          },
+          }
+        ]
+      },
+      {
+        "text": "Z",
+        "collapsed": true,
+        "items": [
           {
             "text": "ZipCloseFailureUnchecked",
             "link": "/rules/probable-bugs/ZipCloseFailureUnchecked"

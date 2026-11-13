@@ -333,6 +333,8 @@ integer/float literal, optionally with a unary minus.
     those versions provide.
   The positive names `assertFileExists` / `assertDirectoryExists` are the same
   at every version.
+  When no version is known (see "Version-dependent names"), a negative
+  suggestion names both methods and is reported without a fix.
 - **D24 Count.** `M` ∈ {`assertSame`, `assertEquals` → `assertCount`;
   `assertNotSame`, `assertNotEquals` → `assertNotCount`}, `n ≥ 2`, `args[1]`
   (the actual value — position matters, `args[0]` is not checked) is a
@@ -362,6 +364,15 @@ integer/float literal, optionally with a unary minus.
   `args[0]` is directly (no parens) a binary `L > R` where `R` is a number
   whose text is exactly `0` and `L` is a function call `preg_match` with
   exactly two arguments `P`, `S`. (`>=`, `!=`, `0 < …` do not match.)
+- **Version-dependent names.** A version is known when `PHP_UNIT_VERSION`
+  is configured as one of its values, or when it is inferred from the indexed PHPUnit, from
+  composer.json or from phpunit.xml. When none of these gives a version,
+  D20 assumes PHPUnit 8.0 or later and offers the corresponding `assertIs`
+  quick-fix. D26, D27 and the negative D23 names rest on the assumed `PHPUNIT80`
+  default, while the old names no longer exist from PHPUnit 10. Those calls
+  are then reported without a fix, and the message names both methods:
+  "use the 9.1 name (the old name before PHPUnit 9.1)" (custos diverges,
+  see Divergences).
 - **D28a File equals.** `M` ∈ {`assertSame`, `assertEquals`,
   `assertStringEqualsFile`}, `n ≥ 2`, and the nearest enclosing
   function/method/closure is **not** named `assertFileEquals` (any case). Let
@@ -566,7 +577,7 @@ filled, in order, with the original arguments that follow the message
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 the internal-type check suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. The contains check only runs below 9.0. The resource check uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. The regex checks use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |
+| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 the internal-type check suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. The contains check only runs below 9.0. The resource check uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. The regex checks use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset, or set to a value that is not a version, → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |
 | `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Suggests `assertSame` over `assertEquals` (and their negations). |
 | `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Asks data providers to name their datasets. |
 | `PROMOTE_PHPUNIT_API` | bool | `true` | Suggests dedicated assertions (empty, internal type, instanceof, class, file and resource checks, count, contains, regex, file equality). |
@@ -920,6 +931,11 @@ class InvoiceChecks {
   "fix" introduces deprecation warnings. custos suggests
   `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from
   9.1 and the old names below.
+- **Assumed PHPUnit version (custos diverges).** Upstream rewrites with the
+  names of its default version. custos offers no fix for the regex and
+  negative resource names when the version is only assumed: a project whose
+  PHPUnit 10+ is not indexed (for example vendor/ under a subdirectory)
+  would otherwise get calls to removed methods.
 - **No `is_resource` mapping** (D20; custos diverges from upstream).
   PHPUnit's `resource` type check (`assertIsResource()`,
   `assertIsNotResource()`, `assertInternalType('resource', …)`) also

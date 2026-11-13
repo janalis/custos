@@ -106,7 +106,7 @@ func (s *suppressions) suppressed(fd diagnostic.Finding) bool {
 		if len(ids) == 0 {
 			return false
 		}
-		return ids["ALL"] || ids[fd.Rule] || (m != nil && ids[m.LegacyID])
+		return ids["ALL"] || ids[fd.Rule] || (m != nil && (ids[m.LegacyID] || suppressedByOther(m, ids)))
 	}
 	if match(s.fileIDs) {
 		return true
@@ -202,4 +202,16 @@ func ParseSuppressionComment(c string) []string {
 		}
 	}
 	return out
+}
+
+// suppressedByOther reports whether ids name a rule that suppresses m's
+// findings too (meta.Rule.SuppressedBy), by ID or legacy name.
+func suppressedByOther(m *meta.Rule, ids map[string]bool) bool {
+	for _, id := range m.SuppressedBy {
+		o, _ := meta.Lookup(id) // the catalogue checks these IDs exist
+		if ids[o.ID] || ids[o.LegacyID] {
+			return true
+		}
+	}
+	return false
 }

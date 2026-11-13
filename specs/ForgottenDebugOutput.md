@@ -146,9 +146,13 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
 - **E7** (custos, see Divergences) Feature probe: a function call that
   only runs once the builtin `function_exists()` held for that same
   function name (a string literal, compared case-insensitively, leading
-  `\` ignored): in the body of an `if`/`elseif`, the right operand of
-  `&&`/`and`, or the first branch of a full ternary, whose condition is
-  that call or has it as an operand of `&&`/`and`. Code probing for an
+  `\` ignored), as the conditions guarding the call prove: the body of an
+  `if`/`elseif` or the first branch of a full ternary whose condition
+  requires that probe, the right operand of `&&`/`and` after it, the `else`
+  arm or the statements after an early exit of the negated probe
+  (`if (!function_exists('f')) { return; }`), the right operand of
+  `||`/`or` after the negated probe, or a test of the local the probe was
+  stored in. Code probing for an
   extension (`if (\function_exists('xdebug_get_function_stack') && $trace
   = xdebug_get_function_stack())`) uses it on purpose. A probe combined
   with `||`, or for another function, proves nothing.
