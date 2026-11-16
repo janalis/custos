@@ -20,3 +20,45 @@ function j(?array $n) { foreach ([1] as $x) { $n[] = $x; } t('loopWrite', $n); }
 		"nested": "array", "loopWrite": "array|null",
 	})
 }
+
+// TestElementWriteVivifies covers the other writes that make null (or
+// false) an array: destructuring and increments into an offset, writes
+// into a property's offset; a write into false is not followed.
+func TestElementWriteVivifies(t *testing.T) {
+	checkAnywhere(t, `<?php
+class P {
+    private ?array $p = null;
+    private ?\ArrayObject $o = null;
+    private ?string $s = null;
+    private array|false $f = false;
+    public static ?array $st = null;
+    function m1() { $this->p['k'] = 1; t('prop', $this->p); }
+    function m2() { self::$st[] = 1; t('static', self::$st); }
+    function m3() { $this->p['a']['b'] = 1; t('propNested', $this->p); }
+    function m4() { $this->o['k'] = 1; t('propObject', $this->o); }
+    function m5() { $this->s[0] = 'x'; t('propString', $this->s); }
+    function m6() { $this->f[] = 1; t('propFalse', $this->f); }
+    function m7(bool $c) { if ($c) { $this->p['k'] = 1; } t('propBranch', $this->p); }
+    function m8() { $this->p['k'] = 1; $this->reset(); t('propCall', $this->p); }
+    function m9() { $this->p['k'] = 1; $this->p = null; t('propReset', $this->p); }
+    function m10() { $this->p['k'] = 1; if ($this->p === null) { t('propChecked', $this->p); } }
+    function reset() {}
+}
+function a(?array $a) { [$a['x'], $a['y']] = [1, 2]; t('destructured', $a); }
+function b(?array $a) { $a['k']++; t('incremented', $a); }
+function c(array|false $a) { $a['k'] = 1; t('false', $a); }
+function d() { $x = false; $x[] = 1; t('falseLiteral', $x); }
+function e(bool $c) { $x = $c ? false : null; $x[] = 1; t('falseOrNull', $x); }
+function f(\ArrayObject|false|null $o) { $o['k'] = 1; t('objectFalse', $o); }
+function g(?array $a, bool $c) { if ($c) { $a['k']++; } t('incrementBranch', $a); }
+function h(?array $a) { foreach ([1] as $a['k']) {} t('foreach', $a); }
+`, map[string]string{
+		"prop": "array", "static": "array", "propNested": "array", "propObject": `\ArrayObject|array`,
+		"propString": "array|string", "propFalse": "array|false", "propBranch": "array|null", "propCall": "array|null",
+		"propReset": "array|null", "propChecked": "array",
+		"destructured": "array", "incremented": "array", "false": "array|false", "falseLiteral": "false",
+		"falseOrNull": "false|int[]<int<1, 1>>", "objectFalse": `\ArrayObject|false|int[]<int<1, 1>>`, "incrementBranch": "array|null",
+		// The loop may not run: the write may not happen.
+		"foreach": "array|null",
+	})
+}

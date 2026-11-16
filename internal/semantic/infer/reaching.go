@@ -122,6 +122,9 @@ type elemWrite struct {
 	inc    *syntax.IncDec
 	nested bool
 	key    syntax.Expr // nested writes: the first-level key (nil: `$x[][…]`)
+	// stmt is the whole write: the assignment (enclosing a destructuring
+	// target) or the increment/decrement; nil for an unknown write.
+	stmt syntax.Expr
 }
 
 // dim returns the key expression of a direct write (nil for appends and
@@ -198,7 +201,8 @@ func (sv *scopeVars) elemDefs(name string) []varDef {
 
 // writeDominates reports whether an element write into variable v runs on
 // every path to the read v after the variable's last definition: a
-// `$v[k] = x;` statement after every definition reaching v, directly in a
+// `$v[k] = x;`, `[$v[k]] = …;` or `$v[k]++;` statement after every
+// definition reaching v, directly in a
 // block enclosing v, with no mutation of the variable (assignment,
 // reference, by-reference argument) in between.
 func (e *Env) writeDominatesAt(name string, use, scope syntax.Node) bool {
@@ -216,10 +220,10 @@ func (e *Env) writeDominatesAt(name string, use, scope syntax.Node) bool {
 	}
 	at := use.Span().Start
 	for _, d := range fwd {
-		if d.w == nil || d.w.a == nil || d.pos < last {
+		if d.w == nil || d.w.stmt == nil || d.pos < last {
 			continue
 		}
-		es, ok := d.w.a.Parent().(*syntax.ExprStmt)
+		es, ok := d.w.stmt.Parent().(*syntax.ExprStmt)
 		if !ok {
 			continue
 		}
@@ -227,7 +231,7 @@ func (e *Env) writeDominatesAt(name string, use, scope syntax.Node) bool {
 		if !ok || at < blk.Span().Start || at >= blk.Span().End {
 			continue
 		}
-		if !e.nonEmptyBroken(scope, name, d.w.a.Span().End, use) {
+		if !e.nonEmptyBroken(scope, name, d.w.stmt.Span().End, use) {
 			return true
 		}
 	}

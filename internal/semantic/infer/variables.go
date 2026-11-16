@@ -285,7 +285,9 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 	}
 	// A write into null creates an array (`?array $n; $n['k'] = 1;`),
 	// also when the value may be a string instead (`?string $s; $s[0] =
-	// 'x';` makes null an array, see below for the string).
+	// 'x';` makes null an array, see below for the string). A write into
+	// false (deprecated from PHP 8.1) is not followed: false stays, as the
+	// rules reporting offsets of false or an unhandled false expect.
 	if len(arr) == 0 && !slices.Contains(other, "null") {
 		// A write into a string offset (`$s[0] = 'x'`) changes its value
 		// and may lengthen it: keep the type, not the string's values (an
@@ -988,7 +990,7 @@ func (e *Env) collectDimMutation(n *syntax.IncDec, target syntax.Expr, sv *scope
 		inner = parent
 	}
 	if v := asVariable(inner.Var); v != nil {
-		w := &elemWrite{inc: n, nested: inner != d, key: inner.Dim}
+		w := &elemWrite{inc: n, nested: inner != d, key: inner.Dim, stmt: n}
 		sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: n.Span().Start, end: n.Span().End, w: w})
 	}
 }
@@ -1111,6 +1113,7 @@ func (e *Env) collectItems(items []*syntax.ArrayItem, pos uint32, keyType func(s
 // writes: a is nil).
 func (e *Env) collectDimWrites(outer, a *syntax.Assign, target syntax.Expr, sv *scopeVars) {
 	add := func(name string, w *elemWrite) {
+		w.stmt = outer
 		sv.elemWrites[name] = append(sv.elemWrites[name], varDef{pos: outer.Span().Start, end: outer.Span().End, w: w})
 	}
 	switch t := target.(type) {

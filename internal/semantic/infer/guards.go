@@ -41,6 +41,9 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 			continue // before the definition reaching use: about another value
 		}
 		if es, ok := s.(*syntax.ExprStmt); ok {
+			if isPropKey(name) && !isDimKey(name) {
+				t = e.afterPropertyElemWrite(use, scope, t, es.Expr, name)
+			}
 			// `Assert::string($x);` (@phpstan-assert on the callee).
 			if ca := e.assertsOf(es.Expr); ca != nil {
 				t, _ = e.applyAsserts(ca, index.AssertAlways, name, t, false)
@@ -189,6 +192,43 @@ func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Typ
 	}
 	return t
 }
+
+// afterPropertyElemWrite types property name past statement x when it
+// writes into one of the property's offsets (`$this->p['k'] = 1;`): PHP
+// makes null an array there, so a nullable property is no longer null,
+// unless something may change it between x and use. false stays, as for a
+// local (see withElemWritesAt).
+func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types.Type, x syntax.Expr, name string) types.Type {
+	a, ok := x.(*syntax.Assign)
+	if !ok || !t.Has("null") {
+		return t
+	}
+	d, ok := a.Var.(*syntax.ArrayDimFetch)
+	if !ok {
+		return t
+	}
+	for {
+		inner, ok := d.Var.(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		d = inner
+	}
+	if narrowKey(d.Var) != name || e.nonEmptyBroken(scope, name, a.Span().End, use) {
+		return t
+	}
+	nt := t.Without("null")
+	switch {
+	case len(nt.Atoms()) == 0:
+		return types.Of("array")
+	case !slices.ContainsFunc(nt.Atoms(), isArrayAtom):
+		return types.Union(nt, types.Of("array"))
+	}
+	return nt
+}
+
+// isArrayAtom reports an array type atom (`array`, `int[]`).
+func isArrayAtom(a string) bool { return a == "array" || strings.HasSuffix(a, "[]") }
 
 // coalescedNonNull reports whether x is `a ?? b` with b known never to be
 // null, so x is not null whatever a holds.

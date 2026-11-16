@@ -5,6 +5,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The type-check rules no longer see null after a write into one of its
+  offsets, which PHP turns into an array, in more places: a destructuring
+  target (`[$a['x']] = …`), an increment (`$a['k']++`) and a write into a
+  property's offset (`$this->items['k'] = 1`) now drop it as a plain write
+  into a local's offset already did. An object implementing ArrayAccess
+  keeps its type.
+
 ## [0.1.13] - 2026-11-13
 
 ### Changed
