@@ -155,7 +155,7 @@ func (f *File) differing(earlier, s *Snapshot, first bool) map[string]bool {
 		}
 		// Contracts both snapshots hold are compared where they are held.
 		if was, is := earlier.held(key), s.held(key); was != nil && is != nil {
-			if was != is && !sameSummary(was, is) {
+			if !s.sameHeld(was, is) {
 				out = differs(out, key)
 				if first {
 					return out

@@ -3,6 +3,7 @@ package flow
 import (
 	"reflect"
 	"slices"
+	"sync"
 
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/names"
@@ -144,6 +145,13 @@ type Snapshot struct {
 	// replaced by own. The maps above are then unused.
 	base *Snapshot
 	own  *File
+	// compared memoizes, by pair of contracts held by an earlier snapshot
+	// and by this one, whether they are the same (see sameHeld): every
+	// file that consulted a contract compares the same pair.
+	compared struct {
+		sync.Mutex
+		same map[[2]*Summary]bool
+	}
 }
 
 // NewSnapshot creates an empty summary collection.
@@ -211,6 +219,30 @@ func (s *Snapshot) WithoutFile(path string) *Snapshot {
 // sameSummary compares two contracts through pointers, so that comparing
 // them copies neither.
 func sameSummary(a, b *Summary) bool { return reflect.DeepEqual(a, b) }
+
+// sameHeld is sameSummary for a contract was an earlier snapshot holds and
+// one is that s holds, remembered by s. Held contracts never change, and
+// the memo keeps both alive, so a pair of pointers names one comparison.
+func (s *Snapshot) sameHeld(was, is *Summary) bool {
+	if was == is {
+		return true
+	}
+	pair := [2]*Summary{was, is}
+	s.compared.Lock()
+	same, ok := s.compared.same[pair]
+	s.compared.Unlock()
+	if ok {
+		return same
+	}
+	same = sameSummary(was, is)
+	s.compared.Lock()
+	if s.compared.same == nil {
+		s.compared.same = map[[2]*Summary]bool{}
+	}
+	s.compared.same[pair] = same
+	s.compared.Unlock()
+	return same
+}
 
 // held is the contract a snapshot that is no overlay holds for name itself,
 // as lookup answers it; nil when lookup would answer otherwise.

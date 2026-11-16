@@ -17,18 +17,19 @@ import (
 
 // wireSkipped names the fields the codec does not write: options, which a
 // decoder supplies; what makes a snapshot an overlay or a full collection,
-// which no Basis holds; and syntax nodes, which no summary keeps (encoding
+// which no Basis holds; the comparisons a snapshot remembers; and syntax nodes, which no summary keeps (encoding
 // one fails).
 var wireSkipped = map[string]bool{
-	"flow.File.options":     true,
-	"flow.Snapshot.options": true,
-	"flow.Snapshot.files":   true,
-	"flow.Snapshot.base":    true,
-	"flow.Snapshot.own":     true,
-	"flow.Value.Expr":       true,
-	"flow.Value.tested":     true,
-	"flow.Value.unless":     true,
-	"flow.Origin.Expr":      true,
+	"flow.File.options":      true,
+	"flow.Snapshot.options":  true,
+	"flow.Snapshot.files":    true,
+	"flow.Snapshot.base":     true,
+	"flow.Snapshot.own":      true,
+	"flow.Snapshot.compared": true,
+	"flow.Value.Expr":        true,
+	"flow.Value.tested":      true,
+	"flow.Value.unless":      true,
+	"flow.Origin.Expr":       true,
 }
 
 // The codec writes every field: a field added to a type a file or a basis
@@ -39,7 +40,7 @@ func TestWireFields(t *testing.T) {
 		"flow.File":             {"options", "Path", "Summaries", "consulted", "held", "served", "callables"},
 		"flow.Origin":           {"Expr", "NonFalse", "NonNull"},
 		"flow.Sink":             {"Name", "Context", "Argument", "Path", "Span"},
-		"flow.Snapshot":         {"options", "files", "summaries", "shared", "base", "own"},
+		"flow.Snapshot":         {"options", "files", "summaries", "shared", "base", "own", "compared"},
 		"flow.Source":           {"Kind", "Path", "Span", "Parameter", "ValuesOnly", "Keys", "htmlDecoded"},
 		"flow.Summary":          {"pure", "defaults", "forward", "argumentSensitive", "returned", "resource", "effects", "dispatch", "Return", "Sinks", "Generator", "Never", "ByRef", "Fixed", "Quiet", "Spares"},
 		"flow.Value":            {"record", "literal", "returned", "targets", "interval", "Sources", "Expr", "elements", "origins", "tested", "unless", "Length", "Identity", "storedIdentity", "Invalidated", "Safe", "Complete", "NonFalse", "NonNull", "LengthKnown", "headerMask", "upload", "scalars", "matched", "unlessFalse", "unlessNull", "skippedFalse", "skippedNull", "replaced", "entry", "plain", "deep", "truth"},
