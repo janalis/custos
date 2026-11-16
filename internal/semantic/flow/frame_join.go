@@ -55,10 +55,16 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 			m.NonFalse, m.plain, m.deep = v.NonFalse, v.plain, v.deep
 		}
 		x.origins = origins(v, w, f.owner)
-		if m.ext = derived(v.ext, x); !equal(m, v) {
-			f.setVar(k, m)
-			changed = true
+		// The join rebuilds the interval, targets and elements it holds:
+		// when they hold what v did, and the rest of the join too, v stays
+		// as it is, without an extension equal to its own being allocated.
+		// Otherwise the join differs from v in its extension or elsewhere.
+		if m.ext = v.ext; sameExt(v.ext, &x) && equal(m, v) {
+			continue
 		}
+		m.ext = derived(v.ext, x)
+		f.setVar(k, m)
+		changed = true
 	}
 	if shared < len(b.vars) {
 		work += len(b.vars)
