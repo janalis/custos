@@ -251,7 +251,7 @@ func (e *Env) inferredProp(p *index.Property) types.Type {
 	}
 	c := e.Index.Class(p.Class, e.PHP)
 	if c == nil || c.File != e.File.Path {
-		return types.FromDoc(p.Inferred, nil)
+		return e.parsedType(p.Inferred)
 	}
 	return e.propFromBody(p, c)
 }

@@ -282,7 +282,7 @@ func (e *Env) elemOf(at types.Type, arg syntax.Expr) types.Type {
 // declared return type (unknown, mixed, a supertype of every member, or an
 // intersection refining it: `@return T&Stub` on `: Stub`); else ok is false.
 func (e *Env) withDeclared(t types.Type, declared string) (types.Type, bool) {
-	d := types.FromDoc(declared, nil)
+	d := e.parsedType(declared)
 	if d.IsUnknown() || d.Has("mixed") || strictSuperset(t, d) {
 		return t, true
 	}
