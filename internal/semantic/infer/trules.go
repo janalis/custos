@@ -253,12 +253,6 @@ func (r *TRules) bindMember(t types.Type, declaration, effective, receiver strin
 	return r.Env.bindMember(t, declaration, effective, receiver)
 }
 
-// DeclaredAndDoc unions a declared type string and a doc type string (both
-// as stored in the index).
-func DeclaredAndDoc(declared, doc string) types.Type {
-	return KnownUnion(types.FromDoc(declared, nil), types.FromDoc(doc, nil))
-}
-
 func (r *TRules) floatish(s types.Type) bool {
 	return s.IsUnknown() || s.Has("float") || s.Has("number") || (s.Has("string") && !s.Has("int"))
 }
@@ -350,20 +344,19 @@ func (r *TRules) funcCall(n *syntax.FuncCall) types.Type {
 	return t
 }
 
-// declaredAndDoc is DeclaredAndDoc, without the doc type of a project
-// declaration over a native Env (see Env.Native).
+// declaredAndDoc unions a declared type string and a doc type string (both
+// as stored in the index), without the doc type of a project declaration
+// over a native Env (see Env.Native). The version-resolved signature of a
+// builtin is authoritative: its stub doc only refines it (see
+// builtinMemberTypeOf).
 func (r *TRules) declaredAndDoc(declared, doc string, builtin bool) types.Type {
 	if r.Env.userDoc(builtin) {
 		return r.Env.parsedType(declared)
 	}
-	doc = r.Env.resolvedDoc(doc)
 	if builtin && declared != "" {
-		// The version-resolved signature is authoritative; the stub doc
-		// only refines it (see builtinMemberType).
-		d := types.FromDoc(declared, nil)
-		return KnownUnion(d, refining(d, types.FromDoc(doc, nil)))
+		return r.Env.declType(declBuiltinUnion, declared, doc)
 	}
-	return DeclaredAndDoc(declared, doc)
+	return r.Env.declType(declUnion, declared, doc)
 }
 
 // arg returns the argument of n (a call of f) for f's parameter i, positional
