@@ -83,22 +83,22 @@ func Resummarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, option
 	}
 	consulted := e.consulted
 	// The answers of the kept callables join those just read, for out
-	// only: e keeps the answers it was given.
-	answers := make(map[string]answer, len(e.answers))
-	maps.Copy(answers, e.answers)
+	// only: e keeps the answers it was given. Only whether the snapshot
+	// held each one matters there, so they join as flags, not as copies.
+	var keptReads map[string]bool
 	for key := range kept {
 		for read, bits := range prior.callables[key] {
 			consulted[read] = true
 			if bits&(readOwn|readHeld) == 0 {
 				continue
 			}
-			got := answers[read]
-			got.held = got.held || bits&readHeld != 0
-			got.own = got.own || bits&readOwn != 0
-			answers[read] = got
+			if keptReads == nil {
+				keptReads = map[string]bool{}
+			}
+			keptReads[read] = keptReads[read] || bits&readHeld != 0
 		}
 	}
-	finish(e, out, answers)
+	finish(e, out, keptReads)
 	return e, out
 }
 

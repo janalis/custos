@@ -39,27 +39,40 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 	for _, n := range order {
 		e.summarize(n)
 	}
-	finish(e, out, e.answers)
+	finish(e, out, nil)
 	return e, out
 }
 
 // finish publishes on out what summarizing it read: the contracts consulted
-// and, from answers, which the snapshot held and which the file served.
-func finish(e *Env, out *File, answers map[string]answer) {
+// and, from the answers of e joined by those of the callables kept from an
+// earlier summary (kept: whether the snapshot held each), which the
+// snapshot held and which the file served.
+func finish(e *Env, out *File, kept map[string]bool) {
 	out.callables = e.summarizing.track
 	e.summarizing = nil
 	out.consulted, e.consulted = e.consulted, nil
-	for key, read := range answers {
-		switch {
-		case read.held:
-			out.held = append(out.held, key)
-		case out.served == nil:
-			out.served = map[string]bool{key: true}
-		default:
-			out.served[key] = true
+	for key, read := range e.answers {
+		out.noteRead(key, read.held || kept[key])
+	}
+	for key, held := range kept {
+		if _, read := e.answers[key]; !read {
+			out.noteRead(key, held)
 		}
 	}
 	slices.Sort(out.held)
+}
+
+// noteRead records that a contract read while out was summarized came from
+// the snapshot (held) or from the file's own summaries.
+func (out *File) noteRead(key string, held bool) {
+	switch {
+	case held:
+		out.held = append(out.held, key)
+	case out.served == nil:
+		out.served = map[string]bool{key: true}
+	default:
+		out.served[key] = true
+	}
 }
 
 // summaryInventory builds declaration metadata without following callable bodies.
