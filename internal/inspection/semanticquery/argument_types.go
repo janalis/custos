@@ -167,10 +167,19 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 // not one the code makes, whether a native or a PHPDoc type rejects it,
 // but one the array meets is.
 func vivified(ctx *analysis.Context, x syntax.Expr, proven types.Type) bool {
-	if proven.IsUnknown() || proven.Has("false") || proven.Has("mixed") {
-		return false
-	}
-	native := ctx.Types().Native().TypeOf(x)
+	return vivifiedProven(proven) && vivifiedNative(ctx.Types().Native().TypeOf(x))
+}
+
+// vivifiedProven reports whether proven may be the type of a vivified
+// value (see vivified): known, without false, not mixed.
+func vivifiedProven(proven types.Type) bool {
+	return !proven.IsUnknown() && !proven.Has("false") && !proven.Has("mixed")
+}
+
+// vivifiedNative reports whether native, the native type of a value whose
+// proven type vivifiedProven accepts, keeps the false a write into an
+// offset made an array, or does not know the value (see vivified).
+func vivifiedNative(native types.Type) bool {
 	return native.Has("false") || native.IsUnknown() || native.Has("mixed")
 }
 

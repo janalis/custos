@@ -298,7 +298,7 @@ false, which the rules reporting an offset access on false or an unhandled
 false result rely on. A property no native type restricts (PHPDoc only,
 none, or `mixed`) becomes an array there only when the conditions guarding
 the write prove it held null, false or an array; its native type stays
-unknown. The argument and return checks, native and `Documented*`,
+unknown. The argument, return and property assignment checks, native and `Documented*`,
 therefore judge by its proven type a value whose proven type is known and
 drops the false its native type keeps, or that its native type does not
 know (`vivified`).

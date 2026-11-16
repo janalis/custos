@@ -41,8 +41,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   PHPDoc types, or declared `mixed`, once a test such as
   `$this->items === false` shows it held false), which PHP turns
   into an array: RedundantTypeCheck, ImpossibleTypeComparison,
-  InvalidArgumentType, InvalidReturnType and their documented counterparts
-  judge the value as that array afterwards, not as false. OffsetOperations and the
+  InvalidArgumentType, InvalidReturnType, InvalidPropertyAssignment and
+  their documented counterparts judge the value as that array afterwards,
+  not as false (DocumentedPropertyAssignment no longer reports
+  `$this->items = $list` into an `array` property). OffsetOperations and the
   rules reporting an unchecked false result are unchanged.
 - A `foreach` loop writing its key or value into an offset
   (`foreach ($rows as $seen['last'])`) now counts as a write into that
