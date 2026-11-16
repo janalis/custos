@@ -4,6 +4,13 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
+	"custos/internal/semantic/names"
+	"custos/internal/semantic/stubs"
 )
 
 // TestCorrelatedNullExit covers an early exit taken when two values are
@@ -102,6 +109,49 @@ func TestCorrelatedExitOperandBudget(t *testing.T) {
 			}
 			if native != want || proven != want {
 				t.Fatalf("native %s proven %s want %s", native, proven, want)
+			}
+		})
+	}
+}
+
+// BenchmarkCorrelatedExit types every variable of functions whose early
+// exit tests n locals for null and whose later uses of the first one are
+// guarded by tests of all the others: each use proves n-1 tests.
+func BenchmarkCorrelatedExit(b *testing.B) {
+	for _, n := range []int{4, 8, 16, 64} {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			var sb strings.Builder
+			sb.WriteString("<?php\nclass A { public function m(): int { return 1; } }\n")
+			for f := range 20 {
+				var params, checks, guards []string
+				for i := range n {
+					name := fmt.Sprintf("$v%d", i)
+					params = append(params, "?A "+name)
+					checks = append(checks, name+" === null")
+					if i > 0 {
+						guards = append(guards, name+" === null")
+					}
+				}
+				fmt.Fprintf(&sb, "function f%d(%s) {\n    if (%s) { return; }\n", f, strings.Join(params, ", "), strings.Join(checks, " && "))
+				for range 5 {
+					fmt.Fprintf(&sb, "    if (%s) { $v0->m(); }\n", strings.Join(guards, " && "))
+				}
+				sb.WriteString("}\n")
+			}
+			src := []byte(sb.String())
+			opt := syntax.Options{Version: phpversion.PHP84}
+			b.ReportAllocs()
+			for b.Loop() {
+				f := syntax.Parse("t.php", src, opt)
+				ix := index.New(stubs.Index())
+				ix.Add(index.Extract(f))
+				env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
+				syntax.InspectFile(f, func(n syntax.Node) bool {
+					if v, ok := n.(*syntax.Variable); ok {
+						env.ProvenTypeOf(v)
+					}
+					return true
+				})
 			}
 		})
 	}

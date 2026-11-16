@@ -619,7 +619,12 @@ func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t typ
 }
 
 // maxCorrelatedTests bounds the tests of a conjunction correlated follows:
-// each costs a narrowing of another local.
+// each costs a narrowing of another local, which walks the same guards
+// again, so the work per use grows with the square of the tests
+// (BenchmarkCorrelatedExit: a bound of 64 makes 16 tests cost 8 times the
+// allocations, 64 tests 25 times). Past it the exit narrows nothing, as if
+// it were not there; no such exit of more than 8 tests was found in the
+// benchmark corpora.
 const maxCorrelatedTests = 8
 
 // conjuncts appends to out the operands of c, a chain of `&&` and `and`

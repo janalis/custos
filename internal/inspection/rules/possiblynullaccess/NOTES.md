@@ -77,7 +77,11 @@ the three rules together (`"with"` sidecar key).
   `maxCorrelatedTests` operands all of whose operands but one test one
   local alone, proven true by the guards at the use (each proof narrows
   that local once). Longer exits, or two operands left unproven (a call,
-  a test reading two values), are not followed.
+  a test reading two values), are not followed: past the bound, the value
+  the exit made non-null is reported. The bound stays because the work
+  per use grows with the square of the operands (see the comment on
+  `maxCorrelatedTests` and `BenchmarkCorrelatedExit`), and no such exit
+  of more than 8 operands occurs in the benchmark corpora.
 - Builtin methods declared nullable that only return null in states the
   code rules out are reported, except the short list in
   `neverNullReturns` (`getInnerIterator()` of the SPL wrappers sharing
