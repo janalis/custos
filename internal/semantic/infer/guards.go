@@ -238,6 +238,15 @@ func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types
 	if !e.vivifiable(t) || e.nonEmptyBroken(scope, name, x.Span().End, use) {
 		return t
 	}
+	if t.Has("mixed") {
+		// A property no native type restricts (see vivifiable): only what
+		// the conditions guarding x prove it held then may vivify.
+		before, ok := e.beforeOffsetWrite(use, scope, x, name)
+		if !ok {
+			return t
+		}
+		t = before
+	}
 	nt := t.Without("null")
 	if e.proven {
 		nt = nt.Without("false")
@@ -252,9 +261,49 @@ func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types
 }
 
 // vivifiable reports whether t holds a value a write into one of its
-// offsets turns into an array: null, and false in the proven Env.
+// offsets turns into an array: null, and false in the proven Env. There,
+// mixed (a property without a native type, or declared mixed) may also
+// hold false (see beforeOffsetWrite).
 func (e *Env) vivifiable(t types.Type) bool {
-	return t.Has("null") || e.proven && t.Has("false")
+	return t.Has("null") || e.proven && (t.Has("false") || t.Has("mixed"))
+}
+
+// beforeOffsetWrite types property name, of no known type, right before
+// statement x writes into one of its offsets (offsetWrite), for the proven
+// Env: what the conditions guarding the written property prove it held
+// (any value narrowed, as provenTrueAt does for a local), when that is
+// only values the write turns into an array (null, false) or arrays.
+// Nothing evaluated in x after the property (the key, the value) may change
+// it before the write, nor anything between x and use after it (checked by
+// the caller).
+func (e *Env) beforeOffsetWrite(use syntax.Expr, scope syntax.Node, x syntax.Expr, name string) (types.Type, bool) {
+	var target syntax.Expr
+	eachOffsetWrite(offsetWriteTarget(x), func(_, inner *syntax.ArrayDimFetch, _ bool) bool {
+		if v := syntax.UnwrapParens(inner.Var); narrowKey(v) == name {
+			target = v
+			return false
+		}
+		return true
+	})
+	if e.nonEmptyBroken(scope, name, target.Span().End, use) {
+		return types.Unknown, false
+	}
+	t := e.narrowGuarded(anyValue, target, name, scope, 0)
+	for _, a := range t.Atoms() {
+		if a != "null" && a != "false" && !types.IsArrayAtom(a) {
+			return types.Unknown, false
+		}
+	}
+	return t, len(t.Atoms()) > 0 // none: a path that cannot run
+}
+
+// offsetWriteTarget returns the write target of expression statement x,
+// which offsetWrite accepted.
+func offsetWriteTarget(x syntax.Expr) syntax.Expr {
+	if a, ok := x.(*syntax.Assign); ok {
+		return a.Var
+	}
+	return x.(*syntax.IncDec).Var
 }
 
 // writesOffsetOf reports whether the write target x (an offset, or a

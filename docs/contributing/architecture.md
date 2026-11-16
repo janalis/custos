@@ -295,9 +295,13 @@ A write into an offset of a local or a property that may hold false
 (`$x[] = 1`, `$this->items[] = 1`) makes false an array there, as PHP does
 (deprecated from PHP 8.1), in the proven environment only: the others keep
 false, which the rules reporting an offset access on false or an unhandled
-false result rely on. The argument and return checks, native and
-`Documented*`, therefore leave a value whose proven type is known and
-drops the false its native type keeps (`vivified`).
+false result rely on. A property no native type restricts (PHPDoc only,
+none, or `mixed`) becomes an array there only when the conditions guarding
+the write prove it held null, false or an array; its native type stays
+unknown. The argument and return checks, native and `Documented*`,
+therefore judge by its proven type a value whose proven type is known and
+drops the false its native type keeps, or that its native type does not
+know (`vivified`).
 
 A call may run project code unless it resolves to a builtin function without
 a callable parameter. `extract()`, one-argument `parse_str()`, `$$name`

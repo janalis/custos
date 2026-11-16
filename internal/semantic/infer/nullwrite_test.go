@@ -147,6 +147,43 @@ func TestProvenFalsePropertyOffsetWrite(t *testing.T) {
 	}
 }
 
+// TestProvenUntypedPropertyOffsetWrite covers a write into an offset of a
+// property no native type restricts (PHPDoc only, none, or mixed): the
+// proven Env makes it an array only when the conditions guarding the write
+// prove it held null, false or an array, and nothing may change it from the
+// written property to the read. The native Env does not follow it.
+func TestProvenUntypedPropertyOffsetWrite(t *testing.T) {
+	cases := []struct {
+		name, body, native, proven string
+	}{
+		{"untested", `$this->f[] = 1; t('v', $this->f);`, `?unknown`, `?unknown`},
+		{"tested false", `if ($this->f === false) { $this->f[] = 1; t('v', $this->f); }`, `?unknown`, `array`},
+		{"static", `if (self::$s === false) { self::$s['k'] = 1; t('v', self::$s); }`, `?unknown`, `array`},
+		{"after the if", `if (self::$s === false) { self::$s['k'] = 1; } t('v', self::$s);`, `?unknown`, `?unknown`},
+		{"no PHPDoc", `if ($this->u === null) { $this->u[] = 1; t('v', $this->u); }`, `?unknown`, `array`},
+		{"an array", `if (is_array($this->u)) { $this->u[] = 1; t('v', $this->u); }`, `?unknown`, `array`},
+		{"mixed", `if ($this->mx === false) { $this->mx[] = 1; t('v', $this->mx); }`, `mixed`, `array`},
+		{"null or false", `if ($this->n === null || $this->n === false) { $this->n[] = 1; t('v', $this->n); }`, `?unknown`, `array`},
+		{"destructured", `if ($this->f === false) { [$this->f['a'], $b] = [1, 2]; t('v', $this->f); }`, `?unknown`, `array`},
+		{"incremented", `if ($this->f === false) { $this->f['a']++; t('v', $this->f); }`, `?unknown`, `array`},
+		{"falsy", `if (!$this->f) { $this->f[] = 1; t('v', $this->f); }`, `?unknown`, `?unknown`},
+		{"call in the value", `if ($this->f === false) { $this->f[] = $this->m(true); t('v', $this->f); }`, `?unknown`, `?unknown`},
+		{"call in the key", `if ($this->f === false) { $this->f[$this->m(true)] = 1; t('v', $this->f); }`, `?unknown`, `?unknown`},
+		{"call after", `if ($this->f === false) { $this->f[] = 1; $this->m(true); t('v', $this->f); }`, `?unknown`, `?unknown`},
+		{"another property", `if ($this->f === false) { $this->u[] = 1; t('v', $this->f); }`, `?unknown`, `?unknown`},
+		{"destructured second", `if ($this->f === false) { [$this->u['a'], $this->f['b']] = [1, 2]; t('v', $this->f); }`, `?unknown`, `array`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			src := `<?php class P { /** @var array|false */ private $f = false; /** @var array|false */ private static $s = false; private $u; private mixed $mx = false; /** @var array|null */ private $n; function m(bool $c) { ` + c.body + ` } }`
+			native, proven := provenProbe(t, src)
+			if native != c.native || proven != c.proven {
+				t.Errorf("native %s, proven %s; want %s, %s", native, proven, c.native, c.proven)
+			}
+		})
+	}
+}
+
 // TestForeachTargetWrite covers a foreach loop writing its value (or key)
 // into an element (`foreach ($xs as $a['k'])`): after a loop that runs,
 // the variable is an array, and after one that may not, it may also keep

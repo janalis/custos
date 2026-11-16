@@ -37,7 +37,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   one of them is tested nowhere on the way.
 - The type-check rules follow a write into an offset of false
   (`$x = false; $x[] = 1;`, a write into an `array|false` result, or
-  into an `array|false` property: `$this->items[] = 1`), which PHP turns
+  into an `array|false` property: `$this->items[] = 1`, also one only
+  PHPDoc types, or declared `mixed`, once a test such as
+  `$this->items === false` shows it held false), which PHP turns
   into an array: RedundantTypeCheck, ImpossibleTypeComparison,
   InvalidArgumentType, InvalidReturnType and their documented counterparts
   judge the value as that array afterwards, not as false. OffsetOperations and the
