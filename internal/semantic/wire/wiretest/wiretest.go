@@ -15,8 +15,9 @@ import (
 // levels of pointers, slices and maps; deeper ones stay nil. Interfaces
 // stay nil, as do the fields skip names ("pkg.Type.field"). A pointer
 // field inline names ("pkg.Type.field") stands for fields its parent would
-// otherwise hold itself: while levels remain, it is set without counting as
-// one, so that the fields it points to are set at the parent's level.
+// otherwise hold itself: it is set at every depth, 0 included, without
+// counting as a level, so that the fields it points to are set at the
+// parent's level.
 func Fill(ptr any, depth int, skip map[string]bool, inline ...string) {
 	f := &filler{skip: skip, inline: map[string]bool{}}
 	for _, name := range inline {
@@ -57,10 +58,8 @@ func (f *filler) fill(v reflect.Value, depth int) {
 			// Unexported fields are set through their address.
 			field = reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
 			if f.inline[name] {
-				if depth > 0 {
-					field.Set(reflect.New(field.Type().Elem()))
-					f.fill(field.Elem(), depth)
-				}
+				field.Set(reflect.New(field.Type().Elem()))
+				f.fill(field.Elem(), depth)
 				continue
 			}
 			f.fill(field, depth)
