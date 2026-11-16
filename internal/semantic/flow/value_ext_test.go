@@ -89,6 +89,37 @@ func TestValueExtensionFieldsCovered(t *testing.T) {
 	}
 }
 
+// sameExt tells apart two extensions that differ in any one field, but for
+// a length that is not known.
+func TestSameExtComparesEveryField(t *testing.T) {
+	kind := reflect.TypeFor[valueExt]()
+	for i := range kind.NumField() {
+		field := kind.Field(i)
+		a := valueExt{lengthKnown: true}
+		b := a
+		cell := reflect.NewAt(field.Type, unsafe.Pointer(reflect.ValueOf(&b).Elem().Field(i).UnsafeAddr())).Elem()
+		switch field.Type.Kind() {
+		case reflect.Bool:
+			cell.SetBool(!cell.Bool())
+		case reflect.Int64:
+			cell.SetInt(1)
+		case reflect.Uint8, reflect.Uint32:
+			cell.SetUint(1)
+		case reflect.Pointer:
+			cell.Set(reflect.New(field.Type.Elem()))
+		default:
+			t.Fatalf("valueExt.%s has a kind this test does not set", field.Name)
+		}
+		if sameExt(&a, &b) || sameExt(&b, &a) {
+			t.Errorf("sameExt ignores valueExt.%s", field.Name)
+		}
+	}
+	a, b := valueExt{length: 1}, valueExt{length: 2}
+	if !sameExt(&a, &b) || !sameExt(&a, nil) {
+		t.Error("sameExt compares a length that is not known")
+	}
+}
+
 // A length that is not known is dropped, so an extension holding nothing
 // else goes; a join keeps a length only where both paths know the same one.
 func TestUnknownLengthIsZero(t *testing.T) {
