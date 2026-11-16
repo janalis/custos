@@ -896,8 +896,8 @@ func sharesString(a, b []string) bool {
 type comparisonOwner struct {
 	rule string
 	// value returns the call the rule finds behind the compared operand,
-	// following a local the way the rule does (nil: the operand itself).
-	// Only for a rule checking the comparison (onComparison).
+	// following a local the way the rule does (nil: none). Set exactly for
+	// a rule checking the comparison (onComparison).
 	value func(*analysis.Context, syntax.Expr) syntax.Expr
 	// onComparison tells that the rule checks the comparison rather than
 	// the call.
@@ -950,11 +950,16 @@ func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool
 			continue
 		}
 		v := x
-		if o.value != nil {
-			// Whether the owner checks the comparison is asked first: the
-			// value of a local needs flow data, and when that failed to
-			// build, the owner's check is skipped and the comparison is
-			// this rule's (the engine runs the file again without it).
+		if o.onComparison {
+			if _, ok := cmp.(*syntax.Binary); !ok {
+				continue
+			}
+			// Whether the owner checks the comparison is asked first, and
+			// only once: the value of a local needs flow data, and when
+			// that failed to build, the owner's check is skipped and the
+			// comparison is this rule's (the engine runs the file again
+			// without it). Asked after the value, this check would be
+			// skipped as well, and nobody would report the comparison.
 			if !ctx.RuleChecks(o.rule, cmp) {
 				continue
 			}
@@ -962,7 +967,7 @@ func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool
 				continue
 			}
 		}
-		if ownerShape(o, cmp, v) && ownerCall(ctx, v, key) && ctx.RuleChecks(o.rule, ownerNode(o, cmp, v)) {
+		if ownerShape(o, cmp, v) && ownerCall(ctx, v, key) && (o.onComparison || ctx.RuleChecks(o.rule, v)) {
 			return true
 		}
 	}
@@ -973,11 +978,6 @@ func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool
 // not wrapped in parentheses when o needs a bare operand, and cmp is an
 // equality when o reports only those.
 func ownerShape(o comparisonOwner, cmp, v syntax.Expr) bool {
-	if o.onComparison {
-		if _, ok := cmp.(*syntax.Binary); !ok {
-			return false
-		}
-	}
 	if o.bare && v.Parent() != syntax.Node(cmp) {
 		return false
 	}
@@ -986,15 +986,6 @@ func ownerShape(o comparisonOwner, cmp, v syntax.Expr) bool {
 		return k == syntax.TIsIdentical || k == syntax.TIsEqual
 	}
 	return true
-}
-
-// ownerNode returns the node owner o checks for check cmp of call
-// v.
-func ownerNode(o comparisonOwner, cmp, v syntax.Expr) syntax.Node {
-	if o.onComparison {
-		return cmp
-	}
-	return v
 }
 
 // ownerCall reports whether x calls the builtin comparisonOwners key names:
