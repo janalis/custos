@@ -145,14 +145,13 @@ func TestNoWorkingDirectory(t *testing.T) {
 }
 
 // TestFilterFindings: one file's findings are matched on the buffer's line
-// text, numbered and split as Filter sees them (a lone CR ends a line for
-// positions but not for line text, so such a line keys as "").
+// text, numbered and split as Filter sees them (a lone CR ends a line).
 func TestFilterFindings(t *testing.T) {
 	dir := t.TempDir()
 	bl := filepath.Join(dir, "bl.json")
 	if err := os.WriteFile(bl, []byte(`{"version": 1, "entries": [
 		{"path": "a.php", "rule": "R", "message": "m", "line": "$a;", "count": 1},
-		{"path": "a.php", "rule": "R", "message": "m", "line": "", "count": 1}]}`), 0o644); err != nil {
+		{"path": "a.php", "rule": "R", "message": "m", "line": "$b;", "count": 1}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	b, err := Load(bl)
@@ -288,14 +287,13 @@ func TestRecorder(t *testing.T) {
 			{at("R", "other", 7), false},
 			{at("PossiblyNullAccess", "m", 11), true},
 			{at("UnnecessarySemicolon", "m", 11), false},
-			{at("R", "m", 20), false}, // the line runs to the newline: " $a;\r$b;"
-			{at("R", "m", 25), true},  // after a lone CR: no such line, keyed ""
+			{at("R", "m", 20), true},  // the line ends at the lone CR: " $a;"
+			{at("R", "m", 25), false}, // after a lone CR: "$b;", no entry
 		}},
-		// CR-only line endings: the first line holds the whole file, the
-		// others key as "".
+		// CR-only line endings: each line keys by its own text.
 		{"src/cr.php", "<?php\r$a;\r$b;", []check{
-			{at("R", "m", 0), false}, // the line is "<?php\r$a;\r$b;"
-			{at("R", "m", 6), false}, // no entry of cr.php keys ""
+			{at("R", "m", 0), true},  // "<?php"
+			{at("R", "m", 6), false}, // "$a;": no entry of cr.php
 		}},
 	} {
 		rec := b.Recorder(c.path, []byte(c.src))
@@ -349,6 +347,70 @@ func BenchmarkRecorder(b *testing.B) {
 		rec := bl.Recorder("a.php", src)
 		for i := range uint32(lines) {
 			rec(diagnostic.Finding{Rule: "R", Message: "m", Span: syntax.Span{Start: 6 + 4*i, End: 9 + 4*i}}, nil)
+		}
+	}
+}
+
+// TestLoneCRLines: a file whose lines end with a lone CR keys each line by
+// its own text, as with LF or CRLF endings, in Write, Filter,
+// FilterFindings and Recorder alike: an entry survives an edit of
+// another line.
+func TestLoneCRLines(t *testing.T) {
+	dir := t.TempDir()
+	php := filepath.Join(dir, "cr.php")
+	if err := os.WriteFile(php, []byte("<?php\r$a;\r\n $b;\r$c;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	items := []diagnostic.Item{
+		{Path: php, Line: 2, Rule: "R", Message: "m"},
+		{Path: php, Line: 3, Rule: "R", Message: "m"},
+		{Path: php, Line: 4, Rule: "R", Message: "m"},
+	}
+	bl := filepath.Join(dir, "bl.json")
+	if _, err := Write(bl, items); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(bl)
+	var f File
+	if err := json.Unmarshal(data, &f); err != nil {
+		t.Fatal(err)
+	}
+	var lines []string
+	for _, e := range f.Entries {
+		lines = append(lines, e.Line)
+	}
+	if strings.Join(lines, "|") != "$a;|$b;|$c;" {
+		t.Fatalf("entries keyed %q", lines)
+	}
+	b, err := Load(bl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A line added before them: the three entries still cover their lines.
+	edited := []byte("<?php\r$x = 1;\r$a;\r\n $b;\r$c;\n")
+	if err := os.WriteFile(php, edited, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	moved := []diagnostic.Item{
+		{Path: php, Line: 3, Rule: "R", Message: "m"},
+		{Path: php, Line: 4, Rule: "R", Message: "m"},
+		{Path: php, Line: 5, Rule: "R", Message: "m"},
+		{Path: php, Line: 2, Rule: "R", Message: "m"},
+	}
+	if rest, n := b.Filter(moved); n != 3 || len(rest) != 1 || rest[0].Line != 2 {
+		t.Fatalf("Filter: suppressed %d, rest %+v", n, rest)
+	}
+	at := func(off uint32) diagnostic.Finding {
+		return diagnostic.Finding{Rule: "R", Message: "m", Span: syntax.Span{Start: off, End: off + 1}}
+	}
+	fs := []diagnostic.Finding{at(14), at(20), at(24), at(6)}
+	if rest := b.FilterFindings(php, edited, fs); len(rest) != 1 || rest[0].Span.Start != 6 {
+		t.Fatalf("FilterFindings: %+v", rest)
+	}
+	rec := b.Recorder(php, edited)
+	for i, want := range []bool{true, true, true, false} {
+		if got := rec(fs[i], nil); got != want {
+			t.Errorf("Recorder(%d) = %v, want %v", fs[i].Span.Start, got, want)
 		}
 	}
 }

@@ -7,7 +7,6 @@
 package baseline
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -166,7 +165,7 @@ func lineText(cache map[string][]string, path string, line int) string {
 	if !ok {
 		// bounded like the analysis read (the path may name a device)
 		b, _ := safeio.ReadPrefix(path, syntax.MaxFileSize+1)
-		lines = strings.Split(string(bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))), "\n")
+		lines = splitLines(b)
 		cache[path] = lines
 	}
 	if line >= 1 && line <= len(lines) {
@@ -232,18 +231,22 @@ func (b *Baseline) Recorder(path string, src []byte) func(f diagnostic.Finding, 
 	}
 }
 
+// splitLines splits src into lines as syntax.LineIndex numbers them: a
+// line ends with LF, CRLF or a lone CR.
+func splitLines(src []byte) []string {
+	s := strings.ReplaceAll(string(src), "\r\n", "\n")
+	return strings.Split(strings.ReplaceAll(s, "\r", "\n"), "\n")
+}
+
 // lineTexts indexes the lines of src once and returns the trimmed text of
-// the line holding an offset: numbered by syntax.LineIndex (a lone CR ends
-// a line) and split on newlines as Filter reads files (so a line after a
-// lone CR keys as the text of the newline-split line of that number).
+// the line holding an offset, numbered and split as Filter reads files.
 func lineTexts(src []byte) func(uint32) string {
 	li := syntax.NewLineIndex(src)
-	lines := strings.Split(string(bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n"))), "\n")
+	lines := splitLines(src)
+	// Both end a line at the same bytes: every line number has its text.
 	return func(offset uint32) string {
-		if l, _ := li.Position(offset); l < len(lines) {
-			return strings.TrimSpace(lines[l])
-		}
-		return ""
+		l, _ := li.Position(offset)
+		return strings.TrimSpace(lines[l])
 	}
 }
 

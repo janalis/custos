@@ -21,6 +21,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   `getAttribute()` call on a receiver that is never null. A copy of such a
   result (`$copy = $id; $copy === null`) is reported once, by the owning
   rule, instead of twice.
+- A baseline keys each line of a file with lone CR (classic Mac OS) line
+  endings by its own text, as for LF and CRLF files. Lines after the first
+  lone CR used to key as an empty line, so an entry covered any finding of
+  the same rule and message below it. Regenerate the baseline
+  (`--generate-baseline`) of a project holding such files, or their
+  recorded findings are reported again.
 
 ## [0.1.13] - 2026-11-13
 
