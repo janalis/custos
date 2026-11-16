@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -29,32 +30,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		c, ok := semanticquery.NativeValue(ctx, pair[0]).(*syntax.MethodCall)
-		if ok && !shortCircuits(c) && semanticquery.NativeMethod(ctx, c, "DOMElement", "getAttribute") {
+		if ok && !astquery.NullsafeShortCircuits(c) && semanticquery.NativeMethod(ctx, c, "DOMElement", "getAttribute") {
 			ctx.ReportNode(b, message)
 			return
-		}
-	}
-}
-
-// shortCircuits reports whether a nullsafe step in the member chain of e can
-// make the whole chain evaluate to null without calling its last member.
-func shortCircuits(e syntax.Expr) bool {
-	for {
-		switch x := e.(type) {
-		case *syntax.MethodCall:
-			if x.NullSafe {
-				return true
-			}
-			e = x.Var
-		case *syntax.PropertyFetch:
-			if x.NullSafe {
-				return true
-			}
-			e = x.Var
-		case *syntax.ArrayDimFetch:
-			e = x.Var
-		default:
-			return false
 		}
 	}
 }

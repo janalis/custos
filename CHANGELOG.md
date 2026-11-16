@@ -13,6 +13,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   property's offset (`$this->items['k'] = 1`) now drop it as a plain write
   into a local's offset already did. An object implementing ArrayAccess
   keeps its type.
+- ImpossibleTypeComparison and RedundantTypeCheck report a comparison of a
+  local with null or false that they used to leave to
+  DomMissingAttributeCheckedAsNull or XmlParseZeroComparedWithFalse when
+  the local held a `getAttribute()` or `xml_parse()` result only earlier or
+  later in the function, which neither rule reported, and a null-safe
+  `getAttribute()` call on a receiver that is never null. A copy of such a
+  result (`$copy = $id; $copy === null`) is reported once, by the owning
+  rule, instead of twice.
 
 ## [0.1.13] - 2026-11-13
 

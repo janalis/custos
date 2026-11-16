@@ -43,7 +43,15 @@ sidecar key). Two classes are disjoint when either direction is No.
 
 `comparisonOwners` lists the builtin results other rules report against a
 constant; `ownedComparison` defers only when that rule's check of the
-comparison or of the call runs (`analysis.Context.RuleChecks`). Checks
+comparison or of the call runs (`analysis.Context.RuleChecks`), and only
+for the call that rule finds behind the operand: an owner following
+locals names its own resolver (`value`: `NativeLocalValue` for xml_parse,
+`NativeValue` without a null-safe cut for getAttribute), so a local that
+held such a result earlier, or gets one later, is judged here, and a copy
+of one the owner follows is left to it. Resolving a local needs flow
+data, so the owners are asked only in a file that spells the call's name
+(`astquery.Mentions`): elsewhere a failed flow build cannot skip a type
+check. Checks
 NotOptimalIfConditions reports come from `semanticquery.InstanceofFlaws`,
 which that rule reports from too, and are left to it only when its
 `REPORT_INSTANCE_OF_FLAWS` option is on (`analysis.Context.RuleBool`). The
