@@ -35,16 +35,19 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	if strings.HasPrefix(name, callKeyPrefix) {
 		cands = callStmt(cands, stmts, from, end, name)
 	}
-	lastWrite := -1 // the last write into the property's offsets
-	if isPropKey(name) && !isDimKey(name) {
-		lastWrite = lastOffsetWrite(stmts, cands, name, after)
-	}
+	// The last write into the property's offsets, looked up once t may
+	// hold what such a write changes (see afterPropertyElemWrite): the
+	// type of most properties never does.
+	lastWrite, writeKnown := -1, !isPropKey(name) || isDimKey(name)
 	for _, i := range cands {
 		s := stmts[i]
 		if s.Span().End <= after {
 			continue // before the definition reaching use: about another value
 		}
 		if es, ok := s.(*syntax.ExprStmt); ok {
+			if !writeKnown && e.vivifiable(t) {
+				lastWrite, writeKnown = lastOffsetWrite(stmts, cands, name), true
+			}
 			if i == lastWrite {
 				t = e.afterPropertyElemWrite(use, scope, t, es.Expr, name)
 			}
@@ -198,18 +201,14 @@ func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Typ
 }
 
 // lastOffsetWrite returns the position of the last statement among cands
-// (ascending positions in stmts) ending after after that writes into an
-// offset of property name (see offsetWrite), -1 when none. Only that one
-// matters to guards: whatever may change the property between an earlier
-// write and use also follows it, and a read checks it once instead of
-// once per write.
-func lastOffsetWrite(stmts []syntax.Stmt, cands []int, name string, after uint32) int {
+// (ascending positions in stmts) that writes into an offset of property
+// name (see offsetWrite), -1 when none. Only that one matters to guards:
+// whatever may change the property between an earlier write and use also
+// follows it, and a read checks it once instead of once per write (none
+// when it lies before the definition guards start from).
+func lastOffsetWrite(stmts []syntax.Stmt, cands []int, name string) int {
 	for j := len(cands) - 1; j >= 0; j-- {
-		s := stmts[cands[j]]
-		if s.Span().End <= after {
-			break
-		}
-		if es, ok := s.(*syntax.ExprStmt); ok && offsetWrite(es.Expr, name) {
+		if es, ok := stmts[cands[j]].(*syntax.ExprStmt); ok && offsetWrite(es.Expr, name) {
 			return cands[j]
 		}
 	}
@@ -236,8 +235,7 @@ func offsetWrite(x syntax.Expr, name string) bool {
 // from PHP 8.1), in the proven Env only, as for a local (see
 // withElemWritesAt).
 func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types.Type, x syntax.Expr, name string) types.Type {
-	vivified := t.Has("null") || e.proven && t.Has("false")
-	if !vivified || e.nonEmptyBroken(scope, name, x.Span().End, use) {
+	if !e.vivifiable(t) || e.nonEmptyBroken(scope, name, x.Span().End, use) {
 		return t
 	}
 	nt := t.Without("null")
@@ -251,6 +249,12 @@ func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types
 		return types.Union(nt, types.Of("array"))
 	}
 	return nt
+}
+
+// vivifiable reports whether t holds a value a write into one of its
+// offsets turns into an array: null, and false in the proven Env.
+func (e *Env) vivifiable(t types.Type) bool {
+	return t.Has("null") || e.proven && t.Has("false")
 }
 
 // writesOffsetOf reports whether the write target x (an offset, or a

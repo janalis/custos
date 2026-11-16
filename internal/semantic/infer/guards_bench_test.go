@@ -16,15 +16,18 @@ import (
 // BenchmarkPropertyReadGuards types every property read of methods whose
 // statements mention a nullable property between reads: plain statements,
 // writes into its offsets (assignments, increments, destructuring) and
-// calls, the expression statements guards examines for each read.
+// calls, the expression statements guards examines for each read; and the
+// same writes into a property that cannot be null.
 func BenchmarkPropertyReadGuards(b *testing.B) {
 	for _, scenario := range []struct{ name, stmt string }{
 		{"plain", `$this->log($this->p, %[1]d);`},
 		{"elemWrites", `$this->p['k%[1]d'] = %[1]d; $this->p['n']++; [$this->p['a'], $x] = [1, 2]; $this->log($this->p);`},
+		// A property that cannot be null: no write into its offsets matters.
+		{"nonNullable", `$this->q['k%[1]d'] = %[1]d; $this->q['n']++; $this->log($this->q);`},
 	} {
 		b.Run(scenario.name, func(b *testing.B) {
 			var src strings.Builder
-			src.WriteString("<?php class G {\n    private ?array $p = null;\n    private function log($v): void {}\n")
+			src.WriteString("<?php class G {\n    private ?array $p = null;\n    private array $q = [];\n    private function log($v): void {}\n")
 			for m := range 20 {
 				fmt.Fprintf(&src, "    function m%d(): void {\n", m)
 				for i := range 30 {
