@@ -22,8 +22,6 @@ type File struct {
 
 	memoMu sync.Mutex
 	memo   map[any]any
-	// arena owns the node slabs and the token stream (see Release).
-	arena *arena
 }
 
 // Span is a byte range [Start, End) in the source.

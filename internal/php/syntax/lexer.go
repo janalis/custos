@@ -114,20 +114,11 @@ type lexer struct {
 
 // Lex tokenizes src. The returned tokens cover src contiguously.
 func Lex(src []byte, opt LexOptions) ([]Token, []LexError) {
-	return lexInto(nil, src, opt)
-}
-
-// lexInto is Lex appending to buf, whose contents it overwrites; it
-// allocates a new buffer when buf is too small for a typical token density.
-func lexInto(buf []Token, src []byte, opt LexOptions) ([]Token, []LexError) {
 	if opt.Version == 0 {
 		opt.Version = phpversion.Default
 	}
 	l := &lexer{src: src, ver: opt.Version, short: opt.ShortOpenTag, states: []lexState{stInitial}, halt: -1}
-	if n := len(src)/4 + 16; cap(buf) < n {
-		buf = make([]Token, 0, n)
-	}
-	l.toks = buf[:0]
+	l.toks = make([]Token, 0, len(src)/4+16)
 	return l.run()
 }
 

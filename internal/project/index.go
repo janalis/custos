@@ -270,11 +270,7 @@ func indexCached(path string, opt syntax.Options, options infer.Options, cache *
 // (infer.AnnotateReturns). Before adding the result to a project index,
 // call DropStaleInferred on it once the project symbols are known.
 func ExtractSymbols(path string, src []byte, opt syntax.Options, options infer.Options) *index.FileSymbols {
-	tree := syntax.ParseBest(path, src, opt)
-	fs := extractTree(tree, opt, options)
-	// The symbols hold no node or token: the next parse reuses the tree's memory.
-	tree.Release()
-	return fs
+	return extractTree(syntax.ParseBest(path, src, opt), opt, options)
 }
 
 // extractTree is ExtractSymbols for a file already parsed; tests replace it

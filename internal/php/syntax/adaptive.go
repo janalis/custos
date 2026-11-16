@@ -15,13 +15,9 @@ func ParseBest(path string, src []byte, opt Options) *File {
 	}
 	alt := opt
 	alt.Version, alt.Permissive = phpversion.Max, true
-	// The losing tree is discarded: its tokens go to the next parse.
-	g := Parse(path, src, alt)
-	if len(g.Errors) < len(f.Errors) {
-		f.Release()
+	if g := Parse(path, src, alt); len(g.Errors) < len(f.Errors) {
 		g.Version = opt.Version
 		return g
 	}
-	g.Release()
 	return f
 }
