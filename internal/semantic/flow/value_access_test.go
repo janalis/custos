@@ -13,7 +13,7 @@ func TestExpressionStoreNarrowBlockBoundaries(t *testing.T) {
 		if width == 0 {
 			width = valueBlockLimit
 		}
-		if len(store.blocks) != 0 {
+		if len(store.leans) != 0 {
 			t.Fatal("hint eagerly allocated payloads")
 		}
 		exprs := make([]syntax.Expr, 97)
@@ -22,7 +22,7 @@ func TestExpressionStoreNarrowBlockBoundaries(t *testing.T) {
 				exprs[i] = &syntax.Literal{LitKind: syntax.LitInt}
 			}
 			store.set(exprs[i], Value{Complete: true, Identity: uint32(i + 1)})
-			if len(store.blocks) != (i+width)/width {
+			if len(store.leans) != (i+width)/width {
 				t.Fatalf("capacity%d entry%d: excess blocks", capacity, i)
 			}
 		}
@@ -32,22 +32,22 @@ func TestExpressionStoreNarrowBlockBoundaries(t *testing.T) {
 				t.Fatalf("capacity%d entry%d lost", capacity, i)
 			}
 		}
-		for _, block := range store.blocks {
+		for _, block := range store.leans {
 			if len(block) != width {
 				t.Fatalf("capacity%d changed payload width", capacity)
 			}
 		}
 		retained := store.at(exprs[width])
-		blocks := len(store.blocks)
+		blocks := len(store.leans)
 		for _, i := range []int{0, width - 1, width, 48, 96} {
 			store.set(exprs[i], Value{Complete: true, Identity: 1000})
 		}
-		if len(store.blocks) != blocks || retained.Identity != uint32(width+1) {
+		if len(store.leans) != blocks || retained.Identity != uint32(width+1) {
 			t.Fatal("update allocated or changed a returned copy")
 		}
 		extra := &syntax.Literal{LitKind: syntax.LitInt}
 		store.set(extra, Value{Complete: true, Identity: 2000})
-		if store.at(extra).Identity != 2000 || store.at(exprs[96]).Identity != 1000 || len(store.blocks) != (98+width-1)/width {
+		if store.at(extra).Identity != 2000 || store.at(exprs[96]).Identity != 1000 || len(store.leans) != (98+width-1)/width {
 			t.Fatal("updates moved the insertion cursor")
 		}
 	}
