@@ -46,6 +46,25 @@ class Cart
     }
 
     public function clear(): void { $this->lines = null; }
+
+    // Increments, decrements and destructuring into an offset too.
+    public function bump(string $sku): int
+    {
+        $this->lines[$sku]++;
+        return total($this->lines);
+    }
+
+    public function drop(string $sku): int
+    {
+        self::$shared[$sku]--;
+        return total(self::$shared);
+    }
+
+    public function splitInto(string $path): int
+    {
+        [$this->lines['head'], $this->lines['tail']] = explode('/', $path, 2);
+        return total($this->lines);
+    }
 }
 
 function split(?array $parts): int

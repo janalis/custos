@@ -194,27 +194,25 @@ func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Typ
 }
 
 // afterPropertyElemWrite types property name past statement x when it
-// writes into one of the property's offsets (`$this->p['k'] = 1;`): PHP
-// makes null an array there, so a nullable property is no longer null,
-// unless something may change it between x and use. false stays, as for a
-// local (see withElemWritesAt).
+// writes into one of the property's offsets (`$this->p['k'] = 1;`,
+// `[$this->p['a']] = $v;`, `$this->p['k']++;`): PHP makes null an array
+// there, so a nullable property is no longer null, unless something may
+// change it between x and use. false stays, as for a local (see
+// withElemWritesAt).
 func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types.Type, x syntax.Expr, name string) types.Type {
-	a, ok := x.(*syntax.Assign)
-	if !ok || !t.Has("null") {
+	if !t.Has("null") {
 		return t
 	}
-	d, ok := a.Var.(*syntax.ArrayDimFetch)
-	if !ok {
+	var target syntax.Expr
+	switch x := x.(type) {
+	case *syntax.Assign:
+		target = x.Var
+	case *syntax.IncDec:
+		target = x.Var
+	default:
 		return t
 	}
-	for {
-		inner, ok := d.Var.(*syntax.ArrayDimFetch)
-		if !ok {
-			break
-		}
-		d = inner
-	}
-	if narrowKey(d.Var) != name || e.nonEmptyBroken(scope, name, a.Span().End, use) {
+	if !writesOffsetOf(target, name) || e.nonEmptyBroken(scope, name, x.Span().End, use) {
 		return t
 	}
 	nt := t.Without("null")
@@ -225,6 +223,33 @@ func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types
 		return types.Union(nt, types.Of("array"))
 	}
 	return nt
+}
+
+// writesOffsetOf reports whether the write target x (an offset, or a
+// destructuring list of targets) writes into an offset of name.
+func writesOffsetOf(x syntax.Expr, name string) bool {
+	var items []*syntax.ArrayItem
+	switch x := x.(type) {
+	case *syntax.ArrayDimFetch:
+		for {
+			inner, ok := x.Var.(*syntax.ArrayDimFetch)
+			if !ok {
+				break
+			}
+			x = inner
+		}
+		return narrowKey(x.Var) == name
+	case *syntax.List:
+		items = x.Items
+	case *syntax.Array:
+		items = x.Items
+	}
+	for _, it := range items {
+		if it != nil && it.Value != nil && writesOffsetOf(it.Value, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // isArrayAtom reports an array type atom (`array`, `int[]`).

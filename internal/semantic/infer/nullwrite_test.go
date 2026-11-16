@@ -62,3 +62,32 @@ function h(?array $a) { foreach ([1] as $a['k']) {} t('foreach', $a); }
 		"foreach": "array|null",
 	})
 }
+
+// TestPropertyElementWriteForms covers the property forms of the other
+// element writes: increments and decrements into an offset, destructuring
+// into offsets (also nested and keyed), on instance and static properties.
+func TestPropertyElementWriteForms(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Q {
+    private ?array $h = null;
+    public static ?array $s = null;
+    function m1(string $k) { $this->h[$k]++; t('inc', $this->h); }
+    function m2(string $k) { $this->h[$k]--; t('dec', $this->h); }
+    function m3() { ++$this->h['a']['b']; t('preIncNested', $this->h); }
+    function m4() { self::$s['k']++; t('staticInc', self::$s); }
+    function m5() { [$this->h['a'], $this->h['b']] = [1, 2]; t('destructured', $this->h); }
+    function m6() { ['x' => $this->h['a']] = ['x' => 1]; t('keyed', $this->h); }
+    function m7() { [[$this->h['a']]] = [[1]]; t('nestedList', $this->h); }
+    function m8() { list($a, self::$s['k']) = [1, 2]; t('staticList', self::$s); }
+    function m9() { [$a, $b] = [1, 2]; t('otherList', $this->h); }
+    function m10(bool $c) { if ($c) { $this->h['k']++; } t('incBranch', $this->h); }
+    function m11() { $this->h['k']++; $this->reset(); t('incCall', $this->h); }
+    function m12() { $this->h++; t('incWhole', $this->h); }
+    function reset() {}
+}
+`, map[string]string{
+		"inc": "array", "dec": "array", "preIncNested": "array", "staticInc": "array",
+		"destructured": "array", "keyed": "array", "nestedList": "array", "staticList": "array",
+		"otherList": "array|null", "incBranch": "array|null", "incCall": "array|null", "incWhole": "array|null",
+	})
+}
