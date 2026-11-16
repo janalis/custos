@@ -52,3 +52,14 @@ function bill($amount)
 {
     charge(<warning descr="Pass int to $cents of Shop\charge(), not string.">$amount</warning>);
 }
+
+// A write into false makes it an array (deprecated from PHP 8.1): the
+// array is still rejected.
+/** @param int $count */
+function countTo($count) {}
+function vivifiedArg(): void
+{
+    $list = false;
+    $list[] = 1;
+    countTo(<warning descr="Pass int to $count of Shop\countTo(), not int[].">$list</warning>);
+}

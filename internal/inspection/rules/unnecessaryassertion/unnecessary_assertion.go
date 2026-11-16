@@ -423,7 +423,7 @@ func uaFirstClassCallable(list *syntax.ArgList) bool {
 func uaInternalTypeMatches(name, atom string) bool {
 	atom = strings.ToLower(atom)
 	isClass := strings.HasPrefix(atom, `\`)
-	isArray := atom == "array" || strings.HasSuffix(atom, "[]")
+	isArray := types.IsArrayAtom(atom)
 	switch strings.ToLower(name) {
 	case "array":
 		return isArray

@@ -58,3 +58,35 @@ function siblings(Ticket $t, $cls): void
         echo 2;
     }
 }
+
+// Only the value reaching the check counts: a getAttribute() result the
+// local no longer holds, or one assigned later, leaves the check here.
+function reassigned(DOMElement $el, DOMElement $other): void
+{
+    $id = $el->getAttribute('id');
+    $id = 'none';
+    if (<warning descr="This check is always false: the value is string.">$id === null</warning>) {
+        echo 1;
+    }
+    $name = strtolower('A');
+    if (<warning descr="This check is always false: the value is string.">null === $name</warning>) {
+        echo 2;
+    }
+    $name = $other->getAttribute('name');
+    if (<warning descr="Use hasAttribute to test whether an attribute exists.">$name === null</warning>) {
+        echo 3;
+    }
+    // The owner follows a copy too: reported once.
+    $copy = $name;
+    if (<warning descr="Use hasAttribute to test whether an attribute exists.">$copy === null</warning>) {
+        echo 4;
+    }
+}
+
+// A null-safe call the owner skips, on a receiver that is never null.
+function nullsafe(DOMElement $el): void
+{
+    if (<warning descr="This check is always false: the value is string.">$el?->getAttribute('id') === null</warning>) {
+        echo 1;
+    }
+}

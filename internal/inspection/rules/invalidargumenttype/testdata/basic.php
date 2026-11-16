@@ -54,3 +54,12 @@ class Ticket
         return fn () => charge(<error descr="Pass int to $cents of Shop\charge(), not string.">$this instanceof Ticket ? 'a' : 'b'</error>);
     }
 }
+
+// A write into false makes it an array (deprecated from PHP 8.1): the
+// array is still rejected.
+function vivifiedArg(): void
+{
+    $list = false;
+    $list[] = 1;
+    charge(<error descr="Pass int to $cents of Shop\charge(), not int[].">$list</error>);
+}

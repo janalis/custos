@@ -179,3 +179,38 @@ function offset(): string
     $s[0] = 'x';
     return $s;
 }
+
+// A write into false makes it an array (deprecated from PHP 8.1).
+function vivified(): array
+{
+    $list = false;
+    $list[] = 1;
+    return $list;
+}
+
+// So does a write into an offset of a property holding false.
+class LazyList
+{
+    private array|false $items = false;
+    private static array|false $shared = false;
+
+    /** @return array */
+    public function items()
+    {
+        if ($this->items === false) {
+            $this->items[] = 1;
+            return $this->items;
+        }
+        return [];
+    }
+
+    /** @return array */
+    public static function shared()
+    {
+        if (self::$shared === false) {
+            self::$shared[] = 1;
+            return self::$shared;
+        }
+        return [];
+    }
+}

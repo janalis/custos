@@ -140,3 +140,26 @@ function defaults(Defaults $d)
     $d->qualified(null);
     $d->upper(null);
 }
+
+// A write into false makes it an array (deprecated from PHP 8.1).
+function takesList(array $list): void {}
+function vivified(): void
+{
+    $list = false;
+    $list[] = 1;
+    takesList($list);
+}
+
+// So does a write into an offset of a property holding false.
+class LazyList
+{
+    private static array|false $items = false;
+
+    public static function fill(): void
+    {
+        if (self::$items === false) {
+            self::$items[] = 1;
+            takesList(self::$items);
+        }
+    }
+}

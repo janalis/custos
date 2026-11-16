@@ -409,7 +409,7 @@ func acceptIterable(expected, actual Type, a string, ctx AcceptContext) Verdict 
 	switch {
 	case a == "iterable":
 		return Yes
-	case a == "array" || strings.HasSuffix(a, "[]"):
+	case IsArrayAtom(a):
 		args := expected.TypeArgs("iterable")
 		if len(args) == 0 {
 			return Yes

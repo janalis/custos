@@ -54,7 +54,7 @@ func (c *Context) Flow() *flow.Env {
 		// The buffer's declarations shadow the indexed copy of its path.
 		// Local contracts and their dependencies are computed only when queried.
 		c.build("flow analysis", func() {
-			c.flow = flow.NewLocal(c.File, c.Types(), snapshot, c.engine.cfg.Flow, func(build func()) { c.build("flow analysis", build) })
+			c.flow = newLocalFlow(c.File, c.Types(), snapshot, c.engine.cfg.Flow, func(build func()) { c.build("flow analysis", build) })
 		})
 	}
 	return c.flow
@@ -123,6 +123,9 @@ func (e *Engine) projectIndex() *index.Index {
 
 // newResolver is names.New; tests replace it to simulate a crash.
 var newResolver = names.New
+
+// newLocalFlow is flow.NewLocal; tests replace it to simulate a crash.
+var newLocalFlow = flow.NewLocal
 
 // Names returns the file's name resolver (built on first use).
 func (c *Context) Names() *names.Resolver {

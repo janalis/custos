@@ -35,12 +35,22 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	if strings.HasPrefix(name, callKeyPrefix) {
 		cands = callStmt(cands, stmts, from, end, name)
 	}
+	// The last write into the property's offsets, looked up once t may
+	// hold what such a write changes (see afterPropertyElemWrite): the
+	// type of most properties never does.
+	lastWrite, writeKnown := -1, !isPropKey(name) || isDimKey(name)
 	for _, i := range cands {
 		s := stmts[i]
 		if s.Span().End <= after {
 			continue // before the definition reaching use: about another value
 		}
 		if es, ok := s.(*syntax.ExprStmt); ok {
+			if !writeKnown && e.vivifiable(t) {
+				lastWrite, writeKnown = lastOffsetWrite(stmts, cands, name), true
+			}
+			if i == lastWrite {
+				t = e.afterPropertyElemWrite(use, scope, t, es.Expr, name)
+			}
 			// `Assert::string($x);` (@phpstan-assert on the callee).
 			if ca := e.assertsOf(es.Expr); ca != nil {
 				t, _ = e.applyAsserts(ca, index.AssertAlways, name, t, false)
@@ -190,6 +200,71 @@ func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Typ
 	return t
 }
 
+// lastOffsetWrite returns the position of the last statement among cands
+// (ascending positions in stmts) that writes into an offset of property
+// name (see offsetWrite), -1 when none. Only that one matters to guards:
+// whatever may change the property between an earlier write and use also
+// follows it, and a read checks it once instead of once per write (none
+// when it lies before the definition guards start from).
+func lastOffsetWrite(stmts []syntax.Stmt, cands []int, name string) int {
+	for j := len(cands) - 1; j >= 0; j-- {
+		if es, ok := stmts[cands[j]].(*syntax.ExprStmt); ok && offsetWrite(es.Expr, name) {
+			return cands[j]
+		}
+	}
+	return -1
+}
+
+// offsetWrite reports whether expression statement x writes into one of
+// the offsets of name: `$this->p['k'] = 1;`, `[$this->p['a']] = $v;`,
+// `$this->p['k']++;`.
+func offsetWrite(x syntax.Expr, name string) bool {
+	switch x := x.(type) {
+	case *syntax.Assign:
+		return writesOffsetOf(x.Var, name)
+	case *syntax.IncDec:
+		return writesOffsetOf(x.Var, name)
+	}
+	return false
+}
+
+// afterPropertyElemWrite types property name past statement x, which
+// writes into one of the property's offsets (offsetWrite): PHP makes null
+// an array there, so a nullable property is no longer null, unless
+// something may change it between x and use. So does false (deprecated
+// from PHP 8.1), in the proven Env only, as for a local (see
+// withElemWritesAt).
+func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types.Type, x syntax.Expr, name string) types.Type {
+	if !e.vivifiable(t) || e.nonEmptyBroken(scope, name, x.Span().End, use) {
+		return t
+	}
+	nt := t.Without("null")
+	if e.proven {
+		nt = nt.Without("false")
+	}
+	switch {
+	case len(nt.Atoms()) == 0:
+		return types.Of("array")
+	case !slices.ContainsFunc(nt.Atoms(), types.IsArrayAtom):
+		return types.Union(nt, types.Of("array"))
+	}
+	return nt
+}
+
+// vivifiable reports whether t holds a value a write into one of its
+// offsets turns into an array: null, and false in the proven Env.
+func (e *Env) vivifiable(t types.Type) bool {
+	return t.Has("null") || e.proven && t.Has("false")
+}
+
+// writesOffsetOf reports whether the write target x (an offset, or a
+// destructuring list of targets) writes into an offset of name.
+func writesOffsetOf(x syntax.Expr, name string) bool {
+	return !eachOffsetWrite(x, func(_, inner *syntax.ArrayDimFetch, _ bool) bool {
+		return narrowKey(syntax.UnwrapParens(inner.Var)) != name
+	})
+}
+
 // coalescedNonNull reports whether x is `a ?? b` with b known never to be
 // null, so x is not null whatever a holds.
 func (e *Env) coalescedNonNull(x syntax.Expr) bool {
@@ -309,25 +384,20 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 		case *syntax.ExprStmt:
 			collect(st.Expr)
 			if a, ok := st.Expr.(*syntax.Assign); ok {
-				// The writes assigns matches, and under baseKey those of
-				// the array or one of its elements.
-				if k := narrowKey(a.Var); k != "" {
-					gi.resets[k] = append(gi.resets[k], i)
-				}
-				x := a.Var
-				for {
-					d, ok := x.(*syntax.ArrayDimFetch)
-					if !ok {
-						break
+				// The writes each target matches (all those of a
+				// destructuring), and under baseKey those of the array or
+				// one of its elements.
+				eachWriteTarget(a.Var, func(x syntax.Expr) bool {
+					gi.addReset(narrowKey(x), i)
+					if d, ok := x.(*syntax.ArrayDimFetch); ok {
+						inner, _ := innermostDim(d)
+						x = syntax.UnwrapParens(inner.Var)
 					}
-					x = d.Var
-				}
-				if k := narrowKey(x); k != "" {
-					bk := baseKey(k)
-					if l := gi.resets[bk]; len(l) == 0 || l[len(l)-1] != i {
-						gi.resets[bk] = append(gi.resets[bk], i)
+					if k := narrowKey(x); k != "" {
+						gi.addReset(baseKey(k), i)
 					}
-				}
+					return true
+				})
 			}
 		case *syntax.While, *syntax.DoWhile, *syntax.For:
 			if c := loopCond(st); c != nil {
@@ -362,6 +432,13 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 	}
 	e.guardIdx[owner] = gi
 	return gi
+}
+
+// addReset records statement i as assigning key k (none when "").
+func (gi *guardIndex) addReset(k string, i int) {
+	if l := gi.resets[k]; k != "" && (len(l) == 0 || l[len(l)-1] != i) {
+		gi.resets[k] = append(l, i)
+	}
 }
 
 // candidates returns the positions in [from, end) of the statements that
@@ -409,6 +486,21 @@ func (gi *guardIndex) candidates(name string, from, end int) ([]int, bool) {
 	slices.Sort(out)
 	out = slices.Compact(out)
 	return out, len(out) <= maxGuardScan
+}
+
+// anyCandidate reports whether f holds for one of the positions in
+// [from, end) of the statements that may concern local name (those
+// candidates lists, in no particular order and without building the
+// list).
+func (gi *guardIndex) anyCandidate(name string, from, end int, f func(int) bool) bool {
+	for _, l := range [2][]int{gi.keys[name], gi.keys[aliasGuardKey]} {
+		lo, _ := slices.BinarySearch(l, from)
+		hi, _ := slices.BinarySearch(l, end)
+		if slices.ContainsFunc(l[lo:hi], f) {
+			return true
+		}
+	}
+	return false
 }
 
 // callStmt adds to cands (ascending) the statement among stmts[from:end]

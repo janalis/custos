@@ -13,6 +13,22 @@ function owners(array $roles, string $who, $parser, string $data, Collator $c): 
     ];
 }
 
+// Only the value reaching the comparison counts: an xml_parse() result the
+// local no longer holds leaves it here.
+function reparsed($parser, string $data): array
+{
+    $ok = xml_parse($parser, $data);
+    $ok = 1;
+    $done = xml_parse($parser, $data);
+    $copy = $done;
+    return [
+        <error descr="This comparison is always false: int and false share no value.">$ok === false</error>,
+        <warning descr="Compare XML parsing failure with integer zero.">$done === false</warning>,
+        // The owner follows a copy too: reported once.
+        <warning descr="Compare XML parsing failure with integer zero.">$copy === false</warning>,
+    ];
+}
+
 // NotOptimalIfConditions reports a comparison with a literal next to an
 // instanceof of the same value in an if condition.
 final class Ticket {}

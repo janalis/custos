@@ -84,6 +84,24 @@ func returnTypeMismatch(ctx *analysis.Context, n syntax.Node) (ReturnMismatch, b
 	if given.IsUnknown() {
 		return ReturnMismatch{}, false
 	}
+	m, ok := c.judge(ctx, value, given)
+	if !ok || m.Proven {
+		return m, ok
+	}
+	// The proven type of `$this` in a closure is unknown; the PHPDoc-aware
+	// one still names the enclosing class.
+	if reboundThis(value) {
+		return ReturnMismatch{}, false
+	}
+	if proven := ctx.Types().ProvenTypeOf(value); vivified(ctx, value, proven) {
+		return c.judge(ctx, value, proven) // the array written into as false
+	}
+	return m, true
+}
+
+// judge compares given, the type of returned value, with the contract:
+// the native type, else the `@return` type.
+func (c *returnContract) judge(ctx *analysis.Context, value syntax.Expr, given types.Type) (ReturnMismatch, bool) {
 	accept := c.accept
 	m := ReturnMismatch{Value: value, Function: c.label, Given: given}
 	switch {
@@ -97,11 +115,6 @@ func returnTypeMismatch(ctx *analysis.Context, n syntax.Node) (ReturnMismatch, b
 		m.Expected = c.docText
 		m.Values = exactValues(given) && !types.AllRejected(c.wideDoc, given, accept)
 	default:
-		return ReturnMismatch{}, false
-	}
-	// The proven type of `$this` in a closure is unknown; the PHPDoc-aware
-	// one still names the enclosing class.
-	if !m.Proven && reboundThis(value) {
 		return ReturnMismatch{}, false
 	}
 	return m, true

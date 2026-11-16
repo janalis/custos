@@ -331,11 +331,19 @@ func quietFetch(x syntax.Expr) bool {
 	return false
 }
 
-// elementWrite reports whether element access x is, or is the base of, an
-// element written to (assigned, destructured into, iterated into,
-// incremented, unset, taken by reference): writing an element of null
-// makes it an array.
+// elementWrite is ElementWrite counting arguments of unresolved calls as
+// written.
 func elementWrite(ctx *analysis.Context, x *syntax.ArrayDimFetch) bool {
+	return ElementWrite(ctx, x, true)
+}
+
+// ElementWrite reports whether element access x is, or is the base of, an
+// element written to (assigned, destructured into, iterated into,
+// incremented, unset, taken by reference, passed to a by-reference
+// parameter): writing an element of null makes it an array, so none of
+// these dereferences the base. An argument of a call that cannot be
+// resolved counts as written when unresolved is set.
+func ElementWrite(ctx *analysis.Context, x *syntax.ArrayDimFetch, unresolved bool) bool {
 	var top syntax.Expr = x
 	for {
 		p, ok := top.Parent().(*syntax.ArrayDimFetch)
@@ -357,7 +365,7 @@ func elementWrite(ctx *analysis.Context, x *syntax.ArrayDimFetch) bool {
 	case *syntax.Unset:
 		return true
 	case *syntax.Arg:
-		return mayBindByRef(ctx, p)
+		return mayBindByRef(ctx, p, unresolved)
 	}
 	return false
 }
@@ -385,13 +393,13 @@ func inDestructuring(item *syntax.ArrayItem) bool {
 }
 
 // mayBindByRef reports whether argument arg may bind by reference: its
-// call cannot be resolved, or binds it (or may, behind an unpacked
-// argument) to a by-reference parameter.
-func mayBindByRef(ctx *analysis.Context, arg *syntax.Arg) bool {
+// call binds it (or may, behind an unpacked argument) to a by-reference
+// parameter, or cannot be resolved and unresolved is set.
+func mayBindByRef(ctx *analysis.Context, arg *syntax.Arg, unresolved bool) bool {
 	list := arg.Parent().(*syntax.ArgList) // an argument's parent is its list
 	callee, ok := ResolveCallee(ctx, list.Parent())
 	if !ok {
-		return true
+		return unresolved
 	}
 	byRef, known := ArgumentBindsByRef(list, arg, callee.Params, true)
 	return byRef || !known

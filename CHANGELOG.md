@@ -5,6 +5,55 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The type-check rules no longer see null after a write into one of its
+  offsets, which PHP turns into an array, in more places: a destructuring
+  target (`[$a['x']] = …`), an increment (`$a['k']++`) and a write into a
+  property's offset (`$this->items['k'] = 1`, also by destructuring or an
+  increment, or through parentheses: `($a)['k'] = 1`) now drop it as a
+  plain write into a local's offset already did. An object implementing
+  ArrayAccess keeps its type.
+- ImpossibleTypeComparison and RedundantTypeCheck report a comparison of a
+  local with null or false that they used to leave to
+  DomMissingAttributeCheckedAsNull or XmlParseZeroComparedWithFalse when
+  the local held a `getAttribute()` or `xml_parse()` result only earlier or
+  later in the function, which neither rule reported, and a null-safe
+  `getAttribute()` call on a receiver that is never null. A copy of such a
+  result (`$copy = $id; $copy === null`) is reported once, by the owning
+  rule, instead of twice.
+- A baseline keys each line of a file with lone CR (classic Mac OS) line
+  endings by its own text, as for LF and CRLF files. Lines after the first
+  lone CR used to key as an empty line, so an entry covered any finding of
+  the same rule and message below it. Regenerate the baseline
+  (`--generate-baseline`) of a project holding such files, or their
+  recorded findings are reported again.
+- PossiblyNullAccess, PossiblyNullArgument and the other type-check rules
+  no longer report a value after an early exit of more than eight `&&`
+  tests that may have ruled out null for it
+  (`if ($a === null && $b === null && …) { return; }`): the exit is still
+  not followed past eight tests, but such a value is now left unjudged
+  where later checks test all the other values, and reported only where
+  one of them is tested nowhere on the way.
+- The type-check rules follow a write into an offset of false
+  (`$x = false; $x[] = 1;`, a write into an `array|false` result, or
+  into an `array|false` property: `$this->items[] = 1`), which PHP turns
+  into an array: RedundantTypeCheck, ImpossibleTypeComparison,
+  InvalidArgumentType, InvalidReturnType and their documented counterparts
+  judge the value as that array afterwards, not as false. OffsetOperations and the
+  rules reporting an unchecked false result are unchanged.
+- A `foreach` loop writing its key or value into an offset
+  (`foreach ($rows as $seen['last'])`) now counts as a write into that
+  offset: the variable is an array after a loop over a non-empty array
+  (an array literal, or a value known to be non-empty) and may be an array
+  after any other. RedundantTypeCheck no longer calls `$seen === null`
+  always true after such a loop, and PossiblyNullAccess no longer reports
+  `$seen['last']` after a loop that runs.
+- NullPointerException no longer reports a write into an element of a
+  nullable object (`$o['k'] = 1`, `$o[] = 1`, `$o['k']++`, `unset($o['k'])`
+  on a `?ArrayObject $o`): PHP turns null into an array there, so it is not
+  a dereference. Element reads and method calls are still reported.
+
 ## [0.1.13] - 2026-11-13
 
 ### Changed

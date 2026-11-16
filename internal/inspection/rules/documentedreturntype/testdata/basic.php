@@ -93,3 +93,13 @@ function state()
 {
     return <warning descr="Return 'open'|'closed' from Shop\state(), not 'gone'.">'gone'</warning>;
 }
+
+// A write into false makes it an array (deprecated from PHP 8.1): the
+// array is still rejected.
+/** @return int */
+function vivifiedCount()
+{
+    $list = false;
+    $list[] = 1;
+    return <warning descr="Return int from Shop\vivifiedCount(), not int[].">$list</warning>;
+}

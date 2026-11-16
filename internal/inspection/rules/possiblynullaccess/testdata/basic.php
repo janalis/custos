@@ -77,4 +77,25 @@ class Cart
     {
         [<warning descr="Check this value for null before the access: it is array|null.">$map</warning>['col'] => $value] = $row;
     }
+
+    // A loop that may not run may leave null where it writes an offset.
+    public function looped(?array $rows, array $lines): void
+    {
+        foreach ($lines as $rows['k']) {
+        }
+        echo <warning descr="Check this value for null before the access: it is array|null.">$rows</warning>['k'];
+    }
+
+    // An exit of more than eight tests is not followed: where nothing
+    // tests the other values, the one it leaves may be null.
+    public function anyOfMany(?Item $a, ?Item $b, ?Item $c, ?Item $d, ?Item $e, ?Item $f, ?Item $g, ?Item $h, ?Item $i): void
+    {
+        if ($a === null && $b === null && $c === null && $d === null && $e === null && $f === null && $g === null && $h === null && $i === null) {
+            return;
+        }
+        if ($b === null && $c === null) {
+            <warning descr="Check this value for null before the access: it is Shop\Item|null.">$a</warning>->price();
+        }
+        <warning descr="Check this value for null before the access: it is Shop\Item|null.">$a</warning>->price();
+    }
 }

@@ -122,6 +122,13 @@ type elemWrite struct {
 	inc    *syntax.IncDec
 	nested bool
 	key    syntax.Expr // nested writes: the first-level key (nil: `$x[][…]`)
+	// stmt is the whole write: the assignment (enclosing a destructuring
+	// target) or the increment/decrement; nil for a loop target (see loop)
+	// and the unknown write standing for too many writes.
+	stmt syntax.Expr
+	// loop is the foreach loop whose key or value target the write is
+	// (an unknown write, made before each iteration).
+	loop *syntax.Foreach
 }
 
 // dim returns the key expression of a direct write (nil for appends and
@@ -198,7 +205,8 @@ func (sv *scopeVars) elemDefs(name string) []varDef {
 
 // writeDominates reports whether an element write into variable v runs on
 // every path to the read v after the variable's last definition: a
-// `$v[k] = x;` statement after every definition reaching v, directly in a
+// `$v[k] = x;`, `[$v[k]] = …;` or `$v[k]++;` statement after every
+// definition reaching v, directly in a
 // block enclosing v, with no mutation of the variable (assignment,
 // reference, by-reference argument) in between.
 func (e *Env) writeDominatesAt(name string, use, scope syntax.Node) bool {
@@ -216,10 +224,16 @@ func (e *Env) writeDominatesAt(name string, use, scope syntax.Node) bool {
 	}
 	at := use.Span().Start
 	for _, d := range fwd {
-		if d.w == nil || d.w.a == nil || d.pos < last {
+		if d.w == nil || d.pos < last {
 			continue
 		}
-		es, ok := d.w.a.Parent().(*syntax.ExprStmt)
+		if d.w.loop != nil {
+			if e.loopWriteDominates(d.w.loop, name, at, use, scope) {
+				return true
+			}
+			continue
+		}
+		es, ok := d.w.stmt.Parent().(*syntax.ExprStmt)
 		if !ok {
 			continue
 		}
@@ -227,11 +241,43 @@ func (e *Env) writeDominatesAt(name string, use, scope syntax.Node) bool {
 		if !ok || at < blk.Span().Start || at >= blk.Span().End {
 			continue
 		}
-		if !e.nonEmptyBroken(scope, name, d.w.a.Span().End, use) {
+		if !e.nonEmptyBroken(scope, name, d.w.stmt.Span().End, use) {
 			return true
 		}
 	}
 	return false
+}
+
+// loopWriteDominates reports whether a write into an element of name
+// made by a target of loop fe runs on every path to use, at position at:
+// use is in the loop's body, which runs after the targets are written, or
+// follows the loop in a block holding both and the loop runs at least once
+// (it iterates over an array literal with an item that is not unpacked,
+// or over a value whose type is a non-empty array). Nothing may change the
+// variable between the write and use.
+func (e *Env) loopWriteDominates(fe *syntax.Foreach, name string, at uint32, use, scope syntax.Node) bool {
+	inBody := fe.Body != nil && at >= fe.Body.Span().Start && at < fe.Body.Span().End
+	if !inBody {
+		blk, ok := fe.Parent().(*syntax.Block)
+		if !ok || at < fe.Span().End || at >= blk.Span().End || !e.loopRuns(fe) {
+			return false
+		}
+	}
+	return !e.nonEmptyBroken(scope, name, fe.Value.Span().End, use)
+}
+
+// loopRuns reports whether loop fe iterates at least once: over an array
+// literal with an item that is not unpacked, or over a value typed as a
+// non-empty array.
+func (e *Env) loopRuns(fe *syntax.Foreach) bool {
+	if a, ok := syntax.UnwrapParens(fe.Expr).(*syntax.Array); ok {
+		for _, it := range a.Items {
+			if it != nil && !it.Unpack {
+				return true
+			}
+		}
+	}
+	return e.TypeOf(fe.Expr).IsNonEmptyArray()
 }
 
 // dropOtherCases removes from fwd the definitions made in an earlier case

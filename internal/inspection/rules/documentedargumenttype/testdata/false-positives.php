@@ -143,3 +143,26 @@ function offset(): void
     $s[0] = 'a';
     takeMode($s);
 }
+
+// A write into false makes it an array (deprecated from PHP 8.1).
+function takesList(array $list): void {}
+function vivified(): void
+{
+    $list = false;
+    $list[] = 1;
+    takesList($list);
+}
+
+// So does a write into an offset of a property holding false.
+class LazyList
+{
+    private array|false $items = false;
+
+    public function fill(): void
+    {
+        if ($this->items === false) {
+            $this->items[] = 1;
+            takesList($this->items);
+        }
+    }
+}

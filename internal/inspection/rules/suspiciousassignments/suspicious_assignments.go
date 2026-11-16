@@ -7,6 +7,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 // suspiciousAssignments groups six checks for assignments that are likely
@@ -541,7 +542,7 @@ func saDestructuring(ctx *analysis.Context, a *syntax.Assign) {
 	supporting, bad, onlyMarkers := false, false, true
 	for _, at := range t.Atoms() { // D20
 		switch {
-		case at == "array" || at == "mixed" || at == "iterable" || strings.HasSuffix(at, "[]"):
+		case types.IsArrayAtom(at) || at == "mixed" || at == "iterable":
 			// custos: an iterable may be the array the code expects.
 			supporting = true
 		case strings.HasPrefix(at, `\`) && saArrayAccess(ctx, strings.TrimPrefix(at, `\`)):

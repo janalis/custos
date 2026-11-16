@@ -7,7 +7,6 @@
 package baseline
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/meta"
@@ -161,18 +161,15 @@ func (b *Baseline) filter(n int, keyOf func(int) key) []bool {
 }
 
 // lineText returns the trimmed text of a 1-based line of the file at path.
-func lineText(cache map[string][]string, path string, line int) string {
-	lines, ok := cache[path]
+func lineText(cache map[string]*lines, path string, line int) string {
+	ls, ok := cache[path]
 	if !ok {
 		// bounded like the analysis read (the path may name a device)
 		b, _ := safeio.ReadPrefix(path, syntax.MaxFileSize+1)
-		lines = strings.Split(string(bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))), "\n")
-		cache[path] = lines
+		ls = newLines(b)
+		cache[path] = ls
 	}
-	if line >= 1 && line <= len(lines) {
-		return strings.TrimSpace(lines[line-1])
-	}
-	return ""
+	return ls.text(line - 1)
 }
 
 func rel(dir, path string) string {
@@ -232,25 +229,41 @@ func (b *Baseline) Recorder(path string, src []byte) func(f diagnostic.Finding, 
 	}
 }
 
+// lines holds a file's text with its line index, both over the source
+// bytes, whose lines key entries without further allocation.
+type lines struct {
+	li *syntax.LineIndex
+	s  string
+}
+
+// newLines indexes src without copying it: the text aliases src, which
+// must not change afterwards (the parser aliases analyzed sources the same
+// way, and Filter's reads are its own).
+func newLines(src []byte) *lines {
+	return &lines{syntax.NewLineIndex(src), unsafe.String(unsafe.SliceData(src), len(src))}
+}
+
+// text returns the trimmed text of 0-based line ("" out of range), the
+// line split where syntax.LineIndex numbers lines (LF, CRLF, lone CR).
+func (ls *lines) text(line int) string {
+	sp := ls.li.LineSpan(line)
+	return strings.TrimSpace(ls.s[sp.Start:sp.End])
+}
+
 // lineTexts indexes the lines of src once and returns the trimmed text of
-// the line holding an offset: numbered by syntax.LineIndex (a lone CR ends
-// a line) and split on newlines as Filter reads files (so a line after a
-// lone CR keys as the text of the newline-split line of that number).
+// the line holding an offset, numbered and split as Filter reads files.
 func lineTexts(src []byte) func(uint32) string {
-	li := syntax.NewLineIndex(src)
-	lines := strings.Split(string(bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n"))), "\n")
+	ls := newLines(src)
 	return func(offset uint32) string {
-		if l, _ := li.Position(offset); l < len(lines) {
-			return strings.TrimSpace(lines[l])
-		}
-		return ""
+		l, _ := ls.li.Position(offset)
+		return ls.text(l)
 	}
 }
 
 // Filter removes items covered by the baseline and returns the rest plus
 // the number of suppressed items.
 func (b *Baseline) Filter(items []diagnostic.Item) ([]diagnostic.Item, int) {
-	cache := map[string][]string{}
+	cache := map[string]*lines{}
 	covered := b.filter(len(items), func(i int) key {
 		it := items[i]
 		return key{rel(b.dir, it.Path), it.Rule, it.Message, lineText(cache, it.Path, it.Line)}
@@ -307,7 +320,7 @@ func Write(path string, items []diagnostic.Item) (int, error) {
 		return 0, err
 	}
 	dir := filepath.Dir(abs)
-	cache := map[string][]string{}
+	cache := map[string]*lines{}
 	counts := map[key]int{}
 	for _, it := range items {
 		if it.Rule == "syntax" || it.Rule == "internal" || it.Rule == "io" {

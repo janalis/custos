@@ -895,8 +895,10 @@ func sharesString(a, b []string) bool {
 // it.
 type comparisonOwner struct {
 	rule string
-	// locals tells that the rule also follows the result through a local.
-	locals bool
+	// value returns the call the rule finds behind the compared operand,
+	// following a local the way the rule does (nil: none). Set exactly for
+	// a rule checking the comparison (onComparison).
+	value func(*analysis.Context, syntax.Expr) syntax.Expr
 	// onComparison tells that the rule checks the comparison rather than
 	// the call.
 	onComparison bool
@@ -916,28 +918,57 @@ var comparisonOwners = map[string]map[string]comparisonOwner{
 		"array_search":      {rule: "ArraySearchUsedAsInArray", bare: true},
 		"collator::compare": {rule: "CollatorComparisonTruthinessReversed", equality: true},
 	},
-	"false": {"xml_parse": {rule: "XmlParseZeroComparedWithFalse", locals: true, onComparison: true}},
-	"null":  {"domelement::getattribute": {rule: "DomMissingAttributeCheckedAsNull", locals: true, onComparison: true}},
+	"false": {"xml_parse": {rule: "XmlParseZeroComparedWithFalse", value: NativeLocalValue, onComparison: true}},
+	"null":  {"domelement::getattribute": {rule: "DomMissingAttributeCheckedAsNull", value: attributeValue, onComparison: true}},
+}
+
+// attributeValue is the call DomMissingAttributeCheckedAsNull finds behind
+// x: the single value reaching it, unless a null-safe step may skip the
+// call.
+func attributeValue(ctx *analysis.Context, x syntax.Expr) syntax.Expr {
+	v := NativeValue(ctx, x)
+	if v == nil || astquery.NullsafeShortCircuits(v) {
+		return nil
+	}
+	return v
 }
 
 // ownedComparison reports whether check cmp comparing x with constant lit
-// (true, false or null) is another rule's finding: x, or for a rule
-// following locals a value assigned to local x, is a call comparisonOwners
-// lists for lit, in a comparison of the shape that rule reports, and that
-// rule's check of the comparison or of the call runs.
+// (true, false or null) is another rule's finding: x, or the value the
+// rule finds behind it, is a call comparisonOwners lists for lit, in a
+// comparison of the shape that rule reports, and that rule's check of the
+// comparison or of the call runs.
 func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool {
-	owners := comparisonOwners[lit]
-	for i, v := range origins(ctx, x) {
-		for key, o := range owners {
-			if key == "xml_parse" && (len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, cmp)) {
+	for key, o := range comparisonOwners[lit] {
+		if !astquery.Mentions(ctx.File, key[strings.LastIndex(key, ":")+1:]) {
+			continue // no such call in the file: resolve nothing (a local's value needs flow data)
+		}
+		if key == "xml_parse" && (len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, cmp)) {
+			continue
+		}
+		if key == "collator::compare" && !flowquery.Reachable(cmp, syntax.EnclosingFuncLike(cmp)) {
+			continue
+		}
+		v := x
+		if o.onComparison {
+			if _, ok := cmp.(*syntax.Binary); !ok {
 				continue
 			}
-			if key == "collator::compare" && !flowquery.Reachable(cmp, syntax.EnclosingFuncLike(cmp)) {
+			// Whether the owner checks the comparison is asked first, and
+			// only once: the value of a local needs flow data, and when
+			// that failed to build, the owner's check is skipped and the
+			// comparison is this rule's (the engine runs the file again
+			// without it). Asked after the value, this check would be
+			// skipped as well, and nobody would report the comparison.
+			if !ctx.RuleChecks(o.rule, cmp) {
 				continue
 			}
-			if (i == 0 || o.locals) && ownerShape(o, cmp, v) && ownerCall(ctx, v, key) && ctx.RuleChecks(o.rule, ownerNode(o, cmp, v)) {
-				return true
+			if v = o.value(ctx, x); v == nil {
+				continue
 			}
+		}
+		if ownerShape(o, cmp, v) && ownerCall(ctx, v, key) && (o.onComparison || ctx.RuleChecks(o.rule, v)) {
+			return true
 		}
 	}
 	return false
@@ -947,11 +978,6 @@ func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool
 // not wrapped in parentheses when o needs a bare operand, and cmp is an
 // equality when o reports only those.
 func ownerShape(o comparisonOwner, cmp, v syntax.Expr) bool {
-	if o.onComparison {
-		if _, ok := cmp.(*syntax.Binary); !ok {
-			return false
-		}
-	}
 	if o.bare && v.Parent() != syntax.Node(cmp) {
 		return false
 	}
@@ -960,15 +986,6 @@ func ownerShape(o comparisonOwner, cmp, v syntax.Expr) bool {
 		return k == syntax.TIsIdentical || k == syntax.TIsEqual
 	}
 	return true
-}
-
-// ownerNode returns the node owner o checks for check cmp of call
-// v.
-func ownerNode(o comparisonOwner, cmp, v syntax.Expr) syntax.Node {
-	if o.onComparison {
-		return cmp
-	}
-	return v
 }
 
 // ownerCall reports whether x calls the builtin comparisonOwners key names:

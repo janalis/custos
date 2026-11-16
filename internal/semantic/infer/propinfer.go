@@ -348,7 +348,7 @@ func (e *Env) computeProp(p *index.Property, c *index.Class) types.Type {
 		atoms := []string{"array"}
 		for _, a := range t.Atoms() {
 			switch {
-			case a == "array" || strings.HasSuffix(a, "[]"):
+			case types.IsArrayAtom(a):
 			case a == "null":
 				atoms = append(atoms, a)
 			default:

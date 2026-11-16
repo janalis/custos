@@ -51,6 +51,8 @@ func (e *Env) IsProven() bool { return e.proven }
 //   - the local, or one of its elements, is passed to a callee that takes it
 //     by reference or that cannot be resolved.
 //
+// A write into an offset of a local that may hold false makes false an
+// array, as PHP does (deprecated from PHP 8.1); the other Envs keep false.
 // A call may run project code unless it resolves to a builtin function
 // without a callable parameter. Code run implicitly (magic methods,
 // destructors, autoloaders, set hooks) is not considered.

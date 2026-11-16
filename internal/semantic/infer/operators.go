@@ -337,7 +337,7 @@ func castToArray(t types.Type) types.Type {
 		case "int", "float", "string", "bool", "false", "true":
 			scalars = append(scalars, a)
 		default:
-			if a != "array" && !strings.HasSuffix(a, "[]") {
+			if !types.IsArrayAtom(a) {
 				return types.Array
 			}
 			continue

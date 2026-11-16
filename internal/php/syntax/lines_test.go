@@ -28,6 +28,30 @@ func TestLineIndex(t *testing.T) {
 	}
 }
 
+// TestLineIndexLineSpan: each line's span, as the index numbers lines (LF,
+// CRLF and a lone CR end one), without its ending; empty out of range.
+func TestLineIndexLineSpan(t *testing.T) {
+	src := []byte("a\r\nb\rc\n\r\nd")
+	l := NewLineIndex(src)
+	var got []string
+	for i := range l.Lines() {
+		sp := l.LineSpan(i)
+		got = append(got, string(src[sp.Start:sp.End]))
+	}
+	want := []string{"a", "b", "c", "", "d"}
+	if len(got) != len(want) {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	}
+	if l.LineSpan(-1) != (Span{}) || l.LineSpan(l.Lines()) != (Span{}) {
+		t.Fatal("out of range: want an empty span")
+	}
+}
+
 // TestLineIndexLongLines checks the checkpointed column lookups against a
 // direct count on long lines mixing ASCII, multi-byte, astral and invalid
 // UTF-8 (minified code), including offsets inside a multi-byte sequence.

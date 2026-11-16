@@ -812,7 +812,7 @@ func intLike(s types.Type) bool {
 // hasArrayAtom reports an `array` or `T[]` atom in s.
 func hasArrayAtom(s types.Type) bool {
 	for _, a := range s.Atoms() {
-		if a == "array" || strings.HasSuffix(a, "[]") {
+		if types.IsArrayAtom(a) {
 			return true
 		}
 	}

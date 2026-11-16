@@ -80,6 +80,27 @@ class Cart
         }
     }
 
+    // More than eight values: the exit is not followed, so the value it
+    // leaves is not judged where later checks test all the others.
+    public function anyOfMany(?Item $a, ?Item $b, ?Item $c, ?Item $d, ?Item $e, ?Item $f, ?Item $g, ?Item $h, ?Item $i): void
+    {
+        if ($a === null && $b === null && $c === null && $d === null && $e === null && $f === null && $g === null && $h === null && $i === null) {
+            return;
+        }
+        if ($b === null && $c === null && $d === null && $e === null && $f === null && $g === null && $h === null && $i === null) {
+            $a->price();
+        }
+    }
+
+    // A loop over a non-empty literal writing into an offset makes null an
+    // array.
+    public function looped(?array $rows): void
+    {
+        foreach ([1] as $rows['k']) {
+        }
+        echo $rows['k'];
+    }
+
     // Assertions: assert() and a PHPDoc assertion method.
     public function asserted(?Item $a, ?Item $b): void
     {

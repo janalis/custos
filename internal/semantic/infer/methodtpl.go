@@ -177,7 +177,7 @@ func (e *Env) bindPattern(pat, at types.Type, arg syntax.Expr, found map[string]
 				if strings.HasSuffix(o, "[]") {
 					var arrays, nonarrays []string
 					for _, atom := range at.Atoms() {
-						if atom == "array" || strings.HasSuffix(atom, "[]") {
+						if types.IsArrayAtom(atom) {
 							arrays = append(arrays, atom)
 						} else {
 							nonarrays = append(nonarrays, atom)

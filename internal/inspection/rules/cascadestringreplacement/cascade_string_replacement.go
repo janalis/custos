@@ -11,6 +11,7 @@ import (
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/types"
 )
 
 // cascadeStringReplacement reports consecutive or nested str_replace() calls
@@ -386,7 +387,7 @@ func (c *csrCtx) kind(e syntax.Expr) (csrKind, int) {
 		return csrUnknown, 0
 	}
 	for _, a := range t.Atoms() {
-		if a != "array" && !strings.HasSuffix(a, "[]") {
+		if !types.IsArrayAtom(a) {
 			return csrUnknown, 0
 		}
 	}
@@ -662,7 +663,7 @@ func (c *csrCtx) arrayOnly(e syntax.Expr) bool {
 		switch {
 		case a == "string":
 			str = true
-		case a == "array" || strings.HasSuffix(a, "[]"):
+		case types.IsArrayAtom(a):
 			arr = true
 		}
 	}

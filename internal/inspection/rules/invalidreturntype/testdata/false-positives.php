@@ -153,3 +153,26 @@ function keep($value)
 
 // Top-level returns end an included file.
 return ['key' => 'value'];
+
+// A write into false makes it an array (deprecated from PHP 8.1).
+function vivified(): array
+{
+    $list = false;
+    $list[] = 1;
+    return $list;
+}
+
+// So does a write into an offset of a property holding false.
+class LazyList
+{
+    private static array|false $items = false;
+
+    public static function items(): array
+    {
+        if (self::$items === false) {
+            self::$items[] = 1;
+            return self::$items;
+        }
+        return [];
+    }
+}

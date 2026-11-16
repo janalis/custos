@@ -159,3 +159,16 @@ func (l *LineIndex) OffsetUTF16(line, col int) uint32 {
 
 // Lines returns the number of lines.
 func (l *LineIndex) Lines() int { return len(l.starts) }
+
+// LineSpan returns the span of 0-based line in the source, without its
+// line ending (an empty span at 0 for a line out of range).
+func (l *LineIndex) LineSpan(line int) Span {
+	if line < 0 || line >= len(l.starts) {
+		return Span{}
+	}
+	start, end := l.starts[line], l.lineEnd(line)
+	for end > start && (l.src[end-1] == '\n' || l.src[end-1] == '\r') {
+		end--
+	}
+	return Span{Start: start, End: end}
+}

@@ -55,9 +55,6 @@ type scopeVars struct {
 	elemWrites map[string][]varDef
 	// edefs caches elemDefs.
 	edefs map[string][]varDef
-	// muts lists the operations that may change each variable (lazy, see
-	// mutations()).
-	muts map[string][]mutation
 	// exits lists the exit regions of the scope (lazy, see exitRegions).
 	exits     []exitRegion
 	exitsDone bool
@@ -277,7 +274,7 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 	}
 	var arr, other []string
 	for _, a := range t.Atoms() {
-		if a == "array" || strings.HasSuffix(a, "[]") {
+		if types.IsArrayAtom(a) {
 			arr = append(arr, a)
 		} else {
 			other = append(other, a)
@@ -285,8 +282,12 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 	}
 	// A write into null creates an array (`?array $n; $n['k'] = 1;`),
 	// also when the value may be a string instead (`?string $s; $s[0] =
-	// 'x';` makes null an array, see below for the string).
-	if len(arr) == 0 && !slices.Contains(other, "null") {
+	// 'x';` makes null an array, see below for the string). So does a
+	// write into false (deprecated from PHP 8.1), which only the proven
+	// Env follows: elsewhere false stays, as the rules reporting offsets
+	// of false or an unhandled false expect.
+	vivified := func(a string) bool { return a == "null" || e.proven && a == "false" }
+	if len(arr) == 0 && !slices.ContainsFunc(other, vivified) {
 		// A write into a string offset (`$s[0] = 'x'`) changes its value
 		// and may lengthen it: keep the type, not the string's values (an
 		// int member keeps its own).
@@ -301,8 +302,8 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 	if len(ws) == 0 {
 		return t, false
 	}
-	if slices.Contains(other, "null") && e.writeDominatesAt(name, use, scope) {
-		other = slices.DeleteFunc(other, func(a string) bool { return a == "null" }) // every path to v writes into the array: no longer null
+	if slices.ContainsFunc(other, vivified) && e.writeDominatesAt(name, use, scope) {
+		other = slices.DeleteFunc(other, vivified) // every path to v writes into the array: no longer null (or false)
 	}
 	el := t.Elem()
 	switch {
@@ -856,6 +857,8 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 					}
 				}
 				e.collectTargets(n.Value, n.Value.Span().Start, func() types.Type { return e.foreachElem(it) }, addKill)
+				collectLoopDimWrites(n, n.Key, sv)
+				collectLoopDimWrites(n, n.Value, sv)
 			case *syntax.Catch:
 				if n.Var != nil {
 					var atoms []string
@@ -979,16 +982,9 @@ func (e *Env) collectDimMutation(n *syntax.IncDec, target syntax.Expr, sv *scope
 	if !ok {
 		return
 	}
-	inner := d
-	for {
-		parent, ok := syntax.UnwrapParens(inner.Var).(*syntax.ArrayDimFetch)
-		if !ok {
-			break
-		}
-		inner = parent
-	}
+	inner, nested := innermostDim(d)
 	if v := asVariable(inner.Var); v != nil {
-		w := &elemWrite{inc: n, nested: inner != d, key: inner.Dim}
+		w := &elemWrite{inc: n, nested: nested, key: inner.Dim, stmt: n}
 		sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: n.Span().Start, end: n.Span().End, w: w})
 	}
 }
@@ -1016,6 +1012,28 @@ func (e *Env) collectTargets(target syntax.Expr, pos uint32, t func() types.Type
 	case *syntax.Array:
 		e.collectItemTargets(v.Items, pos, t, add)
 	}
+}
+
+// eachWriteTarget calls f with each target write target x assigns: x
+// itself, or each target of a destructuring (`[$a, $b['k']]`,
+// `list(…)`, nested ones at any depth). It stops, returning false, as soon
+// as f returns false.
+func eachWriteTarget(x syntax.Expr, f func(syntax.Expr) bool) bool {
+	var items []*syntax.ArrayItem
+	switch l := x.(type) {
+	case *syntax.List:
+		items = l.Items
+	case *syntax.Array:
+		items = l.Items
+	default:
+		return f(x)
+	}
+	for _, it := range items {
+		if it != nil && it.Value != nil && !eachWriteTarget(it.Value, f) {
+			return false
+		}
+	}
+	return true
 }
 
 // destructuresByValue reports whether target is a list() or `[...]`
@@ -1110,40 +1128,72 @@ func (e *Env) collectItems(items []*syntax.ArrayItem, pos uint32, keyType func(s
 // part of assignment outer (destructuring targets are recorded as unknown
 // writes: a is nil).
 func (e *Env) collectDimWrites(outer, a *syntax.Assign, target syntax.Expr, sv *scopeVars) {
-	add := func(name string, w *elemWrite) {
-		sv.elemWrites[name] = append(sv.elemWrites[name], varDef{pos: outer.Span().Start, end: outer.Span().End, w: w})
+	eachOffsetWrite(target, func(d, inner *syntax.ArrayDimFetch, nested bool) bool {
+		if v := writtenVar(inner); v != nil {
+			w := &elemWrite{stmt: outer}
+			if d == target {
+				w.a = a
+			}
+			if nested {
+				// Remember which first-level key it changes.
+				w.nested, w.key = true, inner.Dim
+			}
+			sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: outer.Span().Start, end: outer.Span().End, w: w})
+		}
+		return true
+	})
+}
+
+// collectLoopDimWrites records the element writes target, the key or
+// value target of loop fe (`foreach ($xs as $a['k'])`), makes on each
+// iteration, as unknown writes.
+func collectLoopDimWrites(fe *syntax.Foreach, target syntax.Expr, sv *scopeVars) {
+	eachOffsetWrite(target, func(d, inner *syntax.ArrayDimFetch, nested bool) bool {
+		if v := writtenVar(inner); v != nil {
+			w := &elemWrite{loop: fe, nested: nested, key: inner.Dim}
+			sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: d.Span().Start, end: d.Span().End, w: w})
+		}
+		return true
+	})
+}
+
+// eachOffsetWrite calls f with each write into an offset that write target
+// x makes (x itself, or a target of a destructuring; see eachWriteTarget):
+// d is the written element, inner the first-level one (whose array is
+// written: d itself unless nested). It stops, returning false, as soon as f
+// returns false.
+func eachOffsetWrite(x syntax.Expr, f func(d, inner *syntax.ArrayDimFetch, nested bool) bool) bool {
+	return eachWriteTarget(x, func(t syntax.Expr) bool {
+		d, ok := t.(*syntax.ArrayDimFetch)
+		if !ok {
+			return true
+		}
+		inner, nested := innermostDim(d)
+		return f(d, inner, nested)
+	})
+}
+
+// innermostDim returns the first-level element of element d (`$a['k']` of
+// `$a['k']['l']`, parentheses aside: `(($a)['k'])['l']`), and whether it is
+// not d itself.
+func innermostDim(d *syntax.ArrayDimFetch) (*syntax.ArrayDimFetch, bool) {
+	inner := d
+	for {
+		parent, ok := syntax.UnwrapParens(inner.Var).(*syntax.ArrayDimFetch)
+		if !ok {
+			return inner, inner != d
+		}
+		inner = parent
 	}
-	switch t := target.(type) {
-	case *syntax.ArrayDimFetch:
-		if v, ok := t.Var.(*syntax.Variable); ok && v.Name != "" {
-			add(v.Name, &elemWrite{a: a})
-			return
-		}
-		// Nested write: remember which first-level key it changes.
-		inner := t
-		for {
-			d, ok := inner.Var.(*syntax.ArrayDimFetch)
-			if !ok {
-				break
-			}
-			inner = d
-		}
-		if v, ok := inner.Var.(*syntax.Variable); ok && v.Name != "" {
-			add(v.Name, &elemWrite{a: a, nested: true, key: inner.Dim})
-		}
-	case *syntax.List:
-		for _, it := range t.Items {
-			if it != nil && it.Value != nil {
-				e.collectDimWrites(outer, nil, it.Value, sv)
-			}
-		}
-	case *syntax.Array:
-		for _, it := range t.Items {
-			if it != nil && it.Value != nil {
-				e.collectDimWrites(outer, nil, it.Value, sv)
-			}
-		}
+}
+
+// writtenVar returns the variable whose element inner is, parentheses
+// aside (`($a)['k']`), when named statically (nil otherwise).
+func writtenVar(inner *syntax.ArrayDimFetch) *syntax.Variable {
+	if v, ok := syntax.UnwrapParens(inner.Var).(*syntax.Variable); ok && v.Name != "" {
+		return v
 	}
+	return nil
 }
 
 func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
@@ -1199,7 +1249,7 @@ func collected(t types.Type) types.Type {
 // would report its correct uses, so such a tag gives an unknown type.
 func variadicDoc(t types.Type) types.Type {
 	for _, a := range t.Atoms() {
-		if a == "array" || a == "iterable" || strings.HasSuffix(a, "[]") {
+		if types.IsArrayAtom(a) || a == "iterable" {
 			return types.Unknown
 		}
 	}

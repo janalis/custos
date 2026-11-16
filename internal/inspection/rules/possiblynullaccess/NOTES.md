@@ -76,8 +76,24 @@ the three rules together (`"with"` sidecar key).
   (`correlated` in `narrow.go`): an `&&` early exit of at most
   `maxCorrelatedTests` operands all of whose operands but one test one
   local alone, proven true by the guards at the use (each proof narrows
-  that local once). Longer exits, or two operands left unproven (a call,
-  a test reading two values), are not followed.
+  that local once). Two operands left unproven (a call, a test reading
+  two values) are not followed, nor are longer exits. Past the bound,
+  the proven environment makes the local of the one operand that does
+  not test another local alone unknown wherever that operand narrows it
+  and every other tested local occurs on the path to the use
+  (`overCorrelated`, `testedOnPath`): in a condition `narrowGuarded`
+  applies there, or in a statement `guards` may scan for it after its
+  last reset (`mayGuard`: not the exit itself, nor an else-less if that
+  neither leaves nor ends assigning it). That check stands for the
+  proofs a correlation would seek without narrowing anything, so it
+  excuses more than they would (a later exit on the same locals proves
+  them non-null, not null): precision drops there, but no false report
+  remains. With one local tested nowhere on the path, no proof could
+  exist and the access is reported. The native and default types still
+  hold null in both cases. The bound stays because the work per use grows with the square
+  of the operands (see the comment on `maxCorrelatedTests` and
+  `BenchmarkCorrelatedExit`), and no such exit of more than 8 operands
+  occurs in the benchmark corpora.
 - Builtin methods declared nullable that only return null in states the
   code rules out are reported, except the short list in
   `neverNullReturns` (`getInnerIterator()` of the SPL wrappers sharing

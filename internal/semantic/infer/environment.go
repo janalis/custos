@@ -45,7 +45,11 @@ type Env struct {
 	chains map[syntax.Expr]nullsafeFact
 	cache  map[syntax.Expr]types.Type
 	scopes map[syntax.Node]*scopeVars
-	busy   map[syntax.Expr]bool
+	// muts lists, per scope, the operations that may change each variable
+	// (lazy, see mutations). Kept apart from scopes: a property read asks
+	// for them without needing the scope's local definitions.
+	muts map[syntax.Node]map[string][]mutation
+	busy map[syntax.Expr]bool
 	// definedBusy holds the reads definedType is typing: deferred method
 	// arguments in a loop may reach each other's definitions.
 	definedBusy      map[*syntax.Variable]bool
@@ -76,6 +80,9 @@ type Env struct {
 	// correlating is set while correlated asks what guards prove of
 	// another local, which then follows no correlation of its own.
 	correlating bool
+	// soleBuf is the buffer overCorrelated lists locals in, nil while one
+	// is using it (a nested call allocates its own).
+	soleBuf []string
 
 	// generics caches genBindings.
 	generics map[string]map[string]tplBindings

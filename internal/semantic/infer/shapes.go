@@ -227,7 +227,7 @@ func (e *Env) writeInto(t types.Type, path []syntax.Expr, v types.Type) types.Ty
 	created := false
 	for _, a := range t.Atoms() {
 		switch {
-		case a == "array" || strings.HasSuffix(a, "[]"):
+		case types.IsArrayAtom(a):
 			continue
 		case a == "callable":
 			return types.Unknown
@@ -458,7 +458,9 @@ const (
 const anyCall = "\x00call"
 
 // argKey keys the calls a local is passed to as a bare argument.
-func argKey(name string) string { return "\x00arg " + name }
+func argKey(name string) string { return argPrefix + name }
+
+const argPrefix = "\x00arg "
 
 // anyWrite keys every write of a scope (assignment, increment, unset, loop
 // target, argument), whatever it changes.
@@ -466,7 +468,9 @@ const anyWrite = "\x00write"
 
 // propNameKey is the mutations key listing the writes of property name
 // through any receiver ("*" for a name computed at run time).
-func propNameKey(name string) string { return "\x00prop " + name }
+func propNameKey(name string) string { return propNamePrefix + name }
+
+const propNamePrefix = "\x00prop "
 
 type mutation struct {
 	span syntax.Span
@@ -486,19 +490,27 @@ type mutation struct {
 // mutations returns the operations that may change variable name in scope
 // (collected once per scope, lazily).
 func (e *Env) mutations(scope syntax.Node, name string) []mutation {
-	sv := e.scopeVars(scope)
-	if sv.muts == nil {
-		sv.muts = e.collectMutations(scope)
+	muts, ok := e.muts[scope]
+	if !ok {
+		if e.muts == nil {
+			e.muts = map[syntax.Node]map[string][]mutation{}
+		}
+		muts = e.collectMutations(scope)
+		e.muts[scope] = muts
 	}
-	return sv.muts[name]
+	return muts[name]
 }
 
 func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 	out := map[string][]mutation{}
+	// The keys built from a name repeat across the scope's writes: build
+	// each once (see interned).
+	keys := map[[2]string]string{}
 	add := func(x syntax.Expr, m mutation) {
 		out[anyWrite] = append(out[anyWrite], m)
 		x = syntax.UnwrapParens(x)
-		if k := writtenPropName(x); k != "" {
+		if p, ok := writtenPropName(x); ok {
+			k := interned(keys, propNamePrefix, p)
 			out[k] = append(out[k], m)
 		}
 		if d, ok := x.(*syntax.ArrayDimFetch); ok {
@@ -512,14 +524,20 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 				d = inner
 			}
 			b := narrowKey(syntax.UnwrapParens(d.Var))
-			if b != "" && !isDimKey(b) {
-				out[dimKey(b, anyElem)] = append(out[dimKey(b, anyElem)], m)
+			kb := b // the base narrowKey(d) sees: none through parentheses
+			if _, paren := d.Var.(*syntax.Paren); paren {
+				kb = ""
 			}
-			if k := narrowKey(d); k != "" && len(dimVars(k)) == 0 {
+			if b != "" && !isDimKey(b) {
+				k := interned(keys, b, dimSep+anyElem)
+				out[k] = append(out[k], m)
+			}
+			if k := elemKey(kb, d); k != "" && len(dimVars(k)) == 0 {
 				out[k] = append(out[k], m)
 			} else if b != "" && !isDimKey(b) {
 				// A computed key (a local one included) may be any element.
-				out[dimKey(b, "*")] = append(out[dimKey(b, "*")], m)
+				k := interned(keys, b, dimSep+"*")
+				out[k] = append(out[k], m)
 			}
 			return
 		}
@@ -572,7 +590,8 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 			m := mutation{span: call.Span(), kind: kind, call: call, arg: a, idx: i}
 			add(a.Value, m)
 			if v, ok := syntax.UnwrapParens(a.Value).(*syntax.Variable); ok && kind == mutCallArg && v.Name != "" && v.NameExpr == nil {
-				out[argKey(v.Name)] = append(out[argKey(v.Name)], m)
+				k := interned(keys, argPrefix, v.Name)
+				out[k] = append(out[k], m)
 			}
 		}
 	}
@@ -666,9 +685,19 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 	return out
 }
 
-// writtenPropName is the propNameKey of the property a write to x changes
-// (`$q->p`, `$q->p['k']`), or "".
-func writtenPropName(x syntax.Expr) string {
+// interned returns a+b, built once per pair in keys.
+func interned(keys map[[2]string]string, a, b string) string {
+	k, ok := keys[[2]string{a, b}]
+	if !ok {
+		k = a + b
+		keys[[2]string{a, b}] = k
+	}
+	return k
+}
+
+// writtenPropName names the property a write to x changes (`$q->p`,
+// `$q->p['k']`), "*" when it is computed; false when x writes none.
+func writtenPropName(x syntax.Expr) (string, bool) {
 	for {
 		d, ok := x.(*syntax.ArrayDimFetch)
 		if !ok {
@@ -678,12 +707,12 @@ func writtenPropName(x syntax.Expr) string {
 	}
 	pf, ok := x.(*syntax.PropertyFetch)
 	if !ok {
-		return ""
+		return "", false
 	}
 	if id, named := pf.Name.(*syntax.Identifier); named {
-		return propNameKey(id.Value)
+		return id.Value, true
 	}
-	return propNameKey("*")
+	return "*", true
 }
 
 // byRefArg reports whether the argument of mutation m binds a by-reference

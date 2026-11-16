@@ -163,7 +163,7 @@ func (e *Env) yieldFromType(n *syntax.YieldFrom) types.Type {
 				return types.Unknown
 			}
 			ts = append(ts, args[3])
-		case a == "array" || strings.HasSuffix(a, "[]"):
+		case types.IsArrayAtom(a):
 			ts = append(ts, types.Null)
 		case strings.HasPrefix(a, `\`):
 			cls := strings.TrimPrefix(a, `\`)

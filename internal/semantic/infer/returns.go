@@ -72,7 +72,7 @@ func refinedReturn(ret string, bt types.Type) types.Type {
 		bt = bt.Without("null")
 	}
 	for _, a := range bt.Atoms() {
-		if a != "array" && !strings.HasSuffix(a, "[]") && (a != "null" || !nullable) {
+		if !types.IsArrayAtom(a) && (a != "null" || !nullable) {
 			return types.Unknown
 		}
 	}
