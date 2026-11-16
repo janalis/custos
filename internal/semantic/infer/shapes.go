@@ -738,7 +738,10 @@ func (e *Env) byRefArg(m mutation) bool {
 		}
 		recv := e.TypeOf(c.Var)
 		unresolved = recv.HasAny("mixed", "object")
-		for _, cls := range recv.Classes() {
+		for _, cls := range recv.Atoms() { // Classes() without the copy
+			if !types.IsClassAtom(cls) {
+				continue
+			}
 			if mm := e.Index.FindMethod(strings.TrimPrefix(cls, `\`), id.Value, e.PHP); mm != nil {
 				params = append(params, mm.Params)
 			} else {
