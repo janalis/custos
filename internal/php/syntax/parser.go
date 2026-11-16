@@ -50,11 +50,6 @@ type Options struct {
 	// CopyText gives node strings their own storage, so extracted metadata
 	// can outlive the tree without retaining its entire source buffer.
 	CopyText bool
-	// Recycled lets the parse take the memory of trees released earlier
-	// (File.Release). Set it only when the caller releases the tree once
-	// done: a tree kept for long would otherwise also keep the released
-	// memory it did not need.
-	Recycled bool
 }
 
 // Parse parses src (which is retained by the returned File and must not be
@@ -72,10 +67,7 @@ func Parse(path string, src []byte, opt Options) *File {
 		f.Errors = []Error{{Span: Span{0, 0}, Msg: fmt.Sprintf("file larger than %d MB; not analysed", MaxFileSize>>20)}}
 		return f
 	}
-	ar := new(arena)
-	if opt.Recycled {
-		ar = getArena()
-	}
+	ar := getArena()
 	toks, lexErrs := lexInto(ar.toks, src, LexOptions{Version: opt.Version, ShortOpenTag: opt.ShortOpenTag})
 	ar.toks = nil
 	p := &parser{src: src, toks: toks, ver: opt.Version, permissive: opt.Permissive, copyText: opt.CopyText, slabs: &ar.slabs}
