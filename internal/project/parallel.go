@@ -5,42 +5,51 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"custos/internal/diagnostic"
 )
 
 // parallel runs work(i) for every i below n on up to workers goroutines (one
 // per CPU when workers < 1) and returns when every started item is done.
-// Cancellation is observed between items: once ctx is done the rest are not
-// started and ctx.Err() is returned. A panic in work(i) is recovered and
-// handed to crashed(i, value), or dropped when crashed is nil (work then
-// reports its own failures and leaves a crashed item unset). A panic on a
-// worker goroutine would otherwise end the whole process (CLI run, language
-// server or MCP server), which no guard on the calling goroutine prevents.
+// Items start in index order. Cancellation is observed between items: once
+// ctx is done the rest are not started and ctx.Err() is returned. A panic in
+// work(i) is recovered and handed to crashed(i, value), or dropped when
+// crashed is nil (work then reports its own failures and leaves a crashed
+// item unset). A panic on a worker goroutine would otherwise end the whole
+// process (CLI run, language server or MCP server), which no guard on the
+// calling goroutine prevents.
+//
+// Workers claim the next item from a shared counter instead of receiving it
+// over a channel: a hand-off per item parked and woke a goroutine each time,
+// and the idle processors spun looking for work meanwhile.
 func parallel(ctx context.Context, n, workers int, work func(int), crashed func(int, any)) error {
 	if workers < 1 {
 		workers = runtime.GOMAXPROCS(0)
 	}
-	jobs := make(chan int)
+	var next atomic.Int64
+	var canceled atomic.Bool
 	var wg sync.WaitGroup
 	for range min(n, workers) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobs {
+		wg.Go(func() {
+			for !canceled.Load() {
+				i := int(next.Add(1) - 1)
+				if i >= n {
+					return
+				}
+				if ctx.Err() != nil {
+					canceled.Store(true)
+					return
+				}
 				isolate(i, work, crashed)
 			}
-		}()
+		})
 	}
-	var err error
-	for i := 0; i < n && err == nil; i++ {
-		if err = ctx.Err(); err == nil {
-			jobs <- i
-		}
-	}
-	close(jobs)
 	wg.Wait()
-	return err
+	if canceled.Load() {
+		return ctx.Err()
+	}
+	return nil
 }
 
 func isolate(i int, work func(int), crashed func(int, any)) {
