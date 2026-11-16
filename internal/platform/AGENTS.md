@@ -7,5 +7,8 @@ untrusted, so every production read of project files goes through it.
 installed (Homebrew, the Composer launcher, a release download or a source
 build) and replaces a release binary after checking `SHA256SUMS`; the CLI
 decides when to check and runs package managers.
+`sysmem` reads how much memory the process may use (macOS `hw.memsize`,
+Linux `/proc/meminfo` capped by cgroup v1 or v2 limits), from which the CLI
+sizes the soft memory limit of the batch commands.
 Packages here depend only on the standard library and each other (see
 `docs/contributing/architecture.md`).

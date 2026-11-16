@@ -219,6 +219,18 @@ for the notice that `analyse` and `fix` print when a release is out.
 | `--check` | Only report whether a newer release exists; exit 1 when one does. |
 | `--version X.Y.Z` | Install this release instead of the latest, including an older one. Release binaries only. |
 
+## Memory
+
+`analyse` and `fix` run Go's garbage collector less often than the default
+(`GOGC=200` instead of `100`): most of their heap stays live until the run
+ends, so collecting less saves time at the cost of a larger peak heap. To
+keep that peak within the machine, they also set a soft memory limit of three
+quarters of the physical memory (on Linux, of the cgroup memory limit when a
+container sets a lower one), near which the collector works harder again.
+Setting `GOGC` or `GOMEMLIMIT` in the environment overrides the matching
+setting, for example `GOGC=100` to trade speed for a smaller peak. `lsp` and
+`mcp` keep the runtime defaults.
+
 ## Exit codes
 
 | Code | Meaning |

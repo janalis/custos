@@ -29,6 +29,7 @@ summarize the same responsibilities.
 | `internal/editor/lsp` | Transport dispatch, settings, workspace indexing, documents, diagnostics and code actions. |
 | `internal/platform/safeio` | Bounded filesystem primitives. |
 | `internal/platform/selfupdate` | Release lookup, install-method detection, the saved update check and checksum-verified replacement of a release binary. |
+| `internal/platform/sysmem` | Memory available to the process: physical memory, capped on Linux by the cgroup memory limit. |
 | `internal/testing` | Conformance harness and load-scaled test budgets. |
 | `tools` | Generators, architecture enforcement, coverage and clean-room checks. |
 

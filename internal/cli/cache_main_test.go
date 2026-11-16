@@ -6,8 +6,10 @@ import (
 )
 
 // TestMain keeps the dependency cache of every test run out of the user's
-// cache directory.
+// cache directory, and the GC settings of the batch commands out of the test
+// binary.
 func TestMain(m *testing.M) {
+	tuneGC = func() {}
 	dir, err := os.MkdirTemp("", "custos-cache-")
 	if err != nil {
 		panic(err)

@@ -47,10 +47,12 @@ func Run(version string, args []string, stdin io.Reader, stdout, stderr io.Write
 	code := 0
 	switch args[0] {
 	case "analyse", "analyze":
+		tuneGC()
 		notice := startUpdateNotice(version, stderr)
 		code, err = cmdAnalyse(args[1:], stdout, stderr)
 		notice.finish(stderr)
 	case "fix":
+		tuneGC()
 		notice := startUpdateNotice(version, stderr)
 		code, err = cmdFix(args[1:], stdout, stderr)
 		notice.finish(stderr)
