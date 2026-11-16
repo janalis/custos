@@ -512,7 +512,7 @@ func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign)
 		}
 		return false, false
 	case *syntax.ArrayDimFetch: // U7
-		return false, p.Var == syntax.Expr(v)
+		return false, p.Var == syntax.Expr(v) && !semanticquery.ElementWrite(u.ctx, p, false)
 	case *syntax.PropertyFetch: // U8
 		if p.Var != syntax.Expr(v) || p.NullSafe {
 			return false, false

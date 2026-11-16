@@ -175,7 +175,13 @@ walk for this name, *skip* goes to the next usage:
   the right side (parent `?:`/`??`) is itself a skip (a short `?:`
   condition is not a logical operand, `??` is not a comparison).
 - **U7** `P` is an array access and `v` is its base (`$n[...]`) → **report**
-  `v`. (`$x[$n]`: `v` is the index → nothing.)
+  `v`. (`$x[$n]`: `v` is the index → nothing.) Unless (custos, see
+  Divergences) the access, or an access chain it starts (`$n['a']['b']`),
+  writes the element: it is assigned (`=`, a compound operator, `??=`) or
+  appended to, incremented or decremented, destructured or iterated into
+  (`[$n['k']] = …`, `foreach ($xs as $n['k'])`), bound by reference
+  (`$r = &$n['k']`), unset, or passed to a parameter a resolved callee
+  takes by reference → skip.
 - **U8** `P` is a member access using plain `->` (not `?->`, not `::`) whose
   object is `v`:
   - property fetch: climb from `P` through enclosing property fetches and
@@ -263,6 +269,8 @@ walk for this name, *skip* goes to the next usage:
 - **E2c** A nullable value passed by name to a parameter that accepts null
   (`f(tint: $v)` with `?Tint $tint`), whatever its position.
 - **E3** `$v->prop ?? …`, `isset($v->prop)`, `isset($v->a['k'])`.
+- **E3b** (custos) Element writes on the value: `$v['k'] = 1`, `$v[] = 1`,
+  `$v['k']++`, `unset($v['k'])` and the other writes U7 lists.
 - **E4** `$v = $v->m();` only when that statement is the local variable's
   own declaring assignment (strategy C, first collected assignment). It is
   *not* an exception for parameters nor for later re-assignments (see U8);
@@ -414,6 +422,13 @@ function visit(?Node $item) {
 
 ## Divergences
 
+- **Element writes (custos diverges, U7).** Upstream reports every array
+  access on the value, `$v['k'] = 1` on a `?ArrayObject $v` included. Writing
+  an element of null is not a dereference: PHP turns null into an array
+  there and raises nothing, so the write cannot fail the way a read, a
+  method call or a property access does. custos skips the element writes
+  U7 lists and still reports reads (`echo $v['k']`, `$v['k'] + 1`) and
+  arguments of calls it cannot resolve.
 - **U13 — custos diverges from upstream.** Upstream reports every
   dereference of the same nullable value, even after one that always runs
   and would already have thrown.

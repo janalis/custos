@@ -47,6 +47,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   after any other. RedundantTypeCheck no longer calls `$seen === null`
   always true after such a loop, and PossiblyNullAccess no longer reports
   `$seen['last']` after a loop that runs.
+- NullPointerException no longer reports a write into an element of a
+  nullable object (`$o['k'] = 1`, `$o[] = 1`, `$o['k']++`, `unset($o['k'])`
+  on a `?ArrayObject $o`): PHP turns null into an array there, so it is not
+  a dereference. Element reads and method calls are still reported.
 
 ## [0.1.13] - 2026-11-13
 
