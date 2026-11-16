@@ -140,8 +140,13 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 		}
 		// Proven: the native types also reject what the code alone shows.
 		if native {
-			if proven := ctx.Types().ProvenTypeOf(b.arg.Value); check.nativeRejects(targets, params, proven) {
+			nativeRejects := func(t types.Type) bool { return check.nativeRejects(targets, params, t) }
+			proven := ctx.Types().ProvenTypeOf(b.arg.Value)
+			switch {
+			case nativeRejects(proven):
 				m.Proven, m.Given = true, proven
+			case vivifiedOnly(ctx, b.arg.Value, proven, nativeRejects):
+				continue
 			}
 		}
 		// The proven type of `$this` in a closure is unknown; the
@@ -152,6 +157,16 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 		out = append(out, m)
 	}
 	return out
+}
+
+// vivifiedOnly reports whether value x, whose proven type a check found
+// acceptable, is rejected (by rejects) only in the native environment's
+// view: the proven type is known, so it differs from the native one only
+// where it follows a write into an offset of false, which PHP turns into
+// an array (see infer.Env.ProvenTypeOf). Such a mismatch is not one
+// PHPDoc makes, so the documented rules leave it too.
+func vivifiedOnly(ctx *analysis.Context, x syntax.Expr, proven types.Type, rejects func(types.Type) bool) bool {
+	return !proven.IsUnknown() && rejects(ctx.Types().Native().TypeOf(x))
 }
 
 // fileTypeCheck returns the acceptance state of the file of ctx, shared by

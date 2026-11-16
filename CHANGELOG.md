@@ -34,6 +34,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   (`if ($a === null && $b === null && …) { return; }`): the exit is still
   not followed past eight tests, but such a value is now left unjudged
   instead of reported.
+- The type-check rules follow a write into an offset of false
+  (`$x = false; $x[] = 1;`, or a write into an `array|false` result), which
+  PHP turns into an array: RedundantTypeCheck, ImpossibleTypeComparison,
+  InvalidArgumentType, InvalidReturnType and their documented counterparts
+  no longer judge the value as false afterwards. OffsetOperations and the
+  rules reporting an unchecked false result are unchanged.
 
 ## [0.1.13] - 2026-11-13
 

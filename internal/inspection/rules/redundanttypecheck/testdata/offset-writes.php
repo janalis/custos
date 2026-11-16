@@ -36,3 +36,24 @@ function fill(array|false $rows, ?array $seen, string $key): void
         echo 'unseen';
     }
 }
+
+function found(): array|false
+{
+    return false;
+}
+
+// A write into false makes it an array too (deprecated from PHP 8.1): the
+// check is not decided either way.
+function vivify(): void
+{
+    $list = false;
+    $list[] = 1;
+    if (is_array($list)) {
+        echo 'list';
+    }
+    $rows = found();
+    $rows['k'] = 1;
+    if (is_bool($rows)) {
+        echo 'failed';
+    }
+}

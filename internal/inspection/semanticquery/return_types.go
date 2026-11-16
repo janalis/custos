@@ -90,8 +90,12 @@ func returnTypeMismatch(ctx *analysis.Context, n syntax.Node) (ReturnMismatch, b
 	case types.AllRejected(c.native, given, accept):
 		m.Expected = c.nativeText
 		// Proven: the native type also rejects what the code alone shows.
-		if proven := ctx.Types().ProvenTypeOf(value); types.AllRejected(c.native, proven, accept) {
+		rejects := func(t types.Type) bool { return types.AllRejected(c.native, t, accept) }
+		switch proven := ctx.Types().ProvenTypeOf(value); {
+		case rejects(proven):
 			m.Proven, m.Given = true, proven
+		case vivifiedOnly(ctx, value, proven, rejects):
+			return ReturnMismatch{}, false
 		}
 	case !c.doc.IsUnknown() && types.AllRejected(c.docFor(given), given, accept):
 		m.Expected = c.docText

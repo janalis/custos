@@ -94,3 +94,27 @@ class Q {
 		"lastWrite": "array", "lastBroken": "array|null",
 	})
 }
+
+// TestProvenFalseOffsetWrite covers a write into an offset of false, which
+// PHP turns into an array (deprecated from PHP 8.1): only the proven Env
+// follows it, the native one keeps false.
+func TestProvenFalseOffsetWrite(t *testing.T) {
+	const head = `<?php function found(): array|false { return false; } function f(array|false $a, bool $c) { `
+	cases := []struct {
+		name, body, native, proven string
+	}{
+		{"literal", `$x = false; $x[] = 1; t('v', $x); }`, `false`, `int[]`},
+		{"declared", `$a['k'] = 1; t('v', $a); }`, `array|false`, `array`},
+		{"call result", `$r = found(); $r['k'] = 1; t('v', $r); }`, `array|false`, `array`},
+		{"in a branch", `if ($c) { $a['k'] = 1; } t('v', $a); }`, `array|false`, `array|false`},
+		{"true stays", `$x = $c; $x[] = 1; t('v', $x); }`, `bool`, `bool`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			native, proven := provenProbe(t, head+c.body)
+			if native != c.native || proven != c.proven {
+				t.Errorf("native %s, proven %s; want %s, %s", native, proven, c.native, c.proven)
+			}
+		})
+	}
+}

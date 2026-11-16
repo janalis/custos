@@ -285,10 +285,12 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 	}
 	// A write into null creates an array (`?array $n; $n['k'] = 1;`),
 	// also when the value may be a string instead (`?string $s; $s[0] =
-	// 'x';` makes null an array, see below for the string). A write into
-	// false (deprecated from PHP 8.1) is not followed: false stays, as the
-	// rules reporting offsets of false or an unhandled false expect.
-	if len(arr) == 0 && !slices.Contains(other, "null") {
+	// 'x';` makes null an array, see below for the string). So does a
+	// write into false (deprecated from PHP 8.1), which only the proven
+	// Env follows: elsewhere false stays, as the rules reporting offsets
+	// of false or an unhandled false expect.
+	vivified := func(a string) bool { return a == "null" || e.proven && a == "false" }
+	if len(arr) == 0 && !slices.ContainsFunc(other, vivified) {
 		// A write into a string offset (`$s[0] = 'x'`) changes its value
 		// and may lengthen it: keep the type, not the string's values (an
 		// int member keeps its own).
@@ -303,8 +305,8 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 	if len(ws) == 0 {
 		return t, false
 	}
-	if slices.Contains(other, "null") && e.writeDominatesAt(name, use, scope) {
-		other = slices.DeleteFunc(other, func(a string) bool { return a == "null" }) // every path to v writes into the array: no longer null
+	if slices.ContainsFunc(other, vivified) && e.writeDominatesAt(name, use, scope) {
+		other = slices.DeleteFunc(other, vivified) // every path to v writes into the array: no longer null (or false)
 	}
 	el := t.Elem()
 	switch {

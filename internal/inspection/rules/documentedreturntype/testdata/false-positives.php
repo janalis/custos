@@ -179,3 +179,11 @@ function offset(): string
     $s[0] = 'x';
     return $s;
 }
+
+// A write into false makes it an array (deprecated from PHP 8.1).
+function vivified(): array
+{
+    $list = false;
+    $list[] = 1;
+    return $list;
+}

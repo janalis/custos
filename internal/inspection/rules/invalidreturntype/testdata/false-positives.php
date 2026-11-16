@@ -153,3 +153,11 @@ function keep($value)
 
 // Top-level returns end an included file.
 return ['key' => 'value'];
+
+// A write into false makes it an array (deprecated from PHP 8.1).
+function vivified(): array
+{
+    $list = false;
+    $list[] = 1;
+    return $list;
+}
