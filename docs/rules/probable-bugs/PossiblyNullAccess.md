@@ -58,7 +58,11 @@ Reported:
   has not changed since: past that exit,
   `if ($b === null) { $a->total(); }` is silent, and so is
   `if ($b === null && $c === null) { $a->total(); }` past
-  `if ($a === null && $b === null && $c === null) { return; }`. A local that may change without an assignment showing it (bound
+  `if ($a === null && $b === null && $c === null) { return; }`. Known
+  limit: such an exit of more than eight tests is not followed, so the
+  value its one remaining test is about is treated as unknown (E4) after
+  it, whatever later conditions prove: it is not reported there even
+  where it may be null. A local that may change without an assignment showing it (bound
   by reference, a `global` or `static` local, passed where it may be
   written by reference) is unknown.
 - D3. That type includes null.
@@ -78,7 +82,7 @@ Reported:
   passed to a call whose parameters are unknown: PHP turns null into an
   array there.
   Element reads before PHP 7.4, which read null silently.
-- The value's type is unknown or includes `mixed`.
+- E4. The value's type is unknown or includes `mixed`.
 - The code rules null out in a way D2 does not count: a PHPDoc type
   or assertion (`@var`, `@phpstan-assert`, `@psalm-assert`), or an
   `assert()` call, whatever the configuration says about assertions.

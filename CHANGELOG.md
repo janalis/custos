@@ -28,6 +28,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   the same rule and message below it. Regenerate the baseline
   (`--generate-baseline`) of a project holding such files, or their
   recorded findings are reported again.
+- PossiblyNullAccess, PossiblyNullArgument and the other type-check rules
+  no longer report a value after an early exit of more than eight `&&`
+  tests that may have ruled out null for it
+  (`if ($a === null && $b === null && …) { return; }`): the exit is still
+  not followed past eight tests, but such a value is now left unjudged
+  instead of reported.
 
 ## [0.1.13] - 2026-11-13
 

@@ -592,13 +592,21 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 // `if ($a === null && $b === null && $c === null) { return; }` followed by
 // `if ($b === null && $c === null)`. The other locals must not have changed
 // between c and use. At most maxCorrelatedTests tests; inside, no further
-// correlation is followed.
+// correlation is followed. Past that bound the proven Env, whose types
+// authorize findings, makes key unknown wherever the correlation could
+// have refined it (see overCorrelated).
 func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, from uint32) types.Type {
 	if e.correlating {
 		return r
 	}
-	tests, ok := conjuncts(c, nil)
-	if !ok || len(tests) < 2 {
+	tests := conjuncts(c, nil)
+	if len(tests) < 2 {
+		return r
+	}
+	if len(tests) > maxCorrelatedTests {
+		if e.proven && e.overCorrelated(r, t, c, key) {
+			return types.Unknown
+		}
 		return r
 	}
 	var left []syntax.Expr // the tests not proven true
@@ -622,26 +630,53 @@ func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t typ
 // each costs a narrowing of another local, which walks the same guards
 // again, so the work per use grows with the square of the tests
 // (BenchmarkCorrelatedExit: a bound of 64 makes 16 tests cost 8 times the
-// allocations, 64 tests 25 times). Past it the exit narrows nothing, as if
-// it were not there; no such exit of more than 8 tests was found in the
-// benchmark corpora.
+// allocations, 64 tests 25 times). Past it the exit is not followed; no
+// such exit of more than 8 tests was found in the benchmark corpora.
 const maxCorrelatedTests = 8
 
-// conjuncts appends to out the operands of c, a chain of `&&` and `and`
-// (parentheses aside), and reports false past maxCorrelatedTests.
-func conjuncts(c syntax.Expr, out []syntax.Expr) ([]syntax.Expr, bool) {
+// overCorrelated reports whether c, a conjunction of more than
+// maxCorrelatedTests tests found false, could have refined local key (of
+// type t, r once c is applied) had correlated followed it: every test but
+// one tests another local on its own, and that one narrows key. It looks
+// at the tests only, never at the guards of the use.
+func (e *Env) overCorrelated(r, t types.Type, c syntax.Expr, key string) bool {
+	n, left := unsoleTests(c, key, 0, nil)
+	if n != 1 {
+		return false
+	}
+	k := e.applyCond(t, left, key, false)
+	return !slices.Equal(k.Atoms(), r.Atoms()) || k.ShapeString() != r.ShapeString()
+}
+
+// unsoleTests adds to n the operands of conjunction c that do not test a
+// local other than key on its own (see soleTest), stopping past one, and
+// returns the last of them in left.
+func unsoleTests(c syntax.Expr, key string, n int, left syntax.Expr) (int, syntax.Expr) {
 	c = syntax.UnwrapParens(c)
 	if b, ok := c.(*syntax.Binary); ok && (b.Op.Kind == syntax.TBooleanAnd || b.Op.Kind == syntax.TAnd) {
-		out, ok := conjuncts(b.Left, out)
-		if !ok {
-			return nil, false
+		if n, left = unsoleTests(b.Left, key, n, left); n > 1 {
+			return n, left
+		}
+		return unsoleTests(b.Right, key, n, left)
+	}
+	if other := soleTest(c); other == nil || other.Name == key {
+		return n + 1, c
+	}
+	return n, left
+}
+
+// conjuncts appends to out the operands of c, a chain of `&&` and `and`
+// (parentheses aside), stopping once it holds more than
+// maxCorrelatedTests.
+func conjuncts(c syntax.Expr, out []syntax.Expr) []syntax.Expr {
+	c = syntax.UnwrapParens(c)
+	if b, ok := c.(*syntax.Binary); ok && (b.Op.Kind == syntax.TBooleanAnd || b.Op.Kind == syntax.TAnd) {
+		if out = conjuncts(b.Left, out); len(out) > maxCorrelatedTests {
+			return out
 		}
 		return conjuncts(b.Right, out)
 	}
-	if len(out) == maxCorrelatedTests {
-		return nil, false
-	}
-	return append(out, c), true
+	return append(out, c)
 }
 
 // provenTrueAt reports whether test x of local v, evaluated at position

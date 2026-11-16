@@ -75,7 +75,6 @@ func TestCorrelatedExitOfMoreValues(t *testing.T) {
 		{"one other value written since", `if ($a === null && $b === null && $c === null) { return; } $c = g(); if ($b === null && $c === null) { t('v', $a); } }`, `\A|null`},
 		{"a call among the tests", `if ($a === null && $b === null && g() === null) { return; } if ($b === null) { t('v', $a); } }`, `\A|null`},
 		{"every test proven: unreachable", `if ($b === null && $c === null) { return; } if ($b === null && $c === null) { t('v', $a); } }`, `\A|null`},
-		{"past the bound", `if ($a === null && $b === null && $c === null && $d === null && $b === null && $c === null && $d === null && $b === null && $c === null && $d === null) { return; } if ($b === null && $c === null && $d === null) { t('v', $a); } }`, `\A|null`},
 		{"a call before the others", `if ($a === null && g() === null && $b === null && $c === null) { return; } if ($b === null && $c === null) { t('v', $a); } }`, `\A|null`},
 		{"within the bound", `if ($a === null && $b === null && $c === null && $d === null && $b === null && $c === null && $d === null && $b === null) { return; } if ($b === null && $c === null && $d === null) { t('v', $a); } }`, `\A`},
 	}
@@ -84,6 +83,33 @@ func TestCorrelatedExitOfMoreValues(t *testing.T) {
 			native, proven := provenProbe(t, head+c.body)
 			if native != c.want || proven != c.want {
 				t.Errorf("native %s, proven %s; want %s", native, proven, c.want)
+			}
+		})
+	}
+}
+
+// TestCorrelatedExitPastTheBound covers exits of more than
+// maxCorrelatedTests tests, which are not followed: the native type keeps
+// null, and the proven one is unknown wherever following the exit could
+// have removed it, so that no check reports what the exit may rule out.
+func TestCorrelatedExitPastTheBound(t *testing.T) {
+	const head = `<?php class A {} function g(): ?A { return null; } function f(?A $a, ?A $b, ?A $c, ?A $d) { `
+	const many = `$b === null && $c === null && $d === null && $b === null && $c === null && $d === null && $b === null && $c === null`
+	cases := []struct {
+		name, body, proven string
+	}{
+		{"guarded", `if ($a === null && ` + many + `) { return; } if ($b === null && $c === null && $d === null) { t('v', $a); } }`, `?unknown`},
+		{"unguarded", `if ($a === null && ` + many + `) { return; } t('v', $a); }`, `?unknown`},
+		// Following the exit could not have refined $a.
+		{"two tests left", `if ($a === null && g() === null && ` + many + `) { return; } t('v', $a); }`, `\A|null`},
+		{"no test of the value", `if (` + many + ` && $d === null) { return; } t('v', $a); }`, `\A|null`},
+		{"the test left is not about the value", `if (g() === null && ` + many + `) { return; } t('v', $a); }`, `\A|null`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			native, proven := provenProbe(t, head+c.body)
+			if native != `\A|null` || proven != c.proven {
+				t.Errorf("native %s, proven %s; want \\A|null, %s", native, proven, c.proven)
 			}
 		})
 	}
@@ -103,12 +129,12 @@ func TestCorrelatedExitOperandBudget(t *testing.T) {
 			}
 			src := "<?php class A {} function f(" + strings.Join(params, ",") + ") { if (" + strings.Join(checks, " && ") + ") return; if (" + strings.Join(guards, " && ") + ") { t('v', $v0); } }"
 			native, proven := provenProbe(t, src)
-			want := `\A`
+			wantNative, wantProven := `\A`, `\A`
 			if count == 9 {
-				want = `\A|null`
+				wantNative, wantProven = `\A|null`, `?unknown`
 			}
-			if native != want || proven != want {
-				t.Fatalf("native %s proven %s want %s", native, proven, want)
+			if native != wantNative || proven != wantProven {
+				t.Fatalf("native %s proven %s want %s, %s", native, proven, wantNative, wantProven)
 			}
 		})
 	}
