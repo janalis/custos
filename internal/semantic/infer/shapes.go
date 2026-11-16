@@ -227,7 +227,7 @@ func (e *Env) writeInto(t types.Type, path []syntax.Expr, v types.Type) types.Ty
 	created := false
 	for _, a := range t.Atoms() {
 		switch {
-		case a == "array" || strings.HasSuffix(a, "[]"):
+		case types.IsArrayAtom(a):
 			continue
 		case a == "callable":
 			return types.Unknown

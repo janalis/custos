@@ -9,6 +9,7 @@ import (
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/types"
 )
 
 // notOptimalIfConditions inspects if/elseif conditions for operand ordering,
@@ -267,7 +268,7 @@ func classifyDimRead(ctx *analysis.Context, d *syntax.ArrayDimFetch) int {
 	atoms := ctx.TypeOf(d.Var).Without("null").Atoms()
 	for _, a := range atoms {
 		switch {
-		case a == "array" || a == "string" || strings.HasSuffix(a, "[]") || scalarAtoms[a]:
+		case types.IsArrayAtom(a) || a == "string" || scalarAtoms[a]:
 		case !strings.HasPrefix(a, `\`) || ctx.Index().Class(a, ctx.PHP) == nil:
 			return propUnknown // mixed, object, iterable, template or unresolved class
 		case ctx.Index().IsSubtype(a, `\ArrayAccess`, ctx.PHP):

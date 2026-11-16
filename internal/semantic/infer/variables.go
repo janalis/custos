@@ -1239,7 +1239,7 @@ func collected(t types.Type) types.Type {
 // would report its correct uses, so such a tag gives an unknown type.
 func variadicDoc(t types.Type) types.Type {
 	for _, a := range t.Atoms() {
-		if a == "array" || a == "iterable" || strings.HasSuffix(a, "[]") {
+		if types.IsArrayAtom(a) || a == "iterable" {
 			return types.Unknown
 		}
 	}

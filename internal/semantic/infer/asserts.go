@@ -222,7 +222,7 @@ func (e *Env) atomIn(x string, a types.Type) bool {
 		return true
 	case x == "true" || x == "false":
 		return a.Has("bool")
-	case strings.HasSuffix(x, "[]") || x == "array":
+	case types.IsArrayAtom(x):
 		return a.Has("iterable") || (x != "array" && a.Has("array"))
 	case strings.HasPrefix(x, `\`):
 		return a.Has("object") || e.subtypeOfAny(strings.TrimPrefix(x, `\`), a.Classes())

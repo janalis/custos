@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 // incrementDecrementOperationEquivalent suggests ++/-- for `$n += 1`,
@@ -155,7 +156,7 @@ func (incrementDecrementOperationEquivalent) Check(ctx *analysis.Context, n synt
 		}
 		arr := false
 		for _, at := range t.Atoms() {
-			if at == "array" || strings.HasSuffix(at, "[]") {
+			if types.IsArrayAtom(at) {
 				arr = true
 			}
 		}

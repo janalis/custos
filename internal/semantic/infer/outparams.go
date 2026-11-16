@@ -329,7 +329,7 @@ func (e *Env) builtinOutType(kind outKind, al *syntax.ArgList, v *syntax.Variabl
 			prior := e.TypeOf(v)
 			if e.PHP != 0 && e.PHP < phpversion.PHP80 && !prior.IsArrayLike() {
 				for _, atom := range prior.Atoms() {
-					if atom == "array" || strings.HasSuffix(atom, "[]") {
+					if types.IsArrayAtom(atom) {
 						return types.Unknown
 					}
 				}

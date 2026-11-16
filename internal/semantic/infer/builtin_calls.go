@@ -343,7 +343,7 @@ func replaceResult(st types.Type, preg bool) (types.Type, bool) {
 	}
 	var res []string
 	for _, a := range st.Atoms() {
-		if a == "array" || strings.HasSuffix(a, "[]") {
+		if types.IsArrayAtom(a) {
 			res = append(res, "array")
 		} else {
 			res = append(res, "string")
