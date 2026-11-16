@@ -39,7 +39,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   into an `array|false` property: `$this->items[] = 1`), which PHP turns
   into an array: RedundantTypeCheck, ImpossibleTypeComparison,
   InvalidArgumentType, InvalidReturnType and their documented counterparts
-  no longer judge the value as false afterwards. OffsetOperations and the
+  judge the value as that array afterwards, not as false. OffsetOperations and the
   rules reporting an unchecked false result are unchanged.
 - A `foreach` loop writing its key or value into an offset
   (`foreach ($rows as $seen['last'])`) now counts as a write into that

@@ -76,3 +76,12 @@ class Ticket
         };
     }
 }
+
+// A write into false makes it an array (deprecated from PHP 8.1): the
+// array is still rejected.
+function vivifiedCount(): int
+{
+    $list = false;
+    $list[] = 1;
+    return <error descr="Return int from Shop\vivifiedCount(), not int[].">$list</error>;
+}

@@ -129,7 +129,10 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 		if !ok {
 			continue
 		}
-		given := ctx.TypeOf(b.arg.Value)
+		given, proven := ctx.TypeOf(b.arg.Value), ctx.Types().ProvenTypeOf(b.arg.Value)
+		if vivified(ctx, b.arg.Value, proven) {
+			given = proven
+		}
 		expected, native, ok := check.rejected(targets, params, given)
 		if !ok {
 			continue
@@ -139,11 +142,8 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 			m.Values = valuesDecide(check, params[0].DocType, params[0].DocValues, params[0].Default, declared, given, at)
 		}
 		// Proven: the native types also reject what the code alone shows.
-		switch proven := ctx.Types().ProvenTypeOf(b.arg.Value); {
-		case native && check.nativeRejects(targets, params, proven):
+		if native && check.nativeRejects(targets, params, proven) {
 			m.Proven, m.Given = true, proven
-		case vivified(ctx, b.arg.Value, proven):
-			continue
 		}
 		// The proven type of `$this` in a closure is unknown; the
 		// PHPDoc-aware one still names the enclosing class.
@@ -160,8 +160,9 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 // offset of false, which PHP turns into an array (deprecated from PHP 8.1)
 // and which only the proven environment follows (see
 // infer.Env.ProvenTypeOf). A known proven type differs from the native one
-// only there. A mismatch found on the false the other views keep is not
-// one the code makes, whether a native or a PHPDoc type rejects it.
+// only there. The value is then judged by its proven type: a mismatch
+// found only on the false the other views keep is not one the code makes,
+// whether a native or a PHPDoc type rejects it, but one the array meets is.
 func vivified(ctx *analysis.Context, x syntax.Expr, proven types.Type) bool {
 	return !proven.IsUnknown() && !proven.Has("false") && ctx.Types().Native().TypeOf(x).Has("false")
 }
