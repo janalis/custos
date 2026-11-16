@@ -57,3 +57,22 @@ function vivify(): void
         echo 'failed';
     }
 }
+
+// A loop writing into an offset makes null an array once it runs: after a
+// loop over a non-empty literal the variable is an array, and after one
+// that may not run it may be either.
+function loops(array $rows): void
+{
+    $seen = null;
+    foreach ($rows as $seen['last']) {
+    }
+    if ($seen === null) {
+        echo 'none';
+    }
+    $sizes = null;
+    foreach ([1, 2] as $sizes[]) {
+    }
+    if (<warning descr="This check is always false: the value is array.">is_null($sizes)</warning>) {
+        echo 'none';
+    }
+}

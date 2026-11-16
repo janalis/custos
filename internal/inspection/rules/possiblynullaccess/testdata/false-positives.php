@@ -93,6 +93,15 @@ class Cart
         $a->price();
     }
 
+    // A loop over a non-empty literal writing into an offset makes null an
+    // array.
+    public function looped(?array $rows): void
+    {
+        foreach ([1] as $rows['k']) {
+        }
+        echo $rows['k'];
+    }
+
     // Assertions: assert() and a PHPDoc assertion method.
     public function asserted(?Item $a, ?Item $b): void
     {

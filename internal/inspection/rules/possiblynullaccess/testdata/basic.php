@@ -77,4 +77,12 @@ class Cart
     {
         [<warning descr="Check this value for null before the access: it is array|null.">$map</warning>['col'] => $value] = $row;
     }
+
+    // A loop that may not run may leave null where it writes an offset.
+    public function looped(?array $rows, array $lines): void
+    {
+        foreach ($lines as $rows['k']) {
+        }
+        echo <warning descr="Check this value for null before the access: it is array|null.">$rows</warning>['k'];
+    }
 }

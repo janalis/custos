@@ -860,6 +860,8 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 					}
 				}
 				e.collectTargets(n.Value, n.Value.Span().Start, func() types.Type { return e.foreachElem(it) }, addKill)
+				collectLoopDimWrites(n, n.Key, sv)
+				collectLoopDimWrites(n, n.Value, sv)
 			case *syntax.Catch:
 				if n.Var != nil {
 					var atoms []string
@@ -1146,6 +1148,39 @@ func (e *Env) collectDimWrites(outer, a *syntax.Assign, target syntax.Expr, sv *
 		for _, it := range t.Items {
 			if it != nil && it.Value != nil {
 				e.collectDimWrites(outer, nil, it.Value, sv)
+			}
+		}
+	}
+}
+
+// collectLoopDimWrites records the element writes target, the key or
+// value target of loop fe (`foreach ($xs as $a['k'])`), makes on each
+// iteration, as unknown writes.
+func collectLoopDimWrites(fe *syntax.Foreach, target syntax.Expr, sv *scopeVars) {
+	switch t := target.(type) {
+	case *syntax.ArrayDimFetch:
+		inner, nested := t, false
+		for {
+			d, ok := inner.Var.(*syntax.ArrayDimFetch)
+			if !ok {
+				break
+			}
+			inner, nested = d, true
+		}
+		if v, ok := inner.Var.(*syntax.Variable); ok && v.Name != "" {
+			w := &elemWrite{loop: fe, nested: nested, key: inner.Dim}
+			sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: t.Span().Start, end: t.Span().End, w: w})
+		}
+	case *syntax.List:
+		for _, it := range t.Items {
+			if it != nil && it.Value != nil {
+				collectLoopDimWrites(fe, it.Value, sv)
+			}
+		}
+	case *syntax.Array:
+		for _, it := range t.Items {
+			if it != nil && it.Value != nil {
+				collectLoopDimWrites(fe, it.Value, sv)
 			}
 		}
 	}

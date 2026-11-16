@@ -40,6 +40,13 @@ versions follow [Semantic Versioning](https://semver.org/).
   InvalidArgumentType, InvalidReturnType and their documented counterparts
   no longer judge the value as false afterwards. OffsetOperations and the
   rules reporting an unchecked false result are unchanged.
+- A `foreach` loop writing its key or value into an offset
+  (`foreach ($rows as $seen['last'])`) now counts as a write into that
+  offset: the variable is an array after a loop over a non-empty array
+  (an array literal, or a value known to be non-empty) and may be an array
+  after any other. RedundantTypeCheck no longer calls `$seen === null`
+  always true after such a loop, and PossiblyNullAccess no longer reports
+  `$seen['last']` after a loop that runs.
 
 ## [0.1.13] - 2026-11-13
 

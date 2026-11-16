@@ -52,14 +52,17 @@ function e(bool $c) { $x = $c ? false : null; $x[] = 1; t('falseOrNull', $x); }
 function f(\ArrayObject|false|null $o) { $o['k'] = 1; t('objectFalse', $o); }
 function g(?array $a, bool $c) { if ($c) { $a['k']++; } t('incrementBranch', $a); }
 function h(?array $a) { foreach ([1] as $a['k']) {} t('foreach', $a); }
+function i(?array $a, array $xs) { foreach ($xs as $a['k']) {} t('foreachMayNotRun', $a); }
 `, map[string]string{
 		"prop": "array", "static": "array", "propNested": "array", "propObject": `\ArrayObject|array`,
 		"propString": "array|string", "propFalse": "array|false", "propBranch": "array|null", "propCall": "array|null",
 		"propReset": "array|null", "propChecked": "array",
 		"destructured": "array", "incremented": "array", "false": "array|false", "falseLiteral": "false",
 		"falseOrNull": "false|int[]<int<1, 1>>", "objectFalse": `\ArrayObject|false|int[]<int<1, 1>>`, "incrementBranch": "array|null",
+		// The loop runs: the write happens.
+		"foreach": "array",
 		// The loop may not run: the write may not happen.
-		"foreach": "array|null",
+		"foreachMayNotRun": "array|null",
 	})
 }
 
@@ -114,6 +117,40 @@ func TestProvenFalseOffsetWrite(t *testing.T) {
 			native, proven := provenProbe(t, head+c.body)
 			if native != c.native || proven != c.proven {
 				t.Errorf("native %s, proven %s; want %s, %s", native, proven, c.native, c.proven)
+			}
+		})
+	}
+}
+
+// TestForeachTargetWrite covers a foreach loop writing its value (or key)
+// into an element (`foreach ($xs as $a['k'])`): after a loop that runs,
+// the variable is an array, and after one that may not, it may also keep
+// what it held.
+func TestForeachTargetWrite(t *testing.T) {
+	const head = `<?php function f(array $xs, bool $c) { $a = null; `
+	cases := []struct {
+		name, body, want string
+	}{
+		{"array literal", `foreach ([1, 2] as $a['k']) {} t('v', $a); }`, `array`},
+		{"key target", `foreach ([1] as $a['k'] => $v) {} t('v', $a); }`, `array`},
+		{"destructured", `foreach ([[1]] as [$a['k']]) {} t('v', $a); }`, `array`},
+		{"nested", `foreach ([1] as $a['k']['l']) {} t('v', $a); }`, `array`},
+		{"non-empty value", `$ys = [1]; $ys[] = 2; foreach ($ys as $a[]) {} t('v', $a); }`, `array`},
+		{"in the body", `foreach ($xs as $a['k']) { t('v', $a); } }`, `array`},
+		// Not proven.
+		{"may be empty", `foreach ($xs as $a['k']) {} t('v', $a); }`, `array|null`},
+		{"empty literal", `foreach ([] as $a['k']) {} t('v', $a); }`, `array|null`},
+		{"unpacked only", `foreach ([...$xs] as $a['k']) {} t('v', $a); }`, `array|null`},
+		{"reset in the body", `foreach ([1] as $a['k']) { $a = null; } t('v', $a); }`, `array|null`},
+		{"unset in the body", `foreach ([1] as $a['k']) { unset($a); } t('v', $a); }`, `array|null`},
+		{"in a branch", `if ($c) { foreach ([1] as $a['k']) {} } t('v', $a); }`, `array|null`},
+		{"not in a block", `if ($c) foreach ([1] as $a['k']) {} t('v', $a); }`, `array|null`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			native, proven := provenProbe(t, head+c.body)
+			if native != c.want || proven != c.want {
+				t.Errorf("native %s, proven %s; want %s", native, proven, c.want)
 			}
 		})
 	}
