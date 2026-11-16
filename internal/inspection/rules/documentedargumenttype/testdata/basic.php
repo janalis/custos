@@ -63,3 +63,24 @@ function vivifiedArg(): void
     $list[] = 1;
     countTo(<warning descr="Pass int to $count of Shop\countTo(), not int[].">$list</warning>);
 }
+
+// Also into a property only PHPDoc types, or declared mixed.
+class DocLazyCount
+{
+    /** @var array|false */
+    private $items = false;
+    /** @var array|false */
+    private mixed $any = false;
+
+    public function fill(): void
+    {
+        if ($this->items === false) {
+            $this->items[] = 1;
+            countTo(<warning descr="Pass int to $count of Shop\countTo(), not array.">$this->items</warning>);
+        }
+        if ($this->any === false) {
+            $this->any[] = 1;
+            countTo(<warning descr="Pass int to $count of Shop\countTo(), not array.">$this->any</warning>);
+        }
+    }
+}

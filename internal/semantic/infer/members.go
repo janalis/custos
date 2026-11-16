@@ -600,8 +600,25 @@ func (e *Env) resolvedDoc(doc string) string {
 	return e.docType(doc, nil).DocString()
 }
 
+// memberType types a member declared declared and documented doc: the
+// narrower doc type (see narrowerDoc), else the one memberType picks.
+// Cached per pair while the index is unchanged (see indexCaches): every
+// read of a property parses the same declaration.
 func (e *Env) memberType(declared, doc string) types.Type {
-	doc = e.resolvedDoc(doc)
+	c := e.indexCaches()
+	key := [2]string{declared, doc}
+	if t, ok := c.members[key]; ok {
+		return t
+	}
+	t := e.memberTypeOf(declared, e.resolvedDoc(doc))
+	if c.members == nil {
+		c.members = map[[2]string]types.Type{}
+	}
+	c.members[key] = t
+	return t
+}
+
+func (e *Env) memberTypeOf(declared, doc string) types.Type {
 	if narrowed, ok := e.narrowerDoc(types.FromDoc(declared, nil), types.FromDoc(doc, nil)); ok {
 		return narrowed
 	}

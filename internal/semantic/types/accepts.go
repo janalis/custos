@@ -139,7 +139,7 @@ func acceptMember(expected, actual Type, a string, ctx AcceptContext) Verdict {
 	in := expected.Intersection()
 	switch {
 	case in == nil:
-	case isClassAtom(a):
+	case IsClassAtom(a):
 		best = classIntersection(in, a, ctx)
 	default:
 		best = acceptByClass(expected, in[0], actual, a, ctx) // as for one of its classes
@@ -216,9 +216,9 @@ func acceptAtom(expected Type, e string, actual Type, a string, ctx AcceptContex
 			return Yes
 		}
 		return Maybe
-	case isClassAtom(e):
+	case IsClassAtom(e):
 		return acceptByClass(expected, e, actual, a, ctx)
-	case isClassAtom(a):
+	case IsClassAtom(a):
 		return acceptClassValue(e, a, ctx)
 	}
 	switch e {
@@ -454,7 +454,7 @@ func elemVerdict(want, have Type, ctx AcceptContext) Verdict {
 
 // acceptByClass judges member a against class alternative e.
 func acceptByClass(expected Type, e string, actual Type, a string, ctx AcceptContext) Verdict {
-	if isClassAtom(a) {
+	if IsClassAtom(a) {
 		v := acceptClass(e, a, ctx)
 		if v == Yes {
 			if want, ok := expected.EnumCaseNames(e); ok {
@@ -531,8 +531,8 @@ func acceptClassValue(e, a string, ctx AcceptContext) Verdict {
 	return No
 }
 
-// isClassAtom reports a class atom (not an element-typed array).
-func isClassAtom(a string) bool { return strings.HasPrefix(a, `\`) && !strings.HasSuffix(a, "[]") }
+// IsClassAtom reports a class atom (not an element-typed array).
+func IsClassAtom(a string) bool { return strings.HasPrefix(a, `\`) && !strings.HasSuffix(a, "[]") }
 
 // isTemplateAtom reports a template parameter atom (`\~T`, `\~~T`).
 func isTemplateAtom(a string) bool { return strings.HasPrefix(a, `\~`) }

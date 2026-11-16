@@ -348,16 +348,25 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		if e.proven && rebindable(v) {
 			return types.Unknown
 		}
-		fqn := e.selfClass(syntax.EnclosingClass(v))
+		cl := syntax.EnclosingClass(v)
+		c := e.indexCaches()
+		if t, ok := c.this[cl]; ok {
+			return t
+		}
+		fqn := e.selfClass(cl)
 		if fqn == "" {
 			return e.traitRequired(v)
 		}
 		t := types.Of(`\` + fqn)
-		if c := e.Index.Class(fqn, e.PHP); c != nil && c.Kind == syntax.KindEnum {
+		if k := e.Index.Class(fqn, e.PHP); k != nil && k.Kind == syntax.KindEnum {
 			// `if ($this === self::Off) { return; }`: an enum method narrows
 			// its case ($this is never reassigned).
-			t = e.narrowExprAfter(t, v, "this", syntax.EnclosingVariableScope(v), 0)
+			return e.narrowExprAfter(t, v, "this", syntax.EnclosingVariableScope(v), 0)
 		}
+		if c.this == nil {
+			c.this = map[*syntax.ClassLike]types.Type{}
+		}
+		c.this[cl] = t
 		return t
 	}
 	return e.variableBaseAt(v.Name, v, v)

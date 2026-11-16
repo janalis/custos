@@ -166,3 +166,42 @@ class LazyList
         }
     }
 }
+
+// Also when only PHPDoc types the property.
+class DocLazyList
+{
+    /** @var array|false */
+    private $items = false;
+    /** @var array|false */
+    private static $shared = false;
+
+    public function fill(): void
+    {
+        if ($this->items === false) {
+            $this->items[] = 1;
+            takesList($this->items);
+        }
+    }
+
+    public static function fillShared(): void
+    {
+        if (self::$shared === false) {
+            self::$shared['k'] = 1;
+        }
+        takesList(self::$shared);
+    }
+
+    // The proven value is not known when a call may change it first.
+    public function refill(): void
+    {
+        if ($this->items === false) {
+            $this->items[] = $this->next();
+            takesList($this->items);
+        }
+    }
+
+    public function next(): int
+    {
+        return 1;
+    }
+}

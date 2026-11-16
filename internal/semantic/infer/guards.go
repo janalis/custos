@@ -238,6 +238,15 @@ func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types
 	if !e.vivifiable(t) || e.nonEmptyBroken(scope, name, x.Span().End, use) {
 		return t
 	}
+	if t.Has("mixed") {
+		// A property no native type restricts (see vivifiable): only what
+		// the conditions guarding x prove it held then may vivify.
+		before, ok := e.beforeOffsetWrite(use, scope, x, name)
+		if !ok {
+			return t
+		}
+		t = before
+	}
 	nt := t.Without("null")
 	if e.proven {
 		nt = nt.Without("false")
@@ -252,9 +261,49 @@ func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types
 }
 
 // vivifiable reports whether t holds a value a write into one of its
-// offsets turns into an array: null, and false in the proven Env.
+// offsets turns into an array: null, and false in the proven Env. There,
+// mixed (a property without a native type, or declared mixed) may also
+// hold false (see beforeOffsetWrite).
 func (e *Env) vivifiable(t types.Type) bool {
-	return t.Has("null") || e.proven && t.Has("false")
+	return t.Has("null") || e.proven && (t.Has("false") || t.Has("mixed"))
+}
+
+// beforeOffsetWrite types property name, of no known type, right before
+// statement x writes into one of its offsets (offsetWrite), for the proven
+// Env: what the conditions guarding the written property prove it held
+// (any value narrowed, as provenTrueAt does for a local), when that is
+// only values the write turns into an array (null, false) or arrays.
+// Nothing evaluated in x after the property (the key, the value) may change
+// it before the write, nor anything between x and use after it (checked by
+// the caller).
+func (e *Env) beforeOffsetWrite(use syntax.Expr, scope syntax.Node, x syntax.Expr, name string) (types.Type, bool) {
+	var target syntax.Expr
+	eachOffsetWrite(offsetWriteTarget(x), func(_, inner *syntax.ArrayDimFetch, _ bool) bool {
+		if v := syntax.UnwrapParens(inner.Var); narrowKey(v) == name {
+			target = v
+			return false
+		}
+		return true
+	})
+	if e.nonEmptyBroken(scope, name, target.Span().End, use) {
+		return types.Unknown, false
+	}
+	t := e.narrowGuarded(anyValue, target, name, scope, 0)
+	for _, a := range t.Atoms() {
+		if a != "null" && a != "false" && !types.IsArrayAtom(a) {
+			return types.Unknown, false
+		}
+	}
+	return t, len(t.Atoms()) > 0 // none: a path that cannot run
+}
+
+// offsetWriteTarget returns the write target of expression statement x,
+// which offsetWrite accepted.
+func offsetWriteTarget(x syntax.Expr) syntax.Expr {
+	if a, ok := x.(*syntax.Assign); ok {
+		return a.Var
+	}
+	return x.(*syntax.IncDec).Var
 }
 
 // writesOffsetOf reports whether the write target x (an offset, or a
@@ -285,9 +334,8 @@ type guardIndex struct {
 	pos  map[syntax.Node]int // statement -> position
 	keys map[string][]int    // key -> positions, ascending
 	// resets lists, per key, the positions of the statements assigning it
-	// (assigns) and, under baseKey(k), those assigning an element of it
-	// or it.
-	resets map[string][]int
+	// (assigns); baseResets those assigning it or one of its elements.
+	resets, baseResets map[string][]int
 }
 
 // maxGuardScan caps the statements guards examines for one read (those
@@ -295,8 +343,6 @@ type guardIndex struct {
 // read is unknown: real code stays far below; hostile code with thousands
 // of guards or calls on one variable would make each read linear.
 const maxGuardScan = 512
-
-func baseKey(k string) string { return "\x02" + k }
 
 // lastReset returns the position just after the last statement before end
 // that assigns name (for an element key, also its array): guards before
@@ -314,7 +360,7 @@ func (gi *guardIndex) lastReset(name string, end int) int {
 	}
 	if isDimKey(name) {
 		base, _ := splitDimKey(name)
-		last(gi.resets[baseKey(base)])
+		last(gi.baseResets[base])
 	}
 	return from
 }
@@ -348,7 +394,7 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 	if gi, ok := e.guardIdx[owner]; ok {
 		return gi
 	}
-	gi := &guardIndex{pos: make(map[syntax.Node]int, len(stmts)), keys: map[string][]int{}, resets: map[string][]int{}}
+	gi := &guardIndex{pos: make(map[syntax.Node]int, len(stmts)), keys: map[string][]int{}, resets: map[string][]int{}, baseResets: map[string][]int{}}
 	for i, st := range stmts {
 		gi.pos[st] = i
 		seen := map[string]bool{}
@@ -385,17 +431,20 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 			collect(st.Expr)
 			if a, ok := st.Expr.(*syntax.Assign); ok {
 				// The writes each target matches (all those of a
-				// destructuring), and under baseKey those of the array or
+				// destructuring), and in baseResets those of the array or
 				// one of its elements.
 				eachWriteTarget(a.Var, func(x syntax.Expr) bool {
-					gi.addReset(narrowKey(x), i)
+					k := narrowKey(x)
+					addReset(gi.resets, k, i)
 					if d, ok := x.(*syntax.ArrayDimFetch); ok {
-						inner, _ := innermostDim(d)
-						x = syntax.UnwrapParens(inner.Var)
+						if k != "" {
+							k, _ = splitDimKey(k) // the array's key, without building it again
+						} else {
+							inner, _ := innermostDim(d)
+							k = narrowKey(syntax.UnwrapParens(inner.Var))
+						}
 					}
-					if k := narrowKey(x); k != "" {
-						gi.addReset(baseKey(k), i)
-					}
+					addReset(gi.baseResets, k, i)
 					return true
 				})
 			}
@@ -434,10 +483,10 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 	return gi
 }
 
-// addReset records statement i as assigning key k (none when "").
-func (gi *guardIndex) addReset(k string, i int) {
-	if l := gi.resets[k]; k != "" && (len(l) == 0 || l[len(l)-1] != i) {
-		gi.resets[k] = append(l, i)
+// addReset records statement i in resets under key k (none when "").
+func addReset(resets map[string][]int, k string, i int) {
+	if l := resets[k]; k != "" && (len(l) == 0 || l[len(l)-1] != i) {
+		resets[k] = append(l, i)
 	}
 }
 

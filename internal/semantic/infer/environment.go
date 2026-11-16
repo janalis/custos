@@ -60,6 +60,9 @@ type Env struct {
 	// bases holds the type of variable reads before the element writes
 	// reaching them are applied (see baseType).
 	bases map[*syntax.Variable]types.Type
+	// declCaches holds the types derived from declarations alone (see
+	// indexCaches).
+	declCaches indexCaches
 
 	// Return types inferred from bodies (see bodyReturn), by declaration span.
 	bodies    map[syntax.Span]types.Type
@@ -293,6 +296,28 @@ func (e *Env) resolverFor(n syntax.Node, at uint32) types.Resolver {
 }
 
 // docType resolves PHPDoc constants through the current project index.
+// indexCaches holds types an Env derives from declarations only, valid
+// while the index (and its revision) and the PHP version stay the same.
+type indexCaches struct {
+	index    *index.Index
+	revision uint64
+	php      phpversion.Version
+	// members: memberType results, by declared and documented type text.
+	members map[[2]string]types.Type
+	// this: the type of `$this` in each class (see variableBase).
+	this map[*syntax.ClassLike]types.Type
+}
+
+// indexCaches returns the declaration caches, emptied first when the index
+// or the PHP version changed since they were filled.
+func (e *Env) indexCaches() *indexCaches {
+	c := &e.declCaches
+	if rev := e.Index.Revision(); c.index != e.Index || c.revision != rev || c.php != e.PHP {
+		*c = indexCaches{index: e.Index, revision: rev, php: e.PHP}
+	}
+	return c
+}
+
 func (e *Env) docType(text string, resolve types.Resolver) types.Type {
 	return types.FromDocResolved(text, resolve, func(expr string) types.Type {
 		return index.ResolveDocType(expr, resolve, func(name string) *index.Class { return e.Index.Class(name, e.PHP) })

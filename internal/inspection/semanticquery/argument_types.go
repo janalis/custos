@@ -160,11 +160,27 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 // offset of false, which PHP turns into an array (deprecated from PHP 8.1)
 // and which only the proven environment follows (see
 // infer.Env.ProvenTypeOf). A known proven type differs from the native one
-// only there. The value is then judged by its proven type: a mismatch
-// found only on the false the other views keep is not one the code makes,
-// whether a native or a PHPDoc type rejects it, but one the array meets is.
+// only there, and so does a known proven type where the native one is
+// unknown: a property no native type restricts, which the proven
+// environment follows only into an array. The value is then judged by its
+// proven type: a mismatch found only on the false the other views keep is
+// not one the code makes, whether a native or a PHPDoc type rejects it,
+// but one the array meets is.
 func vivified(ctx *analysis.Context, x syntax.Expr, proven types.Type) bool {
-	return !proven.IsUnknown() && !proven.Has("false") && ctx.Types().Native().TypeOf(x).Has("false")
+	return vivifiedProven(proven) && vivifiedNative(ctx.Types().Native().TypeOf(x))
+}
+
+// vivifiedProven reports whether proven may be the type of a vivified
+// value (see vivified): known, without false, not mixed.
+func vivifiedProven(proven types.Type) bool {
+	return !proven.IsUnknown() && !proven.Has("false") && !proven.Has("mixed")
+}
+
+// vivifiedNative reports whether native, the native type of a value whose
+// proven type vivifiedProven accepts, keeps the false a write into an
+// offset made an array, or does not know the value (see vivified).
+func vivifiedNative(native types.Type) bool {
+	return native.Has("false") || native.IsUnknown() || native.Has("mixed")
 }
 
 // fileTypeCheck returns the acceptance state of the file of ctx, shared by

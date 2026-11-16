@@ -103,3 +103,20 @@ function vivifiedCount()
     $list[] = 1;
     return <warning descr="Return int from Shop\vivifiedCount(), not int[].">$list</warning>;
 }
+
+// Also into a property only PHPDoc types.
+class DocLazyCount
+{
+    /** @var array|false */
+    private $items = false;
+
+    /** @return int */
+    public function count()
+    {
+        if ($this->items === false) {
+            $this->items[] = 1;
+            return <warning descr="Return int from Shop\DocLazyCount::count(), not array.">$this->items</warning>;
+        }
+        return 0;
+    }
+}

@@ -17,17 +17,23 @@ import (
 // statements mention a nullable property between reads: plain statements,
 // writes into its offsets (assignments, increments, destructuring) and
 // calls, the expression statements guards examines for each read; and the
-// same writes into a property that cannot be null.
+// same writes into a property that cannot be null; and, in the proven
+// environment, the writes into a property without a native type.
 func BenchmarkPropertyReadGuards(b *testing.B) {
-	for _, scenario := range []struct{ name, stmt string }{
-		{"plain", `$this->log($this->p, %[1]d);`},
-		{"elemWrites", `$this->p['k%[1]d'] = %[1]d; $this->p['n']++; [$this->p['a'], $x] = [1, 2]; $this->log($this->p);`},
+	for _, scenario := range []struct {
+		name, stmt string
+		proven     bool
+	}{
+		{"plain", `$this->log($this->p, %[1]d);`, false},
+		{"elemWrites", `$this->p['k%[1]d'] = %[1]d; $this->p['n']++; [$this->p['a'], $x] = [1, 2]; $this->log($this->p);`, false},
 		// A property that cannot be null: no write into its offsets matters.
-		{"nonNullable", `$this->q['k%[1]d'] = %[1]d; $this->q['n']++; $this->log($this->q);`},
+		{"nonNullable", `$this->q['k%[1]d'] = %[1]d; $this->q['n']++; $this->log($this->q);`, false},
+		// Proven types: a property without a native type may hold false.
+		{"untypedProven", `if ($this->u === false) { $this->u['k%[1]d'] = %[1]d; $this->log($this->u); }`, true},
 	} {
 		b.Run(scenario.name, func(b *testing.B) {
 			var src strings.Builder
-			src.WriteString("<?php class G {\n    private ?array $p = null;\n    private array $q = [];\n    private function log($v): void {}\n")
+			src.WriteString("<?php class G {\n    private ?array $p = null;\n    private array $q = [];\n    /** @var array|false */\n    private $u = false;\n    private function log($v): void {}\n")
 			for m := range 20 {
 				fmt.Fprintf(&src, "    function m%d(): void {\n", m)
 				for i := range 30 {
@@ -44,7 +50,9 @@ func BenchmarkPropertyReadGuards(b *testing.B) {
 			for b.Loop() {
 				env := infer.NewEnv(file, resolver, ix, phpversion.PHP84, infer.Options{})
 				syntax.InspectFile(file, func(n syntax.Node) bool {
-					if p, ok := n.(*syntax.PropertyFetch); ok {
+					if p, ok := n.(*syntax.PropertyFetch); ok && scenario.proven {
+						env.ProvenTypeOf(p)
+					} else if ok {
 						env.TypeOf(p)
 					}
 					return true

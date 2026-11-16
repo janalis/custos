@@ -96,6 +96,13 @@ func judgeStore(ctx *analysis.Context, w propertyStore, stored func(*infer.Env) 
 	if given.IsUnknown() {
 		return PropertyMismatch{}, false
 	}
+	// A value written into as false: judged as the array PHP made it (see
+	// vivified).
+	if given.Has("false") {
+		if proven := stored(ctx.Types().Proven()); vivifiedProven(proven) && vivifiedNative(stored(ctx.Types().Native())) {
+			given = proven
+		}
+	}
 	label, targets, ok := writtenProperties(ctx, w)
 	if !ok {
 		return PropertyMismatch{}, false

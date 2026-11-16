@@ -214,3 +214,32 @@ class LazyList
         return [];
     }
 }
+
+// Also when only PHPDoc types the property.
+class DocLazyList
+{
+    /** @var array|false */
+    private $items = false;
+    /** @var array|false */
+    private static $shared = false;
+
+    /** @return array */
+    public function items()
+    {
+        if ($this->items === false) {
+            $this->items['k'] = 1;
+            return $this->items;
+        }
+        return [];
+    }
+
+    /** @return array */
+    public static function shared()
+    {
+        if (self::$shared === false) {
+            self::$shared[] = 1;
+            return self::$shared;
+        }
+        return [];
+    }
+}

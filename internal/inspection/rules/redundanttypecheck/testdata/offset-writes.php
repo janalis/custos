@@ -101,3 +101,23 @@ class LazyList
         }
     }
 }
+
+// Also when only PHPDoc types the property.
+class DocLazyList
+{
+    /** @var array|false */
+    private $items = false;
+
+    public function fill(): void
+    {
+        if ($this->items === false) {
+            $this->items[] = 1;
+            if (is_bool($this->items)) {
+                echo 'failed';
+            }
+            if (is_array($this->items)) {
+                echo 'filled';
+            }
+        }
+    }
+}
