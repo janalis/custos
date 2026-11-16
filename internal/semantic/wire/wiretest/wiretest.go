@@ -13,15 +13,21 @@ import (
 // Fill sets every field reachable from ptr to a non-zero value, each number
 // and string distinct, slices and maps to two elements, down to depth
 // levels of pointers, slices and maps; deeper ones stay nil. Interfaces
-// stay nil, as do the fields skip names ("pkg.Type.field").
-func Fill(ptr any, depth int, skip map[string]bool) {
-	f := &filler{skip: skip}
+// stay nil, as do the fields skip names ("pkg.Type.field"). A pointer
+// field inline names ("pkg.Type.field") stands for fields its parent would
+// otherwise hold itself: while levels remain, it is set without counting as
+// one, so that the fields it points to are set at the parent's level.
+func Fill(ptr any, depth int, skip map[string]bool, inline ...string) {
+	f := &filler{skip: skip, inline: map[string]bool{}}
+	for _, name := range inline {
+		f.inline[name] = true
+	}
 	f.fill(reflect.ValueOf(ptr).Elem(), depth)
 }
 
 type filler struct {
-	skip map[string]bool
-	n    int
+	skip, inline map[string]bool
+	n            int
 }
 
 func (f *filler) next() int {
@@ -43,12 +49,21 @@ func (f *filler) fill(v reflect.Value, depth int) {
 		v.SetString(fmt.Sprintf("s%d", f.next()))
 	case reflect.Struct:
 		for i := range v.NumField() {
-			if f.skip[v.Type().String()+"."+v.Type().Field(i).Name] {
+			name := v.Type().String() + "." + v.Type().Field(i).Name
+			if f.skip[name] {
 				continue
 			}
 			field := v.Field(i)
 			// Unexported fields are set through their address.
-			f.fill(reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem(), depth)
+			field = reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
+			if f.inline[name] {
+				if depth > 0 {
+					field.Set(reflect.New(field.Type().Elem()))
+					f.fill(field.Elem(), depth)
+				}
+				continue
+			}
+			f.fill(field, depth)
 		}
 	case reflect.Pointer:
 		if depth > 0 {
