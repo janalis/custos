@@ -70,16 +70,16 @@ func finish(e *Env, out *File, kept map[string]bool) {
 	slices.Sort(out.held)
 }
 
-// noteRead records that a contract read while out was summarized came from
+// noteRead records that a contract read while f was summarized came from
 // the snapshot (held) or from the file's own summaries.
-func (out *File) noteRead(key string, held bool) {
+func (f *File) noteRead(key string, held bool) {
 	switch {
 	case held:
-		out.held = append(out.held, key)
-	case out.served == nil:
-		out.served = map[string]bool{key: true}
+		f.held = append(f.held, key)
+	case f.served == nil:
+		f.served = map[string]bool{key: true}
 	default:
-		out.served[key] = true
+		f.served[key] = true
 	}
 }
 
