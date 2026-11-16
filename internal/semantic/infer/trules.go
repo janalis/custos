@@ -161,7 +161,7 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 			if id, ok := n.Name.(*syntax.Identifier); ok {
 				if cls := e.selfClass(syntax.EnclosingClass(n)); cls != "" {
 					if p := e.Index.FindProperty(cls, id.Value, e.PHP); p != nil && p.Type != "" {
-						declared := r.bindMember(types.FromDoc(p.Type, nil), p.Class, p.TypeClass, cls)
+						declared := r.bindMember(e.parsedType(p.Type), p.Class, p.TypeClass, cls)
 						// A guard on the path (`is_string($this->p)`) only
 						// removes members of the declared type.
 						if key := narrowKey(n); key != "" {
@@ -354,7 +354,7 @@ func (r *TRules) funcCall(n *syntax.FuncCall) types.Type {
 // declaration over a native Env (see Env.Native).
 func (r *TRules) declaredAndDoc(declared, doc string, builtin bool) types.Type {
 	if r.Env.userDoc(builtin) {
-		return types.FromDoc(declared, nil)
+		return r.Env.parsedType(declared)
 	}
 	doc = r.Env.resolvedDoc(doc)
 	if builtin && declared != "" {

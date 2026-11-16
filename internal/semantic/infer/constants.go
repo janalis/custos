@@ -73,7 +73,7 @@ func (e *Env) namedConstType(fqn string) (types.Type, bool) {
 	}
 	if c != nil {
 		if c.ValueType != "" {
-			return types.FromDoc(c.ValueType, nil), true
+			return e.parsedType(c.ValueType), true
 		}
 		return literalTextType(c.Value), true
 	}

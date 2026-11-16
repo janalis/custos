@@ -295,15 +295,20 @@ func (e *Env) resolverFor(n syntax.Node, at uint32) types.Resolver {
 	}
 }
 
-// docType resolves PHPDoc constants through the current project index.
 // indexCaches holds types an Env derives from declarations only, valid
 // while the index (and its revision) and the PHP version stay the same.
 type indexCaches struct {
 	index    *index.Index
 	revision uint64
 	php      phpversion.Version
-	// members: memberType results, by declared and documented type text.
-	members map[[2]string]types.Type
+	// members: memberType results, by declared and documented type text;
+	// builtins: builtinMemberType results, by the same pair.
+	members  map[[2]string]types.Type
+	builtins map[[2]string]types.Type
+	// parsed: a type text parsed alone (see parsedType), as the native view
+	// reads a declaration: kept apart from members, whose entries for the
+	// same declared text may hold its PHPDoc-aware type.
+	parsed map[string]types.Type
 	// this: the type of `$this` in each class (see variableBase).
 	this map[*syntax.ClassLike]types.Type
 }
@@ -318,6 +323,23 @@ func (e *Env) indexCaches() *indexCaches {
 	return c
 }
 
+// parsedType parses type text as stored in the index (a declared, inferred
+// or constant value type) without resolver, cached per Env (see
+// indexCaches): every read of a member parses the same text.
+func (e *Env) parsedType(text string) types.Type {
+	c := e.indexCaches()
+	if t, ok := c.parsed[text]; ok {
+		return t
+	}
+	t := types.FromDoc(text, nil)
+	if c.parsed == nil {
+		c.parsed = map[string]types.Type{}
+	}
+	c.parsed[text] = t
+	return t
+}
+
+// docType resolves PHPDoc constants through the current project index.
 func (e *Env) docType(text string, resolve types.Resolver) types.Type {
 	return types.FromDocResolved(text, resolve, func(expr string) types.Type {
 		return index.ResolveDocType(expr, resolve, func(name string) *index.Class { return e.Index.Class(name, e.PHP) })

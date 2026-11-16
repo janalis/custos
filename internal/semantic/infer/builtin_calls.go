@@ -82,7 +82,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 			// Keep the failure values the version's signature declares
 			// (array_chunk() returned null before PHP 8.0).
 			for _, a := range []string{"null", "false"} {
-				if types.FromDoc(function.Return, nil).Has(a) {
+				if e.parsedType(function.Return).Has(a) {
 					t = types.Union(t, types.Of(a))
 				}
 			}

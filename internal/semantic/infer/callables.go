@@ -140,7 +140,7 @@ func (e *Env) callbackReturn(x syntax.Expr) types.Type {
 			return types.Unknown
 		}
 		if e.userDoc(f.Builtin) {
-			return voidAsNull(types.FromDoc(f.Return, nil))
+			return voidAsNull(e.parsedType(f.Return))
 		}
 		if !f.Builtin && bodyInferable(f.Return, f.DocReturn) {
 			if t := e.BodyReturnType(f); !t.IsUnknown() || f.Return == "" {

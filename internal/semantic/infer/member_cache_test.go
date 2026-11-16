@@ -47,3 +47,44 @@ func TestMemberTypeCacheTracksIndex(t *testing.T) {
 		t.Fatalf("replaced index: %s", got)
 	}
 }
+
+// TestNativeAndDocTypesStayDistinct reads the same declarations, a property
+// and a method return each documented narrower than declared, alternately
+// through an Env and its native twin: each view keeps its own cached type,
+// whichever view parses the declaration first.
+func TestNativeAndDocTypesStayDistinct(t *testing.T) {
+	src := `<?php interface I {} class M implements I {}
+class Q { /** @var M */ public I $a; /** @return M */ public function r(): I { return new M; } }
+function f(Q $q) { $q->a; $q->r(); $q->a; $q->r(); }`
+	f := syntax.Parse("main.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	if len(f.Errors) > 0 {
+		t.Fatalf("parse: %v", f.Errors)
+	}
+	var reads []syntax.Expr
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.PropertyFetch:
+			reads = append(reads, x)
+		case *syntax.MethodCall:
+			reads = append(reads, x)
+		}
+		return true
+	})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
+	native := env.Native()
+	// Native first for the first two reads, PHPDoc-aware first after.
+	for i, r := range reads {
+		first, second, want := native, env, [2]string{`\I`, `\M`}
+		if i >= 2 {
+			first, second, want = env, native, [2]string{`\M`, `\I`}
+		}
+		if got := first.TypeOf(r).String(); got != want[0] {
+			t.Fatalf("read %d, first view: %s, want %s", i, got, want[0])
+		}
+		if got := second.TypeOf(r).String(); got != want[1] {
+			t.Fatalf("read %d, second view: %s, want %s", i, got, want[1])
+		}
+	}
+}

@@ -33,7 +33,7 @@ func (e *Env) BodyReturnType(f *index.Function) types.Type {
 			// (its body is an approximation of the builtin).
 			return types.Unknown
 		}
-		return refinedReturn(f.Return, types.FromDoc(f.Inferred, nil))
+		return refinedReturn(f.Return, e.parsedType(f.Inferred))
 	}
 	return refinedReturn(f.Return, e.bodyReturn(f.Span))
 }
@@ -96,7 +96,7 @@ func (e *Env) methodBodyReturn(m *index.Method, virtual bool) types.Type {
 		return types.Unknown
 	}
 	if c.File != e.File.Path {
-		return refinedReturn(m.Return, types.FromDoc(m.Inferred, nil)) // computed by AnnotateReturns
+		return refinedReturn(m.Return, e.parsedType(m.Inferred)) // computed by AnnotateReturns
 	}
 	return refinedReturn(m.Return, e.bodyReturn(m.Span))
 }

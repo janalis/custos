@@ -18,18 +18,21 @@ import (
 // writes into its offsets (assignments, increments, destructuring) and
 // calls, the expression statements guards examines for each read; and the
 // same writes into a property that cannot be null; and, in the proven
-// environment, the writes into a property without a native type.
+// environment, the writes into a property without a native type; and the
+// plain statements in the native environment, which ignores PHPDoc.
 func BenchmarkPropertyReadGuards(b *testing.B) {
 	for _, scenario := range []struct {
-		name, stmt string
-		proven     bool
+		name, stmt     string
+		proven, native bool
 	}{
-		{"plain", `$this->log($this->p, %[1]d);`, false},
-		{"elemWrites", `$this->p['k%[1]d'] = %[1]d; $this->p['n']++; [$this->p['a'], $x] = [1, 2]; $this->log($this->p);`, false},
+		{"plain", `$this->log($this->p, %[1]d);`, false, false},
+		{"elemWrites", `$this->p['k%[1]d'] = %[1]d; $this->p['n']++; [$this->p['a'], $x] = [1, 2]; $this->log($this->p);`, false, false},
 		// A property that cannot be null: no write into its offsets matters.
-		{"nonNullable", `$this->q['k%[1]d'] = %[1]d; $this->q['n']++; $this->log($this->q);`, false},
+		{"nonNullable", `$this->q['k%[1]d'] = %[1]d; $this->q['n']++; $this->log($this->q);`, false, false},
 		// Proven types: a property without a native type may hold false.
-		{"untypedProven", `if ($this->u === false) { $this->u['k%[1]d'] = %[1]d; $this->log($this->u); }`, true},
+		{"untypedProven", `if ($this->u === false) { $this->u['k%[1]d'] = %[1]d; $this->log($this->u); }`, true, false},
+		// Native types: the declaration of each read, without its PHPDoc.
+		{"native", `$this->log($this->p, %[1]d);`, false, true},
 	} {
 		b.Run(scenario.name, func(b *testing.B) {
 			var src strings.Builder
@@ -49,6 +52,9 @@ func BenchmarkPropertyReadGuards(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
 				env := infer.NewEnv(file, resolver, ix, phpversion.PHP84, infer.Options{})
+				if scenario.native {
+					env = env.Native()
+				}
 				syntax.InspectFile(file, func(n syntax.Node) bool {
 					if p, ok := n.(*syntax.PropertyFetch); ok && scenario.proven {
 						env.ProvenTypeOf(p)

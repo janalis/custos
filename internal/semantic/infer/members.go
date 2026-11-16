@@ -310,7 +310,7 @@ func strictSuperset(doc, declared types.Type) bool {
 
 func (e *Env) propType(p *index.Property, receiver string) types.Type {
 	if e.userDoc(p.Builtin) {
-		return e.bindMember(types.FromDoc(p.Type, nil), p.Class, p.TypeClass, receiver)
+		return e.bindMember(e.parsedType(p.Type), p.Class, p.TypeClass, receiver)
 	}
 	if p.Type == "" && p.DocType == "" {
 		return e.bindMember(e.inferredProp(p), p.Class, p.TypeClass, receiver)
@@ -369,7 +369,7 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 		return e.bindMember(t, m.Class, m.TypeClass, origin)
 	}
 	if e.userDoc(m.Builtin) {
-		return bind(types.FromDoc(m.Return, nil))
+		return bind(e.parsedType(m.Return))
 	}
 	if m.Tpl != nil {
 		var classB tplBindings
@@ -404,7 +404,7 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 	if m.Builtin {
 		return bind(e.builtinMemberType(m.Return, m.DocReturn))
 	}
-	if m.DocReturn == "" && types.FromDoc(m.Return, nil).HasAny("array", "iterable") {
+	if m.DocReturn == "" && e.parsedType(m.Return).HasAny("array", "iterable") {
 		// An override declaring only `: array` keeps the documented return
 		// of the method it overrides (`{@inheritDoc}`, or no doc at all), as
 		// a doc narrows its own declaration (see pickMemberType).
@@ -470,7 +470,7 @@ func (e *Env) inheritedParamDoc(m *syntax.Method, i int) types.Type {
 		if !ok || pm.Magic || pm.Visibility == index.Private || i >= len(pm.Params) || pm.Params[i].Variadic || pm.Params[i].DocType == "" {
 			continue
 		}
-		return e.bindMember(types.FromDoc(e.resolvedDoc(pm.Params[i].DocType), nil), pm.Class, pm.TypeClass, `\`+child)
+		return e.bindMember(e.parsedType(e.resolvedDoc(pm.Params[i].DocType)), pm.Class, pm.TypeClass, `\`+child)
 	}
 	return types.Unknown
 }
@@ -566,10 +566,10 @@ func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 		return types.Unknown
 	}
 	if k.ValueType != "" && e.constFixed(n.Class, cls, k) {
-		return types.FromDoc(k.ValueType, nil)
+		return e.parsedType(k.ValueType)
 	}
 	if k.Type != "" {
-		t := types.FromDoc(k.Type, nil)
+		t := e.parsedType(k.Type)
 		owner := k.Class
 		if k.TypeClass != "" {
 			owner = k.TypeClass
@@ -689,5 +689,15 @@ func classesOnly(t types.Type) bool {
 }
 
 func (e *Env) builtinMemberType(declared, doc string) types.Type {
-	return builtinMemberType(declared, e.resolvedDoc(doc))
+	c := e.indexCaches()
+	key := [2]string{declared, doc}
+	if t, ok := c.builtins[key]; ok {
+		return t
+	}
+	t := builtinMemberType(declared, e.resolvedDoc(doc))
+	if c.builtins == nil {
+		c.builtins = map[[2]string]types.Type{}
+	}
+	c.builtins[key] = t
+	return t
 }

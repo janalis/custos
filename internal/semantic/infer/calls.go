@@ -111,7 +111,7 @@ const maxFuncDecls = 16
 // declCallType types call n to function declaration f.
 func (e *Env) declCallType(f *index.Function, n *syntax.FuncCall) types.Type {
 	if e.userDoc(f.Builtin) {
-		return types.FromDoc(f.Return, nil)
+		return e.parsedType(f.Return)
 	}
 	if f.Tpl != nil {
 		if t, ok := e.tplReturn(f.Tpl, f.Params, n.Args, f.Return, nil, nil); ok {
