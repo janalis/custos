@@ -18,6 +18,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   ancestor). When the memory is unknown, the collector keeps the runtime
   defaults. A `GOGC` in the environment, `off` included, leaves the
   collector alone; a `GOMEMLIMIT` replaces only the soft limit. See [Memory](https://janalis.github.io/custos/guide/cli#memory).
+- The cross-file flow pass allocates less: expression values without rare
+  references take half the space, call arguments and contract answers are
+  no longer copied, each pair of contracts is compared once per round, and
+  control-flow graphs start at their expected size. A cold `analyse` of a
+  large project allocates about 7% less.
 
 ### Fixed
 
