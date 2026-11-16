@@ -76,3 +76,19 @@ function loops(array $rows): void
         echo 'none';
     }
 }
+
+// So does a write into an offset of a property holding false.
+class LazyList
+{
+    private static array|false $items = false;
+
+    public static function fill(): void
+    {
+        if (self::$items === false) {
+            self::$items[] = 1;
+            if (is_bool(self::$items)) {
+                echo 'failed';
+            }
+        }
+    }
+}

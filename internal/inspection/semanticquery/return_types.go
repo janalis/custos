@@ -90,12 +90,8 @@ func returnTypeMismatch(ctx *analysis.Context, n syntax.Node) (ReturnMismatch, b
 	case types.AllRejected(c.native, given, accept):
 		m.Expected = c.nativeText
 		// Proven: the native type also rejects what the code alone shows.
-		rejects := func(t types.Type) bool { return types.AllRejected(c.native, t, accept) }
-		switch proven := ctx.Types().ProvenTypeOf(value); {
-		case rejects(proven):
+		if proven := ctx.Types().ProvenTypeOf(value); types.AllRejected(c.native, proven, accept) {
 			m.Proven, m.Given = true, proven
-		case vivifiedOnly(ctx, value, proven, rejects):
-			return ReturnMismatch{}, false
 		}
 	case !c.doc.IsUnknown() && types.AllRejected(c.docFor(given), given, accept):
 		m.Expected = c.docText
@@ -104,8 +100,9 @@ func returnTypeMismatch(ctx *analysis.Context, n syntax.Node) (ReturnMismatch, b
 		return ReturnMismatch{}, false
 	}
 	// The proven type of `$this` in a closure is unknown; the PHPDoc-aware
-	// one still names the enclosing class.
-	if !m.Proven && reboundThis(value) {
+	// one still names the enclosing class. A value written into as false
+	// is an array (see vivified).
+	if !m.Proven && (reboundThis(value) || vivified(ctx, value, ctx.Types().ProvenTypeOf(value))) {
 		return ReturnMismatch{}, false
 	}
 	return m, true

@@ -122,6 +122,31 @@ func TestProvenFalseOffsetWrite(t *testing.T) {
 	}
 }
 
+// TestProvenFalsePropertyOffsetWrite covers a write into an offset of a
+// property that may hold false: as for a local, only the proven Env makes
+// false an array, the native one keeps false.
+func TestProvenFalsePropertyOffsetWrite(t *testing.T) {
+	cases := []struct {
+		name, body, native, proven string
+	}{
+		{"instance", `$this->f[] = 1; t('v', $this->f);`, `array|false`, `array`},
+		{"static", `self::$s['k'] = 1; t('v', self::$s);`, `array|false`, `array`},
+		{"narrowed", `if (self::$s === false) { self::$s[] = 1; t('v', self::$s); }`, `false`, `array`},
+		{"false or null", `$this->n[] = 1; t('v', $this->n);`, `array|false`, `array`},
+		{"in a branch", `if ($c) { $this->f[] = 1; } t('v', $this->f);`, `array|false`, `array|false`},
+		{"call after", `$this->f[] = 1; $this->m(false); t('v', $this->f);`, `array|false`, `array|false`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			src := `<?php class P { private array|false $f = false; private array|false|null $n = null; private static array|false $s = false; function m(bool $c) { ` + c.body + ` } }`
+			native, proven := provenProbe(t, src)
+			if native != c.native || proven != c.proven {
+				t.Errorf("native %s, proven %s; want %s, %s", native, proven, c.native, c.proven)
+			}
+		})
+	}
+}
+
 // TestForeachTargetWrite covers a foreach loop writing its value (or key)
 // into an element (`foreach ($xs as $a['k'])`): after a loop that runs,
 // the variable is an array, and after one that may not, it may also keep

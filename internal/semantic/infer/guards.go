@@ -232,13 +232,18 @@ func offsetWrite(x syntax.Expr, name string) bool {
 // afterPropertyElemWrite types property name past statement x, which
 // writes into one of the property's offsets (offsetWrite): PHP makes null
 // an array there, so a nullable property is no longer null, unless
-// something may change it between x and use. false stays, as for a local
-// (see withElemWritesAt).
+// something may change it between x and use. So does false (deprecated
+// from PHP 8.1), in the proven Env only, as for a local (see
+// withElemWritesAt).
 func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types.Type, x syntax.Expr, name string) types.Type {
-	if !t.Has("null") || e.nonEmptyBroken(scope, name, x.Span().End, use) {
+	vivified := t.Has("null") || e.proven && t.Has("false")
+	if !vivified || e.nonEmptyBroken(scope, name, x.Span().End, use) {
 		return t
 	}
 	nt := t.Without("null")
+	if e.proven {
+		nt = nt.Without("false")
+	}
 	switch {
 	case len(nt.Atoms()) == 0:
 		return types.Of("array")

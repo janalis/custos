@@ -291,12 +291,13 @@ local read is unknown when, between its reaching definitions and the read:
   of the file's top-level scope, and a call that may run project code or a
   write to `$GLOBALS` occurs.
 
-A write into an offset of a local that may hold false (`$x[] = 1`) makes
-false an array there, as PHP does (deprecated from PHP 8.1), in the proven
-environment only: the others keep false, which the rules reporting an
-offset access on false or an unhandled false result rely on. A
-`Documented*` check therefore leaves a value whose proven type, known, is
-accepted where its native one is rejected (`vivifiedOnly`).
+A write into an offset of a local or a property that may hold false
+(`$x[] = 1`, `$this->items[] = 1`) makes false an array there, as PHP does
+(deprecated from PHP 8.1), in the proven environment only: the others keep
+false, which the rules reporting an offset access on false or an unhandled
+false result rely on. The argument and return checks, native and
+`Documented*`, therefore leave a value whose proven type is known and
+drops the false its native type keeps (`vivified`).
 
 A call may run project code unless it resolves to a builtin function without
 a callable parameter. `extract()`, one-argument `parse_str()`, `$$name`

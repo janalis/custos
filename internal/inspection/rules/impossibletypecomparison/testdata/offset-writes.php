@@ -9,3 +9,18 @@ function vivify(): bool
     $list[] = 1;
     return $list === [1];
 }
+
+// So does a write into an offset of a property holding false.
+class LazyList
+{
+    private static array|false $items = false;
+
+    public static function first(): bool
+    {
+        if (self::$items === false) {
+            self::$items[] = 1;
+            return self::$items === [1];
+        }
+        return false;
+    }
+}

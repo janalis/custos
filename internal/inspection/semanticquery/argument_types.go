@@ -139,15 +139,11 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 			m.Values = valuesDecide(check, params[0].DocType, params[0].DocValues, params[0].Default, declared, given, at)
 		}
 		// Proven: the native types also reject what the code alone shows.
-		if native {
-			nativeRejects := func(t types.Type) bool { return check.nativeRejects(targets, params, t) }
-			proven := ctx.Types().ProvenTypeOf(b.arg.Value)
-			switch {
-			case nativeRejects(proven):
-				m.Proven, m.Given = true, proven
-			case vivifiedOnly(ctx, b.arg.Value, proven, nativeRejects):
-				continue
-			}
+		switch proven := ctx.Types().ProvenTypeOf(b.arg.Value); {
+		case native && check.nativeRejects(targets, params, proven):
+			m.Proven, m.Given = true, proven
+		case vivified(ctx, b.arg.Value, proven):
+			continue
 		}
 		// The proven type of `$this` in a closure is unknown; the
 		// PHPDoc-aware one still names the enclosing class.
@@ -159,14 +155,15 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 	return out
 }
 
-// vivifiedOnly reports whether value x, whose proven type a check found
-// acceptable, is rejected (by rejects) only in the native environment's
-// view: the proven type is known, so it differs from the native one only
-// where it follows a write into an offset of false, which PHP turns into
-// an array (see infer.Env.ProvenTypeOf). Such a mismatch is not one
-// PHPDoc makes, so the documented rules leave it too.
-func vivifiedOnly(ctx *analysis.Context, x syntax.Expr, proven types.Type, rejects func(types.Type) bool) bool {
-	return !proven.IsUnknown() && rejects(ctx.Types().Native().TypeOf(x))
+// vivified reports whether value x, of proven type proven, is an array
+// where the native environment keeps false: it follows a write into an
+// offset of false, which PHP turns into an array (deprecated from PHP 8.1)
+// and which only the proven environment follows (see
+// infer.Env.ProvenTypeOf). A known proven type differs from the native one
+// only there. A mismatch found on the false the other views keep is not
+// one the code makes, whether a native or a PHPDoc type rejects it.
+func vivified(ctx *analysis.Context, x syntax.Expr, proven types.Type) bool {
+	return !proven.IsUnknown() && !proven.Has("false") && ctx.Types().Native().TypeOf(x).Has("false")
 }
 
 // fileTypeCheck returns the acceptance state of the file of ctx, shared by
