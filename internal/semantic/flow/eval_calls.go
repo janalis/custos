@@ -170,11 +170,10 @@ func (e *Env) callArguments(n syntax.Node, args *syntax.ArgList, f *frame, r *sc
 		name, builtin := e.callName(call)
 		mapping = builtin && (name == "array_map" || name == "array_filter" || name == "array_reduce")
 	}
-	values := []Value{}
-	var argumentStorage [8]*syntax.Arg
-	written := argumentStorage[:0]
+	values, written := []Value{}, []*syntax.Arg{}
 	if args != nil {
 		values = make([]Value, 0, len(args.Args))
+		written = make([]*syntax.Arg, 0, len(args.Args))
 		for _, x := range args.Args {
 			value := e.eval(x, f, r, depth+1)
 			if a, ok := x.(*syntax.Arg); ok && (a.Unpack || mapping) {

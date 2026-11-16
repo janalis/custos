@@ -10,46 +10,49 @@ type escapeSet struct {
 	all        bool
 }
 
-func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *scopeResult) {
+func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *scopeResult, more ...Value) {
 	identities := map[uint32]bool{}
 	all := false
-	for _, value := range values {
-		collectRecordIdentities(value.elements, identities)
-		if value.Identity != 0 {
-			identities[value.Identity] = true
-		}
-		if value.Expr == nil {
-			continue
-		}
-		syntax.Inspect(value.Expr, func(child syntax.Node) bool {
-			if !r.complete {
-				return false
+	// The values written, then those the call adds (its receiver).
+	for _, list := range [...][]Value{values, more} {
+		for _, value := range list {
+			collectRecordIdentities(value.elements, identities)
+			if value.Identity != 0 {
+				identities[value.Identity] = true
 			}
-			r.operations++
-			if r.operations > MaxTransfers {
-				r.complete = false
-				return false
+			if value.Expr == nil {
+				continue
 			}
-			if syntax.IsVariableScope(child) {
-				all = true
-				return false
-			}
-			if expr, ok := child.(syntax.Expr); ok {
-				if v := r.values.at(expr); v.Identity != 0 {
-					identities[v.Identity] = true
+			syntax.Inspect(value.Expr, func(child syntax.Node) bool {
+				if !r.complete {
+					return false
 				}
-			}
-			// An evaluated call already collected what its operands let
-			// escape: its subtree holds nothing more.
-			if memo, ok := r.escaped[child]; ok {
-				all = all || memo.all
-				for _, id := range memo.identities {
-					identities[id] = true
+				r.operations++
+				if r.operations > MaxTransfers {
+					r.complete = false
+					return false
 				}
-				return false
-			}
-			return true
-		})
+				if syntax.IsVariableScope(child) {
+					all = true
+					return false
+				}
+				if expr, ok := child.(syntax.Expr); ok {
+					if v := r.values.at(expr); v.Identity != 0 {
+						identities[v.Identity] = true
+					}
+				}
+				// An evaluated call already collected what its operands let
+				// escape: its subtree holds nothing more.
+				if memo, ok := r.escaped[child]; ok {
+					all = all || memo.all
+					for _, id := range memo.identities {
+						identities[id] = true
+					}
+					return false
+				}
+				return true
+			})
+		}
 	}
 	if r.escaped == nil {
 		r.escaped = map[syntax.Node]escapeSet{}

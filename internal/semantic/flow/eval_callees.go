@@ -144,7 +144,7 @@ func (e *Env) builtinCall(n syntax.Node, name string, args *syntax.ArgList, valu
 
 // userCall invalidates what a call to project code may change.
 func (e *Env) userCall(n syntax.Node, args *syntax.ArgList, values []Value, rv Value, f *frame, r *scopeResult) {
-	e.invalidateEscaped(n, append(values, rv), f, r)
+	e.invalidateEscaped(n, values, f, r, rv)
 	if !e.quiet(n, args, values) {
 		reenter(n, f, r)
 	}
