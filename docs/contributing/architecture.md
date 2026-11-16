@@ -105,7 +105,7 @@ size and modification time of every file indexed without being analyzed
 steps), and every analyzed file must declare what it declared
 (`index.Fingerprint`, which ignores positions as an update does). A file
 whose source is unchanged then takes its saved steps as priors. The flow
-types are written by a hand-written codec (`flow/wire.go`, on
+types are written by a hand-written codec (`flow/wire*.go`, on
 `semantic/wire`) that keeps nil slices and maps distinct from empty ones,
 so a decoded summary is `reflect.DeepEqual` to the one encoded;
 `TestWireFields` lists every field it writes and fails when one is added,
