@@ -120,6 +120,7 @@ func TestAnalyseOptions(t *testing.T) {
 		{"fail-on typo", []string{"--fail-on", "warn", dir}, 2, "--fail-on must be"},
 		{"bad format", []string{"--format", "yaml", dir}, 2, `unknown format "yaml"`},
 		{"profile in missing dir", []string{"--cpuprofile", filepath.Join(dir, "no", "cpu.out"), dir}, 2, "no such file"},
+		{"memprofile in missing dir", []string{"--memprofile", filepath.Join(dir, "no", "mem.out"), dir}, 2, "no such file"},
 		{"baseline in missing dir", []string{"--generate-baseline", filepath.Join(dir, "no", "bl.json"), dir}, 2, "no such file"},
 	} {
 		code, out, stderr := runCLI(t, append([]string{"analyse"}, tc.args...)...)
@@ -141,6 +142,31 @@ func TestAnalyseOptions(t *testing.T) {
 	registry = func() []analysis.Rule { return []analysis.Rule{fakeRule{}} }
 	if code, _, stderr := runCLI(t, "analyse", dir); code != 2 || !strings.Contains(stderr, "NotInCatalogue") {
 		t.Fatalf("broken registry: %d %s", code, stderr)
+	}
+}
+
+func TestMemProfile(t *testing.T) {
+	dir := writeProject(t)
+	out := t.TempDir()
+	for _, c := range []string{"analyse", "fix"} {
+		cpu, mem := filepath.Join(out, c+".cpu"), filepath.Join(out, c+".mem")
+		if code, _, stderr := runCLI(t, c, "--cpuprofile", cpu, "--memprofile", mem, "--rule", "UnnecessarySemicolon", dir); code > 1 {
+			t.Fatalf("%s: %d %s", c, code, stderr)
+		}
+		for _, p := range []string{cpu, mem} {
+			if st, err := os.Stat(p); err != nil || st.Size() == 0 {
+				t.Fatalf("%s: %s not written: %v", c, p, err)
+			}
+		}
+	}
+	// a memory profile that cannot be created stops the CPU profile it
+	// started, so a later run can profile again
+	cpu := filepath.Join(out, "again.cpu")
+	if code, _, stderr := runCLI(t, "analyse", "--cpuprofile", cpu, "--memprofile", filepath.Join(out, "no", "mem.out"), dir); code != 2 || !strings.Contains(stderr, "no such file") {
+		t.Fatalf("missing dir: %d %s", code, stderr)
+	}
+	if code, _, stderr := runCLI(t, "analyse", "--cpuprofile", cpu, "--rule", "UnnecessarySemicolon", dir); code > 1 {
+		t.Fatalf("profiling after a failed memprofile: %d %s", code, stderr)
 	}
 }
 

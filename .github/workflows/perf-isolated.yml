@@ -1,7 +1,7 @@
 name: perf-isolated
 on:
   push:
-    branches: [perf/engine-runtime-memory]
+    branches: [perf/cli-walltime]
 permissions:
   contents: read
 jobs:
@@ -24,7 +24,7 @@ jobs:
           coverage: none
       - name: Prepare fixed inputs and binaries
         env:
-          BASE_SHA: ed248f14f3257d29ac6f025f4cf7469f36434db8
+          BASE_SHA: 1f0bd9e4f5f511399051eceb1b90339a8d01540f
         run: |
           git worktree add --detach "$RUNNER_TEMP/custos-base" "$BASE_SHA"
           make build
@@ -88,6 +88,18 @@ jobs:
                           (output / 'results.json').write_text(json.dumps(results, indent=2))
                   print(corpus, mode, {name: {key: statistics.median(row[key] for row in results if row['corpus']==corpus and row['mode']==mode and row['binary']==name and row['run']>0) for key in ['wall', 'cpu', 'rss']} for name in binaries}, flush=True)
           PY
+      - name: Profile the candidate
+        env:
+          GOMAXPROCS: "4"
+        run: |
+          out="$PWD/.cache/perf-isolated"
+          for corpus in guzzle composer laravel; do
+            (cd ".cache/bench/corpora/$corpus" && taskset -c 0-3 "$OLDPWD/bin/custos" analyse -no-cache -format json -fail-on never -cpuprofile "$out/$corpus.cpu" -memprofile "$out/$corpus.mem" src > /dev/null)
+            go tool pprof -top -nodecount=40 bin/custos "$out/$corpus.cpu" > "$out/$corpus-cpu-top.txt" 2>&1
+            go tool pprof -top -cum -show='^custos' -nodecount=60 bin/custos "$out/$corpus.cpu" > "$out/$corpus-cpu-cum.txt" 2>&1
+            go tool pprof -sample_index=alloc_space -top -nodecount=40 bin/custos "$out/$corpus.mem" > "$out/$corpus-alloc-top.txt" 2>&1
+          done
+          head -50 "$out/laravel-cpu-top.txt"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

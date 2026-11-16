@@ -5,6 +5,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `analyse` and `fix` take `--memprofile FILE` to write a Go allocation
+  profile of the run, next to `--cpuprofile`.
+
 ### Changed
 
 - `analyse` and `fix` run the garbage collector less often (`GOGC=200`)

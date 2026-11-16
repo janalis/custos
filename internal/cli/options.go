@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/pprof"
 	"strings"
 
@@ -27,6 +28,7 @@ type common struct {
 	all       bool
 	exclude   string
 	profile   string
+	memProf   string
 	noCache   bool
 	flowOrder bool
 	parseOnce bool
@@ -60,6 +62,7 @@ func newCommon(name string, stderr io.Writer) *common {
 	c.fs.BoolVar(&c.all, "all", false, "enable every rule, including disabled-by-default ones")
 	c.fs.StringVar(&c.exclude, "exclude", "", "comma-separated extra directories to exclude")
 	c.fs.StringVar(&c.profile, "cpuprofile", "", "write a CPU profile to this file")
+	c.fs.StringVar(&c.memProf, "memprofile", "", "write an allocation profile to this file")
 	c.fs.BoolVar(&c.noCache, "no-cache", false, "do not reuse or save declarations of dependencies and cross-file summaries between runs")
 	c.fs.BoolVar(&c.flowOrder, "flow-order", false, "use the last saved cross-file summary order as a scheduling hint")
 	c.fs.BoolVar(&c.parseOnce, "parse-once", false, "keep each analysed file's syntax tree between phases: faster, more memory")
@@ -141,6 +144,32 @@ func (c *common) prepare(args []string) (*setup, error) {
 }
 
 func (c *common) startProfile() (func(), error) {
+	stopCPU, err := c.startCPUProfile()
+	if err != nil {
+		return nil, err
+	}
+	if c.memProf == "" {
+		return stopCPU, nil
+	}
+	f, err := os.Create(c.memProf)
+	if err != nil {
+		stopCPU()
+		return nil, err
+	}
+	// Run turns allocation sampling off; sample from here at the runtime's
+	// default rate so the profile covers the whole command.
+	runtime.MemProfileRate = memProfileRate
+	return func() {
+		stopCPU()
+		pprof.Lookup("allocs").WriteTo(f, 0)
+		f.Close()
+	}, nil
+}
+
+// memProfileRate is the runtime's default allocation sampling rate.
+const memProfileRate = 512 * 1024
+
+func (c *common) startCPUProfile() (func(), error) {
 	if c.profile == "" {
 		return func() {}, nil
 	}
