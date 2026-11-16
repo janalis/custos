@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/meta"
@@ -228,14 +229,19 @@ func (b *Baseline) Recorder(path string, src []byte) func(f diagnostic.Finding, 
 	}
 }
 
-// lines holds a file's text with its line index: one copy of the source,
-// whose lines key entries without further allocation.
+// lines holds a file's text with its line index, both over the source
+// bytes, whose lines key entries without further allocation.
 type lines struct {
 	li *syntax.LineIndex
 	s  string
 }
 
-func newLines(src []byte) *lines { return &lines{syntax.NewLineIndex(src), string(src)} }
+// newLines indexes src without copying it: the text aliases src, which
+// must not change afterwards (the parser aliases analyzed sources the same
+// way, and Filter's reads are its own).
+func newLines(src []byte) *lines {
+	return &lines{syntax.NewLineIndex(src), unsafe.String(unsafe.SliceData(src), len(src))}
+}
 
 // text returns the trimmed text of 0-based line ("" out of range), the
 // line split where syntax.LineIndex numbers lines (LF, CRLF, lone CR).
