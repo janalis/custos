@@ -168,7 +168,11 @@ type summaryResolver struct {
 	consulted map[string]bool
 	// answers holds what those contracts gave, and summarizing the state of
 	// the summaries being computed, which serve the file's own.
-	answers     map[string]answer
+	answers map[string]answer
+	// answered holds the summary each of those contracts first gave, which
+	// Rebase compares with what another snapshot gives; nil for summaries
+	// whose environment is dropped (Extract, Reextract).
+	answered    map[string]Summary
 	summarizing *summarizing
 	local       *localSummaries
 	// reading holds, innermost last, the contracts each result being

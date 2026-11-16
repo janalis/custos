@@ -87,7 +87,10 @@ func (e *Env) contract(name string) (Summary, bool) {
 		if e.answers == nil {
 			e.answers = map[string]answer{}
 		}
-		read = answer{summary: summary, ok: ok}
+		read = answer{ok: ok}
+		if e.answered != nil {
+			e.answered[key] = summary
+		}
 	}
 	if own {
 		read.own = true
@@ -98,10 +101,10 @@ func (e *Env) contract(name string) (Summary, bool) {
 	return summary, ok
 }
 
-// answer is what a contract read while summaries were computed gave: the
-// file's own summary (own), the snapshot's (held), or each at some time.
+// answer is what a contract read while summaries were computed gave: a
+// summary or none (ok), the file's own (own), the snapshot's (held), or
+// each at some time. The summary itself is kept apart (Env.answered).
 type answer struct {
-	summary   Summary
 	ok        bool
 	own, held bool
 }

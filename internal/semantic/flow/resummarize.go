@@ -55,7 +55,7 @@ func (s *summarizing) answered(key string, own bool) {
 // Reextract is Extract keeping, as Resummarize does, the summaries of prior
 // that no contract differing between earlier and snapshot reaches.
 func Reextract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) *File {
-	_, out := Resummarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, prior, earlier)
+	_, out := resummarizeFile(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, prior, earlier, nil)
 	return out
 }
 
@@ -64,7 +64,13 @@ func Reextract(file *syntax.File, ix *index.Index, php phpversion.Version, snaps
 // read no contract differing between earlier and snapshot, directly or
 // through a callable of the file summarized again, is kept as it was.
 func Resummarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) (*Env, *File) {
+	return resummarizeFile(file, types, snapshot, options, prior, earlier, map[string]Summary{})
+}
+
+// resummarizeFile is Resummarize recording answered as summarizeFile does.
+func resummarizeFile(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot, answered map[string]Summary) (*Env, *File) {
 	e, order := summaryInventory(file, types, snapshot, options)
+	e.answered = answered
 	s := e.summarizing
 	s.track = map[string]map[string]uint8{}
 	out := s.out

@@ -16,7 +16,7 @@ import (
 // available. It does not open any other files. A supplied snapshot permits
 // bounded composition with previously summarized project wrappers.
 func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options) *File {
-	_, out := Summarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options)
+	_, out := summarizeFile(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, nil)
 	return out
 }
 
@@ -32,7 +32,15 @@ func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapsho
 // the environment then read what the snapshot with the file's summaries
 // reads (see Rebase).
 func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) (*Env, *File) {
+	return summarizeFile(file, types, snapshot, options, map[string]Summary{})
+}
+
+// summarizeFile is Summarize recording in answered the summary each contract
+// read first gave, which only Rebase needs: Extract, which drops the
+// environment, passes nil.
+func summarizeFile(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, answered map[string]Summary) (*Env, *File) {
 	e, order := summaryInventory(file, types, snapshot, options)
+	e.answered = answered
 	s := e.summarizing
 	s.track = map[string]map[string]uint8{}
 	out := s.out
@@ -278,7 +286,7 @@ func (e *Env) Rebase(s *Snapshot) *Env {
 	if e.local != nil {
 		return NewLocal(e.file, e.types, s, e.options, e.local.guard)
 	}
-	differ := changedAnswers(e.answers, s.lookup)
+	differ := changedAnswers(e.answers, e.answered, s.lookup)
 	if len(differ) == 0 && snapshotOptions(s) == e.options {
 		e.snapshot = s
 		return e
@@ -295,11 +303,11 @@ func (e *Env) Rebase(s *Snapshot) *Env {
 	return n
 }
 
-func changedAnswers(answers map[string]answer, lookup func(string) (Summary, bool)) map[string]bool {
+func changedAnswers(answers map[string]answer, answered map[string]Summary, lookup func(string) (Summary, bool)) map[string]bool {
 	differ := map[string]bool{}
 	for key, read := range answers {
 		summary, ok := lookup(key)
-		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(read.summary, summary) {
+		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(answered[key], summary) {
 			differ[key] = true
 		}
 	}
