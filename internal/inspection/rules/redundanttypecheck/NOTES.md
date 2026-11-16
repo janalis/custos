@@ -19,10 +19,12 @@ answer) to an `ElseIf` that is the last of a chain without `else`, or an
   table on a parameter of the directly enclosing function or method, when
   that rule runs. Its other cases (always-true predicates, closure
   parameters, aliases such as `is_long()`) are reported here.
-- NotOptimalIfConditions: `notOptimalReports` replays that rule's operand
-  split (`conditionOperands`) and its D3/D4 conditions, when it runs. Its
-  `REPORT_INSTANCE_OF_FLAWS` option is not visible across rules: turned
-  off, the check is still left to it.
+- NotOptimalIfConditions: `notOptimalReports` leaves an operand of an `if`
+  or `elseif` condition that `semanticquery.InstanceofFlaws` (which that
+  rule reports from too) lists, when that rule's check of the statement
+  runs (`analysis.Context.RuleChecks`) and its `REPORT_INSTANCE_OF_FLAWS`
+  option is on (`analysis.Context.RuleBool`). Turned off, the check is
+  reported here (`owners-flaws-off.php`).
 - DomMissingAttributeCheckedAsNull: `ownedComparison` with `null`, the
   method matched through `NativeMethod` (native receiver type, subclasses
   included) as the owning rule does, on the call `attributeValue` finds
