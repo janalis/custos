@@ -70,7 +70,7 @@ type File struct {
 	// declares them.
 	served map[string]bool
 	// callables records, per callable key, the contracts its summary read
-	// and how they were answered (see readAny), so that Resummarize can
+	// and how they were answered (see readAny), so that Reextract can
 	// keep the summaries no changed contract reaches.
 	callables map[string]map[string]uint8
 }

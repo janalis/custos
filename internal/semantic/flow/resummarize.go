@@ -52,25 +52,18 @@ func (s *summarizing) answered(key string, own bool) {
 	}
 }
 
-// Reextract is Extract keeping, as Resummarize does, the summaries of prior
-// that no contract differing between earlier and snapshot reaches.
-func Reextract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) *File {
-	_, out := resummarizeFile(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, prior, earlier, nil)
-	return out
-}
-
-// Resummarize is Summarize for a file whose summaries prior were computed,
+// Reextract is Extract for a file whose summaries prior were computed,
 // from the same source, against earlier: the summary of a callable that
 // read no contract differing between earlier and snapshot, directly or
 // through a callable of the file summarized again, is kept as it was.
-func Resummarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) (*Env, *File) {
-	return resummarizeFile(file, types, snapshot, options, prior, earlier, map[string]Summary{})
+func Reextract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) *File {
+	return resummarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, prior, earlier)
 }
 
-// resummarizeFile is Resummarize recording answered as summarizeFile does.
-func resummarizeFile(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot, answered map[string]Summary) (*Env, *File) {
+// resummarize computes what Reextract returns. Its environment is dropped,
+// so it records no summary for Rebase (see summarizeFile).
+func resummarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) *File {
 	e, order := summaryInventory(file, types, snapshot, options)
-	e.answered = answered
 	s := e.summarizing
 	s.track = map[string]map[string]uint8{}
 	out := s.out
@@ -105,7 +98,7 @@ func resummarizeFile(file *syntax.File, types *infer.Env, snapshot *Snapshot, op
 		}
 	}
 	finish(e, out, keptReads)
-	return e, out
+	return out
 }
 
 // unreached returns the keys of the callables whose summaries f can give
