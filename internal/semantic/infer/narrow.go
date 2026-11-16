@@ -195,18 +195,24 @@ func narrowKey(x syntax.Expr) string {
 		if n.Dim == nil {
 			return ""
 		}
-		base := narrowKey(n.Var)
-		if base == "" || strings.Count(base, dimSep) >= maxDimDepth-1 {
-			return ""
-		}
-		if k, ok := syntax.LiteralArrayKey(n.Dim); ok {
-			return dimKey(base, k)
-		}
-		if v, ok := syntax.UnwrapParens(n.Dim).(*syntax.Variable); ok && v.Name != "" && v.NameExpr == nil && v.Name != "this" {
-			// `$_FILES[$field]`: the element the local names, while neither
-			// it nor any element of the array changes (see dimBroken).
-			return dimKey(base, varSeg+v.Name)
-		}
+		return elemKey(narrowKey(n.Var), n)
+	}
+	return ""
+}
+
+// elemKey is the narrowKey of element n, base the narrowKey of its array
+// (n.Var), or "".
+func elemKey(base string, n *syntax.ArrayDimFetch) string {
+	if base == "" || n.Dim == nil || strings.Count(base, dimSep) >= maxDimDepth-1 {
+		return ""
+	}
+	if k, ok := syntax.LiteralArrayKey(n.Dim); ok {
+		return dimKey(base, k)
+	}
+	if v, ok := syntax.UnwrapParens(n.Dim).(*syntax.Variable); ok && v.Name != "" && v.NameExpr == nil && v.Name != "this" {
+		// `$_FILES[$field]`: the element the local names, while neither
+		// it nor any element of the array changes (see dimBroken).
+		return dimKey(base, varSeg+v.Name)
 	}
 	return ""
 }

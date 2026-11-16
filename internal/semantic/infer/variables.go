@@ -55,9 +55,6 @@ type scopeVars struct {
 	elemWrites map[string][]varDef
 	// edefs caches elemDefs.
 	edefs map[string][]varDef
-	// muts lists the operations that may change each variable (lazy, see
-	// mutations()).
-	muts map[string][]mutation
 	// exits lists the exit regions of the scope (lazy, see exitRegions).
 	exits     []exitRegion
 	exitsDone bool
