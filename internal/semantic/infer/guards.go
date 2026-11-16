@@ -35,13 +35,17 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	if strings.HasPrefix(name, callKeyPrefix) {
 		cands = callStmt(cands, stmts, from, end, name)
 	}
+	lastWrite := -1 // the last write into the property's offsets
+	if isPropKey(name) && !isDimKey(name) {
+		lastWrite = lastOffsetWrite(stmts, cands, name, after)
+	}
 	for _, i := range cands {
 		s := stmts[i]
 		if s.Span().End <= after {
 			continue // before the definition reaching use: about another value
 		}
 		if es, ok := s.(*syntax.ExprStmt); ok {
-			if isPropKey(name) && !isDimKey(name) {
+			if i == lastWrite {
 				t = e.afterPropertyElemWrite(use, scope, t, es.Expr, name)
 			}
 			// `Assert::string($x);` (@phpstan-assert on the callee).
@@ -193,26 +197,45 @@ func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Typ
 	return t
 }
 
-// afterPropertyElemWrite types property name past statement x when it
-// writes into one of the property's offsets (`$this->p['k'] = 1;`,
-// `[$this->p['a']] = $v;`, `$this->p['k']++;`): PHP makes null an array
-// there, so a nullable property is no longer null, unless something may
-// change it between x and use. false stays, as for a local (see
-// withElemWritesAt).
-func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types.Type, x syntax.Expr, name string) types.Type {
-	if !t.Has("null") {
-		return t
+// lastOffsetWrite returns the position of the last statement among cands
+// (ascending positions in stmts) ending after after that writes into an
+// offset of property name (see offsetWrite), -1 when none. Only that one
+// matters to guards: whatever may change the property between an earlier
+// write and use also follows it, and a read checks it once instead of
+// once per write.
+func lastOffsetWrite(stmts []syntax.Stmt, cands []int, name string, after uint32) int {
+	for j := len(cands) - 1; j >= 0; j-- {
+		s := stmts[cands[j]]
+		if s.Span().End <= after {
+			break
+		}
+		if es, ok := s.(*syntax.ExprStmt); ok && offsetWrite(es.Expr, name) {
+			return cands[j]
+		}
 	}
-	var target syntax.Expr
+	return -1
+}
+
+// offsetWrite reports whether expression statement x writes into one of
+// the offsets of name: `$this->p['k'] = 1;`, `[$this->p['a']] = $v;`,
+// `$this->p['k']++;`.
+func offsetWrite(x syntax.Expr, name string) bool {
 	switch x := x.(type) {
 	case *syntax.Assign:
-		target = x.Var
+		return writesOffsetOf(x.Var, name)
 	case *syntax.IncDec:
-		target = x.Var
-	default:
-		return t
+		return writesOffsetOf(x.Var, name)
 	}
-	if !writesOffsetOf(target, name) || e.nonEmptyBroken(scope, name, x.Span().End, use) {
+	return false
+}
+
+// afterPropertyElemWrite types property name past statement x, which
+// writes into one of the property's offsets (offsetWrite): PHP makes null
+// an array there, so a nullable property is no longer null, unless
+// something may change it between x and use. false stays, as for a local
+// (see withElemWritesAt).
+func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types.Type, x syntax.Expr, name string) types.Type {
+	if !t.Has("null") || e.nonEmptyBroken(scope, name, x.Span().End, use) {
 		return t
 	}
 	nt := t.Without("null")

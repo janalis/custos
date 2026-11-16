@@ -83,11 +83,14 @@ class Q {
     function m10(bool $c) { if ($c) { $this->h['k']++; } t('incBranch', $this->h); }
     function m11() { $this->h['k']++; $this->reset(); t('incCall', $this->h); }
     function m12() { $this->h++; t('incWhole', $this->h); }
+    function m13() { $this->h['a'] = 1; $this->reset(); $this->h['b']++; t('lastWrite', $this->h); }
+    function m14() { $this->h['a'] = 1; $this->h['b']++; $this->reset(); t('lastBroken', $this->h); }
     function reset() {}
 }
 `, map[string]string{
 		"inc": "array", "dec": "array", "preIncNested": "array", "staticInc": "array",
 		"destructured": "array", "keyed": "array", "nestedList": "array", "staticList": "array",
 		"otherList": "array|null", "incBranch": "array|null", "incCall": "array|null", "incWhole": "array|null",
+		"lastWrite": "array", "lastBroken": "array|null",
 	})
 }
