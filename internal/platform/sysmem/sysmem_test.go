@@ -2,6 +2,7 @@ package sysmem
 
 import (
 	"errors"
+	"os"
 	"runtime"
 	"slices"
 	"testing"
@@ -11,7 +12,15 @@ import (
 func TestTotal(t *testing.T) {
 	got := Total()
 	switch runtime.GOOS {
-	case "darwin", "linux":
+	case "linux":
+		// A sandbox without /proc has no known total: 0 is the designed result.
+		if _, err := os.Stat("/proc/meminfo"); err != nil {
+			t.Skipf("/proc/meminfo unreadable: %v", err)
+		}
+		if got == 0 {
+			t.Fatal("Total() = 0 with /proc/meminfo readable")
+		}
+	case "darwin":
 		if got == 0 {
 			t.Fatalf("Total() = 0 on %s", runtime.GOOS)
 		}
