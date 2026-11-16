@@ -102,7 +102,9 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 	r.generator = e.generator(scope)
 	// Block 0 ends the scope however it is left; a normal completion passes
 	// through the block before it, which tells whether the scope can return.
-	g := graph{complete: true, env: e}
+	// The graph holds about a block per statement (before counts the
+	// expressions too), past the three that end the scope.
+	g := graph{complete: true, env: e, blocks: make([]block, 0, min(MaxBlocks, 3+before-values))}
 	exit := g.add(nil)
 	done := g.add(nil, exit)
 	x := exits{ret: done, thrown: exit, brk: done, cont: done}
