@@ -96,26 +96,26 @@ func (c *pureCompiler) higher(node *syntax.FuncCall, name string, params []index
 }
 
 func (e *Env) evalPureHigher(expr *pureExpr, input Value, slots []Value, r *scopeResult, depth int) (Value, bool) {
-	if !purePlainRecord(input) || len(input.elements.order) != len(input.elements.items) {
+	if !purePlainRecord(input) || len(input.elements().order) != len(input.elements().items) {
 		return Value{}, false
 	}
 	var second Value
 	if expr.other != nil {
 		var ok bool
 		second, ok = e.evalPure(expr.other, slots, r, depth-1)
-		if !ok || !purePlainRecord(second) || len(second.elements.order) != len(second.elements.items) || len(second.elements.order) != len(input.elements.order) {
+		if !ok || !purePlainRecord(second) || len(second.elements().order) != len(second.elements().items) || len(second.elements().order) != len(input.elements().order) {
 			return Value{}, false
 		}
 	}
-	size := len(input.elements.items)
+	size := len(input.elements().items)
 	r.copies += size
 	if size > pureLimit || r.copies > MaxCopied {
 		return Value{}, false
 	}
 	set := &elementSet{whole: true, items: map[string]Value{}, width: size}
 	result := Value{Complete: true, plain: true, deep: true}
-	for i, key := range input.elements.order {
-		original := input.elements.items[key]
+	for i, key := range input.elements().order {
+		original := input.elements().items[key]
 		args := []Value{original}
 		if expr.slot == 2 {
 			args[0] = scalarValue(pureKeyScalar(key))
@@ -124,7 +124,7 @@ func (e *Env) evalPureHigher(expr *pureExpr, input Value, slots []Value, r *scop
 			args = append(args, scalarValue(pureKeyScalar(key)))
 		}
 		if expr.other != nil {
-			args = append(args, second.elements.items[second.elements.order[i]])
+			args = append(args, second.elements().items[second.elements().order[i]])
 		}
 		value, ok := e.evalPure(expr.right, args, r, depth-1)
 		if !ok || !pureReadOnlyInputs([]Value{value}, nil) {
@@ -147,7 +147,8 @@ func (e *Env) evalPureHigher(expr *pureExpr, input Value, slots []Value, r *scop
 		set.order = append(set.order, key)
 		result = merge(result, value)
 	}
-	result.elements, result.plain, result.deep = set, true, true
+	result.setElements(set)
+	result.plain, result.deep = true, true
 	return result, true
 }
 

@@ -209,7 +209,7 @@ func (e *Env) summarize(n syntax.Node) {
 			if sum.ByRef == nil {
 				sum.ByRef = map[int]Value{}
 			}
-			sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, scalars: left.scalars}
+			sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, ext: rare(valueExt{scalars: left.scalars()})}
 		}
 	}
 	sum.Return = e.completedReturn(n, r, sum.Return)
@@ -224,15 +224,16 @@ func (e *Env) summarize(n syntax.Node) {
 	if sum.Fixed && !byReference(n) {
 		sum.returned = e.summarizeReturned(sum.Return, r, len(syntax.VariableScopeParams(n)))
 	}
-	sum.Return.returned = nil
-	sum.Return.targets = nil
+	sum.Return.setReturned(nil)
+	sum.Return.setTargets(nil)
 	sum.Return.Expr = nil
 	shapeFuel := MaxSources
-	sum.Return.elements = compactElements(sum.Return.elements, MaxDepth, &shapeFuel)
-	sum.Return.interval = nil
-	sum.Return.origins = nil
-	sum.Return.Identity, sum.Return.storedIdentity = 0, 0
-	sum.Return.record = nil
+	sum.Return.setElements(compactElements(sum.Return.elements(), MaxDepth, &shapeFuel))
+	sum.Return.setInterval(nil)
+	sum.Return.setOrigins(nil)
+	sum.Return.setStoredIdentity(0)
+	sum.Return.Identity = 0
+	sum.Return.setRecord(nil)
 	if !sum.Generator {
 		for _, c := range r.calls {
 			sum.Sinks = appendSinks(sum.Sinks, e.nativeSinks(c))

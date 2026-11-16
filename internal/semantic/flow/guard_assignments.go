@@ -104,23 +104,23 @@ func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
 	if !(fact.NonFalse || fact.NonNull) || !tracked {
 		return
 	}
-	if v.unless == operation && (fact.NonFalse && v.skippedFalse || fact.NonNull && v.skippedNull) {
+	if v.unless() == operation && (fact.NonFalse && v.skippedFalse() || fact.NonNull && v.skippedNull()) {
 		// The value the skipped operand left in place passed the same test.
-		f.excluding(name, v, fact.NonFalse && v.skippedFalse, fact.NonNull && v.skippedNull)
+		f.excluding(name, v, fact.NonFalse && v.skippedFalse(), fact.NonNull && v.skippedNull())
 		v = f.vars.value(name)
 	}
-	v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = operation, fact.NonFalse, fact.NonNull, false, false
+	v.setUnlessFacts(operation, fact.NonFalse, fact.NonNull, false, false)
 	f.setVar(name, v)
-	if e.scopes[syntax.EnclosingVariableScope(stored)].stale[stored] || v.Expr != nil || v.origins == nil {
+	if e.scopes[syntax.EnclosingVariableScope(stored)].stale[stored] || v.Expr != nil || v.origins() == nil {
 		return
 	}
-	n := &originSet{items: append([]Origin(nil), v.origins.items...), full: v.origins.full, compressed: v.origins.compressed, other: v.origins.other}
+	n := &originSet{items: append([]Origin(nil), v.origins().items...), full: v.origins().full, compressed: v.origins().compressed, other: v.origins().other}
 	for i, o := range n.items {
 		if syntax.UnwrapParens(o.Expr) == produced {
 			n.items[i] = Origin{o.Expr, o.NonFalse || fact.NonFalse, o.NonNull || fact.NonNull}
 		}
 	}
-	v.origins = finishOrigins(n, f.owner, v.origins)
+	v.setOrigins(finishOrigins(n, f.owner, v.origins()))
 	f.setVar(name, v)
 }
 

@@ -47,10 +47,10 @@ func (e *Env) evalPadding(expr *pureExpr, left Value, slots []Value, r *scopeRes
 	}
 	value, ok := e.evalPure(expr.other, slots, r, depth-1)
 	size, sk := pureShapeInteger(right)
-	if !ok || !sk || !purePlainRecord(left) || len(left.elements.order) != len(left.elements.items) || !pureReadOnlyInputs([]Value{value}, nil) || len(value.Sources) > MaxSources {
+	if !ok || !sk || !purePlainRecord(left) || len(left.elements().order) != len(left.elements().items) || !pureReadOnlyInputs([]Value{value}, nil) || len(value.Sources) > MaxSources {
 		return Value{}, false
 	}
-	length := len(left.elements.order)
+	length := len(left.elements().order)
 	target := size
 	if target < 0 {
 		target = -target
@@ -80,8 +80,8 @@ func (e *Env) evalPadding(expr *pureExpr, left Value, slots []Value, r *scopeRes
 	if size < 0 && !padAll() {
 		return Value{}, false
 	}
-	for _, key := range left.elements.order {
-		entry := left.elements.items[key]
+	for _, key := range left.elements().order {
+		entry := left.elements().items[key]
 		if pureKeyScalar(key).k == 's' {
 			if !constructPureEntry(set, key, entry) {
 				return Value{}, false

@@ -115,7 +115,7 @@ func TestExpandedPureCrossFileEdit(t *testing.T) {
 	file := makeFile("caller.php", caller)
 	env, published := Summarize(file, resourceTypes(file, ix), first, Options{})
 	before := env.Value(argument(callsNamed(file, "probe")[0]))
-	if before.elements == nil || !before.elements.whole || len(before.elements.items) != 1 {
+	if before.elements() == nil || !before.elements().whole || len(before.elements().items) != 1 {
 		t.Fatal("cross-file selected entry lost")
 	}
 	edited := makeFile("definitions.php", strings.Replace(defs, "===0", "!==0", 1))
@@ -124,7 +124,7 @@ func TestExpandedPureCrossFileEdit(t *testing.T) {
 		t.Fatal("native/branch/pack contract edit did not invalidate caller")
 	}
 	after := NewLocal(file, resourceTypes(file, ix), next, Options{}, nil).Value(argument(callsNamed(file, "probe")[0]))
-	if after.elements == nil || !after.elements.whole || len(after.elements.items) != 0 {
+	if after.elements() == nil || !after.elements().whole || len(after.elements().items) != 0 {
 		t.Fatal("edited predicate retained old entry")
 	}
 }

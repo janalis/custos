@@ -14,10 +14,10 @@ import (
 func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet {
 	switch n := syntax.UnwrapParens(value).(type) {
 	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.ArrayDimFetch:
-		return r.values.at(n).elements
+		return r.values.at(n).elements()
 	case *syntax.Variable:
 		if n.NameExpr == nil && !external(n.Name) {
-			return f.vars.value(n.Name).elements
+			return f.vars.value(n.Name).elements()
 		}
 	case *syntax.Unary:
 		if n.Op.Kind == syntax.TArrayCast {
@@ -38,7 +38,7 @@ func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet 
 			return common(e.elements(n.Then, f, r), e.elements(n.Else, f, r))
 		}
 	case *syntax.Array:
-		return r.values.at(n).elements
+		return r.values.at(n).elements()
 	}
 	return nil
 }
@@ -75,10 +75,10 @@ func (e *Env) literalElements(n *syntax.Array, r *scopeResult) *elementSet {
 			set.order = append(set.order, key)
 		}
 		entry := elementValue(own)
-		if own.Complete && !own.replaced && own.Invalidated == 0 {
-			entry.storedIdentity = own.Identity
+		if own.Complete && !own.replaced() && own.Invalidated == 0 {
+			entry.setStoredIdentity(own.Identity)
 		} else {
-			entry.storedIdentity = 0
+			entry.setStoredIdentity(0)
 		}
 		set.put(key, entry)
 	}

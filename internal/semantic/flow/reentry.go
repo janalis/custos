@@ -18,7 +18,7 @@ func leaving(f *frame, r *scopeResult) {
 // holds checks what is assumed of one static variable.
 func (r *scopeResult) holds(f *frame, name string) {
 	v, tracked := f.vars.lookup(name)
-	if _, shared := f.aliased[name]; shared || tracked && !v.NonFalse && !v.entry {
+	if _, shared := f.aliased[name]; shared || tracked && !v.NonFalse && !v.entry() {
 		if r.broken == nil {
 			r.broken = map[string]bool{}
 		}
@@ -62,8 +62,10 @@ func reenter(at syntax.Node, f *frame, r *scopeResult) {
 			continue
 		}
 		held := known.state == staticHeld && v.NonFalse
-		v.NonFalse, v.NonNull, v.origins = held, false, v.origins.unguarded(r).excluding(held, false, r)
-		v.tested, v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = nil, nil, false, false, false, false
+		v.setOrigins(v.origins().unguarded(r).excluding(held, false, r))
+		v.NonFalse, v.NonNull = held, false
+		v.setTested(nil)
+		v.setUnlessFacts(nil, false, false, false, false)
 		v.Invalidated = at.Span().Start + 1
 		v.plain, v.deep = v.plain && known.plain, v.deep && known.deep
 		f.setVar(name, v)

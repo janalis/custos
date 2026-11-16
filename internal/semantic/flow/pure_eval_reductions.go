@@ -4,7 +4,7 @@ import "custos/internal/php/syntax"
 
 func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
 	input, ok := e.evalPure(expr.left, slots, r, depth-1)
-	if !ok || !input.Complete || input.replaced || input.Invalidated != 0 || !input.plain || !input.deep || input.elements == nil || !input.elements.whole || input.elements.optional || input.elements.hasResources || len(input.elements.order) != len(input.elements.items) {
+	if !ok || !input.Complete || input.replaced() || input.Invalidated != 0 || !input.plain || !input.deep || input.elements() == nil || !input.elements().whole || input.elements().optional || input.elements().hasResources || len(input.elements().order) != len(input.elements().items) {
 		return Value{}, false
 	}
 	carry, ok := e.evalPure(expr.right, slots, r, depth-1)
@@ -27,8 +27,8 @@ func (e *Env) evalPureReduction(expr *pureExpr, slots []Value, r *scopeResult, d
 	}
 	bound := make([]Value, max(len(slots), expr.slot+width))
 	copy(bound, slots)
-	for _, key := range input.elements.order {
-		item := input.elements.items[key]
+	for _, key := range input.elements().order {
+		item := input.elements().items[key]
 		if _, scalar := knownScalar(item); !scalar && !((expr.kind == pureBuild || expr.kind == pureFilterBuild || len(expr.destruct) != 0 || expr.prepared) && pureReadOnlyInputs([]Value{item}, nil)) {
 			return Value{}, false
 		}

@@ -124,7 +124,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			e.captureCallable(n, rv, f, r)
 			value := Value{Complete: true, Expr: n.(syntax.Expr), plain: true, deep: true}
 			if _, known := r.callables[value.Expr]; known || r.boundMethods[value.Expr] != nil {
-				value.targets = oneCallableTarget(value.Expr)
+				value.setTargets(oneCallableTarget(value.Expr))
 			}
 			return value
 		}
@@ -178,7 +178,7 @@ func (e *Env) callArguments(n syntax.Node, args *syntax.ArgList, f *frame, r *sc
 			value := e.eval(x, f, r, depth+1)
 			if a, ok := x.(*syntax.Arg); ok && (a.Unpack || mapping) {
 				// Capture entries before a later argument can replace them.
-				value.elements = e.elements(a.Value, f, r)
+				value.setElements(e.elements(a.Value, f, r))
 			}
 			values = append(values, value)
 			if a, ok := x.(*syntax.Arg); ok {

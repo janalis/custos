@@ -70,7 +70,7 @@ func TestPureCallbackVariantVersions(t *testing.T) {
 func TestPureCallbackVariantBudgets(t *testing.T) {
 	e, _ := environment(t, ``, nil)
 	array := func(v Value) Value {
-		return Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{"x": v}, order: []string{"x"}}}
+		return Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{"x": v}, order: []string{"x"}}})}
 	}
 	value := scalarValue(constantScalar{k: 'i', i: 1})
 	record := array(value)

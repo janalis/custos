@@ -59,7 +59,7 @@ func TestFiniteReductionContracts(t *testing.T) {
 		`$v=array_reduce(['a'],fn($c,$x,...$rest)=>$x,'safe');probe($v);`,
 	} {
 		e, f := summarized(t, source)
-		if v := e.Value(argument(callsNamed(f, "probe")[0])); v.elements != nil {
+		if v := e.Value(argument(callsNamed(f, "probe")[0])); v.elements() != nil {
 			t.Fatalf("unsupported binding retained a shape: %s", source)
 		}
 	}
@@ -86,7 +86,7 @@ func TestSurplusCallbackGuards(t *testing.T) {
 		`$cb=fn()=>$_GET['x'];$v=$cb(extra:'safe');probe($v);`,
 	} {
 		e, f := summarized(t, source)
-		if v := e.Value(argument(callsNamed(f, "probe")[0])); v.elements != nil {
+		if v := e.Value(argument(callsNamed(f, "probe")[0])); v.elements() != nil {
 			t.Fatalf("unsupported binding retained a shape: %s", source)
 		}
 	}

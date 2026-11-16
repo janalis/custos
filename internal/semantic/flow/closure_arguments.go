@@ -11,7 +11,7 @@ func (e *Env) closureDefault(expr syntax.Expr, owner *scopeResult) (Value, bool)
 	f := frame{definite: true}
 	f.resetVars()
 	value := e.eval(expr, &f, r, 0)
-	value.elements = e.elements(expr, &f, r)
+	value.setElements(e.elements(expr, &f, r))
 	owner.operations += r.operations
 	return value, value.Complete && owner.operations <= MaxTransfers
 }

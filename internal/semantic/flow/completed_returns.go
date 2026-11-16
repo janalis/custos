@@ -4,7 +4,9 @@ import "custos/internal/php/syntax"
 
 var nullScalar = constantScalar{k: 'n'}
 
-func nullResult() Value { return Value{Complete: true, literal: &nullScalar, plain: true, deep: true} }
+func nullResult() Value {
+	return Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{literal: &nullScalar})}
+}
 
 // Only reaching the lexical end adds an implicit null. Explicit returns share
 // the normal exit for effects, but do not imply that the end is reachable.

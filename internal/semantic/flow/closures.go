@@ -51,7 +51,7 @@ func (e *Env) captureClosure(expr syntax.Expr, f *frame, r *scopeResult) {
 	}
 	for _, name := range names {
 		value := f.vars.value(name)
-		if value.replaced {
+		if value.replaced() {
 			value.Complete = false
 		}
 		if earlier {

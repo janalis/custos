@@ -12,7 +12,7 @@ func TestPureTextAndPaddingRuntimeBounds(t *testing.T) {
 	integer := func(i int64) Value { return scalarValue(constantScalar{k: 'i', i: i}) }
 	text := func(s string) Value { return scalarValue(constantScalar{k: 's', s: s}) }
 	deep := constructionRecord(text("x"))
-	deep.elements.depth = MaxDepth - 1
+	deep.elements().depth = MaxDepth - 1
 	lower := &pureExpr{kind: pureCase, literal: &constantScalar{k: 's', s: "strtolower"}, left: &pureSlots[0]}
 	trim := &pureExpr{kind: pureTrimChars, literal: &constantScalar{k: 's', s: "trim"}, left: &pureSlots[0], right: &pureSlots[1]}
 	pad := &pureExpr{kind: pureStrPad, left: &pureSlots[0], right: &pureSlots[1], other: &pureSlots[2], args: []*pureExpr{&pureSlots[3]}}
@@ -40,7 +40,7 @@ func TestPureTextAndPaddingRuntimeBounds(t *testing.T) {
 		{arrayPad, []Value{constructionRecord(text("a")), integer(-3), deep}, scopeResult{}},
 		{arrayPad, []Value{constructionRecord(text("a")), integer(3), deep}, scopeResult{}},
 		{arrayPad, []Value{constructionRecord(deep), integer(3), text("z")}, scopeResult{}},
-		{arrayPad, []Value{{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, width: 1, items: map[string]Value{"k": deep}, order: []string{"k"}}}, integer(3), text("z")}, scopeResult{}},
+		{arrayPad, []Value{{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, width: 1, items: map[string]Value{"k": deep}, order: []string{"k"}}})}, integer(3), text("z")}, scopeResult{}},
 		{arrayPad, []Value{constructionRecord(text("a")), integer(3), text("z")}, scopeResult{copies: MaxCopied}},
 		{rangeExpr, []Value{integer(0), integer(64)}, scopeResult{}},
 	} {

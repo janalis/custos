@@ -98,7 +98,7 @@ func TestOriginCellsChargedOnce(t *testing.T) {
 		t.Fatal("identical publication allocated retained cells")
 	}
 
-	again := origins(Value{origins: set}, Value{Expr: a}, r)
+	again := origins(Value{ext: rare(valueExt{origins: set})}, Value{Expr: a}, r)
 	if again != set || r.retained != 3 {
 		t.Fatal("shared origin set charged again")
 	}
@@ -110,9 +110,9 @@ func TestOriginCellsChargedOnce(t *testing.T) {
 	if r.retained != 9 || raw.unguarded(r) != raw || r.retained != 9 {
 		t.Fatal("unchanged invalidation charged origin cells")
 	}
-	original := frame{owner: r, vars: bindings{"v": {Value: Value{origins: raw}}}, states: map[uint32]State{}}
+	original := frame{owner: r, vars: bindings{"v": {Value: Value{ext: rare(valueExt{origins: raw})}}}, states: map[uint32]State{}}
 	copy := clone(&original)
-	if copy.vars.value("v").origins != raw || r.retained != 9 {
+	if copy.vars.value("v").origins() != raw || r.retained != 9 {
 		t.Fatal("frame copy charged shared origins")
 	}
 	r.retained = MaxRetained - 1
@@ -162,9 +162,9 @@ func TestCompressedProducerStatesAndOrder(t *testing.T) {
 			}
 			next := Value{Expr: calls[i], NonFalse: i&1 != 0, NonNull: i&2 != 0}
 			joined := origins(value, next, r)
-			value = Value{origins: joined}
+			value = Value{ext: rare(valueExt{origins: joined})}
 		}
-		return value.origins, r
+		return value.origins(), r
 	}
 	forward, r := build(false)
 	reverse, _ := build(true)
@@ -190,11 +190,11 @@ func TestCompressedProducerSummariesReleaseSyntax(t *testing.T) {
 	src := strings.Replace(producerSwitch(70, func(int) string { return `file_get_contents($input)` }, nil), `probe($v);}`, `system($v);return $v;}`, 1)
 	e, f := environment(t, src, nil)
 	summary := Extract(f, e.types.Index, e.types.PHP, nil, Options{}).Summaries["f"]
-	if summary.Return.Expr != nil || summary.Return.origins != nil || len(summary.Sinks) == 0 {
+	if summary.Return.Expr != nil || summary.Return.origins() != nil || len(summary.Sinks) == 0 {
 		t.Fatal("compressed return syntax escaped")
 	}
 	for _, sink := range summary.Sinks {
-		if sink.Argument.Expr != nil || sink.Argument.origins != nil {
+		if sink.Argument.Expr != nil || sink.Argument.origins() != nil {
 			t.Fatal("compressed sink syntax escaped")
 		}
 	}

@@ -125,15 +125,15 @@ func (c *pureCompiler) fold(node *syntax.FuncCall, params []index.Param) *pureEx
 
 func (e *Env) evalPureFold(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
 	input, ok := e.evalPure(expr.left, slots, r, depth-1)
-	if !ok || !purePlainRecord(input) || len(input.elements.order) != len(input.elements.items) || len(input.elements.order) > pureLimit {
+	if !ok || !purePlainRecord(input) || len(input.elements().order) != len(input.elements().items) || len(input.elements().order) > pureLimit {
 		return Value{}, false
 	}
 	carry, ok := e.evalPure(expr.right, slots, r, depth-1)
 	if _, known := knownScalar(carry); !ok || !known || !pureReadOnlyInputs([]Value{carry}, nil) {
 		return Value{}, false
 	}
-	for _, key := range input.elements.order {
-		carry, ok = e.evalPure(expr.other, []Value{carry, input.elements.items[key]}, r, depth-1)
+	for _, key := range input.elements().order {
+		carry, ok = e.evalPure(expr.other, []Value{carry, input.elements().items[key]}, r, depth-1)
 		if _, known := knownScalar(carry); !ok || !known || !pureReadOnlyInputs([]Value{carry}, nil) {
 			return Value{}, false
 		}

@@ -37,7 +37,9 @@ func (e *Env) evalVariable(n *syntax.Variable, f *frame, r *scopeResult, depth i
 				v = Value{Sources: spread.Sources, Safe: spread.Safe}
 			}
 		}
-		v.tested, v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull, v.entry = nil, nil, false, false, false, false, false
+		v.setTested(nil)
+		v.setUnlessFacts(nil, false, false, false, false)
+		v.setEntry(false)
 	}
 	return v
 }
@@ -72,7 +74,7 @@ func (e *Env) evalIncDec(n *syntax.IncDec, f *frame, r *scopeResult, depth int) 
 		if n.Op.Kind == syntax.TDec {
 			delta = -1
 		}
-		next.interval = arithmetic(syntax.TPlus, v, integerValue(delta))
+		next.setInterval(arithmetic(syntax.TPlus, v, integerValue(delta)))
 		if v.Expr != nil {
 			next.Expr = n
 		}

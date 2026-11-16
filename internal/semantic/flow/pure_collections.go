@@ -132,7 +132,7 @@ func (c *pureCompiler) runtimeArray(array *syntax.Array) *pureExpr {
 // Each published intermediate stays immutable, including a carry read by the
 // next iteration's projection. Bound both copies and the resulting shape.
 func appendPureEntry(value *Value, entry Value, r *scopeResult) bool {
-	set := value.elements
+	set := value.elements()
 	r.copies += len(set.items) + 1
 	if r.copies > MaxCopied || len(set.items) >= pureLimit {
 		return false
@@ -144,13 +144,14 @@ func appendPureEntry(value *Value, entry Value, r *scopeResult) bool {
 	copy.put(key, scalarSnapshot(entry))
 	copy.order = append(copy.order, key)
 	*value = merge(*value, entry)
-	value.elements, value.plain, value.deep = &copy, true, true
+	value.setElements(&copy)
+	value.plain, value.deep = true, true
 	return true
 }
 
 func (e *Env) evalSpreadArray(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
 	set := &elementSet{whole: true, items: map[string]Value{}}
-	result := Value{Complete: true, plain: true, deep: true, elements: set}
+	result := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: set})}
 	next := int64(0)
 	for i := 0; i < len(expr.args); i += 2 {
 		if next > 9223372036854775807-pureLimit {
@@ -170,10 +171,10 @@ func (e *Env) evalSpreadArray(expr *pureExpr, slots []Value, r *scopeResult, dep
 		}
 		keys, values := []string{}, []Value{}
 		if expr.args[i] == nil {
-			if !purePlainRecord(entry) || len(entry.elements.order) != len(entry.elements.items) || len(entry.elements.items) > pureLimit {
+			if !purePlainRecord(entry) || len(entry.elements().order) != len(entry.elements().items) || len(entry.elements().items) > pureLimit {
 				return Value{}, false
 			}
-			for _, key := range entry.elements.order {
+			for _, key := range entry.elements().order {
 				if number, err := strconv.ParseInt(key, 10, 64); err == nil && strconv.FormatInt(number, 10) == key {
 					key = strconv.FormatInt(next, 10)
 					next++
@@ -182,8 +183,8 @@ func (e *Env) evalSpreadArray(expr *pureExpr, slots []Value, r *scopeResult, dep
 				}
 				keys = append(keys, key)
 			}
-			for _, key := range entry.elements.order {
-				values = append(values, entry.elements.items[key])
+			for _, key := range entry.elements().order {
+				values = append(values, entry.elements().items[key])
 			}
 		} else {
 			key, scalar := knownScalar(keyValue)
@@ -220,6 +221,7 @@ func (e *Env) evalSpreadArray(expr *pureExpr, slots []Value, r *scopeResult, dep
 			result = merge(result, values[j])
 		}
 	}
-	result.elements, result.plain, result.deep = set, true, true
+	result.setElements(set)
+	result.plain, result.deep = true, true
 	return result, true
 }

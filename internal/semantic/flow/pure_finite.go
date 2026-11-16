@@ -6,7 +6,7 @@ import (
 )
 
 func purePlainRecord(value Value) bool {
-	return value.Complete && !value.replaced && value.Invalidated == 0 && value.Identity == 0 && value.storedIdentity == 0 && value.plain && value.deep && value.elements != nil && value.elements.whole && !value.elements.optional && !value.elements.hasResources
+	return value.Complete && !value.replaced() && value.Invalidated == 0 && value.Identity == 0 && value.storedIdentity() == 0 && value.plain && value.deep && value.elements() != nil && value.elements().whole && !value.elements().optional && !value.elements().hasResources
 }
 
 func pureNonNullValue(value Value) (bool, bool) {
@@ -62,17 +62,17 @@ func (e *Env) evalFiniteNative(expr *pureExpr, left Value, slots []Value, r *sco
 		if !known || mode.k != 'i' || mode.i != 0 || !purePlainRecord(left) {
 			return Value{}, false
 		}
-		return scalarValue(constantScalar{k: 'i', i: int64(len(left.elements.items))}), true
+		return scalarValue(constantScalar{k: 'i', i: int64(len(left.elements().items))}), true
 	}
 	needle, scalar := knownScalar(left)
 	strict, ok := e.evalPure(expr.other, slots, r, depth-1)
 	flag, known := knownScalar(strict)
-	if !pureReadOnlyInputs([]Value{left}, nil) || !ok || !known || flag.k != 'b' || !flag.b || !purePlainRecord(right) || len(right.elements.order) != len(right.elements.items) {
+	if !pureReadOnlyInputs([]Value{left}, nil) || !ok || !known || flag.k != 'b' || !flag.b || !purePlainRecord(right) || len(right.elements().order) != len(right.elements().items) {
 		return Value{}, false
 	}
-	if left.elements != nil {
-		for _, key := range right.elements.order {
-			equal, known := pureQueryIdentity(left, right.elements.items[key], r, depth-1)
+	if left.elements() != nil {
+		for _, key := range right.elements().order {
+			equal, known := pureQueryIdentity(left, right.elements().items[key], r, depth-1)
 			if !known {
 				return Value{}, false
 			}
@@ -82,9 +82,9 @@ func (e *Env) evalFiniteNative(expr *pureExpr, left Value, slots []Value, r *sco
 		}
 		return scalarValue(constantScalar{k: 'b'}), true
 	}
-	found, uncertain := false, !scalar && len(right.elements.items) != 0
-	for _, key := range right.elements.order {
-		entry := right.elements.items[key]
+	found, uncertain := false, !scalar && len(right.elements().items) != 0
+	for _, key := range right.elements().order {
+		entry := right.elements().items[key]
 		r.operations++
 		value, known := knownScalar(entry)
 		if r.operations > MaxTransfers {

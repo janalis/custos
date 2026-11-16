@@ -9,25 +9,25 @@ import (
 )
 
 func knownScalar(value Value) (constantScalar, bool) {
-	if !value.Complete || value.replaced || value.Invalidated != 0 {
+	if !value.Complete || value.replaced() || value.Invalidated != 0 {
 		return constantScalar{}, false
 	}
-	if value.literal != nil {
-		return *value.literal, true
+	if value.literal() != nil {
+		return *value.literal(), true
 	}
 	fuel := 256
 	return constantValue(value.Expr, MaxDepth, &fuel)
 }
 
 func scalarSnapshot(value Value) Value {
-	if value.literal == nil && value.Expr != nil {
+	if value.literal() == nil && value.Expr != nil {
 		if scalar, known := knownScalar(value); known {
 			literal := scalar
-			value.literal = &literal
+			value.setLiteral(&literal)
 		}
 	}
-	if value.literal != nil && value.Complete && !value.replaced && value.Invalidated == 0 {
-		value.truth = scalarTruth(*value.literal)
+	if value.literal() != nil && value.Complete && !value.replaced() && value.Invalidated == 0 {
+		value.setTruth(scalarTruth(*value.literal()))
 	}
 	return value
 }

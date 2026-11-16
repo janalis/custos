@@ -171,7 +171,7 @@ func (c *pureCompiler) spreadArguments(node syntax.Node, params []pureParam, dec
 			set.put(key, marker(term.args[j+1]))
 			set.order = append(set.order, key)
 		}
-		values[i] = Value{Complete: true, elements: set, plain: true, deep: true}
+		values[i] = Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: set})}
 	}
 	bound, seen, known := c.env.bindValues(arguments(node), declared, values, false)
 	if !known {
@@ -180,7 +180,7 @@ func (c *pureCompiler) spreadArguments(node syntax.Node, params []pureParam, dec
 	args := make([]*pureExpr, len(params))
 	for i, given := range seen {
 		if given {
-			args[i] = terms[bound[i].literal.i]
+			args[i] = terms[bound[i].literal().i]
 		}
 	}
 	return args

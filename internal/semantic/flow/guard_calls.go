@@ -149,12 +149,12 @@ func refineStrContains(arg *syntax.Arg, variable *syntax.Variable, f *frame) {
 	}
 	v := f.vars.value(variable.Name)
 	if needle == "\r" {
-		v.headerMask |= 1
+		v.setHeaderMask(v.headerMask() | 1)
 	}
 	if needle == "\n" {
-		v.headerMask |= 2
+		v.setHeaderMask(v.headerMask() | 2)
 	}
-	if v.headerMask == 3 {
+	if v.headerMask() == 3 {
 		v.Safe |= Header
 	}
 	f.setVar(variable.Name, v)

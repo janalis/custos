@@ -42,16 +42,16 @@ func (e *Env) evalArrayDimFetch(n *syntax.ArrayDimFetch, f *frame, r *scopeResul
 		levels++
 	}
 	// What an element of the uploads table is depends on how deep it sits.
-	whole := v.upload
-	v.upload = 0
+	whole := v.upload()
+	v.setUpload(0)
 	v = projectValues(v)
-	if v.scalars {
+	if v.scalars() {
 		// An element of such an array is one of its values.
-		v.scalars = false
+		v.setScalars(false)
 		v.Safe |= everyContext
 	}
 	if slot, constant := arrayKey(n.Dim); constant {
-		if own, tracked := r.values.at(n.Var).elements.lookup(slot); tracked {
+		if own, tracked := r.values.at(n.Var).elements().lookup(slot); tracked {
 			v = resourceElement(n, own, f, r)
 			v.Expr = n
 			v.plain, v.deep = own.plain, own.deep
@@ -62,7 +62,7 @@ func (e *Env) evalArrayDimFetch(n *syntax.ArrayDimFetch, f *frame, r *scopeResul
 		if variable.NameExpr == nil && !external(variable.Name) {
 			own, tracked := Value{}, false
 			if slot, constant := arrayKey(n.Dim); constant && levels == 1 {
-				own, tracked = f.vars.value(variable.Name).elements.lookup(slot)
+				own, tracked = f.vars.value(variable.Name).elements().lookup(slot)
 			}
 			switch {
 			case tracked:
@@ -73,7 +73,7 @@ func (e *Env) evalArrayDimFetch(n *syntax.ArrayDimFetch, f *frame, r *scopeResul
 				// The server chooses these fields of an uploaded file.
 				v = Value{Expr: n, Complete: true}
 			case whole == uploadTable:
-				v.upload = uploadEntry
+				v.setUpload(uploadEntry)
 			case variable.Name == "GLOBALS" && levels == 1 && known && (r.global || r.globalNames[key]):
 				// The entry is the variable of that name.
 				held := f.vars.value(key)
@@ -82,10 +82,10 @@ func (e *Env) evalArrayDimFetch(n *syntax.ArrayDimFetch, f *frame, r *scopeResul
 		}
 		if f.matched(requestElement(n)) {
 			// A switch found the element equal to a fixed text.
-			v = Value{Complete: true, Expr: n, matched: true}
+			v = Value{Complete: true, Expr: n, ext: rare(valueExt{matched: true})}
 		}
 		if variable.Name == "_FILES" && levels == 1 {
-			v.upload = uploadEntry
+			v.setUpload(uploadEntry)
 		}
 		if variable.Name == "_SERVER" {
 			if !known {

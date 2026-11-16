@@ -29,11 +29,14 @@ func (e *Env) IntRange(x syntax.Expr) (lo, hi int64, known bool) {
 	return integerBounds(v)
 }
 
-func integerBounds(v Value) (int64, int64, bool) {
-	if v.interval != nil {
-		return v.interval.lo, v.interval.hi, true
+func integerBounds(v Value) (int64, int64, bool) { return bounds(v.interval(), v.Expr) }
+
+// bounds returns the bounds of interval, or else those of a literal expr.
+func bounds(interval *intInterval, expr syntax.Expr) (int64, int64, bool) {
+	if interval != nil {
+		return interval.lo, interval.hi, true
 	}
-	n, ok := literalInteger(v.Expr)
+	n, ok := literalInteger(expr)
 	return n, n, ok
 }
 
@@ -67,10 +70,12 @@ func integerLiteralDepth(x syntax.Expr, budget int) (int64, bool) {
 	return 0, false
 }
 
-func integerValue(n int64) Value      { return Value{Complete: true, interval: &intInterval{n, n}} }
+func integerValue(n int64) Value {
+	return Value{Complete: true, ext: rare(valueExt{interval: &intInterval{n, n}})}
+}
 func sameInts(a, b *intInterval) bool { return a == b || a != nil && b != nil && *a == *b }
 func joinInts(a, b Value) *intInterval {
-	if a.Expr == b.Expr && a.interval == nil && b.interval == nil {
+	if a.Expr == b.Expr && a.interval() == nil && b.interval() == nil {
 		return nil
 	}
 	lo, hi, ok := integerBounds(a)
@@ -79,11 +84,11 @@ func joinInts(a, b Value) *intInterval {
 		return nil
 	}
 	lo, hi = min(lo, bl), max(hi, bh)
-	if a.interval != nil && a.interval.lo == lo && a.interval.hi == hi {
-		return a.interval
+	if a.interval() != nil && a.interval().lo == lo && a.interval().hi == hi {
+		return a.interval()
 	}
-	if b.interval != nil && b.interval.lo == lo && b.interval.hi == hi {
-		return b.interval
+	if b.interval() != nil && b.interval().lo == lo && b.interval().hi == hi {
+		return b.interval()
 	}
 	return &intInterval{lo, hi}
 }
@@ -129,8 +134,8 @@ func unaryInts(op syntax.TokenKind, v Value) *intInterval {
 	}
 	switch op {
 	case syntax.TPlus:
-		if v.interval != nil {
-			return v.interval
+		if v.interval() != nil {
+			return v.interval()
 		}
 		return &intInterval{lo, hi}
 	case syntax.TMinus:
@@ -143,11 +148,13 @@ func unaryInts(op syntax.TokenKind, v Value) *intInterval {
 
 // widenInterval widens the second visit to a loop head. Comparison guards
 // restore finite body bounds. Arithmetic must still reject extrema overflow.
-func widenInterval(old, joined Value) *intInterval {
-	lo, hi, known := integerBounds(joined)
+// interval is that of the join, which holds expr; each bound past the one
+// of old widens to the extremum.
+func widenInterval(old Value, interval *intInterval, expr syntax.Expr) *intInterval {
+	lo, hi, known := bounds(interval, expr)
 	beforeLo, beforeHi, beforeKnown := integerBounds(old)
 	if !known || !beforeKnown || lo == beforeLo && hi == beforeHi {
-		return joined.interval
+		return interval
 	}
 	if lo < beforeLo {
 		lo = math.MinInt64
@@ -155,8 +162,8 @@ func widenInterval(old, joined Value) *intInterval {
 	if hi > beforeHi {
 		hi = math.MaxInt64
 	}
-	if joined.interval != nil && joined.interval.lo == lo && joined.interval.hi == hi {
-		return joined.interval
+	if interval != nil && interval.lo == lo && interval.hi == hi {
+		return interval
 	}
 	return &intInterval{lo, hi}
 }
@@ -221,7 +228,7 @@ func (e *Env) refineInts(n *syntax.Binary, f *frame, truth bool) {
 		return
 	}
 	if lo <= hi {
-		v.interval = &intInterval{lo, hi}
+		v.setInterval(&intInterval{lo, hi})
 		f.setVar(variable.Name, v)
 	}
 }

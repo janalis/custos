@@ -105,14 +105,14 @@ func TestPureStringCompositionSources(t *testing.T) {
 			set.items[key] = value
 			set.order = append(set.order, key)
 		}
-		return Value{Complete: true, plain: true, deep: true, elements: set}
+		return Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: set})}
 	}
 	split := &pureExpr{kind: pureSplit, left: &pureSlots[0], right: &pureSlots[1]}
 	got, ok := e.evalPure(split, []Value{separator, text}, &scopeResult{}, MaxDepth)
-	if !ok || len(got.elements.items) != 2 {
+	if !ok || len(got.elements().items) != 2 {
 		t.Fatal("split failed")
 	}
-	for _, value := range got.elements.items {
+	for _, value := range got.elements().items {
 		if !slices.Equal(value.Sources, text.Sources) || value.Safe != 0 {
 			t.Fatal("split provenance or escaping proof")
 		}
@@ -168,7 +168,7 @@ func TestPureCompositionRuntimeEdges(t *testing.T) {
 	e, _ := environment(t, ``, nil)
 	text := scalarValue(constantScalar{k: 's', s: "x"})
 	record := func(values map[string]Value, order []string) Value {
-		return Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: values, order: order, width: len(order)}}
+		return Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: values, order: order, width: len(order)}})}
 	}
 	one := record(map[string]Value{"0": text}, []string{"0"})
 	row := record(map[string]Value{"v": text}, []string{"v"})

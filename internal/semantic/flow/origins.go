@@ -36,30 +36,30 @@ func origins(a, b Value, owners ...*scopeResult) *originSet {
 	if len(owners) > 0 {
 		r = owners[0]
 	}
-	if a.Expr == b.Expr && (a.Expr != nil || a.origins == nil && b.origins == nil) {
+	if a.Expr == b.Expr && (a.Expr != nil || a.origins() == nil && b.origins() == nil) {
 		return nil
 	}
-	if held := a.origins; a.Expr == nil && held != nil && (held.full || held.holds(&b, r)) {
+	if held := a.origins(); a.Expr == nil && held != nil && (held.full || held.holds(&b, r)) {
 		return held
 	}
-	if held := b.origins; b.Expr == nil && held != nil && (held.full || held.holds(&a, r)) {
+	if held := b.origins(); b.Expr == nil && held != nil && (held.full || held.holds(&a, r)) {
 		return held
 	}
 	n := &originSet{}
-	if a.origins != nil {
-		n.compressed = a.origins.compressed
-		n.other = a.origins.other
+	if a.origins() != nil {
+		n.compressed = a.origins().compressed
+		n.other = a.origins().other
 	}
-	if b.origins != nil {
-		n.compressed = n.compressed || b.origins.compressed
-		n.other = n.other || b.origins.other
+	if b.origins() != nil {
+		n.compressed = n.compressed || b.origins().compressed
+		n.other = n.other || b.origins().other
 	}
 	size := 0
 	for _, v := range [2]*Value{&a, &b} {
 		if v.Expr != nil {
 			size++
-		} else if v.origins != nil {
-			size += len(v.origins.items)
+		} else if v.origins() != nil {
+			size += len(v.origins().items)
 		}
 	}
 	var positions map[syntax.Expr]int
@@ -83,13 +83,13 @@ func origins(a, b Value, owners ...*scopeResult) *originSet {
 		switch {
 		case v.Expr != nil:
 			add(Origin{v.Expr, v.NonFalse, v.NonNull})
-		case v.origins != nil:
-			for _, o := range v.origins.items {
+		case v.origins() != nil:
+			for _, o := range v.origins().items {
 				add(o)
 			}
 		}
 	}
-	return finishOrigins(n, r, a.origins, b.origins)
+	return finishOrigins(n, r, a.origins(), b.origins())
 }
 
 // add joins one producer into a set under construction.
@@ -127,14 +127,14 @@ func (s *originSet) holds(v *Value, owners ...*scopeResult) bool {
 	switch {
 	case v.Expr != nil:
 		return has(Origin{v.Expr, v.NonFalse, v.NonNull})
-	case v.origins == nil:
+	case v.origins() == nil:
 		return true
-	case v.origins.full:
+	case v.origins().full:
 		return false
-	case v.origins.other && !s.other:
+	case v.origins().other && !s.other:
 		return false
 	}
-	for _, o := range v.origins.items {
+	for _, o := range v.origins().items {
 		if !has(o) {
 			return false
 		}

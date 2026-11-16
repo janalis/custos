@@ -37,7 +37,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 		if ok {
 			shared++
 		}
-		if ok && equal(v, w) && (len(v.Sources) > 0 || v.Safe == allContexts && v.upload == 0 && !v.scalars) {
+		if ok && equal(v, w) && (len(v.Sources) > 0 || v.Safe == allContexts && v.upload() == 0 && !v.scalars()) {
 			// Joining a value with itself leaves it as it is, once a value
 			// without request data has the form a join gives it.
 			continue
@@ -45,16 +45,17 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 		if len(v.Sources) > 0 && len(w.Sources) > 0 && &v.Sources[0] != &w.Sources[0] {
 			work += (len(v.Sources) + len(w.Sources)) / 2
 		}
-		m := merge(v, w)
+		m, x := merged(v, w)
 		if head {
-			m.interval = widenInterval(v, m)
+			x.interval = widenInterval(v, x.interval, m.Expr)
 		}
-		m.correlate(v, w)
+		x.correlate(v, w)
 		if !ok && b.definite && !reserved(k) {
 			// The other path never assigned the variable: it is null there.
 			m.NonFalse, m.plain, m.deep = v.NonFalse, v.plain, v.deep
 		}
-		if m.origins = origins(v, w, f.owner); !equal(m, v) {
+		x.origins = origins(v, w, f.owner)
+		if m.ext = derived(v.ext, x); !equal(m, v) {
 			f.setVar(k, m)
 			changed = true
 		}
@@ -67,7 +68,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 				continue
 			}
 			m := merge(Value{}, v)
-			m.origins = origins(Value{}, v, f.owner)
+			m.setOrigins(origins(Value{}, v, f.owner))
 			if f.definite && !reserved(k) {
 				m.NonFalse, m.plain, m.deep = v.NonFalse, v.plain, v.deep
 			}
@@ -111,12 +112,13 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 // correlate gives the join of two paths what both know of a binding through
 // a short-circuit operation: that its left operand read the binding last,
 // and what holds of the binding unless its right operand was skipped.
-func (v *Value) correlate(a, b Value) {
-	if a.tested == b.tested {
-		v.tested = a.tested
+func (x *valueExt) correlate(a, b Value) {
+	if a.tested() == b.tested() {
+		x.tested = a.tested()
 	}
-	if a.unless == b.unless {
-		v.unless, v.unlessFalse, v.unlessNull = a.unless, a.unlessFalse && b.unlessFalse, a.unlessNull && b.unlessNull
-		v.skippedFalse, v.skippedNull = a.skippedFalse && b.skippedFalse, a.skippedNull && b.skippedNull
+	if a.unless() == b.unless() {
+		x.unless = a.unless()
+		x.unlessFalse, x.unlessNull = a.unlessFalse() && b.unlessFalse(), a.unlessNull() && b.unlessNull()
+		x.skippedFalse, x.skippedNull = a.skippedFalse() && b.skippedFalse(), a.skippedNull() && b.skippedNull()
 	}
 }

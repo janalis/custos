@@ -41,19 +41,19 @@ func (e *Env) evalStringTransform(expr *pureExpr, left Value, slots []Value, r *
 	if expr.kind == pureSplit {
 		return evalPureSplit(separator.s, right, r)
 	}
-	if !purePlainRecord(right) || len(right.elements.order) != len(right.elements.items) || len(right.elements.order) > pureLimit {
+	if !purePlainRecord(right) || len(right.elements().order) != len(right.elements().items) || len(right.elements().order) > pureLimit {
 		return Value{}, false
 	}
-	parts := make([]string, 0, len(right.elements.order))
+	parts := make([]string, 0, len(right.elements().order))
 	var sources []Source
 	size := 0
-	if len(right.elements.order) > 1 {
-		size = (len(right.elements.order) - 1) * len(separator.s)
+	if len(right.elements().order) > 1 {
+		size = (len(right.elements().order) - 1) * len(separator.s)
 		sources = left.Sources
 	}
-	for _, key := range right.elements.order {
+	for _, key := range right.elements().order {
 		r.operations++
-		value := right.elements.items[key]
+		value := right.elements().items[key]
 		piece, known := knownScalar(value)
 		if !known || piece.k != 's' || len(value.Sources) > MaxSources || len(sources) > MaxSources {
 			return Value{}, false
@@ -99,6 +99,7 @@ func evalPureSplit(separator string, input Value, r *scopeResult) (Value, bool) 
 		set.order = append(set.order, key)
 		result = merge(result, value)
 	}
-	result.elements, result.plain, result.deep = set, true, true
+	result.setElements(set)
+	result.plain, result.deep = true, true
 	return result, true
 }

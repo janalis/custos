@@ -10,7 +10,7 @@ func BenchmarkImmutableShapeOperations(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			fuel := MaxSources
-			compactElements(template.elements, MaxDepth, &fuel)
+			compactElements(template.elements(), MaxDepth, &fuel)
 		}
 	})
 	b.Run("substitute", func(b *testing.B) {

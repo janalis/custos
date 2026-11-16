@@ -118,7 +118,7 @@ func TestMayHideEntry(t *testing.T) {
 		want  bool
 	}{
 		{Value{}, false},
-		{Value{replaced: true, Complete: true}, true},
+		{Value{Complete: true, ext: rare(valueExt{replaced: true})}, true},
 		{Value{Sources: cut}, true},
 		{Value{Sources: cut, Complete: true}, false},
 	} {
@@ -131,7 +131,7 @@ func TestMayHideEntry(t *testing.T) {
 func TestObserveHiddenEntry(t *testing.T) {
 	_, f := environment(t, `function f($x){}`, nil)
 	r := &scopeResult{}
-	observeParameter("x", Value{Complete: true, replaced: true}, f.Stmts[0], r)
+	observeParameter("x", Value{Complete: true, ext: rare(valueExt{replaced: true})}, f.Stmts[0], r)
 	if r.parameterObserved["x"] != 1 {
 		t.Fatal("replaced binding proved unread")
 	}

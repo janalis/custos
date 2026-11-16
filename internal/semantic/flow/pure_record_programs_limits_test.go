@@ -78,7 +78,7 @@ func TestPureRecordProgramBudgets(t *testing.T) {
 			t.Fatal("unproven input evaluated")
 		}
 	}
-	array := Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{"x": scalarValue(constantScalar{k: 'i'})}, order: []string{"x"}}}
+	array := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{"x": scalarValue(constantScalar{k: 'i'})}, order: []string{"x"}}})}
 	if _, ok := pureArrayUnion(array, array, &scopeResult{copies: MaxCopied}); ok {
 		t.Fatal("union copy limit bypassed")
 	}

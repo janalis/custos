@@ -13,7 +13,7 @@ func pureTruthValue(value Value) (bool, bool) {
 		return scalar.truth(), true
 	}
 	if purePlainRecord(value) {
-		return len(value.elements.items) != 0, true
+		return len(value.elements().items) != 0, true
 	}
 	return false, false
 }
@@ -74,7 +74,7 @@ func pureRecordKey(value Value) (string, bool) {
 }
 
 func putPureKey(value *Value, key string, entry Value, r *scopeResult) bool {
-	set := value.elements
+	set := value.elements()
 	_, held := set.items[key]
 	r.copies += len(set.items) + 1
 	if r.copies > MaxCopied || !held && len(set.items) >= pureLimit {
@@ -88,15 +88,16 @@ func putPureKey(value *Value, key string, entry Value, r *scopeResult) bool {
 	}
 	copied.put(key, scalarSnapshot(entry))
 	*value = merge(*value, entry)
-	value.elements, value.plain, value.deep = &copied, true, true
+	value.setElements(&copied)
+	value.plain, value.deep = true, true
 	return true
 }
 
 func pureArrayUnion(left, right Value, r *scopeResult) (Value, bool) {
-	if !purePlainRecord(left) || !purePlainRecord(right) || len(left.elements.order) != len(left.elements.items) || len(right.elements.order) != len(right.elements.items) {
+	if !purePlainRecord(left) || !purePlainRecord(right) || len(left.elements().order) != len(left.elements().items) || len(right.elements().order) != len(right.elements().items) {
 		return Value{}, false
 	}
-	size := len(left.elements.items) + len(right.elements.items)
+	size := len(left.elements().items) + len(right.elements().items)
 	r.copies += size
 	r.operations += size
 	if size > pureLimit || r.copies > MaxCopied || r.operations > MaxTransfers {
@@ -104,15 +105,16 @@ func pureArrayUnion(left, right Value, r *scopeResult) (Value, bool) {
 	}
 	set := &elementSet{whole: true, items: map[string]Value{}, width: size}
 	for _, value := range []Value{left, right} {
-		for _, key := range value.elements.order {
+		for _, key := range value.elements().order {
 			if _, held := set.items[key]; held {
 				continue
 			}
-			set.put(key, scalarSnapshot(value.elements.items[key]))
+			set.put(key, scalarSnapshot(value.elements().items[key]))
 			set.order = append(set.order, key)
 		}
 	}
 	result := merge(left, right)
-	result.elements, result.plain, result.deep = set, true, true
+	result.setElements(set)
+	result.plain, result.deep = true, true
 	return result, true
 }

@@ -45,8 +45,8 @@ func (e *Env) summarizedCall(n syntax.Node, values []Value, closedFollowed uint8
 			forwarded = true
 		}
 	}
-	if out.value.elements != nil && (!s.Fixed || !precise) {
-		out.value.elements = nil
+	if out.value.elements() != nil && (!s.Fixed || !precise) {
+		out.value.setElements(nil)
 	}
 	// An overridable or bodiless target may not be the body that runs:
 	// its return keeps the sources it may yield but proves nothing more.
@@ -54,9 +54,9 @@ func (e *Env) summarizedCall(n syntax.Node, values []Value, closedFollowed uint8
 		out.value.Complete = false
 	}
 	if out.boundOK {
-		out.value.returned = e.bindReturned(n, s.returned, out.bound)
+		out.value.setReturned(e.bindReturned(n, s.returned, out.bound))
 	}
-	out.value.scalars = s.Return.scalars && len(out.value.Sources) > 0
+	out.value.setScalars(s.Return.scalars() && len(out.value.Sources) > 0)
 	if !forwarded && out.boundOK && out.value.Complete && s.Quiet && precise {
 		out.value, out.states = e.instantiateRecord(n, out.value, out.bound, f, r)
 		out.invoked = len(out.states) > 0
@@ -122,10 +122,10 @@ func (e *Env) builtinCall(n syntax.Node, name string, args *syntax.ArgList, valu
 	case "array_map":
 		e.mappedScalars(values, out)
 	}
-	if len(values) > 0 && values[0].scalars && keepsElements(name) {
+	if len(values) > 0 && values[0].scalars() && keepsElements(name) {
 		// The result is that array with fewer elements: the other
 		// arguments only choose among them.
-		out.value = Value{Complete: out.value.Complete, Expr: out.value.Expr, Sources: values[0].Sources, Safe: values[0].Safe, scalars: true}
+		out.value = Value{Complete: out.value.Complete, Expr: out.value.Expr, Sources: values[0].Sources, Safe: values[0].Safe, ext: rare(valueExt{scalars: true})}
 	}
 	// Invoking a closure object runs project code like calling it.
 	if name == "__invoke" || name == "call" || e.callbackParameter(n, args, values) {

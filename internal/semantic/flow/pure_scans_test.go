@@ -97,7 +97,7 @@ func TestPureScanRuntimeBounds(t *testing.T) {
 	integer := func(i int64) Value { return scalarValue(constantScalar{k: 'i', i: i}) }
 	text := func(s string) Value { return scalarValue(constantScalar{k: 's', s: s}) }
 	deep := constructionRecord(text("x"))
-	deep.elements.depth = MaxDepth - 1
+	deep.elements().depth = MaxDepth - 1
 	unique := &pureExpr{kind: pureUnique, left: &pureSlots[0]}
 	product := &pureExpr{kind: pureProduct, left: &pureSlots[0]}
 	search := &pureExpr{kind: pureSearch, left: &pureSlots[0], right: &pureSlots[1], other: &pureSlots[2]}

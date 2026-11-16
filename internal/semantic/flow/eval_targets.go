@@ -147,7 +147,7 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 		array := unsettled(old, v, r)
 		// The variable now holds an array with the value in it: neither
 		// what it held nor the value written produced it.
-		array.origins = nil
+		array.setOrigins(nil)
 		array.plain = held
 		array.deep = held && v.deep && (old.deep || !tracked && (external(name) || f.definite && importable(name)))
 		// A literal key directly in the array is tracked on its own; a
@@ -160,17 +160,17 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 			}
 			first = inner
 		}
-		if key, known := arrayKey(first.Dim); known && !external(name) && len(old.elements.all()) < MaxSources {
+		if key, known := arrayKey(first.Dim); known && !external(name) && len(old.elements().all()) < MaxSources {
 			own := Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe}
 			if first != fetch || n.Op.Kind != syntax.TEqual {
 				previous := old
-				if tracked, ok := old.elements.lookup(key); ok {
+				if tracked, ok := old.elements().lookup(key); ok {
 					previous = tracked
 				}
 				own = unsettled(previous, v, r)
 			}
-			r.operations += len(old.elements.all())
-			array.elements = old.elements.with(key, own)
+			r.operations += len(old.elements().all())
+			array.setElements(old.elements().with(key, own))
 		}
 		f.write(r, name, array)
 		f.through(r, v)

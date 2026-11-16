@@ -32,10 +32,10 @@ func TestIncompleteCallbackPacksAreRejected(t *testing.T) {
 	at := callsNamed(file, "array_map")[0]
 	r := e.scope(nil)
 	values := append([]Value(nil), r.calls[r.callIndex[at]].Arguments...)
-	elements := cloneElements(values[0].elements)
+	elements := cloneElements(values[0].elements())
 	for _, optional := range []bool{false, true} {
 		elements.whole, elements.optional = optional, optional
-		values[0].elements = elements
+		values[0].setElements(elements)
 		if _, known := e.mappedCallback(at, at.Args, values, &frame{}, r); known {
 			t.Fatal("partial or optional argument pack established complete mapping")
 		}

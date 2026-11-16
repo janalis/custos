@@ -16,7 +16,7 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 	// The values written, then those the call adds (its receiver).
 	for _, list := range [...][]Value{values, more} {
 		for _, value := range list {
-			collectRecordIdentities(value.elements, identities)
+			collectRecordIdentities(value.elements(), identities)
 			if value.Identity != 0 {
 				identities[value.Identity] = true
 			}
@@ -68,7 +68,7 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 	if all {
 		for _, valueCell := range f.vars {
 			value := valueCell.Value
-			collectRecordIdentities(value.elements, identities)
+			collectRecordIdentities(value.elements(), identities)
 		}
 	}
 	for id := range identities {
@@ -142,7 +142,8 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 		for name, oldCell := range f.vars {
 			old := oldCell.Value
 			v := unsettled(old, e.held(name, r), r)
-			v.Invalidated, v.replaced = stamp, true
+			v.setReplaced(true)
+			v.Invalidated = stamp
 			f.setVar(name, v)
 		}
 		return
@@ -167,7 +168,8 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 			written = e.held(name, r)
 		}
 		v := unsettled(f.vars.value(name), written, r)
-		v.Invalidated, v.replaced = stamp, true
+		v.setReplaced(true)
+		v.Invalidated = stamp
 		f.setVar(name, v)
 	}
 }
@@ -201,7 +203,7 @@ func (e *Env) holderWrites(scope syntax.Node, name string) Value {
 			written = effects(written, v, r)
 		}
 	}
-	written.origins = r.producers(written)
+	written.setOrigins(r.producers(written))
 	written.Expr = nil
 	return written
 }

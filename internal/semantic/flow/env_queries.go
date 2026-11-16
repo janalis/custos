@@ -87,8 +87,8 @@ func (e *Env) Reaching(x syntax.Expr) ([]Origin, bool) {
 		return nil, false
 	case v.Expr != nil:
 		return []Origin{{v.Expr, v.NonFalse, v.NonNull}}, true
-	case v.origins != nil:
-		return v.origins.items, false
+	case v.origins() != nil:
+		return v.origins().items, false
 	}
 	return nil, false
 }
@@ -97,13 +97,13 @@ func (e *Env) Reaching(x syntax.Expr) ([]Origin, bool) {
 // (a callee that may write the globals table) may have replaced since it
 // was last written, on some path.
 func (e *Env) Replaced(x syntax.Expr) bool {
-	return e.Value(x).replaced
+	return e.Value(x).replaced()
 }
 
 // ExactLength returns a byte length established by a strict strlen guard.
 func (e *Env) ExactLength(x syntax.Expr) (int64, bool) {
 	v := e.Value(x)
-	return v.Length, v.Complete && v.LengthKnown
+	return v.length(), v.Complete && v.lengthKnown()
 }
 
 // Tainted reports a retained external source without a context-specific
@@ -126,7 +126,7 @@ func (e *Env) Matched(x syntax.Expr) bool {
 		return false
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
-	return r.complete && r.values.at(x).matched
+	return r.complete && r.values.at(x).matched()
 }
 
 // Calls returns reached calls in a scope, excluding nested scopes. Returned

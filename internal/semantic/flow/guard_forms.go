@@ -16,7 +16,7 @@ func (e *Env) refineVariable(n syntax.Expr, f *frame, truth bool) {
 		}
 		if variable, ok := n.(*syntax.Variable); ok {
 			value := f.vars.value(variable.Name)
-			if value.Complete && !value.replaced && value.Invalidated == 0 {
+			if value.Complete && !value.replaced() && value.Invalidated == 0 {
 				refineIndirectClose(value.Expr, f)
 			}
 		}
@@ -122,7 +122,7 @@ func (e *Env) refineBinary(n *syntax.Binary, f *frame, truth bool) {
 				if known && vok && (text == `/[\r\n]/` || text == `/[\n\r]/`) {
 					v := f.vars.value(variable.Name)
 					v.Safe |= Header
-					v.headerMask = 3
+					v.setHeaderMask(3)
 					f.setVar(variable.Name, v)
 				}
 
@@ -137,8 +137,8 @@ func (e *Env) refineBinary(n *syntax.Binary, f *frame, truth bool) {
 				if ok && known {
 					if number, err := strconv.ParseInt(length, 10, 64); err == nil {
 						v := f.vars.value(variable.Name)
-						v.Length = number
-						v.LengthKnown = true
+						v.setLength(number)
+						v.setLengthKnown(true)
 						f.setVar(variable.Name, v)
 					}
 				}

@@ -40,7 +40,7 @@ func TestCrossFileReturnedClosureShapes(t *testing.T) {
 	if !e.Value(at).Complete || e.Tainted(at, HTML) {
 		t.Fatal("cross-file closure field lost precision")
 	}
-	assertCompactElements(t, snapshot.files["definitions.php"].Summaries["factory"].returned.result.elements)
+	assertCompactElements(t, snapshot.files["definitions.php"].Summaries["factory"].returned.result.elements())
 	replacement := syntax.Parse("definitions.php", []byte(`<?php function factory(){return fn($x)=>['clean'=>$x,'dirty'=>$x];}`), syntax.Options{Version: phpversion.Max})
 	next := snapshot.WithFile(Extract(replacement, ix, phpversion.Max, nil, Options{}))
 	if out.Current(snapshot, next) {

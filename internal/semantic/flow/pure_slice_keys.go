@@ -47,10 +47,10 @@ func (e *Env) evalPureSlice(expr *pureExpr, input Value, slots []Value, r *scope
 	start, sk := knownScalar(offset)
 	limit, nk := knownScalar(length)
 	keys, kk := knownScalar(preserve)
-	if !ok || !lk || !pk || !sk || start.k != 'i' || !nk || limit.k != 'i' && limit.k != 'n' || !kk || keys.k != 'b' || !purePlainRecord(input) || len(input.elements.order) != len(input.elements.items) {
+	if !ok || !lk || !pk || !sk || start.k != 'i' || !nk || limit.k != 'i' && limit.k != 'n' || !kk || keys.k != 'b' || !purePlainRecord(input) || len(input.elements().order) != len(input.elements().items) {
 		return Value{}, false
 	}
-	size := int64(len(input.elements.order))
+	size := int64(len(input.elements().order))
 	// Add only bounded nonnegative sizes to negative values, never negate MinInt64.
 	first := min(start.i, size)
 	if first < 0 {
@@ -73,8 +73,8 @@ func (e *Env) evalPureSlice(expr *pureExpr, input Value, slots []Value, r *scope
 	set := &elementSet{whole: true, items: map[string]Value{}, width: count}
 	result := Value{Complete: true, plain: true, deep: true}
 	next := 0
-	for _, key := range input.elements.order[first:end] {
-		entry := input.elements.items[key]
+	for _, key := range input.elements().order[first:end] {
+		entry := input.elements().items[key]
 		if !keys.b && pureKeyScalar(key).k == 'i' {
 			key = strconv.Itoa(next)
 			next++
@@ -83,7 +83,8 @@ func (e *Env) evalPureSlice(expr *pureExpr, input Value, slots []Value, r *scope
 		set.order = append(set.order, key)
 		result = merge(result, entry)
 	}
-	result.elements, result.plain, result.deep = set, true, true
+	result.setElements(set)
+	result.plain, result.deep = true, true
 	return result, true
 }
 
@@ -125,16 +126,16 @@ func (e *Env) evalFilteredKeys(expr *pureExpr, input Value, slots []Value, r *sc
 	search, ok := e.evalPure(expr.right, slots, r, depth-1)
 	strict, sk := e.evalPure(expr.other, slots, r, depth-1)
 	flag, fk := knownScalar(strict)
-	if !ok || !sk || !fk || flag.k != 'b' || !flag.b || !purePlainRecord(input) || len(input.elements.order) != len(input.elements.items) || !pureReadOnlyInputs([]Value{search}, nil) {
+	if !ok || !sk || !fk || flag.k != 'b' || !flag.b || !purePlainRecord(input) || len(input.elements().order) != len(input.elements().items) || !pureReadOnlyInputs([]Value{search}, nil) {
 		return Value{}, false
 	}
-	result := Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{}}}
-	for _, key := range input.elements.order {
+	result := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{}}})}
+	for _, key := range input.elements().order {
 		r.operations++
 		if r.operations > MaxTransfers {
 			return Value{}, false
 		}
-		equal, known := pureQueryIdentity(search, input.elements.items[key], r, depth-1)
+		equal, known := pureQueryIdentity(search, input.elements().items[key], r, depth-1)
 		if !known {
 			return Value{}, false
 		}

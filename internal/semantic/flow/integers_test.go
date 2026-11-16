@@ -207,10 +207,10 @@ func TestImmutableIntegerRangeReuse(t *testing.T) {
 	x := argument(callsNamed(f, "probe")[0]).(*syntax.Unary)
 	held := e.Value(x.Expr)
 	got := e.Value(x)
-	if held.interval == nil || got.interval != held.interval {
+	if held.interval() == nil || got.interval() != held.interval() {
 		t.Fatal("unary plus must retain the immutable interval")
 	}
-	before := *held.interval
+	before := *held.interval()
 	state := frame{}
 	state.resetVars()
 	state.setVar("n", held)
@@ -222,7 +222,7 @@ func TestImmutableIntegerRangeReuse(t *testing.T) {
 		}
 	}
 	e.refineInts(condition, &state, true)
-	if state.vars.value("n").interval != held.interval || *held.interval != before {
+	if state.vars.value("n").interval() != held.interval() || *held.interval() != before {
 		t.Fatal("unchanged refinement must retain immutable bounds")
 	}
 	literal := Value{Complete: true, Expr: condition.Right}

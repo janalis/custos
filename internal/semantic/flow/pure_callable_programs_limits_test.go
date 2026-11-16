@@ -71,7 +71,7 @@ func TestPureCallableProgramLimits(t *testing.T) {
 			set.items[key] = value
 			set.order = append(set.order, key)
 		}
-		return Value{Complete: true, plain: true, deep: true, elements: set}
+		return Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: set})}
 	}
 	number := scalarValue(constantScalar{k: 'i', i: 1})
 	nan := scalarValue(constantScalar{k: 'f', f: math.NaN()})
@@ -139,7 +139,7 @@ func TestPureCallableSourceAndBudgetEdges(t *testing.T) {
 	// Incomplete payloads stay unknown; a budget gap must not be overridden by
 	// a later known difference.
 	set := func(v Value) Value {
-		return Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{"a": v}, order: []string{"a"}}}
+		return Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{"a": v}, order: []string{"a"}}})}
 	}
 	if _, known := pureStrictRecord(set(Value{}), set(value), &scopeResult{}, MaxDepth); known {
 		t.Fatal("incomplete field compared")

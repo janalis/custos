@@ -29,7 +29,7 @@ func (e *Env) summarizeResource(scope syntax.Node, r *scopeResult, sum Summary) 
 	if !returned.IsUnknown() && !returned.Has("mixed") {
 		return nil
 	}
-	if !sum.Fixed || !value.Complete || value.Identity == 0 || value.Invalidated != 0 || value.replaced || byReference(scope) {
+	if !sum.Fixed || !value.Complete || value.Identity == 0 || value.Invalidated != 0 || value.replaced() || byReference(scope) {
 		return nil
 	}
 	if r.allocations[value.Identity] {
@@ -92,7 +92,7 @@ func (e *Env) instantiateResource(at syntax.Node, contract *resourceReturn, args
 		return 0, nil, false
 	}
 	value := args[contract.parameter]
-	if !value.Complete || value.replaced || value.Invalidated != 0 || value.Identity == 0 {
+	if !value.Complete || value.replaced() || value.Invalidated != 0 || value.Identity == 0 {
 		return 0, nil, false
 	}
 	id := value.Identity
@@ -137,7 +137,7 @@ func summarizeResourceEffects(scope syntax.Node, r *scopeResult, sum Summary) []
 				default:
 					continue
 				}
-				if !sum.Return.Complete || sum.Return.replaced || sum.Return.Invalidated != 0 || result.Span() != state.Span {
+				if !sum.Return.Complete || sum.Return.replaced() || sum.Return.Invalidated != 0 || result.Span() != state.Span {
 					continue
 				}
 				pending = true
@@ -192,7 +192,7 @@ func (e *Env) resourceEffects(at syntax.Node, effects []resourceEffect, args []V
 // A successful close also validates an unchanged symbolic parameter. This is
 // only a pending conditional effect, never allocation evidence for pass-throughs.
 func pendingParameter(at syntax.Node, value Value, f *frame) bool {
-	if !value.Complete || value.replaced || value.Invalidated != 0 || value.Identity == 0 {
+	if !value.Complete || value.replaced() || value.Invalidated != 0 || value.Identity == 0 {
 		return false
 	}
 	for _, param := range syntax.VariableScopeParams(syntax.EnclosingVariableScope(at)) {

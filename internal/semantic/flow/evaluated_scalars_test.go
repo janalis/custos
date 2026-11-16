@@ -19,8 +19,8 @@ func TestScalarStringEvaluationBounds(t *testing.T) {
 		expr := &syntax.Binary{Left: left, Right: right, Op: syntax.TokenRef{Kind: syntax.TDot}}
 		r := &scopeResult{operations: tc.work}
 		a, b := constantScalar{k: 's', s: tc.left}, constantScalar{k: 's', s: tc.right}
-		r.values.set(left, Value{Complete: true, literal: &a})
-		r.values.set(right, Value{Complete: true, literal: &b})
+		r.values.set(left, Value{Complete: true, ext: rare(valueExt{literal: &a})})
+		r.values.set(right, Value{Complete: true, ext: rare(valueExt{literal: &b})})
 		got := evaluatedScalar(expr, Value{Complete: true, Expr: expr}, r)
 		if _, known := knownScalar(got); known {
 			t.Fatal("oversized or over-budget scalar expression became known")

@@ -24,7 +24,7 @@ func TestForwardContractsRespectDefinitionStrictness(t *testing.T) {
 		file := syntax.Parse("caller.php", []byte(tc.caller), syntax.Options{Version: phpversion.Max})
 		e := New(file, resourceTypes(file, ix), snap, Options{})
 		v := e.Value(argument(callsNamed(file, "probe")[0]))
-		empty := v.elements != nil && v.elements.whole && !v.elements.optional && len(v.elements.items) == 0
+		empty := v.elements() != nil && v.elements().whole && !v.elements().optional && len(v.elements().items) == 0
 		if empty != tc.empty {
 			t.Fatalf("%s / %s: empty=%v", tc.defs, tc.caller, empty)
 		}
@@ -46,7 +46,7 @@ func TestForwardContractEditInvalidatesCallers(t *testing.T) {
 	}
 	e := New(use, resourceTypes(use, ix), next, Options{})
 	v := e.Value(argument(callsNamed(use, "probe")[0]))
-	if v.elements != nil && !v.elements.optional && len(v.elements.items) == 0 {
+	if v.elements() != nil && !v.elements().optional && len(v.elements().items) == 0 {
 		t.Fatal("old forwarding facts survived the edit")
 	}
 }
@@ -67,11 +67,11 @@ func TestResourceRecordContractEdits(t *testing.T) {
 		published := Extract(defs, ix, phpversion.Max, nil, Options{})
 		var check func(Value)
 		check = func(v Value) {
-			if v.Expr != nil || v.Identity != 0 || v.storedIdentity != 0 || v.origins != nil || v.targets != nil || v.returned != nil {
+			if v.Expr != nil || v.Identity != 0 || v.storedIdentity() != 0 || v.origins() != nil || v.targets() != nil || v.returned() != nil {
 				t.Fatal("execution metadata escaped in a contract")
 			}
-			if v.elements != nil {
-				for _, entry := range v.elements.items {
+			if v.elements() != nil {
+				for _, entry := range v.elements().items {
 					check(entry)
 				}
 			}

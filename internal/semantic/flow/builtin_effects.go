@@ -18,7 +18,7 @@ func (e *Env) importBindings(n syntax.Node, name string, args *syntax.ArgList, v
 		if !given {
 			array = values[0]
 		}
-		if array.scalars {
+		if array.scalars() {
 			// The variables hold the numbers; the keys name them.
 			array.Safe |= everyContext
 		}
@@ -36,7 +36,7 @@ func (e *Env) importBindings(n syntax.Node, name string, args *syntax.ArgList, v
 func (e *Env) mappedScalars(values []Value, out *callOutcome) {
 	if len(values) > 0 && e.scalarCallback(values[0].Expr) && len(out.value.Sources) > 0 {
 		if len(values) == 2 && !e.list(values[1].Expr) {
-			out.value.scalars = true
+			out.value.setScalars(true)
 		} else {
 			out.value.Safe |= everyContext
 		}

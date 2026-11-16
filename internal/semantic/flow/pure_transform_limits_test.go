@@ -89,7 +89,7 @@ func TestPureTransformVersions(t *testing.T) {
 func TestPureTransformRuntimeBudgets(t *testing.T) {
 	e, _ := environment(t, ``, nil)
 	num := scalarValue(constantScalar{k: 'i', i: 1})
-	record := Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{"0": num}, order: []string{"0"}}}
+	record := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{"0": num}, order: []string{"0"}}})}
 	lit := pureConstant
 	slice := &pureExpr{kind: pureSlice, left: &pureSlots[0], right: lit(constantScalar{k: 'i'}), other: lit(constantScalar{k: 'n'}), args: []*pureExpr{lit(constantScalar{k: 'b'})}}
 	keys := &pureExpr{kind: pureFilteredKeys, left: &pureSlots[0], right: lit(constantScalar{k: 'i', i: 1}), other: lit(constantScalar{k: 'b', b: true})}

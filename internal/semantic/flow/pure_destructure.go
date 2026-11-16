@@ -87,7 +87,7 @@ func bindPureFields(fields []pureField, item Value, bound []Value, slot int, r *
 	}
 	for i, field := range fields {
 		r.operations++
-		value, present := item.elements.lookup(field.key)
+		value, present := item.elements().lookup(field.key)
 		if !present || r.operations > MaxTransfers || !pureReadOnlyInputs([]Value{value}, nil) {
 			return false
 		}

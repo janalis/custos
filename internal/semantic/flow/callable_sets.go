@@ -68,8 +68,8 @@ func applyCallStates(f *frame, states map[uint32]State) {
 
 func (e *Env) invokeCallableSet(at syntax.Node, callee Value, list *syntax.ArgList, values []Value, f *frame, r *scopeResult) (Value, map[uint32]State, bool) {
 	targets := []syntax.Expr{callee.Expr}
-	if callee.targets != nil {
-		targets = callee.targets.items
+	if callee.targets() != nil {
+		targets = callee.targets().items
 	}
 	prior, had := r.closureSinks[at]
 	var result Value
@@ -127,7 +127,7 @@ func (e *Env) invokeCallableSet(at syntax.Node, callee Value, list *syntax.ArgLi
 // Literal names can participate in a finite target set before resolution.
 // Every member must still resolve and bind at the eventual invocation.
 func joinCallableValues(a, b Value) *callableSet {
-	left, right := a.targets, b.targets
+	left, right := a.targets(), b.targets()
 	var l, r *syntax.Literal
 	if left == nil {
 		var known bool

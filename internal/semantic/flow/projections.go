@@ -25,10 +25,10 @@ func projectValues(v Value) Value {
 func projectSource(v Value, s Source) Value {
 	if s.Keys {
 		v = projectKeys(v)
-		v.scalars = false
+		v.setScalars(false)
 	} else if s.ValuesOnly {
 		v = projectValues(v)
-		if v.scalars {
+		if v.scalars() {
 			v.Safe |= everyContext
 		}
 	}
@@ -56,25 +56,25 @@ func substituteValue(template Value, args []Value, known bool, depth int, fuel *
 		}
 	}
 	v.Safe |= template.Safe
-	v.literal = template.literal
-	v.truth = template.truth
-	v.record = template.record
-	if template.elements != nil && depth > 0 && len(template.elements.items) <= *fuel {
-		*fuel -= len(template.elements.items)
-		if len(template.elements.items) == 0 {
-			v.elements = emptyElements
+	v.setLiteral(template.literal())
+	v.setTruth(template.truth())
+	v.setRecord(template.record())
+	if template.elements() != nil && depth > 0 && len(template.elements().items) <= *fuel {
+		*fuel -= len(template.elements().items)
+		if len(template.elements().items) == 0 {
+			v.setElements(emptyElements)
 		} else {
-			v.elements = template.elements
+			v.setElements(template.elements())
 			changed := false
-			for _, key := range sortedElementKeys(template.elements) {
-				before := template.elements.items[key]
+			for _, key := range sortedElementKeys(template.elements()) {
+				before := template.elements().items[key]
 				after := substituteValue(before, args, known, depth-1, fuel)
 				if !equal(before, after) {
 					if !changed {
-						v.elements = cloneElements(template.elements)
+						v.setElements(cloneElements(template.elements()))
 						changed = true
 					}
-					v.elements.put(key, after)
+					v.elements().put(key, after)
 				}
 			}
 		}
@@ -115,8 +115,7 @@ func compactElements(elements *elementSet, depth int, fuel *int) *elementSet {
 	changed := false
 	for _, key := range sortedElementKeys(elements) {
 		value := elements.items[key]
-		entry := compactCallableValue(value)
-		entry.elements = compactElements(value.elements, depth-1, fuel)
+		entry := compactCallableValue(value, compactElements(value.elements(), depth-1, fuel))
 		if !equal(value, entry) {
 			if !changed {
 				out = cloneElements(elements)

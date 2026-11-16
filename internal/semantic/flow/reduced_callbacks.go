@@ -14,7 +14,7 @@ func (e *Env) reducedCallback(at syntax.Node, list *syntax.ArgList, values []Val
 		return Value{}, false
 	}
 	input, callee := bound[0], bound[1]
-	if !input.Complete || input.replaced || input.Invalidated != 0 || input.elements == nil || !input.elements.whole || input.elements.optional || len(input.elements.order) != len(input.elements.items) || !callee.Complete || callee.replaced || callee.Invalidated != 0 {
+	if !input.Complete || input.replaced() || input.Invalidated != 0 || input.elements() == nil || !input.elements().whole || input.elements().optional || len(input.elements().order) != len(input.elements().items) || !callee.Complete || callee.replaced() || callee.Invalidated != 0 {
 		return Value{}, false
 	}
 	carry := bound[2]
@@ -22,8 +22,8 @@ func (e *Env) reducedCallback(at syntax.Node, list *syntax.ArgList, values []Val
 		carry = Value{Complete: true, Expr: scalarExpression(constantScalar{k: 'n'}), plain: true, deep: true}
 	}
 	prior, had := r.closureSinks[at]
-	for _, key := range input.elements.order {
-		arguments := []Value{carry, input.elements.items[key]}
+	for _, key := range input.elements().order {
+		arguments := []Value{carry, input.elements().items[key]}
 		forwarded := &syntax.ArgList{}
 		for _, value := range arguments {
 			expr := value.Expr
@@ -35,8 +35,8 @@ func (e *Env) reducedCallback(at syntax.Node, list *syntax.ArgList, values []Val
 		r.copies += len(f.vars) + len(f.states)
 		branch := clone(f)
 		var valid bool
-		if callee.returned != nil {
-			carry, _, valid = e.invokeReturned(at, callee.returned, forwarded, arguments, &branch, r)
+		if callee.returned() != nil {
+			carry, _, valid = e.invokeReturned(at, callee.returned(), forwarded, arguments, &branch, r)
 		} else {
 			carry, _, valid = e.invokeCallableSet(at, callee, forwarded, arguments, &branch, r)
 		}

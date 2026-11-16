@@ -44,7 +44,7 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 		}
 		for i := 0; i < len(expr.args); i += 2 {
 			entry, ok := e.evalPure(expr.args[i+1], slots, r, depth-1)
-			if !ok || !entry.Complete || !entry.plain || !entry.deep || entry.Identity != 0 || entry.storedIdentity != 0 || entry.elements != nil && entry.elements.hasResources {
+			if !ok || !entry.Complete || !entry.plain || !entry.deep || entry.Identity != 0 || entry.storedIdentity() != 0 || entry.elements() != nil && entry.elements().hasResources {
 				return Value{}, false
 			}
 			key := expr.args[i].literal.s
@@ -52,7 +52,7 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 			set.order = append(set.order, key)
 			value = merge(value, entry)
 		}
-		value.elements = set
+		value.setElements(set)
 		value.plain, value.deep = true, true
 		return value, true
 	}
@@ -112,7 +112,7 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 		if scalar, known := knownScalar(left); expr.kind == pureQuietIndex && known && scalar.k == 'n' {
 			return left, true
 		}
-		if !left.Complete || !left.plain || !left.deep || left.elements == nil || !left.elements.whole || left.elements.optional || left.elements.hasResources {
+		if !left.Complete || !left.plain || !left.deep || left.elements() == nil || !left.elements().whole || left.elements().optional || left.elements().hasResources {
 			return Value{}, false
 		}
 
@@ -120,14 +120,14 @@ func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, de
 		if key.k == 'i' {
 			text = strconv.FormatInt(key.i, 10)
 		}
-		value, held := left.elements.lookup(text)
+		value, held := left.elements().lookup(text)
 		if expr.kind == pureExists {
 			return scalarValue(constantScalar{k: 'b', b: held}), true
 		}
 		if !held && expr.kind == pureQuietIndex {
 			return scalarValue(constantScalar{k: 'n'}), true
 		}
-		return value, held && value.Complete && !value.replaced && value.Invalidated == 0
+		return value, held && value.Complete && !value.replaced() && value.Invalidated == 0
 	}
 	if expr.kind == pureNonNull || expr.kind == pureShort && expr.op == syntax.TCoalesce {
 		nonnull, known := pureNonNullValue(left)

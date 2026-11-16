@@ -58,3 +58,13 @@ func TestCallableSetBudgetAndSinkRollback(t *testing.T) {
 		t.Fatal("failed target lost prior sinks")
 	}
 }
+
+// Two target sets holding the same callables in another order are the same,
+// though neither is the other.
+func TestSameCallableTargetsComparesItems(t *testing.T) {
+	f, g := &syntax.Name{Value: "f"}, &syntax.Name{Value: "g"}
+	a, b := &callableSet{items: []syntax.Expr{f, g}}, &callableSet{items: []syntax.Expr{g, f}}
+	if !sameCallableTargets(a, b) || sameCallableTargets(a, &callableSet{items: []syntax.Expr{f, &syntax.Name{Value: "h"}}}) {
+		t.Fatal("target sets compared by identity")
+	}
+}

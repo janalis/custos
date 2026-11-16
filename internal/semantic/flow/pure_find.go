@@ -106,7 +106,7 @@ func (c *pureCompiler) binding(name string) *pureExpr {
 
 func (e *Env) evalPureFind(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {
 	input, ok := e.evalPure(expr.left, slots, r, depth-1)
-	if !ok || !purePlainRecord(input) || len(input.elements.order) != len(input.elements.items) {
+	if !ok || !purePlainRecord(input) || len(input.elements().order) != len(input.elements().items) {
 		return Value{}, false
 	}
 	width := 2
@@ -119,9 +119,9 @@ func (e *Env) evalPureFind(expr *pureExpr, slots []Value, r *scopeResult, depth 
 	}
 	bound := make([]Value, max(len(slots), expr.slot+width))
 	copy(bound, slots)
-	for _, key := range input.elements.order {
-		bound[expr.slot] = input.elements.items[key]
-		if len(expr.destruct) != 0 && !bindPureFields(expr.destruct, input.elements.items[key], bound, expr.slot, r) {
+	for _, key := range input.elements().order {
+		bound[expr.slot] = input.elements().items[key]
+		if len(expr.destruct) != 0 && !bindPureFields(expr.destruct, input.elements().items[key], bound, expr.slot, r) {
 			return Value{}, false
 		}
 		if expr.op == syntax.TDoubleArrow {
