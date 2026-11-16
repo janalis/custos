@@ -11,9 +11,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   offsets, which PHP turns into an array, in more places: a destructuring
   target (`[$a['x']] = …`), an increment (`$a['k']++`) and a write into a
   property's offset (`$this->items['k'] = 1`, also by destructuring or an
-  increment) now drop it as a plain write into a local's offset already
-  did. An object implementing ArrayAccess
-  keeps its type.
+  increment, or through parentheses: `($a)['k'] = 1`) now drop it as a
+  plain write into a local's offset already did. An object implementing
+  ArrayAccess keeps its type.
 - ImpossibleTypeComparison and RedundantTypeCheck report a comparison of a
   local with null or false that they used to leave to
   DomMissingAttributeCheckedAsNull or XmlParseZeroComparedWithFalse when

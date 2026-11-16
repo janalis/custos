@@ -982,16 +982,9 @@ func (e *Env) collectDimMutation(n *syntax.IncDec, target syntax.Expr, sv *scope
 	if !ok {
 		return
 	}
-	inner := d
-	for {
-		parent, ok := syntax.UnwrapParens(inner.Var).(*syntax.ArrayDimFetch)
-		if !ok {
-			break
-		}
-		inner = parent
-	}
+	inner, nested := innermostDim(d)
 	if v := asVariable(inner.Var); v != nil {
-		w := &elemWrite{inc: n, nested: inner != d, key: inner.Dim, stmt: n}
+		w := &elemWrite{inc: n, nested: nested, key: inner.Dim, stmt: n}
 		sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: n.Span().Start, end: n.Span().End, w: w})
 	}
 }
@@ -1135,74 +1128,72 @@ func (e *Env) collectItems(items []*syntax.ArrayItem, pos uint32, keyType func(s
 // part of assignment outer (destructuring targets are recorded as unknown
 // writes: a is nil).
 func (e *Env) collectDimWrites(outer, a *syntax.Assign, target syntax.Expr, sv *scopeVars) {
-	add := func(name string, w *elemWrite) {
-		w.stmt = outer
-		sv.elemWrites[name] = append(sv.elemWrites[name], varDef{pos: outer.Span().Start, end: outer.Span().End, w: w})
-	}
-	switch t := target.(type) {
-	case *syntax.ArrayDimFetch:
-		if v, ok := t.Var.(*syntax.Variable); ok && v.Name != "" {
-			add(v.Name, &elemWrite{a: a})
-			return
-		}
-		// Nested write: remember which first-level key it changes.
-		inner := t
-		for {
-			d, ok := inner.Var.(*syntax.ArrayDimFetch)
-			if !ok {
-				break
+	eachOffsetWrite(target, func(d, inner *syntax.ArrayDimFetch, nested bool) bool {
+		if v := writtenVar(inner); v != nil {
+			w := &elemWrite{stmt: outer}
+			if d == target {
+				w.a = a
 			}
-			inner = d
-		}
-		if v, ok := inner.Var.(*syntax.Variable); ok && v.Name != "" {
-			add(v.Name, &elemWrite{a: a, nested: true, key: inner.Dim})
-		}
-	case *syntax.List:
-		for _, it := range t.Items {
-			if it != nil && it.Value != nil {
-				e.collectDimWrites(outer, nil, it.Value, sv)
+			if nested {
+				// Remember which first-level key it changes.
+				w.nested, w.key = true, inner.Dim
 			}
+			sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: outer.Span().Start, end: outer.Span().End, w: w})
 		}
-	case *syntax.Array:
-		for _, it := range t.Items {
-			if it != nil && it.Value != nil {
-				e.collectDimWrites(outer, nil, it.Value, sv)
-			}
-		}
-	}
+		return true
+	})
 }
 
 // collectLoopDimWrites records the element writes target, the key or
 // value target of loop fe (`foreach ($xs as $a['k'])`), makes on each
 // iteration, as unknown writes.
 func collectLoopDimWrites(fe *syntax.Foreach, target syntax.Expr, sv *scopeVars) {
-	switch t := target.(type) {
-	case *syntax.ArrayDimFetch:
-		inner, nested := t, false
-		for {
-			d, ok := inner.Var.(*syntax.ArrayDimFetch)
-			if !ok {
-				break
-			}
-			inner, nested = d, true
-		}
-		if v, ok := inner.Var.(*syntax.Variable); ok && v.Name != "" {
+	eachOffsetWrite(target, func(d, inner *syntax.ArrayDimFetch, nested bool) bool {
+		if v := writtenVar(inner); v != nil {
 			w := &elemWrite{loop: fe, nested: nested, key: inner.Dim}
-			sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: t.Span().Start, end: t.Span().End, w: w})
+			sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: d.Span().Start, end: d.Span().End, w: w})
 		}
-	case *syntax.List:
-		for _, it := range t.Items {
-			if it != nil && it.Value != nil {
-				collectLoopDimWrites(fe, it.Value, sv)
-			}
+		return true
+	})
+}
+
+// eachOffsetWrite calls f with each write into an offset that write target
+// x makes (x itself, or a target of a destructuring; see eachWriteTarget):
+// d is the written element, inner the first-level one (whose array is
+// written: d itself unless nested). It stops, returning false, as soon as f
+// returns false.
+func eachOffsetWrite(x syntax.Expr, f func(d, inner *syntax.ArrayDimFetch, nested bool) bool) bool {
+	return eachWriteTarget(x, func(t syntax.Expr) bool {
+		d, ok := t.(*syntax.ArrayDimFetch)
+		if !ok {
+			return true
 		}
-	case *syntax.Array:
-		for _, it := range t.Items {
-			if it != nil && it.Value != nil {
-				collectLoopDimWrites(fe, it.Value, sv)
-			}
+		inner, nested := innermostDim(d)
+		return f(d, inner, nested)
+	})
+}
+
+// innermostDim returns the first-level element of element d (`$a['k']` of
+// `$a['k']['l']`, parentheses aside: `(($a)['k'])['l']`), and whether it is
+// not d itself.
+func innermostDim(d *syntax.ArrayDimFetch) (*syntax.ArrayDimFetch, bool) {
+	inner := d
+	for {
+		parent, ok := syntax.UnwrapParens(inner.Var).(*syntax.ArrayDimFetch)
+		if !ok {
+			return inner, inner != d
 		}
+		inner = parent
 	}
+}
+
+// writtenVar returns the variable whose element inner is, parentheses
+// aside (`($a)['k']`), when named statically (nil otherwise).
+func writtenVar(inner *syntax.ArrayDimFetch) *syntax.Variable {
+	if v, ok := syntax.UnwrapParens(inner.Var).(*syntax.Variable); ok && v.Name != "" {
+		return v
+	}
+	return nil
 }
 
 func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {

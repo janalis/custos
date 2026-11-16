@@ -260,28 +260,9 @@ func (e *Env) vivifiable(t types.Type) bool {
 // writesOffsetOf reports whether the write target x (an offset, or a
 // destructuring list of targets) writes into an offset of name.
 func writesOffsetOf(x syntax.Expr, name string) bool {
-	var items []*syntax.ArrayItem
-	switch x := x.(type) {
-	case *syntax.ArrayDimFetch:
-		for {
-			inner, ok := x.Var.(*syntax.ArrayDimFetch)
-			if !ok {
-				break
-			}
-			x = inner
-		}
-		return narrowKey(x.Var) == name
-	case *syntax.List:
-		items = x.Items
-	case *syntax.Array:
-		items = x.Items
-	}
-	for _, it := range items {
-		if it != nil && it.Value != nil && writesOffsetOf(it.Value, name) {
-			return true
-		}
-	}
-	return false
+	return !eachOffsetWrite(x, func(_, inner *syntax.ArrayDimFetch, _ bool) bool {
+		return narrowKey(syntax.UnwrapParens(inner.Var)) != name
+	})
 }
 
 // coalescedNonNull reports whether x is `a ?? b` with b known never to be
@@ -408,12 +389,9 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 				// one of its elements.
 				eachWriteTarget(a.Var, func(x syntax.Expr) bool {
 					gi.addReset(narrowKey(x), i)
-					for {
-						d, ok := x.(*syntax.ArrayDimFetch)
-						if !ok {
-							break
-						}
-						x = d.Var
+					if d, ok := x.(*syntax.ArrayDimFetch); ok {
+						inner, _ := innermostDim(d)
+						x = syntax.UnwrapParens(inner.Var)
 					}
 					if k := narrowKey(x); k != "" {
 						gi.addReset(baseKey(k), i)

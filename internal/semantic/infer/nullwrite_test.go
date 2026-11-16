@@ -159,6 +159,8 @@ func TestForeachTargetWrite(t *testing.T) {
 		{"array literal", `foreach ([1, 2] as $a['k']) {} t('v', $a); }`, `array`},
 		{"key target", `foreach ([1] as $a['k'] => $v) {} t('v', $a); }`, `array`},
 		{"destructured", `foreach ([[1]] as [$a['k']]) {} t('v', $a); }`, `array`},
+		{"list", `foreach ([[1]] as list($a['k'])) {} t('v', $a); }`, `array`},
+		{"parenthesized", `foreach ([1] as ($a)['k']) {} t('v', $a); }`, `array`},
 		{"nested", `foreach ([1] as $a['k']['l']) {} t('v', $a); }`, `array`},
 		{"non-empty value", `$ys = [1]; $ys[] = 2; foreach ($ys as $a[]) {} t('v', $a); }`, `array`},
 		{"in the body", `foreach ($xs as $a['k']) { t('v', $a); } }`, `array`},
@@ -200,5 +202,26 @@ class Q {
 `, map[string]string{
 		"whole": "array|null", "wholeAfterWrite": "array|null", "guardReset": "array|null", "nestedReset": "array|null",
 		"static": "array|null", "otherList": "array",
+	})
+}
+
+// TestParenthesizedOffsetWrites covers writes into an offset of a
+// parenthesized variable or property (`($a)['k'] = 1`), which PHP accepts
+// as plain writes into its offsets.
+func TestParenthesizedOffsetWrites(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Q {
+    private ?array $h = null;
+    function m1() { ($this->h)['a'] = 1; t('prop', $this->h); }
+    function m2() { [($this->h)['a']] = [1]; t('propList', $this->h); }
+    function m3() { ($this->h)['a']++; t('propInc', $this->h); }
+}
+function a(?array $n) { ($n)['k'] = 1; t('local', $n); }
+function b(?array $n) { (($n)['a'])['b'] = 1; t('nested', $n); }
+function c(?array $n) { [($n)['k']] = [1]; t('list', $n); }
+function d(?array $n) { ($n)['k']++; t('inc', $n); }
+`, map[string]string{
+		"prop": "array", "propList": "array", "propInc": "array",
+		"local": "array", "nested": "array", "list": "array", "inc": "array",
 	})
 }
