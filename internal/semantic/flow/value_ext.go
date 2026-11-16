@@ -6,7 +6,8 @@ import "custos/internal/php/syntax"
 // values carry none and leave Value.ext nil, which keeps a Value small to
 // copy and store. An extension is shared by every copy of the value it was
 // made for, so it is never written once installed: a setter or an edit
-// installs a modified copy, and an extension whose fields are all zero is nil, so that
+// installs a modified copy. Every extension is installed through rare,
+// derived or edit, which make one whose fields are all zero nil, so that
 // reflect.DeepEqual compares values as it did their fields.
 type valueExt struct {
 	record   *resourceReturn
