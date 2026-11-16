@@ -33,7 +33,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   tests that may have ruled out null for it
   (`if ($a === null && $b === null && …) { return; }`): the exit is still
   not followed past eight tests, but such a value is now left unjudged
-  instead of reported.
+  where later checks test all the other values, and reported only where
+  one of them is tested nowhere on the way.
 - The type-check rules follow a write into an offset of false
   (`$x = false; $x[] = 1;`, a write into an `array|false` result, or
   into an `array|false` property: `$this->items[] = 1`), which PHP turns

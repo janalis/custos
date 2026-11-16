@@ -99,8 +99,28 @@ func TestCorrelatedExitPastTheBound(t *testing.T) {
 		name, body, proven string
 	}{
 		{"guarded", `if ($a === null && ` + many + `) { return; } if ($b === null && $c === null && $d === null) { t('v', $a); } }`, `?unknown`},
-		{"unguarded", `if ($a === null && ` + many + `) { return; } t('v', $a); }`, `?unknown`},
+		{"guarded before the exit", `if ($b === null && $c === null && $d === null) { if ($a === null && ` + many + `) { return; } t('v', $a); } }`, `?unknown`},
+		{"exit guard before the exit", `if ($b !== null || $c !== null || $d !== null) { return; } if ($a === null && ` + many + `) { return; } t('v', $a); }`, `?unknown`},
+		{"in an else", `if ($a === null && ` + many + `) { return; } if ($b !== null) { } elseif ($c === null && $d === null) { } else { t('v', $a); } }`, `?unknown`},
+		{"ternary", `if ($a === null && ` + many + `) { return; } $b === null && $c === null && $d === null ? t('v', $a) : 0; }`, `?unknown`},
+		{"switch", `if ($a === null && ` + many + `) { return; } switch ($b === null && $c === null) { case $d === null: t('v', $a); default: } }`, `?unknown`},
+		{"switch case", `if ($a === null && ` + many + `) { return; } switch ($b === null && $c === null && $d === null) { case t('v', $a): } }`, `?unknown`},
+		{"and", `if ($a === null && ` + many + `) { return; } $b === null && $c === null && $d === null && t('v', $a); }`, `?unknown`},
+		{"elseif", `if ($a === null && ` + many + `) { return; } if (g()) { } elseif ($b === null && $c === null && $d === null) { t('v', $a); } }`, `?unknown`},
+		{"in a condition", `if ($a === null && ` + many + `) { return; } if ($b === null && $c === null && $d === null && t('v', $a)) { } }`, `?unknown`},
+		{"match", `if ($a === null && ` + many + `) { return; } match ($b === null && $c === null) { $d === null => t('v', $a) }; }`, `?unknown`},
+		{"loop", `if ($a === null && ` + many + `) { return; } while ($b === null && $c === null) { for (; $d === null;) { t('v', $a); } } }`, `?unknown`},
+		{"assertion", `if ($a === null && ` + many + `) { return; } assert($b === null && $c === null && $d === null); t('v', $a); }`, `?unknown`},
+		// Nothing on the path tests the other values: the exit cannot
+		// have ruled out null for $a.
+		{"unguarded", `if ($a === null && ` + many + `) { return; } t('v', $a); }`, `\A|null`},
+		{"partly guarded", `if ($a === null && ` + many + `) { return; } if ($b === null && $c === null) { t('v', $a); } }`, `\A|null`},
+		{"guard reset since", `if ($b !== null || $c !== null || $d !== null) { return; } $b = g(); if ($a === null && ` + many + `) { return; } t('v', $a); }`, `\A|null`},
+		{"a check that does not leave", `if ($a === null && ` + many + `) { return; } if ($b === null && $c === null && $d === null) { g(); } t('v', $a); }`, `\A|null`},
+		{"checks that overwrite", `if ($a === null && ` + many + `) { return; } if ($b !== null) { $b = null; } if ($c !== null) { $c = null; } if ($d !== null) { $d = null; } t('v', $a); }`, `?unknown`},
+		{"in the if's body", `if ($a === null && ` + many + `) { return; } if (g()) { $b === null && $c === null && $d === null; } else { t('v', $a); } }`, `\A|null`},
 		// Following the exit could not have refined $a.
+		{"a test that cannot narrow", `if (f($a) && ` + many + `) { return; } if ($b === null && $c === null && $d === null) { t('v', $a); } }`, `\A|null`},
 		{"two tests left", `if ($a === null && g() === null && ` + many + `) { return; } t('v', $a); }`, `\A|null`},
 		{"no test of the value", `if (` + many + ` && $d === null) { return; } t('v', $a); }`, `\A|null`},
 		{"the test left is not about the value", `if (g() === null && ` + many + `) { return; } t('v', $a); }`, `\A|null`},
@@ -110,6 +130,24 @@ func TestCorrelatedExitPastTheBound(t *testing.T) {
 			native, proven := provenProbe(t, head+c.body)
 			if native != `\A|null` || proven != c.proven {
 				t.Errorf("native %s, proven %s; want \\A|null, %s", native, proven, c.proven)
+			}
+		})
+	}
+}
+
+// TestCorrelatedExitPastTheBoundTopLevel covers the same exits in
+// top-level code, also inside a namespace block.
+func TestCorrelatedExitPastTheBoundTopLevel(t *testing.T) {
+	const many = `$b === null && $c === null && $d === null && $b === null && $c === null && $d === null && $b === null && $c === null`
+	for _, c := range []struct{ name, src, proven string }{
+		{"file", `<?php class A {} $a = $argc ? 1 : null; $b = $argc ? 1 : null; $c = $argc ? 1 : null; $d = $argc ? 1 : null; if ($a === null && ` + many + `) { exit; } if ($b === null && $c === null && $d === null) { t('v', $a); }`, `?unknown`},
+		{"namespace", `<?php namespace N { class A {} $a = $argc ? 1 : null; $b = $argc ? 1 : null; $c = $argc ? 1 : null; $d = $argc ? 1 : null; if ($a === null && ` + many + `) { exit; } if ($b === null && $c === null && $d === null) { t('v', $a); } }`, `?unknown`},
+		{"file unguarded", `<?php class A {} $a = $argc ? 1 : null; $b = $argc ? 1 : null; $c = $argc ? 1 : null; $d = $argc ? 1 : null; if ($a === null && ` + many + `) { exit; } t('v', $a);`, `int|null`},
+		{"namespace unguarded", `<?php namespace N { class A {} $a = $argc ? 1 : null; $b = $argc ? 1 : null; $c = $argc ? 1 : null; $d = $argc ? 1 : null; if ($a === null && ` + many + `) { exit; } t('v', $a); }`, `int|null`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if _, proven := provenProbe(t, c.src); proven != c.proven {
+				t.Errorf("proven %s; want %s", proven, c.proven)
 			}
 		})
 	}

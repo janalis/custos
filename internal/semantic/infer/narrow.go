@@ -600,7 +600,8 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 // between c and use. At most maxCorrelatedTests tests; inside, no further
 // correlation is followed. Past that bound the proven Env, whose types
 // authorize findings, makes key unknown wherever the correlation could
-// have refined it (see overCorrelated).
+// have refined it and something on the path tests the other locals (see
+// overCorrelated).
 func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, from uint32) types.Type {
 	if e.correlating {
 		return r
@@ -610,7 +611,7 @@ func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t typ
 		return r
 	}
 	if len(tests) > maxCorrelatedTests {
-		if e.proven && e.overCorrelated(r, t, c, key) {
+		if e.proven && e.overCorrelated(r, t, use, scope, c, key) {
 			return types.Unknown
 		}
 		return r
@@ -641,17 +642,139 @@ func (e *Env) correlated(r types.Type, use syntax.Expr, scope syntax.Node, t typ
 const maxCorrelatedTests = 8
 
 // overCorrelated reports whether c, a conjunction of more than
-// maxCorrelatedTests tests found false, could have refined local key (of
-// type t, r once c is applied) had correlated followed it: every test but
-// one tests another local on its own, and that one narrows key. It looks
-// at the tests only, never at the guards of the use.
-func (e *Env) overCorrelated(r, t types.Type, c syntax.Expr, key string) bool {
+// maxCorrelatedTests tests found false, could have refined
+// local key at use (of type t, r once c is applied) had correlated
+// followed it: every test but one tests another local on its own, that one
+// narrows key, and something on the path to use tests each of the other
+// locals (see testedOnPath). That cheap check stands for the proofs
+// correlated would seek: with one of those locals tested nowhere on the
+// path, the remaining test is never known to be false, and r holds.
+func (e *Env) overCorrelated(r, t types.Type, use syntax.Expr, scope syntax.Node, c syntax.Expr, key string) bool {
 	n, left := unsoleTests(c, key, 0, nil)
 	if n != 1 {
 		return false
 	}
-	k := e.applyCond(t, left, key, false)
-	return !slices.Equal(k.Atoms(), r.Atoms()) || k.ShapeString() != r.ShapeString()
+	if k := e.applyCond(t, left, key, false); slices.Equal(k.Atoms(), r.Atoms()) && k.ShapeString() == r.ShapeString() {
+		return false
+	}
+	names := soleLocals(c, key, e.soleBuf[:0])
+	e.soleBuf = nil
+	slices.Sort(names)
+	names = slices.Compact(names)
+	tested := e.testedOnPath(names, use, scope, c.Span())
+	e.soleBuf = names[:0]
+	return tested
+}
+
+// soleLocals appends to names the locals other than key that the operands
+// of conjunction c test on their own (see soleTest).
+func soleLocals(c syntax.Expr, key string, names []string) []string {
+	c = syntax.UnwrapParens(c)
+	if b, ok := c.(*syntax.Binary); ok && (b.Op.Kind == syntax.TBooleanAnd || b.Op.Kind == syntax.TAnd) {
+		return soleLocals(b.Right, key, soleLocals(b.Left, key, names))
+	}
+	if v := soleTest(c); v != nil && v.Name != key {
+		names = append(names, v.Name)
+	}
+	return names
+}
+
+// testedOnPath reports whether each local of names (sorted, distinct;
+// deleted from as they are found) occurs, outside exit condition c, in
+// something that may narrow it at use: a condition guarding use (as
+// narrowGuarded applies them) or a statement guards may scan for it in an
+// enclosing statement list (see mayGuard). It over-approximates the
+// guards provenTrueAt follows, at the cost of one walk up from use and a
+// lookup per local in each statement list.
+func (e *Env) testedOnPath(names []string, use syntax.Expr, scope syntax.Node, c syntax.Span) bool {
+	mark := func(xs ...syntax.Expr) {
+		for _, x := range xs {
+			if x == nil {
+				continue
+			}
+			syntax.Inspect(x, func(n syntax.Node) bool {
+				if v, ok := n.(*syntax.Variable); ok && (v.Span().Start < c.Start || v.Span().End > c.End) {
+					if i, found := slices.BinarySearch(names, v.Name); found {
+						names = slices.Delete(names, i, i+1)
+					}
+				}
+				return len(names) > 0
+			})
+		}
+	}
+	guarded := func(owner syntax.Node, stmts []syntax.Stmt, child syntax.Node) {
+		gi := e.guardIndexOf(owner, stmts)
+		end, ok := gi.pos[child]
+		if !ok {
+			return
+		}
+		names = slices.DeleteFunc(names, func(name string) bool {
+			return gi.anyCandidate(name, gi.lastReset(name, end), end, func(i int) bool { return e.mayGuard(stmts[i], name, c) })
+		})
+	}
+	var child syntax.Node = use
+	for p := use.Parent(); p != nil && p != scope && len(names) > 0; child, p = p, p.Parent() {
+		switch n := p.(type) {
+		case *syntax.Ternary:
+			if child != syntax.Node(n.Cond) {
+				mark(n.Cond)
+			}
+		case *syntax.Binary:
+			if child == syntax.Node(n.Right) {
+				mark(n.Left)
+			}
+		case *syntax.If:
+			if child != syntax.Node(n.Cond) {
+				mark(n.Cond)
+				for _, ei := range n.ElseIfs {
+					mark(ei.Cond)
+				}
+			}
+		case *syntax.ElseIf:
+			if child == syntax.Node(n.Body) {
+				mark(n.Cond)
+			}
+		case *syntax.While:
+			if child == syntax.Node(n.Body) {
+				mark(n.Cond)
+			}
+		case *syntax.For:
+			mark(n.Cond...)
+		case *syntax.MatchArm:
+			m := n.Parent().(*syntax.Match)
+			mark(m.Cond)
+			for _, a := range m.Arms {
+				mark(a.Conds...)
+			}
+		case *syntax.Block:
+			guarded(n, n.Stmts, child)
+		case *syntax.Case:
+			guarded(n, n.Stmts, child)
+			sw := n.Parent().(*syntax.Switch)
+			mark(sw.Cond)
+			for _, cs := range sw.Cases {
+				mark(cs.Cond)
+			}
+		case *syntax.Namespace:
+			guarded(n, n.Stmts, child)
+		case *syntax.File:
+			guarded(nil, e.File.Stmts, child)
+		}
+	}
+	return len(names) == 0
+}
+
+// mayGuard reports whether statement s, which guards may scan for local
+// name, can narrow it: not the statement of exit condition c, and for an
+// else-less if, one whose body leaves or ends assigning name (see guards).
+func (e *Env) mayGuard(s syntax.Stmt, name string, c syntax.Span) bool {
+	if sp := s.Span(); sp.Start <= c.Start && sp.End >= c.End {
+		return false
+	}
+	if g, ok := s.(*syntax.If); ok && g.Else == nil && len(g.ElseIfs) == 0 {
+		return e.exits(g.Body) || e.overwrites(g.Body, name) != nil
+	}
+	return true
 }
 
 // unsoleTests adds to n the operands of conjunction c that do not test a

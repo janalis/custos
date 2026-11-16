@@ -80,8 +80,8 @@ class Cart
         }
     }
 
-    // More than eight values: the exit is not followed, so the values it
-    // tests are not judged at all.
+    // More than eight values: the exit is not followed, so the value it
+    // leaves is not judged where later checks test all the others.
     public function anyOfMany(?Item $a, ?Item $b, ?Item $c, ?Item $d, ?Item $e, ?Item $f, ?Item $g, ?Item $h, ?Item $i): void
     {
         if ($a === null && $b === null && $c === null && $d === null && $e === null && $f === null && $g === null && $h === null && $i === null) {
@@ -90,7 +90,6 @@ class Cart
         if ($b === null && $c === null && $d === null && $e === null && $f === null && $g === null && $h === null && $i === null) {
             $a->price();
         }
-        $a->price();
     }
 
     // A loop over a non-empty literal writing into an offset makes null an

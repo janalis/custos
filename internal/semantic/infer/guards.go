@@ -506,6 +506,21 @@ func (gi *guardIndex) candidates(name string, from, end int) ([]int, bool) {
 	return out, len(out) <= maxGuardScan
 }
 
+// anyCandidate reports whether f holds for one of the positions in
+// [from, end) of the statements that may concern local name (those
+// candidates lists, in no particular order and without building the
+// list).
+func (gi *guardIndex) anyCandidate(name string, from, end int, f func(int) bool) bool {
+	for _, l := range [2][]int{gi.keys[name], gi.keys[aliasGuardKey]} {
+		lo, _ := slices.BinarySearch(l, from)
+		hi, _ := slices.BinarySearch(l, end)
+		if slices.ContainsFunc(l[lo:hi], f) {
+			return true
+		}
+	}
+	return false
+}
+
 // callStmt adds to cands (ascending) the statement among stmts[from:end]
 // holding the call whose key is name: the only one that may test it.
 func callStmt(cands []int, stmts []syntax.Stmt, from, end int, name string) []int {

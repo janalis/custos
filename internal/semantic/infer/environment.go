@@ -80,6 +80,9 @@ type Env struct {
 	// correlating is set while correlated asks what guards prove of
 	// another local, which then follows no correlation of its own.
 	correlating bool
+	// soleBuf is the buffer overCorrelated lists locals in, nil while one
+	// is using it (a nested call allocates its own).
+	soleBuf []string
 
 	// generics caches genBindings.
 	generics map[string]map[string]tplBindings
