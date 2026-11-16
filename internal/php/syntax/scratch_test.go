@@ -38,7 +38,10 @@ func TestReleasedArenaParsesLikeFresh(t *testing.T) {
 	for _, v := range []phpversion.Version{phpversion.PHP74, phpversion.Max} {
 		src := []byte(recycledSource)
 		fresh := Parse("fresh.php", src, Options{Version: v})
-		reused := Parse("fresh.php", src, Options{Version: v})
+		reused := Parse("fresh.php", src, Options{Version: v, Recycled: true})
+		if len(fresh.arena.slabs.sVariable.spare) != 0 {
+			t.Fatalf("PHP %s: a parse not asking for released memory took some", v)
+		}
 		// Parent links reach the files, whose arenas differ in spare chunks.
 		arenas := [2]*arena{fresh.arena, reused.arena}
 		fresh.arena, reused.arena = nil, nil
@@ -102,6 +105,6 @@ func BenchmarkParseReleased(b *testing.B) {
 	b.SetBytes(int64(len(src)))
 	b.ReportAllocs()
 	for b.Loop() {
-		Parse("released.php", src, Options{Version: phpversion.PHP85, CopyText: true}).Release()
+		Parse("released.php", src, Options{Version: phpversion.PHP85, CopyText: true, Recycled: true}).Release()
 	}
 }
