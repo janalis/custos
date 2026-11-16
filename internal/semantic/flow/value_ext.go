@@ -32,6 +32,8 @@ type valueExt struct {
 	// outcome, skippedFalse and skippedNull record that the value the
 	// skipped operand left in place was not false or not null.
 	tested, unless *syntax.Binary
+	// length is the length of a string binding a guard compared, which
+	// lengthKnown says it holds; it is zero while lengthKnown is false.
 	length         int64
 	storedIdentity uint32
 	lengthKnown    bool
@@ -56,8 +58,13 @@ type valueExt struct {
 	truth uint8
 }
 
-// rare returns an extension holding x, or nil when every field of x is zero.
+// rare returns an extension holding x, or nil when every field of x is
+// zero. A length is kept only while it is known, so that an extension
+// holding nothing else can go.
 func rare(x valueExt) *valueExt {
+	if !x.lengthKnown {
+		x.length = 0
+	}
 	if x == (valueExt{}) {
 		return nil
 	}
@@ -69,6 +76,9 @@ func rare(x valueExt) *valueExt {
 // derived returns an extension holding x, which is base when base holds
 // just that.
 func derived(base *valueExt, x valueExt) *valueExt {
+	if !x.lengthKnown {
+		x.length = 0
+	}
 	if base != nil && *base == x {
 		return base
 	}

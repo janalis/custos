@@ -31,7 +31,7 @@ func extFields() []extField {
 		{"unless", func(v *Value) { v.setUnlessFacts(unless, true, true, true, true) }, func(v *Value) { v.setUnlessFacts(nil, false, false, false, false) }, func(v Value) bool {
 			return v.unless() == unless && v.unlessFalse() && v.unlessNull() && v.skippedFalse() && v.skippedNull()
 		}},
-		{"length", func(v *Value) { v.edit(func(x valueExt) valueExt { x.length, x.lengthKnown = 3, true; return x }) }, func(v *Value) { v.edit(func(x valueExt) valueExt { x.length, x.lengthKnown = 0, false; return x }) }, func(v Value) bool { return v.length() == 3 }},
+		{"length", func(v *Value) { v.edit(func(x valueExt) valueExt { x.length, x.lengthKnown = 3, true; return x }) }, func(v *Value) { v.setLengthKnown(false) }, func(v Value) bool { return v.length() == 3 }},
 		{"storedIdentity", func(v *Value) { v.setStoredIdentity(3) }, func(v *Value) { v.setStoredIdentity(0) }, func(v Value) bool { return v.storedIdentity() == 3 }},
 		{"lengthKnown", func(v *Value) { v.setLengthKnown(true) }, func(v *Value) { v.setLengthKnown(false) }, func(v Value) bool { return v.lengthKnown() }},
 		{"headerMask", func(v *Value) { v.setHeaderMask(3) }, func(v *Value) { v.setHeaderMask(0) }, func(v Value) bool { return v.headerMask() == 3 }},
@@ -86,6 +86,28 @@ func TestValueExtensionFieldsCovered(t *testing.T) {
 		if !covered[ext.Field(i).Name] {
 			t.Errorf("valueExt.%s has no accessor case", ext.Field(i).Name)
 		}
+	}
+}
+
+// A length that is not known is dropped, so an extension holding nothing
+// else goes; a join keeps a length only where both paths know the same one.
+func TestUnknownLengthIsZero(t *testing.T) {
+	var v Value
+	v.edit(func(x valueExt) valueExt { x.length, x.lengthKnown = 4, true; return x })
+	if v.setLengthKnown(false); v.ext != nil || v.length() != 0 {
+		t.Fatal("an unknown length kept its extension")
+	}
+	if rare(valueExt{length: 4}) != nil {
+		t.Fatal("rare kept an unknown length")
+	}
+	known, other := v, v
+	known.edit(func(x valueExt) valueExt { x.length, x.lengthKnown = 4, true; return x })
+	other.edit(func(x valueExt) valueExt { x.length, x.lengthKnown = 5, true; return x })
+	if m := merge(known, other); m.ext != nil || !reflect.DeepEqual(m, merge(v, v)) {
+		t.Fatal("a join of different lengths kept one")
+	}
+	if m := merge(known, known); m.ext != known.ext || m.length() != 4 {
+		t.Fatal("a join of the same length lost it")
 	}
 }
 

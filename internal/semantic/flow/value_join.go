@@ -27,7 +27,10 @@ func merged(a, b Value) (Value, valueExt) {
 		sb, ub, cb = allContexts, ua, ca
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull}
-	x := valueExt{headerMask: a.headerMask() & b.headerMask(), lengthKnown: a.lengthKnown() && b.lengthKnown() && a.length() == b.length(), length: a.length()}
+	x := valueExt{headerMask: a.headerMask() & b.headerMask()}
+	if a.lengthKnown() && b.lengthKnown() && a.length() == b.length() {
+		x.length, x.lengthKnown = a.length(), true
+	}
 	if ta, tb := truthOutcomes(a), truthOutcomes(b); ta != 0 && tb != 0 {
 		x.truth = ta | tb
 	}
