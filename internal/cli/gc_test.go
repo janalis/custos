@@ -20,13 +20,13 @@ func TestPlanGC(t *testing.T) {
 		readsTotal bool
 	}{
 		"defaults":           {nil, 16 * gib, gcPercent, int64(12 * gib), true},
-		"GOGC set":           {map[string]string{"GOGC": "50"}, 16 * gib, 0, int64(12 * gib), true},
-		"GOGC off":           {map[string]string{"GOGC": "off"}, 16 * gib, 0, int64(12 * gib), true},
+		"GOGC set":           {map[string]string{"GOGC": "50"}, 16 * gib, 0, 0, false},
+		"GOGC off":           {map[string]string{"GOGC": "off"}, 16 * gib, 0, 0, false},
 		"GOMEMLIMIT set":     {map[string]string{"GOMEMLIMIT": "1GiB"}, 16 * gib, gcPercent, 0, false},
 		"both set":           {map[string]string{"GOGC": "100", "GOMEMLIMIT": "1GiB"}, 16 * gib, 0, 0, false},
-		"memory unknown":     {nil, 0, gcPercent, 0, true},
+		"memory unknown":     {nil, 0, 0, 0, true},
 		"cgroup sized":       {nil, 2 * gib, gcPercent, int64(3 * gib / 2), true},
-		"beyond int64 range": {nil, math.MaxUint64, gcPercent, 0, true},
+		"beyond int64 range": {nil, math.MaxUint64, 0, 0, true},
 	} {
 		read := false
 		getenv := func(k string) string { return tc.env[k] }
@@ -81,8 +81,12 @@ func TestTuneRuntimeGC(t *testing.T) {
 	t.Setenv("GOGC", "")
 	t.Setenv("GOMEMLIMIT", "")
 	tuneRuntimeGC()
-	if got := debug.SetGCPercent(prevPercent); got != gcPercent {
-		t.Errorf("GC percent = %d, want %d", got, gcPercent)
+	wantPercent := gcPercent
+	if sysmem.Total() == 0 {
+		wantPercent = prevPercent // memory unknown: runtime defaults
+	}
+	if got := debug.SetGCPercent(prevPercent); got != wantPercent {
+		t.Errorf("GC percent = %d, want %d", got, wantPercent)
 	}
 	if got := debug.SetMemoryLimit(-1); sysmem.Total() > 0 && got != int64(sysmem.Total()/4*3) {
 		t.Errorf("memory limit = %d, want 3/4 of %d", got, sysmem.Total())

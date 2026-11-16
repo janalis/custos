@@ -225,11 +225,19 @@ for the notice that `analyse` and `fix` print when a release is out.
 (`GOGC=200` instead of `100`): most of their heap stays live until the run
 ends, so collecting less saves time at the cost of a larger peak heap. To
 keep that peak within the machine, they also set a soft memory limit of three
-quarters of the physical memory (on Linux, of the cgroup memory limit when a
-container sets a lower one), near which the collector works harder again.
-Setting `GOGC` or `GOMEMLIMIT` in the environment overrides the matching
-setting, for example `GOGC=100` to trade speed for a smaller peak. `lsp` and
-`mcp` keep the runtime defaults.
+quarters of the physical memory (on Linux, of the cgroup memory limit when
+the process's group or one of its ancestors sets a lower one), near which the
+collector works harder again. Where the memory cannot be read (on Windows and
+the BSDs, or without `/proc` on Linux), they keep the runtime defaults.
+
+Setting `GOGC` in the environment, to any value including `off`, leaves the
+collector entirely to it: neither setting is changed, for example `GOGC=100`
+to trade speed for a smaller peak. Setting only `GOMEMLIMIT` replaces the
+soft limit and keeps `GOGC=200`. `lsp` and `mcp` keep the runtime defaults.
+
+The soft limit is per process: several runs at once (`make -j`, a CI matrix
+on one machine) may each grow toward three quarters of the memory. For
+parallel runs, set `GOMEMLIMIT` to each process's share, or `GOGC=100`.
 
 ## Exit codes
 
