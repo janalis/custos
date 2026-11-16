@@ -1,7 +1,15 @@
 name: perf-isolated
+# Run by hand on the branch to measure: gh workflow run perf-isolated.yml
+# --ref <branch> -f base=<ref>. It times the branch against base, alternating
+# the two binaries, checks that both give the same output, and uploads CPU
+# and allocation profiles of the branch.
 on:
-  push:
-    branches: [perf/cli-walltime]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Branch, tag or commit to compare against
+        required: true
+        default: develop
 permissions:
   contents: read
 jobs:
@@ -24,9 +32,10 @@ jobs:
           coverage: none
       - name: Prepare fixed inputs and binaries
         env:
-          BASE_SHA: 1f0bd9e4f5f511399051eceb1b90339a8d01540f
+          BASE_REF: ${{ inputs.base }}
         run: |
-          git worktree add --detach "$RUNNER_TEMP/custos-base" "$BASE_SHA"
+          base=$(git rev-parse --verify --quiet "$BASE_REF^{commit}" || git rev-parse --verify "origin/$BASE_REF^{commit}")
+          git worktree add --detach "$RUNNER_TEMP/custos-base" "$base"
           make build
           make -C "$RUNNER_TEMP/custos-base" build
           go run ./tools/benchcmp install -tool custos
