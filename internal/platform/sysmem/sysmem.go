@@ -33,7 +33,11 @@ func fromSysctl(raw string, err error) uint64 {
 func fromLinux(fsys fs.FS) uint64 {
 	total := meminfoTotal(readText(fsys, "proc/meminfo"))
 	for _, name := range cgroupFiles(readText(fsys, "proc/self/cgroup")) {
-		if limit := parseLimit(readText(fsys, name)); limit > 0 && (total == 0 || limit < total) {
+		read := parseLimit
+		if path.Base(name) == "memory.stat" {
+			read = statLimit
+		}
+		if limit := read(readText(fsys, name)); limit > 0 && (total == 0 || limit < total) {
 			total = limit
 		}
 	}
@@ -64,11 +68,14 @@ func meminfoTotal(meminfo string) uint64 {
 	return 0
 }
 
-// cgroupFiles lists the memory limit files that may apply to the process:
-// those of its own groups, read from /proc/self/cgroup (cgroup v2's
-// memory.max for the "0::path" line, v1's memory.limit_in_bytes for a
-// hierarchy holding the memory controller), then those at the root of each
-// hierarchy, which is where a container usually sees its own limit.
+// cgroupFiles lists the memory limit files that may apply to the process,
+// read from /proc/self/cgroup: a group is bounded by its own limit and by
+// that of every ancestor, so each group's file is listed up to the root of
+// its hierarchy (cgroup v2's memory.max for the "0::path" line, v1's
+// memory.limit_in_bytes for a hierarchy holding the memory controller, plus
+// the v1 group's memory.stat, whose hierarchical_memory_limit is that
+// minimum as the kernel computes it). The roots of both hierarchies are
+// always listed: that is where a container usually sees its own limit.
 func cgroupFiles(self string) []string {
 	var files []string
 	for line := range strings.Lines(self) {
@@ -78,19 +85,55 @@ func cgroupFiles(self string) []string {
 		}
 		switch {
 		case parts[0] == "0" && parts[1] == "":
-			files = append(files, path.Join("sys/fs/cgroup", parts[2], "memory.max"))
+			files = appendAncestors(files, "sys/fs/cgroup", parts[2], "memory.max")
 		case slices.Contains(strings.Split(parts[1], ","), "memory"):
-			files = append(files, path.Join("sys/fs/cgroup/memory", parts[2], "memory.limit_in_bytes"))
+			files = appendAncestors(files, "sys/fs/cgroup/memory", parts[2], "memory.limit_in_bytes")
+			files = append(files, path.Join("sys/fs/cgroup/memory", parts[2], "memory.stat"))
 		}
 	}
-	return append(files, "sys/fs/cgroup/memory.max", "sys/fs/cgroup/memory/memory.limit_in_bytes")
+	for _, root := range []string{"sys/fs/cgroup/memory.max", "sys/fs/cgroup/memory/memory.limit_in_bytes"} {
+		if !slices.Contains(files, root) {
+			files = append(files, root)
+		}
+	}
+	return files
 }
 
-// parseLimit reads a cgroup memory limit in bytes; "max" (no limit), an
-// empty file and anything that is not a positive integer give 0.
+// appendAncestors appends the file named base of group, an absolute path
+// in the hierarchy mounted at mount, then that of each ancestor up to the
+// root.
+func appendAncestors(files []string, mount, group, base string) []string {
+	for {
+		files = append(files, path.Join(mount, group, base))
+		if group == "/" {
+			return files
+		}
+		group = path.Dir(group)
+	}
+}
+
+// statLimit returns the hierarchical_memory_limit of a cgroup v1
+// memory.stat file in bytes, or 0 when it is missing or no real limit.
+func statLimit(stat string) uint64 {
+	for line := range strings.Lines(stat) {
+		if v, ok := strings.CutPrefix(line, "hierarchical_memory_limit "); ok {
+			return parseLimit(v)
+		}
+	}
+	return 0
+}
+
+// noLimit is the smallest value read as no limit at all: cgroup v1 writes
+// "unlimited" as the page-aligned maximum near MaxInt64, and no machine has
+// 4 EiB of memory.
+const noLimit = 1 << 62
+
+// parseLimit reads a cgroup memory limit in bytes; "max" (no limit), the v1
+// "unlimited" value, an empty file and anything that is not a positive
+// integer give 0.
 func parseLimit(s string) uint64 {
 	n, err := strconv.ParseUint(strings.TrimSpace(s), 10, 64)
-	if err != nil {
+	if err != nil || n >= noLimit {
 		return 0
 	}
 	return n

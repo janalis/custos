@@ -12,7 +12,8 @@ func TestRefiningDisjoint(t *testing.T) {
 	if got := refining(types.Of("int"), types.Of("string")).String(); got != "int" {
 		t.Errorf("got %s", got)
 	}
-	if got := builtinMemberType("bool", "").String(); got != "bool" {
+	env, _ := declEnv(t)
+	if got := env.builtinMemberType("bool", "").String(); got != "bool" {
 		t.Errorf("no doc: got %s", got)
 	}
 }

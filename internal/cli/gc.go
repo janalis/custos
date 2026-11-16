@@ -29,19 +29,24 @@ func tuneRuntimeGC() {
 }
 
 // planGC returns the GC target percent and the soft memory limit in bytes a
-// batch command runs with, 0 meaning to leave that setting alone. A GOGC or
-// GOMEMLIMIT set in the environment wins over each. The soft limit, three
-// quarters of the memory the process may use (total), makes the collector
-// work harder as the heap nears it, so a high percent cannot push the peak
-// past what the machine or container has.
+// batch command runs with, 0 meaning to leave that setting alone. The soft
+// limit, three quarters of the memory the process may use (total), makes
+// the collector work harder as the heap nears it, so the higher percent
+// cannot push the peak past what the machine or container has; when that
+// memory is unknown, the GC keeps the runtime defaults. A GOGC in the
+// environment, whatever its value (off included), is the user's choice of
+// collector and leaves both settings alone; a GOMEMLIMIT alone replaces
+// only the soft limit.
 func planGC(getenv func(string) string, total func() uint64) (percent int, limit int64) {
-	if getenv("GOGC") == "" {
-		percent = gcPercent
+	if getenv("GOGC") != "" {
+		return 0, 0
 	}
-	if getenv("GOMEMLIMIT") == "" {
-		if l := total() / 4 * 3; l <= math.MaxInt64 {
-			limit = int64(l)
-		}
+	if getenv("GOMEMLIMIT") != "" {
+		return gcPercent, 0
 	}
-	return percent, limit
+	l := total() / 4 * 3
+	if l == 0 || l > math.MaxInt64 {
+		return 0, 0
+	}
+	return gcPercent, int64(l)
 }

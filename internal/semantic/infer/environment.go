@@ -36,11 +36,14 @@ type Env struct {
 	classNames map[*syntax.ClassLike]string
 	gaps       map[inferenceGapKind]syntax.Span
 	gapOwner   *Env
-	options    Options
-	File       *syntax.File
-	Names      *names.Resolver
-	Index      *index.Index // project index layered over the stubs
-	PHP        phpversion.Version
+	// parsed: type texts parsed alone (see parsedType), kept on the root
+	// Env (see gapRoot) for its twins and configured copies.
+	parsed  map[string]types.Type
+	options Options
+	File    *syntax.File
+	Names   *names.Resolver
+	Index   *index.Index // project index layered over the stubs
+	PHP     phpversion.Version
 
 	chains map[syntax.Expr]nullsafeFact
 	cache  map[syntax.Expr]types.Type
@@ -301,14 +304,9 @@ type indexCaches struct {
 	index    *index.Index
 	revision uint64
 	php      phpversion.Version
-	// members: memberType results, by declared and documented type text;
-	// builtins: builtinMemberType results, by the same pair.
-	members  map[[2]string]types.Type
-	builtins map[[2]string]types.Type
-	// parsed: a type text parsed alone (see parsedType), as the native view
-	// reads a declaration: kept apart from members, whose entries for the
-	// same declared text may hold its PHPDoc-aware type.
-	parsed map[string]types.Type
+	// decls: declaration types by kind, declared and documented type text
+	// (see declType).
+	decls map[declKey]types.Type
 	// this: the type of `$this` in each class (see variableBase).
 	this map[*syntax.ClassLike]types.Type
 }
@@ -323,19 +321,69 @@ func (e *Env) indexCaches() *indexCaches {
 	return c
 }
 
-// parsedType parses type text as stored in the index (a declared, inferred
-// or constant value type) without resolver, cached per Env (see
-// indexCaches): every read of a member parses the same text.
-func (e *Env) parsedType(text string) types.Type {
+// declKind tells which view of a declaration declType computes.
+type declKind uint8
+
+const (
+	declMember       declKind = iota // memberType
+	declBuiltin                      // builtinMemberType
+	declUnion                        // TRules.declaredAndDoc of a project declaration
+	declBuiltinUnion                 // TRules.declaredAndDoc of a builtin one
+)
+
+type declKey struct {
+	kind          declKind
+	declared, doc string
+}
+
+// declType types a declaration declared declared and documented doc (both
+// as stored in the index) as kind says, cached per Env while the index is
+// unchanged (see indexCaches): the doc's class constants resolve through
+// the index, and the narrower doc of a member depends on its classes.
+func (e *Env) declType(kind declKind, declared, doc string) types.Type {
 	c := e.indexCaches()
-	if t, ok := c.parsed[text]; ok {
+	key := declKey{kind, declared, doc}
+	if t, ok := c.decls[key]; ok {
+		return t
+	}
+	doc = e.resolvedDoc(doc)
+	var t types.Type
+	switch kind {
+	case declMember:
+		t = e.memberTypeOf(declared, doc)
+	case declBuiltin:
+		t = e.builtinMemberTypeOf(declared, doc)
+	case declUnion:
+		t = KnownUnion(e.parsedType(declared), e.parsedType(doc))
+	default:
+		d, refined := e.refinedBuiltin(declared, doc)
+		t = KnownUnion(d, refined)
+	}
+	if c.decls == nil {
+		c.decls = map[declKey]types.Type{}
+	}
+	c.decls[key] = t
+	return t
+}
+
+// maxParsed bounds the parse cache of a root Env, which a language server
+// may keep across edits: past it, the cache starts over.
+const maxParsed = 1 << 14
+
+// parsedType parses type text as stored in the index (a declared, inferred
+// or constant value type, or a resolved doc) without resolver. The result
+// depends on the text alone, so it is cached on the root Env (see gapRoot)
+// for its twins and configured copies, across index revisions.
+func (e *Env) parsedType(text string) types.Type {
+	root := e.gapRoot()
+	if t, ok := root.parsed[text]; ok {
 		return t
 	}
 	t := types.FromDoc(text, nil)
-	if c.parsed == nil {
-		c.parsed = map[string]types.Type{}
+	if root.parsed == nil || len(root.parsed) >= maxParsed {
+		root.parsed = map[string]types.Type{}
 	}
-	c.parsed[text] = t
+	root.parsed[text] = t
 	return t
 }
 

@@ -231,26 +231,23 @@ func (e *Env) bindMember(t types.Type, declaration, effective, receiver string) 
 	return t.BindRelative(owner, parent, receiver)
 }
 
-// memberType picks the declared type, falling back to the doc type; when
-// both exist the doc type wins if it is more specific (e.g. Foo[] vs array).
-func memberType(declared, doc string) types.Type {
-	d := types.FromDoc(declared, nil)
+// builtinMemberTypeOf is memberTypeOf for a builtin declaration (stubs):
+// the declared type is the real, version-resolved signature, so the doc
+// type only refines its members (`string[]` for `array`) and never widens
+// it (`substr()` documents `string|false`, its 8.0+ signature is `string`).
+func (e *Env) builtinMemberTypeOf(declared, doc string) types.Type {
+	d, refined := e.refinedBuiltin(declared, doc)
 	if doc == "" {
 		return d
 	}
-	return pickMemberType(d, types.FromDoc(doc, nil))
+	return pickMemberType(d, refined)
 }
 
-// builtinMemberType is memberType for a builtin declaration (stubs): the
-// declared type is the real, version-resolved signature, so the doc type
-// only refines its members (`string[]` for `array`) and never widens it
-// (`substr()` documents `string|false`, its 8.0+ signature is `string`).
-func builtinMemberType(declared, doc string) types.Type {
-	d := types.FromDoc(declared, nil)
-	if doc == "" {
-		return d
-	}
-	return pickMemberType(d, refining(d, types.FromDoc(doc, nil)))
+// refinedBuiltin parses the declared type d of a builtin declaration and
+// the members of its doc type that refine it (see refining).
+func (e *Env) refinedBuiltin(declared, doc string) (d, refined types.Type) {
+	d = e.parsedType(declared)
+	return d, refining(d, e.parsedType(doc))
 }
 
 // refining keeps the members of the doc type dt that belong to the
@@ -600,29 +597,26 @@ func (e *Env) resolvedDoc(doc string) string {
 	return e.docType(doc, nil).DocString()
 }
 
-// memberType types a member declared declared and documented doc: the
-// narrower doc type (see narrowerDoc), else the one memberType picks.
-// Cached per pair while the index is unchanged (see indexCaches): every
-// read of a property parses the same declaration.
+// memberType types a member declared declared and documented doc (see
+// memberTypeOf), cached (see declType): every read of a property types the
+// same declaration.
 func (e *Env) memberType(declared, doc string) types.Type {
-	c := e.indexCaches()
-	key := [2]string{declared, doc}
-	if t, ok := c.members[key]; ok {
-		return t
-	}
-	t := e.memberTypeOf(declared, e.resolvedDoc(doc))
-	if c.members == nil {
-		c.members = map[[2]string]types.Type{}
-	}
-	c.members[key] = t
-	return t
+	return e.declType(declMember, declared, doc)
 }
 
+// memberTypeOf types a member declared declared and documented doc (doc
+// constants resolved): the narrower doc type (see narrowerDoc); else the
+// declared type, falling back to the doc type, the doc type winning when
+// both exist and it is more specific (e.g. Foo[] vs array).
 func (e *Env) memberTypeOf(declared, doc string) types.Type {
-	if narrowed, ok := e.narrowerDoc(types.FromDoc(declared, nil), types.FromDoc(doc, nil)); ok {
+	d, dt := e.parsedType(declared), e.parsedType(doc)
+	if narrowed, ok := e.narrowerDoc(d, dt); ok {
 		return narrowed
 	}
-	return memberType(declared, doc)
+	if doc == "" {
+		return d
+	}
+	return pickMemberType(d, dt)
 }
 
 // narrowerDoc returns the doc type dt of a member declared d when dt only
@@ -688,16 +682,8 @@ func classesOnly(t types.Type) bool {
 	return !t.IsUnknown() && len(t.Intersection()) == 0
 }
 
+// builtinMemberType types a builtin member (see builtinMemberTypeOf),
+// cached (see declType).
 func (e *Env) builtinMemberType(declared, doc string) types.Type {
-	c := e.indexCaches()
-	key := [2]string{declared, doc}
-	if t, ok := c.builtins[key]; ok {
-		return t
-	}
-	t := builtinMemberType(declared, e.resolvedDoc(doc))
-	if c.builtins == nil {
-		c.builtins = map[[2]string]types.Type{}
-	}
-	c.builtins[key] = t
-	return t
+	return e.declType(declBuiltin, declared, doc)
 }

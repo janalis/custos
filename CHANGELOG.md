@@ -8,9 +8,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - `analyse` and `fix` run the garbage collector less often (`GOGC=200`)
-  and set a soft memory limit of three quarters of the physical memory, or
-  of a lower cgroup memory limit on Linux. `GOGC` and `GOMEMLIMIT` in the
-  environment override them. See [Memory](https://janalis.github.io/custos/guide/cli#memory).
+  under a soft memory limit of three quarters of the physical memory, or
+  of a lower cgroup memory limit on Linux (the process's group or any
+  ancestor). When the memory is unknown, the collector keeps the runtime
+  defaults. A `GOGC` in the environment, `off` included, leaves the
+  collector alone; a `GOMEMLIMIT` replaces only the soft limit. See [Memory](https://janalis.github.io/custos/guide/cli#memory).
 
 ### Fixed
 
