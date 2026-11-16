@@ -3,6 +3,7 @@ package sysmem
 import (
 	"errors"
 	"runtime"
+	"slices"
 	"testing"
 	"testing/fstest"
 )
@@ -82,22 +83,39 @@ func TestCgroupFiles(t *testing.T) {
 	self := "12:cpu,memory:/docker/abc\n0::/user.slice/app.scope\n3:pids:/x\nnonsense\n4:memory:relative\n"
 	want := []string{
 		"sys/fs/cgroup/memory/docker/abc/memory.limit_in_bytes",
-		"sys/fs/cgroup/user.slice/app.scope/memory.max",
-		"sys/fs/cgroup/memory.max",
+		"sys/fs/cgroup/memory/docker/memory.limit_in_bytes",
 		"sys/fs/cgroup/memory/memory.limit_in_bytes",
+		"sys/fs/cgroup/memory/docker/abc/memory.stat",
+		"sys/fs/cgroup/user.slice/app.scope/memory.max",
+		"sys/fs/cgroup/user.slice/memory.max",
+		"sys/fs/cgroup/memory.max",
 	}
-	got := cgroupFiles(self)
-	if len(got) != len(want) {
+	if got := cgroupFiles(self); !slices.Equal(got, want) {
 		t.Fatalf("cgroupFiles = %q, want %q", got, want)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("cgroupFiles = %q, want %q", got, want)
-		}
+	// The root group, or no group line, reads the roots of both hierarchies.
+	want = []string{"sys/fs/cgroup/memory.max", "sys/fs/cgroup/memory/memory.limit_in_bytes"}
+	if got := cgroupFiles("0::/\n"); !slices.Equal(got, want) {
+		t.Fatalf("cgroupFiles(root) = %q, want %q", got, want)
 	}
-	// The root group ("0::/") reads the hierarchy's root file.
-	if got := cgroupFiles("0::/\n"); got[0] != "sys/fs/cgroup/memory.max" {
-		t.Fatalf("cgroupFiles(root) = %q", got)
+	if got := cgroupFiles(""); !slices.Equal(got, want) {
+		t.Fatalf("cgroupFiles(none) = %q, want %q", got, want)
+	}
+}
+
+func TestStatLimit(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want uint64
+	}{
+		{"cache 1\nhierarchical_memory_limit 1073741824\nrss 2\n", 1 << 30},
+		{"hierarchical_memory_limit 9223372036854771712\n", 0},
+		{"hierarchical_memory_limit\n", 0},
+		{"rss 2\n", 0},
+	} {
+		if got := statLimit(tc.in); got != tc.want {
+			t.Errorf("statLimit(%q) = %d, want %d", tc.in, got, tc.want)
+		}
 	}
 }
 
@@ -137,6 +155,24 @@ func TestFromLinux(t *testing.T) {
 			"sys/fs/cgroup/memory.max": file("1073741824\n"),
 		}, 1 << 30},
 		"nothing": {fstest.MapFS{}, 0},
+		"v2 parent slice": {fstest.MapFS{
+			"proc/meminfo":     meminfo,
+			"proc/self/cgroup": file("0::/user.slice/user-1000.slice/session-2.scope\n"),
+			"sys/fs/cgroup/user.slice/user-1000.slice/session-2.scope/memory.max": file("max\n"),
+			"sys/fs/cgroup/user.slice/user-1000.slice/memory.max":                 file("1073741824\n"),
+			"sys/fs/cgroup/user.slice/memory.max":                                 file("4294967296\n"),
+		}, 1 << 30},
+		"v1 parent group": {fstest.MapFS{
+			"proc/meminfo":     meminfo,
+			"proc/self/cgroup": file("5:memory:/batch/job\n"),
+			"sys/fs/cgroup/memory/batch/job/memory.limit_in_bytes": file("9223372036854771712\n"),
+			"sys/fs/cgroup/memory/batch/memory.limit_in_bytes":     file("2147483648\n"),
+		}, 2 << 30},
+		"v1 hierarchical limit": {fstest.MapFS{
+			"proc/meminfo":                         meminfo,
+			"proc/self/cgroup":                     file("5:memory:/job\n"),
+			"sys/fs/cgroup/memory/job/memory.stat": file("hierarchical_memory_limit 1073741824\n"),
+		}, 1 << 30},
 		"v1 unlimited without meminfo": {fstest.MapFS{
 			"sys/fs/cgroup/memory/memory.limit_in_bytes": file("9223372036854771712\n"),
 		}, 0},
