@@ -224,16 +224,15 @@ func (e *Env) summarize(n syntax.Node) {
 	if sum.Fixed && !byReference(n) {
 		sum.returned = e.summarizeReturned(sum.Return, r, len(syntax.VariableScopeParams(n)))
 	}
-	sum.Return.setReturned(nil)
-	sum.Return.setTargets(nil)
 	sum.Return.Expr = nil
 	shapeFuel := MaxSources
-	sum.Return.setElements(compactElements(sum.Return.elements(), MaxDepth, &shapeFuel))
-	sum.Return.setInterval(nil)
-	sum.Return.setOrigins(nil)
-	sum.Return.setStoredIdentity(0)
+	elements := compactElements(sum.Return.elements(), MaxDepth, &shapeFuel)
+	sum.Return.edit(func(x valueExt) valueExt {
+		x.returned, x.targets, x.elements, x.interval, x.origins = nil, nil, elements, nil, nil
+		x.storedIdentity, x.record = 0, nil
+		return x
+	})
 	sum.Return.Identity = 0
-	sum.Return.setRecord(nil)
 	if !sum.Generator {
 		for _, c := range r.calls {
 			sum.Sinks = appendSinks(sum.Sinks, e.nativeSinks(c))

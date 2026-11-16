@@ -117,8 +117,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		switch x.(type) {
 		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.ArrayDimFetch, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 		default:
-			v.setLiteral(nil)
-			v.setTruth(0)
+			v.edit(func(ext valueExt) valueExt { ext.literal, ext.truth = nil, 0; return ext })
 		}
 	}
 	switch x.(type) {
@@ -144,8 +143,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		switch x.(type) {
 		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.Closure, *syntax.ArrowFunction, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 		default:
-			v.setTargets(nil)
-			v.setReturned(nil)
+			v.edit(func(ext valueExt) valueExt { ext.targets, ext.returned = nil, nil; return ext })
 		}
 	}
 	// Only an expression that hands its operand on unchanged yields the
@@ -155,12 +153,10 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.ArrayDimFetch, *syntax.Unary, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.Arg:
 		case *syntax.Binary:
 			if n.Op.Kind != syntax.TCoalesce {
-				v.setUpload(0)
-				v.setScalars(false)
+				v.edit(func(ext valueExt) valueExt { ext.upload, ext.scalars = 0, false; return ext })
 			}
 		default:
-			v.setUpload(0)
-			v.setScalars(false)
+			v.edit(func(ext valueExt) valueExt { ext.upload, ext.scalars = 0, false; return ext })
 		}
 	}
 	switch n := x.(type) {

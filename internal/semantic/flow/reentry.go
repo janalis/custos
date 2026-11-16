@@ -62,10 +62,13 @@ func reenter(at syntax.Node, f *frame, r *scopeResult) {
 			continue
 		}
 		held := known.state == staticHeld && v.NonFalse
-		v.setOrigins(v.origins().unguarded(r).excluding(held, false, r))
+		origins := v.origins().unguarded(r).excluding(held, false, r)
+		v.edit(func(x valueExt) valueExt {
+			x.origins, x.tested = origins, nil
+			x.unless, x.unlessFalse, x.unlessNull, x.skippedFalse, x.skippedNull = nil, false, false, false, false
+			return x
+		})
 		v.NonFalse, v.NonNull = held, false
-		v.setTested(nil)
-		v.setUnlessFacts(nil, false, false, false, false)
 		v.Invalidated = at.Span().Start + 1
 		v.plain, v.deep = v.plain && known.plain, v.deep && known.deep
 		f.setVar(name, v)

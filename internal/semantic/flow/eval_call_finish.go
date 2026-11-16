@@ -99,8 +99,8 @@ func mergeArguments(n syntax.Node, name string, builtin bool, args *syntax.ArgLi
 	out.Expr = n.(syntax.Expr)
 	out.Identity = 0
 	// Arrays of numbers put together make one; anything else does not.
-	out.setUpload(0)
-	out.setScalars(out.scalars() && builtin && (name == "array_merge" || name == "array_replace"))
+	scalars := out.scalars() && builtin && (name == "array_merge" || name == "array_replace")
+	out.edit(func(x valueExt) valueExt { x.upload, x.scalars = 0, scalars; return x })
 	return builtin && edits(name) && labels > 0 && labels+texts == len(values)
 }
 

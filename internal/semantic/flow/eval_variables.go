@@ -37,9 +37,11 @@ func (e *Env) evalVariable(n *syntax.Variable, f *frame, r *scopeResult, depth i
 				v = Value{Sources: spread.Sources, Safe: spread.Safe}
 			}
 		}
-		v.setTested(nil)
-		v.setUnlessFacts(nil, false, false, false, false)
-		v.setEntry(false)
+		v.edit(func(x valueExt) valueExt {
+			x.tested, x.entry = nil, false
+			x.unless, x.unlessFalse, x.unlessNull, x.skippedFalse, x.skippedNull = nil, false, false, false, false
+			return x
+		})
 	}
 	return v
 }

@@ -5,8 +5,8 @@ import "custos/internal/php/syntax"
 // valueExt holds the references and facts a Value rarely carries; most
 // values carry none and leave Value.ext nil, which keeps a Value small to
 // copy and store. An extension is shared by every copy of the value it was
-// made for, so it is never written once installed: a setter installs a
-// modified copy, and an extension whose fields are all zero is nil, so that
+// made for, so it is never written once installed: a setter or an edit
+// installs a modified copy, and an extension whose fields are all zero is nil, so that
 // reflect.DeepEqual compares values as it did their fields.
 type valueExt struct {
 	record   *resourceReturn
@@ -75,24 +75,31 @@ func derived(base *valueExt, x valueExt) *valueExt {
 	return rare(x)
 }
 
-// setUnlessFacts sets unless and the four facts that qualify it at once.
-func (v *Value) setUnlessFacts(unless *syntax.Binary, unlessFalse, unlessNull, skippedFalse, skippedNull bool) {
-	ext := v.edited()
-	ext.unless, ext.unlessFalse, ext.unlessNull, ext.skippedFalse, ext.skippedNull = unless, unlessFalse, unlessNull, skippedFalse, skippedNull
-	v.ext = derived(v.ext, ext)
+// edit installs what change makes of a copy of v's extension, or of a zero
+// one: v's own extension when change left it as it was, none when it left no
+// field set. Setting several fields in one edit allocates once at most. The
+// copy goes in and out by value: a pointer to it handed to change would make
+// it escape to the heap.
+func (v *Value) edit(change func(x valueExt) valueExt) {
+	var x valueExt
+	if v.ext != nil {
+		x = *v.ext
+	}
+	v.ext = derived(v.ext, change(x))
 }
 
-// edited returns v's extension, or a zero one, for a setter to modify.
-func (v *Value) edited() valueExt {
-	if v.ext == nil {
-		return valueExt{}
-	}
-	return *v.ext
+// setUnlessFacts sets unless and the four facts that qualify it at once.
+func (v *Value) setUnlessFacts(unless *syntax.Binary, unlessFalse, unlessNull, skippedFalse, skippedNull bool) {
+	v.edit(func(x valueExt) valueExt {
+		x.unless, x.unlessFalse, x.unlessNull, x.skippedFalse, x.skippedNull = unless, unlessFalse, unlessNull, skippedFalse, skippedNull
+		return x
+	})
 }
 
 // Each field of the extension has an accessor, which reads zero from a
-// value without one, and a setter, which leaves the extension as it is when
-// the field already holds what it sets.
+// value without one. Most have a setter, which leaves the extension as it is
+// when the field already holds what it sets; the length is set with whether
+// it is known, in one edit.
 
 func (v Value) record() *resourceReturn {
 	if v.ext == nil {
@@ -102,12 +109,9 @@ func (v Value) record() *resourceReturn {
 }
 
 func (v *Value) setRecord(x *resourceReturn) {
-	if v.ext == nil && x == nil || v.ext != nil && v.ext.record == x {
-		return
+	if v.record() != x {
+		v.edit(func(e valueExt) valueExt { e.record = x; return e })
 	}
-	ext := v.edited()
-	ext.record = x
-	v.ext = rare(ext)
 }
 
 func (v Value) literal() *constantScalar {
@@ -118,12 +122,9 @@ func (v Value) literal() *constantScalar {
 }
 
 func (v *Value) setLiteral(x *constantScalar) {
-	if v.ext == nil && x == nil || v.ext != nil && v.ext.literal == x {
-		return
+	if v.literal() != x {
+		v.edit(func(e valueExt) valueExt { e.literal = x; return e })
 	}
-	ext := v.edited()
-	ext.literal = x
-	v.ext = rare(ext)
 }
 
 func (v Value) returned() *callableValue {
@@ -134,12 +135,9 @@ func (v Value) returned() *callableValue {
 }
 
 func (v *Value) setReturned(x *callableValue) {
-	if v.ext == nil && x == nil || v.ext != nil && v.ext.returned == x {
-		return
+	if v.returned() != x {
+		v.edit(func(e valueExt) valueExt { e.returned = x; return e })
 	}
-	ext := v.edited()
-	ext.returned = x
-	v.ext = rare(ext)
 }
 
 func (v Value) targets() *callableSet {
@@ -150,12 +148,9 @@ func (v Value) targets() *callableSet {
 }
 
 func (v *Value) setTargets(x *callableSet) {
-	if v.ext == nil && x == nil || v.ext != nil && v.ext.targets == x {
-		return
+	if v.targets() != x {
+		v.edit(func(e valueExt) valueExt { e.targets = x; return e })
 	}
-	ext := v.edited()
-	ext.targets = x
-	v.ext = rare(ext)
 }
 
 func (v Value) interval() *intInterval {
@@ -166,12 +161,9 @@ func (v Value) interval() *intInterval {
 }
 
 func (v *Value) setInterval(x *intInterval) {
-	if v.ext == nil && x == nil || v.ext != nil && v.ext.interval == x {
-		return
+	if v.interval() != x {
+		v.edit(func(e valueExt) valueExt { e.interval = x; return e })
 	}
-	ext := v.edited()
-	ext.interval = x
-	v.ext = rare(ext)
 }
 
 func (v Value) elements() *elementSet {
@@ -182,12 +174,9 @@ func (v Value) elements() *elementSet {
 }
 
 func (v *Value) setElements(x *elementSet) {
-	if v.ext == nil && x == nil || v.ext != nil && v.ext.elements == x {
-		return
+	if v.elements() != x {
+		v.edit(func(e valueExt) valueExt { e.elements = x; return e })
 	}
-	ext := v.edited()
-	ext.elements = x
-	v.ext = rare(ext)
 }
 
 func (v Value) origins() *originSet {
@@ -198,12 +187,9 @@ func (v Value) origins() *originSet {
 }
 
 func (v *Value) setOrigins(x *originSet) {
-	if v.ext == nil && x == nil || v.ext != nil && v.ext.origins == x {
-		return
+	if v.origins() != x {
+		v.edit(func(e valueExt) valueExt { e.origins = x; return e })
 	}
-	ext := v.edited()
-	ext.origins = x
-	v.ext = rare(ext)
 }
 
 func (v Value) tested() *syntax.Binary {
@@ -214,12 +200,9 @@ func (v Value) tested() *syntax.Binary {
 }
 
 func (v *Value) setTested(x *syntax.Binary) {
-	if v.ext == nil && x == nil || v.ext != nil && v.ext.tested == x {
-		return
+	if v.tested() != x {
+		v.edit(func(e valueExt) valueExt { e.tested = x; return e })
 	}
-	ext := v.edited()
-	ext.tested = x
-	v.ext = rare(ext)
 }
 
 func (v Value) unless() *syntax.Binary {
@@ -236,15 +219,6 @@ func (v Value) length() int64 {
 	return v.ext.length
 }
 
-func (v *Value) setLength(x int64) {
-	if v.ext == nil && x == 0 || v.ext != nil && v.ext.length == x {
-		return
-	}
-	ext := v.edited()
-	ext.length = x
-	v.ext = rare(ext)
-}
-
 func (v Value) storedIdentity() uint32 {
 	if v.ext == nil {
 		return 0
@@ -253,12 +227,9 @@ func (v Value) storedIdentity() uint32 {
 }
 
 func (v *Value) setStoredIdentity(x uint32) {
-	if v.ext == nil && x == 0 || v.ext != nil && v.ext.storedIdentity == x {
-		return
+	if v.storedIdentity() != x {
+		v.edit(func(e valueExt) valueExt { e.storedIdentity = x; return e })
 	}
-	ext := v.edited()
-	ext.storedIdentity = x
-	v.ext = rare(ext)
 }
 
 func (v Value) lengthKnown() bool {
@@ -269,12 +240,9 @@ func (v Value) lengthKnown() bool {
 }
 
 func (v *Value) setLengthKnown(x bool) {
-	if v.ext == nil && !x || v.ext != nil && v.ext.lengthKnown == x {
-		return
+	if v.lengthKnown() != x {
+		v.edit(func(e valueExt) valueExt { e.lengthKnown = x; return e })
 	}
-	ext := v.edited()
-	ext.lengthKnown = x
-	v.ext = rare(ext)
 }
 
 func (v Value) headerMask() uint8 {
@@ -285,12 +253,9 @@ func (v Value) headerMask() uint8 {
 }
 
 func (v *Value) setHeaderMask(x uint8) {
-	if v.ext == nil && x == 0 || v.ext != nil && v.ext.headerMask == x {
-		return
+	if v.headerMask() != x {
+		v.edit(func(e valueExt) valueExt { e.headerMask = x; return e })
 	}
-	ext := v.edited()
-	ext.headerMask = x
-	v.ext = rare(ext)
 }
 
 func (v Value) upload() uint8 {
@@ -301,12 +266,9 @@ func (v Value) upload() uint8 {
 }
 
 func (v *Value) setUpload(x uint8) {
-	if v.ext == nil && x == 0 || v.ext != nil && v.ext.upload == x {
-		return
+	if v.upload() != x {
+		v.edit(func(e valueExt) valueExt { e.upload = x; return e })
 	}
-	ext := v.edited()
-	ext.upload = x
-	v.ext = rare(ext)
 }
 
 func (v Value) scalars() bool {
@@ -317,12 +279,9 @@ func (v Value) scalars() bool {
 }
 
 func (v *Value) setScalars(x bool) {
-	if v.ext == nil && !x || v.ext != nil && v.ext.scalars == x {
-		return
+	if v.scalars() != x {
+		v.edit(func(e valueExt) valueExt { e.scalars = x; return e })
 	}
-	ext := v.edited()
-	ext.scalars = x
-	v.ext = rare(ext)
 }
 
 func (v Value) matched() bool {
@@ -333,12 +292,9 @@ func (v Value) matched() bool {
 }
 
 func (v *Value) setMatched(x bool) {
-	if v.ext == nil && !x || v.ext != nil && v.ext.matched == x {
-		return
+	if v.matched() != x {
+		v.edit(func(e valueExt) valueExt { e.matched = x; return e })
 	}
-	ext := v.edited()
-	ext.matched = x
-	v.ext = rare(ext)
 }
 
 func (v Value) unlessFalse() bool {
@@ -377,12 +333,9 @@ func (v Value) replaced() bool {
 }
 
 func (v *Value) setReplaced(x bool) {
-	if v.ext == nil && !x || v.ext != nil && v.ext.replaced == x {
-		return
+	if v.replaced() != x {
+		v.edit(func(e valueExt) valueExt { e.replaced = x; return e })
 	}
-	ext := v.edited()
-	ext.replaced = x
-	v.ext = rare(ext)
 }
 
 func (v Value) entry() bool {
@@ -393,12 +346,9 @@ func (v Value) entry() bool {
 }
 
 func (v *Value) setEntry(x bool) {
-	if v.ext == nil && !x || v.ext != nil && v.ext.entry == x {
-		return
+	if v.entry() != x {
+		v.edit(func(e valueExt) valueExt { e.entry = x; return e })
 	}
-	ext := v.edited()
-	ext.entry = x
-	v.ext = rare(ext)
 }
 
 func (v Value) truth() uint8 {
@@ -409,10 +359,7 @@ func (v Value) truth() uint8 {
 }
 
 func (v *Value) setTruth(x uint8) {
-	if v.ext == nil && x == 0 || v.ext != nil && v.ext.truth == x {
-		return
+	if v.truth() != x {
+		v.edit(func(e valueExt) valueExt { e.truth = x; return e })
 	}
-	ext := v.edited()
-	ext.truth = x
-	v.ext = rare(ext)
 }

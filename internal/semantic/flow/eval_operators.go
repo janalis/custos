@@ -119,8 +119,7 @@ func (e *Env) evalUnary(n *syntax.Unary, f *frame, r *scopeResult, depth int) Va
 	v.Expr = n
 	v.Identity = 0
 	if n.Op.Kind != syntax.TArrayCast {
-		v.setUpload(0)
-		v.setScalars(false)
+		v.edit(func(x valueExt) valueExt { x.upload, x.scalars = 0, false; return x })
 	}
 	switch n.Op.Kind {
 	case syntax.TExclaim, syntax.TIntCast, syntax.TDoubleCast, syntax.TBoolCast, syntax.TMinus, syntax.TPlus:

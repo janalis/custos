@@ -29,9 +29,13 @@ func recordShape(value Value, change func(Value) Value) Value {
 }
 
 func eraseRecordResources(value Value) Value {
-	value = recordShape(value, func(entry Value) Value { entry.setStoredIdentity(0); entry.setRecord(nil); return entry })
-	value.setRecord(nil)
-	value.setStoredIdentity(0)
+	value = recordShape(value, func(entry Value) Value { return withRecord(entry, nil) })
+	return withRecord(value, nil)
+}
+
+// withRecord returns value holding record and no stored identity.
+func withRecord(value Value, record *resourceReturn) Value {
+	value.edit(func(x valueExt) valueExt { x.storedIdentity, x.record = 0, record; return x })
 	return value
 }
 
@@ -83,11 +87,10 @@ func recordContracts(value Value, r *scopeResult, borrowed map[uint32]int) Value
 	tokens := map[uint32]int{}
 	return recordShape(value, func(entry Value) Value {
 		id := entry.storedIdentity()
-		entry.setStoredIdentity(0)
-		entry.setRecord(nil)
 		if id == 0 || !entry.Complete || entry.Invalidated != 0 || entry.replaced() {
-			return entry
+			return withRecord(entry, nil)
 		}
+		var record *resourceReturn
 		if r.allocations[id] {
 			token, ok := tokens[id]
 			if !ok {
@@ -98,11 +101,11 @@ func recordContracts(value Value, r *scopeResult, borrowed map[uint32]int) Value
 			if !state.closeChecked && (state.Operation == "fclose" || state.Operation == "pclose" || state.Operation == "curl_close") {
 				state = State{}
 			}
-			entry.setRecord(&resourceReturn{fresh: true, parameter: -1, token: token, operation: state.Operation, checked: state.closeChecked})
+			record = &resourceReturn{fresh: true, parameter: -1, token: token, operation: state.Operation, checked: state.closeChecked}
 		} else if parameter, ok := borrowed[id]; ok {
-			entry.setRecord(&resourceReturn{parameter: parameter})
+			record = &resourceReturn{parameter: parameter}
 		}
-		return entry
+		return withRecord(entry, record)
 	})
 }
 
@@ -128,7 +131,6 @@ func (e *Env) instantiateRecord(at syntax.Node, value Value, args []Value, f *fr
 	var states map[uint32]State
 	value = recordShape(value, func(entry Value) Value {
 		contract := entry.record()
-		entry.setRecord(nil)
 		if contract == nil {
 			return entry
 		}
@@ -137,6 +139,7 @@ func (e *Env) instantiateRecord(at syntax.Node, value Value, args []Value, f *fr
 		if contract.fresh {
 			id = e.recordIdentity(at, contract.token)
 			if id == 0 {
+				entry.setRecord(nil)
 				return entry
 			}
 			state = State{Operation: contract.operation, Span: at.Span(), Successful: contract.checked, closeChecked: contract.checked}
@@ -144,6 +147,7 @@ func (e *Env) instantiateRecord(at syntax.Node, value Value, args []Value, f *fr
 			var known bool
 			id, _, known = e.instantiateResource(at, contract, args, f, r)
 			if !known {
+				entry.setRecord(nil)
 				return entry
 			}
 			state = f.states[id]
@@ -154,7 +158,7 @@ func (e *Env) instantiateRecord(at syntax.Node, value Value, args []Value, f *fr
 			}
 			r.allocations[id] = true
 		}
-		entry.setStoredIdentity(id)
+		entry.edit(func(x valueExt) valueExt { x.record, x.storedIdentity = nil, id; return x })
 		if states == nil {
 			states = map[uint32]State{}
 		}

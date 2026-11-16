@@ -258,25 +258,21 @@ func (e *Env) constrainType(result types.Type, value Value, weak bool) Value {
 				if converted, valid := convertScalar(scalar, result.Atoms()[0], weak); valid {
 					value.Expr = scalarExpression(converted)
 					literal := converted
-					value.setLiteral(&literal)
-					value.setTruth(scalarTruth(converted))
-					value.setInterval(nil)
-					value.setOrigins(nil)
-					value.setStoredIdentity(0)
+					value.edit(func(x valueExt) valueExt {
+						x.literal, x.truth, x.interval, x.origins = &literal, scalarTruth(converted), nil, nil
+						x.storedIdentity, x.record, x.lengthKnown = 0, nil, false
+						return x
+					})
 					value.Identity = 0
-					value.setRecord(nil)
-					value.setLengthKnown(false)
 					value.NonFalse, value.NonNull = false, false
 					return value
 				}
 			}
-			value.setLiteral(nil)
-			value.setTruth(0)
-			value.setInterval(nil)
-			value.setOrigins(nil)
+			value.edit(func(x valueExt) valueExt {
+				x.literal, x.truth, x.interval, x.origins, x.elements, x.lengthKnown = nil, 0, nil, nil, nil, false
+				return x
+			})
 			value.Expr = nil
-			value.setElements(nil)
-			value.setLengthKnown(false)
 			value.Complete, value.NonFalse, value.NonNull = false, false, false
 		}
 	} else {

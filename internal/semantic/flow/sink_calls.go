@@ -61,12 +61,11 @@ func (e *Env) nativeSinks(c Call) []Sink {
 		return nil
 	}
 	value := args[position]
-	value.setTargets(nil)
-	value.setReturned(nil)
+	value.edit(func(x valueExt) valueExt {
+		x.targets, x.returned, x.elements, x.interval, x.origins = nil, nil, nil, nil, nil
+		return x
+	})
 	value.Expr = nil
-	value.setElements(nil)
-	value.setInterval(nil)
-	value.setOrigins(nil)
 	value.Identity = 0
 	sinks := []Sink{{Name: name, Context: context, Argument: value, Path: e.file.Path, Span: c.Node.Span()}}
 	if name == "header" {

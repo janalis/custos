@@ -31,7 +31,7 @@ func extFields() []extField {
 		{"unless", func(v *Value) { v.setUnlessFacts(unless, true, true, true, true) }, func(v *Value) { v.setUnlessFacts(nil, false, false, false, false) }, func(v Value) bool {
 			return v.unless() == unless && v.unlessFalse() && v.unlessNull() && v.skippedFalse() && v.skippedNull()
 		}},
-		{"length", func(v *Value) { v.setLength(3) }, func(v *Value) { v.setLength(0) }, func(v Value) bool { return v.length() == 3 }},
+		{"length", func(v *Value) { v.edit(func(x valueExt) valueExt { x.length, x.lengthKnown = 3, true; return x }) }, func(v *Value) { v.edit(func(x valueExt) valueExt { x.length, x.lengthKnown = 0, false; return x }) }, func(v Value) bool { return v.length() == 3 }},
 		{"storedIdentity", func(v *Value) { v.setStoredIdentity(3) }, func(v *Value) { v.setStoredIdentity(0) }, func(v Value) bool { return v.storedIdentity() == 3 }},
 		{"lengthKnown", func(v *Value) { v.setLengthKnown(true) }, func(v *Value) { v.setLengthKnown(false) }, func(v Value) bool { return v.lengthKnown() }},
 		{"headerMask", func(v *Value) { v.setHeaderMask(3) }, func(v *Value) { v.setHeaderMask(0) }, func(v Value) bool { return v.headerMask() == 3 }},
@@ -161,6 +161,27 @@ func BenchmarkFrameJoin(b *testing.B) {
 		}
 		if changed, _ := joined.absorbAt(branch, true); !changed {
 			b.Fatal("join lost the branch")
+		}
+	}
+}
+
+// BenchmarkEraseRecordResources drops the resources of a record whose
+// entries each hold one, as a summary that cannot describe them does.
+func BenchmarkEraseRecordResources(b *testing.B) {
+	set := &elementSet{whole: true, items: map[string]Value{}}
+	for i := range 8 {
+		entry := Value{Complete: true}
+		entry.setRecord(&resourceReturn{parameter: i})
+		entry.setStoredIdentity(uint32(i + 1))
+		set.put(string(rune('a'+i)), entry)
+	}
+	var value Value
+	value.setElements(set)
+	value.setStoredIdentity(9)
+	b.ReportAllocs()
+	for b.Loop() {
+		if erased := eraseRecordResources(value); erased.elements().hasResources {
+			b.Fatal("kept a resource")
 		}
 	}
 }

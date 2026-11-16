@@ -137,8 +137,7 @@ func (e *Env) refineBinary(n *syntax.Binary, f *frame, truth bool) {
 				if ok && known {
 					if number, err := strconv.ParseInt(length, 10, 64); err == nil {
 						v := f.vars.value(variable.Name)
-						v.setLength(number)
-						v.setLengthKnown(true)
+						v.edit(func(x valueExt) valueExt { x.length, x.lengthKnown = number, true; return x })
 						f.setVar(variable.Name, v)
 					}
 				}

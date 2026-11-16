@@ -225,8 +225,7 @@ func (e *Env) pureReturn(at syntax.Node, contract *pureContract, args, outer []V
 	}
 	if scalar, known := knownScalar(value); known {
 		literal := scalar
-		base.setLiteral(&literal)
-		base.setTruth(scalarTruth(scalar))
+		base.edit(func(x valueExt) valueExt { x.literal, x.truth = &literal, scalarTruth(scalar); return x })
 		return base, nil, true
 	}
 	if value.elements() == nil || !value.elements().whole || value.elements().optional || !wholeRecord(value.elements()) {

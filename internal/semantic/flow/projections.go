@@ -56,9 +56,10 @@ func substituteValue(template Value, args []Value, known bool, depth int, fuel *
 		}
 	}
 	v.Safe |= template.Safe
-	v.setLiteral(template.literal())
-	v.setTruth(template.truth())
-	v.setRecord(template.record())
+	v.edit(func(x valueExt) valueExt {
+		x.literal, x.truth, x.record = template.literal(), template.truth(), template.record()
+		return x
+	})
 	if template.elements() != nil && depth > 0 && len(template.elements().items) <= *fuel {
 		*fuel -= len(template.elements().items)
 		if len(template.elements().items) == 0 {
