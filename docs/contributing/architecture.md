@@ -667,7 +667,9 @@ to exercise complete execution paths.
   Core analysis and baselines do not depend on reporting.
 - Extend syntax in `php/syntax`, then regenerate node kinds with
   `go generate ./internal/php/syntax` and verify all PHP versions. Keep arena
-  ownership, parser recovery and exact spans intact.
+  ownership, parser recovery and exact spans intact. `File.Release` hands a
+  discarded tree's nodes and tokens to later parses: call it only where
+  nothing keeps a node, token or the file (declaration extraction does).
 
 ## Generated files
 

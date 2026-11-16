@@ -67,9 +67,11 @@ func Parse(path string, src []byte, opt Options) *File {
 		f.Errors = []Error{{Span: Span{0, 0}, Msg: fmt.Sprintf("file larger than %d MB; not analysed", MaxFileSize>>20)}}
 		return f
 	}
-	toks, lexErrs := Lex(src, LexOptions{Version: opt.Version, ShortOpenTag: opt.ShortOpenTag})
-	p := &parser{src: src, toks: toks, ver: opt.Version, permissive: opt.Permissive, copyText: opt.CopyText}
-	p.sig = make([]int32, 0, len(toks)/2+1)
+	ar := getArena()
+	toks, lexErrs := lexInto(ar.toks, src, LexOptions{Version: opt.Version, ShortOpenTag: opt.ShortOpenTag})
+	ar.toks = nil
+	p := &parser{src: src, toks: toks, ver: opt.Version, permissive: opt.Permissive, copyText: opt.CopyText, slabs: &ar.slabs}
+	p.sig = sigBuffer(len(toks))
 	for i, t := range toks {
 		if !t.Kind.IsTrivia() {
 			p.sig = append(p.sig, int32(i))
@@ -79,8 +81,9 @@ func Parse(path string, src []byte, opt Options) *File {
 	for _, e := range lexErrs {
 		p.errs = append(p.errs, Error{Span: Span{e.Pos, e.Pos}, Msg: e.Msg})
 	}
-	f := &File{Path: path, Src: src, Version: opt.Version, Tokens: toks}
+	f := &File{Path: path, Src: src, Version: opt.Version, Tokens: toks, arena: ar}
 	f.Stmts = p.parseTopStmts()
+	putSig(p.sig)
 	if len(p.errs) > MaxErrors {
 		// Garbage input yields an error per token: keep the report bounded.
 		p.errs = append(p.errs[:MaxErrors:MaxErrors], Error{
@@ -124,7 +127,7 @@ type parser struct {
 	// tooDeep is set once it exceeds MaxDepth (parsing then stops).
 	depth   int
 	tooDeep bool
-	slabs   slabs
+	slabs   *slabs
 	errs    []Error
 	lastEnd uint32
 }
