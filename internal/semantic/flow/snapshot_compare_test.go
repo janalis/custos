@@ -34,6 +34,20 @@ func TestSnapshotSameHeldRemembersPairs(t *testing.T) {
 	}
 }
 
+// A full memo still answers, without remembering more.
+func TestSnapshotSameHeldBound(t *testing.T) {
+	s := NewSnapshotWithOptions(Options{})
+	for range maxCompared {
+		s.sameHeld(&Summary{}, &Summary{})
+	}
+	if len(s.compared.same) != maxCompared {
+		t.Fatalf("remembered %d", len(s.compared.same))
+	}
+	if !s.sameHeld(&Summary{}, &Summary{}) || len(s.compared.same) != maxCompared {
+		t.Fatal("a full memo grew or answered wrong")
+	}
+}
+
 func BenchmarkSnapshotSameHeld(b *testing.B) {
 	s := NewSnapshotWithOptions(Options{})
 	was := &Summary{Return: Value{Complete: true, Sources: []Source{{Kind: "parameter"}}}, ByRef: map[int]Value{0: {Complete: true}}}

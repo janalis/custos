@@ -128,6 +128,8 @@ func (f *File) Basis(s *Snapshot) *Snapshot {
 
 // Snapshot is an immutable project-local summary collection. WithFile and
 // WithoutFile return copies; readers never observe mutations or need locks.
+// The one exception is an internal memo of contract comparisons (see
+// sameHeld), which guards itself; it changes no answer.
 //
 // Replacing one file is what every analysed file does to see its own buffer,
 // so it does not rebuild the collection: the result overlays the file on its
@@ -220,6 +222,9 @@ func (s *Snapshot) WithoutFile(path string) *Snapshot {
 // them copies neither.
 func sameSummary(a, b *Summary) bool { return reflect.DeepEqual(a, b) }
 
+// maxCompared bounds the comparisons a snapshot remembers.
+const maxCompared = 1 << 14
+
 // sameHeld is sameSummary for a contract was an earlier snapshot holds and
 // one is that s holds, remembered by s. Held contracts never change, and
 // the memo keeps both alive, so a pair of pointers names one comparison.
@@ -239,7 +244,11 @@ func (s *Snapshot) sameHeld(was, is *Summary) bool {
 	if s.compared.same == nil {
 		s.compared.same = map[[2]*Summary]bool{}
 	}
-	s.compared.same[pair] = same
+	// A long-lived snapshot (language server) is compared with summaries of
+	// many earlier builds: bound what the memo keeps alive.
+	if len(s.compared.same) < maxCompared {
+		s.compared.same[pair] = same
+	}
 	s.compared.Unlock()
 	return same
 }

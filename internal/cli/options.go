@@ -156,12 +156,16 @@ func (c *common) startProfile() (func(), error) {
 		stopCPU()
 		return nil, err
 	}
-	// Run turns allocation sampling off; sample from here at the runtime's
-	// default rate so the profile covers the whole command.
+	// Run turns allocation sampling off; sample from here, at the runtime's
+	// default rate, so the profile covers the run as the CPU profile does.
 	runtime.MemProfileRate = memProfileRate
 	return func() {
 		stopCPU()
-		pprof.Lookup("allocs").WriteTo(f, 0)
+		// The profile holds the allocations up to the last collection. Like
+		// the CPU profile's, a failed write only leaves a truncated profile;
+		// the command's own result stands.
+		runtime.GC()
+		_ = pprof.Lookup("allocs").WriteTo(f, 0)
 		f.Close()
 	}, nil
 }

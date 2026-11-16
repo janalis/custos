@@ -36,8 +36,8 @@ var (
 
 // Run executes the command adapter and returns its exit status.
 func Run(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	// No command writes a heap profile: sampling allocations would only cost
-	// the deep recursive stacks of the analysis a few percent.
+	// Allocation sampling is off unless --memprofile turns it on: it would
+	// only cost the deep recursive stacks of the analysis a few percent.
 	runtime.MemProfileRate = 0
 	if len(args) == 0 {
 		fmt.Fprint(stderr, usage)
