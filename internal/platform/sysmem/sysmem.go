@@ -86,11 +86,17 @@ func cgroupFiles(self string) []string {
 	return append(files, "sys/fs/cgroup/memory.max", "sys/fs/cgroup/memory/memory.limit_in_bytes")
 }
 
-// parseLimit reads a cgroup memory limit in bytes; "max" (no limit), an
-// empty file and anything that is not a positive integer give 0.
+// noLimit is the smallest value read as no limit at all: cgroup v1 writes
+// "unlimited" as the page-aligned maximum near MaxInt64, and no machine has
+// 4 EiB of memory.
+const noLimit = 1 << 62
+
+// parseLimit reads a cgroup memory limit in bytes; "max" (no limit), the v1
+// "unlimited" value, an empty file and anything that is not a positive
+// integer give 0.
 func parseLimit(s string) uint64 {
 	n, err := strconv.ParseUint(strings.TrimSpace(s), 10, 64)
-	if err != nil {
+	if err != nil || n >= noLimit {
 		return 0
 	}
 	return n

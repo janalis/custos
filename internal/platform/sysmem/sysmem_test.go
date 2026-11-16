@@ -68,6 +68,9 @@ func TestParseLimit(t *testing.T) {
 		{"garbage", 0},
 		{"-1", 0},
 		{"0", 0},
+		{"9223372036854771712", 0}, // v1 "unlimited", page-aligned near MaxInt64
+		{"4611686018427387904", 0}, // 1<<62: no real limit
+		{"4611686018427387903", 1<<62 - 1},
 	} {
 		if got := parseLimit(tc.in); got != tc.want {
 			t.Errorf("parseLimit(%q) = %d, want %d", tc.in, got, tc.want)
@@ -134,6 +137,9 @@ func TestFromLinux(t *testing.T) {
 			"sys/fs/cgroup/memory.max": file("1073741824\n"),
 		}, 1 << 30},
 		"nothing": {fstest.MapFS{}, 0},
+		"v1 unlimited without meminfo": {fstest.MapFS{
+			"sys/fs/cgroup/memory/memory.limit_in_bytes": file("9223372036854771712\n"),
+		}, 0},
 	} {
 		if got := fromLinux(tc.fs); got != tc.want {
 			t.Errorf("%s: fromLinux = %d, want %d", name, got, tc.want)
