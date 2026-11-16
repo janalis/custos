@@ -29,13 +29,13 @@
     }
   ],
   "packages": {
-    "carthage-software/mago": "1.59.0",
+    "carthage-software/mago": "1.60.2",
     "friendsofphp/php-cs-fixer": "v3.95.30",
     "phan/phan": "6.0.11",
-    "phpstan/phpstan": "2.3.5",
-    "rector/rector": "2.8.4",
+    "phpstan/phpstan": "2.3.6",
+    "rector/rector": "2.8.5",
     "squizlabs/php_codesniffer": "4.0.4",
-    "vimeo/psalm": "7.3.2"
+    "vimeo/psalm": "7.7.0"
   },
   "tools": [
     {
