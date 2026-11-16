@@ -277,7 +277,7 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 	}
 	var arr, other []string
 	for _, a := range t.Atoms() {
-		if a == "array" || strings.HasSuffix(a, "[]") {
+		if types.IsArrayAtom(a) {
 			arr = append(arr, a)
 		} else {
 			other = append(other, a)

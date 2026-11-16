@@ -219,7 +219,7 @@ func (e *Env) afterPropertyElemWrite(use syntax.Expr, scope syntax.Node, t types
 	switch {
 	case len(nt.Atoms()) == 0:
 		return types.Of("array")
-	case !slices.ContainsFunc(nt.Atoms(), isArrayAtom):
+	case !slices.ContainsFunc(nt.Atoms(), types.IsArrayAtom):
 		return types.Union(nt, types.Of("array"))
 	}
 	return nt
@@ -251,9 +251,6 @@ func writesOffsetOf(x syntax.Expr, name string) bool {
 	}
 	return false
 }
-
-// isArrayAtom reports an array type atom (`array`, `int[]`).
-func isArrayAtom(a string) bool { return a == "array" || strings.HasSuffix(a, "[]") }
 
 // coalescedNonNull reports whether x is `a ?? b` with b known never to be
 // null, so x is not null whatever a holds.

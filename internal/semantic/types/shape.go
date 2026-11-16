@@ -59,10 +59,13 @@ func norm(a *arrayInfo) *arrayInfo {
 	return a
 }
 
+// IsArrayAtom reports an array type atom: `array` or `T[]`.
+func IsArrayAtom(a string) bool { return a == "array" || strings.HasSuffix(a, "[]") }
+
 // hasArrayAtom reports whether t has an `array` or `T[]` member.
 func (t Type) hasArrayAtom() bool {
 	for _, a := range t.atoms {
-		if a == "array" || strings.HasSuffix(a, "[]") {
+		if IsArrayAtom(a) {
 			return true
 		}
 	}
@@ -577,7 +580,7 @@ func docAtom(atom string, a *arrayInfo) string {
 		return atom
 	}
 	el := strings.TrimSuffix(atom, "[]")
-	if a.elem != nil && (el == "array" || strings.HasSuffix(el, "[]")) {
+	if a.elem != nil && IsArrayAtom(el) {
 		el = docAtom(el, a.elem)
 	}
 	if a.key != 0 || a.keyPattern != nil {
