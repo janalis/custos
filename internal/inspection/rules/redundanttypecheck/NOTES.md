@@ -25,7 +25,9 @@ answer) to an `ElseIf` that is the last of a chain without `else`, or an
   off, the check is still left to it.
 - DomMissingAttributeCheckedAsNull: `ownedComparison` with `null`, the
   method matched through `NativeMethod` (native receiver type, subclasses
-  included) as the owning rule does.
+  included) as the owning rule does, on the call `attributeValue` finds
+  behind the operand (`NativeValue`, cut when a null-safe step may skip
+  the call, as the owner does).
 
 ## Settings
 

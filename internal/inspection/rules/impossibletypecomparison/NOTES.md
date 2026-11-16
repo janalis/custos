@@ -46,7 +46,8 @@ constant; `ownedComparison` defers only when that rule's check of the
 comparison or of the call runs (`analysis.Context.RuleChecks`), and only
 for the call that rule finds behind the operand: an owner following
 locals names its own resolver (`value`: `NativeLocalValue` for xml_parse,
-`NativeValue` without a null-safe cut for getAttribute), so a local that
+`attributeValue` for getAttribute: `NativeValue`, then nothing when a
+null-safe step may skip the call, as the owner cuts it), so a local that
 held such a result earlier, or gets one later, is judged here, and a copy
 of one the owner follows is left to it. Resolving a local needs flow
 data, so the owners are asked only in a file that spells the call's name
