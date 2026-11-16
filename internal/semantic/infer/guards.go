@@ -399,25 +399,23 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 		case *syntax.ExprStmt:
 			collect(st.Expr)
 			if a, ok := st.Expr.(*syntax.Assign); ok {
-				// The writes assigns matches, and under baseKey those of
-				// the array or one of its elements.
-				if k := narrowKey(a.Var); k != "" {
-					gi.resets[k] = append(gi.resets[k], i)
-				}
-				x := a.Var
-				for {
-					d, ok := x.(*syntax.ArrayDimFetch)
-					if !ok {
-						break
+				// The writes each target matches (all those of a
+				// destructuring), and under baseKey those of the array or
+				// one of its elements.
+				eachWriteTarget(a.Var, func(x syntax.Expr) bool {
+					gi.addReset(narrowKey(x), i)
+					for {
+						d, ok := x.(*syntax.ArrayDimFetch)
+						if !ok {
+							break
+						}
+						x = d.Var
 					}
-					x = d.Var
-				}
-				if k := narrowKey(x); k != "" {
-					bk := baseKey(k)
-					if l := gi.resets[bk]; len(l) == 0 || l[len(l)-1] != i {
-						gi.resets[bk] = append(gi.resets[bk], i)
+					if k := narrowKey(x); k != "" {
+						gi.addReset(baseKey(k), i)
 					}
-				}
+					return true
+				})
 			}
 		case *syntax.While, *syntax.DoWhile, *syntax.For:
 			if c := loopCond(st); c != nil {
@@ -452,6 +450,13 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 	}
 	e.guardIdx[owner] = gi
 	return gi
+}
+
+// addReset records statement i as assigning key k (none when "").
+func (gi *guardIndex) addReset(k string, i int) {
+	if l := gi.resets[k]; k != "" && (len(l) == 0 || l[len(l)-1] != i) {
+		gi.resets[k] = append(l, i)
+	}
 }
 
 // candidates returns the positions in [from, end) of the statements that

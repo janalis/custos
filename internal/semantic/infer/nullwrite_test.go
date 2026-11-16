@@ -180,3 +180,25 @@ func TestForeachTargetWrite(t *testing.T) {
 		})
 	}
 }
+
+// TestPropertyWholeDestructuring covers a destructuring that writes both
+// into an offset of a property and the whole property: the statement
+// resets it, so neither the offset write nor an earlier guard holds past
+// it.
+func TestPropertyWholeDestructuring(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Q {
+    private ?array $h = null;
+    public static ?array $s = null;
+    function m1() { [$this->h['a'], $this->h] = [1, null]; t('whole', $this->h); }
+    function m2() { $this->h['a'] = 1; [$this->h['b'], $this->h] = [1, null]; t('wholeAfterWrite', $this->h); }
+    function m3() { if ($this->h === null) { return; } [$this->h] = [null]; t('guardReset', $this->h); }
+    function m4() { if ($this->h === null) { return; } ['k' => [$x, $this->h]] = ['k' => [1, null]]; t('nestedReset', $this->h); }
+    function m5() { [self::$s['a'], self::$s] = [1, null]; t('static', self::$s); }
+    function m6() { if ($this->h === null) { return; } [$x, $y] = [1, 2]; t('otherList', $this->h); }
+}
+`, map[string]string{
+		"whole": "array|null", "wholeAfterWrite": "array|null", "guardReset": "array|null", "nestedReset": "array|null",
+		"static": "array|null", "otherList": "array",
+	})
+}

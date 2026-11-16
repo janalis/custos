@@ -65,6 +65,14 @@ class Cart
         [$this->lines['head'], $this->lines['tail']] = explode('/', $path, 2);
         return total($this->lines);
     }
+
+    // A destructuring that also sets the whole property resets it.
+    public function splitAndReset(): int
+    {
+        $this->lines['x'] = 1;
+        [$this->lines['head'], $this->lines] = [1, null];
+        return total(<warning descr="Check this value for null before passing it to $lines of Shop\total(): it is array|null.">$this->lines</warning>);
+    }
 }
 
 function split(?array $parts): int

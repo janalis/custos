@@ -1021,6 +1021,28 @@ func (e *Env) collectTargets(target syntax.Expr, pos uint32, t func() types.Type
 	}
 }
 
+// eachWriteTarget calls f with each target write target x assigns: x
+// itself, or each target of a destructuring (`[$a, $b['k']]`,
+// `list(…)`, nested ones at any depth). It stops, returning false, as soon
+// as f returns false.
+func eachWriteTarget(x syntax.Expr, f func(syntax.Expr) bool) bool {
+	var items []*syntax.ArrayItem
+	switch l := x.(type) {
+	case *syntax.List:
+		items = l.Items
+	case *syntax.Array:
+		items = l.Items
+	default:
+		return f(x)
+	}
+	for _, it := range items {
+		if it != nil && it.Value != nil && !eachWriteTarget(it.Value, f) {
+			return false
+		}
+	}
+	return true
+}
+
 // destructuresByValue reports whether target is a list() or `[...]`
 // destructuring pattern none of whose items, at any depth, binds by
 // reference: each variable in it is assigned, null when its key is

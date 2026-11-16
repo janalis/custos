@@ -22,6 +22,15 @@ class Cache
             echo 'object';
         }
     }
+
+    // A destructuring that also sets the whole property resets it.
+    public function reset(): void
+    {
+        [$this->items['a'], $this->items] = [1, null];
+        if ($this->items === null) {
+            echo 'empty';
+        }
+    }
 }
 
 function fill(array|false $rows, ?array $seen, string $key): void
