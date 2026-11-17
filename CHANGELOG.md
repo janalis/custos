@@ -5,6 +5,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The cross-file flow pass numbers the contracts it reads and records which
+  ones each result read as bit sets, instead of sets of names. A cold
+  `analyse` or `fix` uses about 1–3% less CPU; findings are the same.
+
 ## [0.1.14] - 2026-11-17
 
 ### Added
