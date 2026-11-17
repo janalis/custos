@@ -30,6 +30,25 @@ file is left intact.
 
 A failed publish can be retried with *Re-run failed jobs*; the tag is kept.
 
+### Branches
+
+Work lands on `develop`, the default branch; `main` holds what was last
+released. The repository deletes the head branch of a merged pull request,
+except `main`, which the *Keep main* ruleset protects from deletion: the
+release workflow needs it. Moving both branches by fast-forward needs no
+pull request:
+
+```sh
+git fetch origin
+git push origin origin/develop:refs/heads/main   # before the release
+# Actions → release → Run workflow on main
+git fetch origin
+git push origin origin/main:refs/heads/develop   # after: develop gets the release commit
+```
+
+The second push fails if `develop` moved during the release; merge
+`origin/main` into `develop` locally then, and push `develop`.
+
 To build a snapshot locally:
 
 ```sh
