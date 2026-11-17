@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-11-17
+
 ### Added
 
 - `analyse` and `fix` take `--memprofile FILE` to write a Go allocation
@@ -30,8 +32,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   `analyse` or `fix` of a large project finishes about 5% sooner.
 - Method lookups cost less: the methods a class declares itself, which most
   lookups of a run ask for, are now cached too instead of resolved again on
-  each use.
-  A cold `analyse` uses about 2% less CPU.
+  each use. A cold `analyse` uses about 2% less CPU.
 
 ### Fixed
 
@@ -860,7 +861,8 @@ First public release.
   stay inside the project; `custos fix` never writes through symlinks; the
   language server rejects malformed or oversized messages.
 
-[Unreleased]: https://github.com/janalis/custos/compare/v0.1.13...HEAD
+[Unreleased]: https://github.com/janalis/custos/compare/v0.1.14...HEAD
+[0.1.14]: https://github.com/janalis/custos/compare/v0.1.13...v0.1.14
 [0.1.13]: https://github.com/janalis/custos/compare/v0.1.12...v0.1.13
 [0.1.12]: https://github.com/janalis/custos/compare/v0.1.11...v0.1.12
 [0.1.11]: https://github.com/janalis/custos/compare/v0.1.10...v0.1.11
