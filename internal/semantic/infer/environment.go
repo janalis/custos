@@ -167,6 +167,19 @@ func (e *Env) WithOptions(options Options) *Env {
 	return configured
 }
 
+// Renew starts a new round of queries on e, keeping every type it inferred:
+// inference does not depend on what a round asks, only on the file and the
+// index. The re-inference budget (see maxFixpoints) is spent per round, as a
+// new Env's would be, here and in the twins (see Native, Proven).
+func (e *Env) Renew() {
+	for env := e; env != nil; env = env.nativeTwin {
+		env.fixpoints = 0
+		if env.provenTwin != nil {
+			env.provenTwin.fixpoints = 0
+		}
+	}
+}
+
 // IsNative reports whether e is a native Env (see Native).
 func (e *Env) IsNative() bool { return e.native }
 

@@ -64,6 +64,14 @@ func TestRecursionFixpointBudget(t *testing.T) {
 	if env.fixpoints != maxFixpoints || len(env.Gaps()) == 0 {
 		t.Fatalf("fixpoints=%d gaps=%v", env.fixpoints, env.Gaps())
 	}
+	// A renewed Env spends a new budget, in its twins too, and keeps what
+	// it inferred.
+	before := env.TypeOf(reads[0])
+	env.Proven().fixpoints = 1
+	env.Renew()
+	if env.fixpoints != 0 || env.Native().fixpoints != 0 || env.Proven().fixpoints != 0 || !env.TypeOf(reads[0]).Equal(before) {
+		t.Fatal("Renew kept a spent budget or lost a type")
+	}
 }
 
 // Every type-dependent cache written during a query can be retracted.

@@ -372,3 +372,15 @@ func snapshotOptions(s *Snapshot) Options {
 	}
 	return s.options
 }
+
+// ReadsOthers reports that the summaries read a contract another file's
+// summaries may change: one they did not serve themselves, or one s has
+// another file declare too. It is what File.differing does not skip.
+func (f *File) ReadsOthers(s *Snapshot) bool {
+	for name := range f.consulted {
+		if key := names.Fold(name); !f.served[key] || !s.alone(f.Path, key) {
+			return true
+		}
+	}
+	return false
+}

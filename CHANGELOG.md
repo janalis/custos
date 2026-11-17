@@ -10,6 +10,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The cross-file flow pass numbers the contracts it reads and records which
   ones each result read as bit sets, instead of sets of names. A cold
   `analyse` or `fix` uses about 1–3% less CPU; findings are the same.
+- `--parse-once` also keeps a file's inferred types from one cross-file flow
+  summary of the file to the next, within a memory budget, instead of
+  inferring them again. Compared with `--parse-once` before, `analyse
+  --parse-once` finishes about 3–9% sooner, for up to a fifth more memory at
+  peak (composer's sources). Findings are the same, except possibly where
+  type inference reaches its recursion limit.
 
 ## [0.1.14] - 2026-11-17
 

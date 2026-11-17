@@ -62,9 +62,9 @@ func TestRecordedUpdateOracle(t *testing.T) {
 	var calls atomic.Int64
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot, types *infer.Env) *flow.File {
 		calls.Add(1)
-		return old(f, ix, v, s, o, prior, earlier)
+		return old(f, ix, v, s, o, prior, earlier, types)
 	}
 	build := BuildFlowRecorded(context.Background(), files, nil, opt, ix, options, nil)
 	sources := map[string][]byte{}
@@ -159,11 +159,11 @@ func TestRecordedUpdateWithoutSummaries(t *testing.T) {
 	build := BuildFlowRecorded(context.Background(), files, nil, opt, ix, flow.Options{}, nil)
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot, types *infer.Env) *flow.File {
 		if f.Path == paths["shell.php"] {
 			return nil
 		}
-		return old(f, ix, v, s, o, prior, earlier)
+		return old(f, ix, v, s, o, prior, earlier, types)
 	}
 	// The build dropped the file's summary (as one that never settles),
 	// not the steps it recorded of its former source.
