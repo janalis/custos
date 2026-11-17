@@ -161,7 +161,14 @@ var builtinTypes = map[string]bool{
 func IsBuiltinType(name string) bool { return builtinTypes[strings.ToLower(name)] }
 
 // IsSpecialClass reports whether name is self, static or parent.
-func IsSpecialClass(name string) bool { return special[strings.ToLower(name)] }
+func IsSpecialClass(name string) bool {
+	// Only ASCII letters lower-case to these words, keeping their length:
+	// other names need no lower-cased copy.
+	if len(name) != len("self") && len(name) != len("static") {
+		return false
+	}
+	return special[strings.ToLower(name)]
+}
 
 // Class resolves a class-like name written at offset to its FQN (without
 // leading backslash). self/static/parent are returned lower-cased as-is.

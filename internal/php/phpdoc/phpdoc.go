@@ -37,7 +37,12 @@ func Parse(comment string) *Doc {
 		line = strings.TrimSpace(line)
 		line = strings.TrimPrefix(line, "*")
 		line = strings.TrimSpace(line)
-		low := strings.ToLower(line)
+		// Only the <code> markers need the lower-cased line, and lower-casing
+		// never makes a '<'.
+		low := ""
+		if strings.IndexByte(line, '<') >= 0 {
+			low = strings.ToLower(line)
+		}
 		protected := code || fence != ""
 		if !code && (strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~")) {
 			end := 1

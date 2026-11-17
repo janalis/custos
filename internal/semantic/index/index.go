@@ -680,7 +680,7 @@ func (ix *Index) resolveMethod(class, name string, ver phpversion.Version) *Meth
 // resolveMethodDirect is resolveMethod also telling whether the class
 // itself answered, without a walk through its hierarchy.
 func (ix *Index) resolveMethodDirect(class, name string, ver phpversion.Version) (*Method, bool) {
-	lname := strings.ToLower(name)
+	lname := names.Fold(name)
 	if c := ix.Class(class, ver); c != nil {
 		if ver != 0 && !c.Avail.In(ver) {
 			return nil, true

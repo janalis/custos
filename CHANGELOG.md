@@ -24,6 +24,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   contracts is compared once per round, and control-flow graphs start at
   their expected size. A cold `analyse` of a large project allocates about
   10% less and finishes about 6% sooner, with a lower memory peak.
+- Name lookups cost less: lower-cased names and dependency summaries are
+  cached in a map read without locks, and names are lower-cased only when
+  they need it. A cold `analyse` of a large project uses about 2% less CPU.
 
 ### Fixed
 
