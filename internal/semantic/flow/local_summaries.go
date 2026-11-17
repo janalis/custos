@@ -14,6 +14,9 @@ type localSummaries struct {
 	order     []syntax.Node
 	cache     map[string]Summary
 	failed    map[syntax.Node]bool
+	// alone remembers base.alone for the file, per contract key number of
+	// the environment.
+	alone aloneKeys
 }
 
 // NewLocal creates a file-query environment with demand-driven local contracts.
@@ -44,7 +47,7 @@ func NewLocal(file *syntax.File, types *infer.Env, snapshot *Snapshot, options O
 
 func (e *Env) localContract(key string) (Summary, bool, bool) {
 	local := e.local
-	if !local.base.alone(e.file.Path, key) {
+	if !local.alone.holds(e.keyTable().id(key), local.base, e.file.Path, key) {
 		return Summary{}, false, false
 	}
 	if cached, known := local.cache[key]; known {
@@ -75,6 +78,7 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 	for pass := 0; pass < passes; pass++ {
 		worker := New(e.file, e.types, e.snapshot, e.options)
 		worker.consulted = map[string]bool{}
+		worker.keys = e.keyTable()
 		worker.recordSites = e.recordSites
 		worker.sharing = e.sharing
 		worker.localBodies = e.localBodies
@@ -84,7 +88,7 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 			worker.global, worker.globalTaint, worker.globalReads = e.global, e.globalTaint, e.globalReads
 		}
 		out := &File{Path: e.file.Path, options: e.options, Summaries: maps.Clone(local.inventory.out.Summaries)}
-		state := &summarizing{base: local.base, cached: local.cache, borrowed: e.scopes, out: out, declared: local.inventory.declared, names: local.inventory.names, state: map[syntax.Node]uint8{}, dependencies: map[syntax.Node]map[string]bool{}}
+		state := &summarizing{base: local.base, cached: local.cache, borrowed: e.scopes, out: out, declared: local.inventory.declared, names: local.inventory.names, state: map[syntax.Node]uint8{}, dependencies: map[syntax.Node]*readSet{}, aloneKeys: &local.alone}
 		worker.summarizing = state
 		var first syntax.Node
 		for _, node := range local.order {
@@ -109,8 +113,9 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 		}
 		if !stable {
 			recursive := false
-			for name, read := range worker.answers {
-				recursive = recursive || read.held && len(state.declared[name]) == 1 && state.base.alone(e.file.Path, name)
+			for id, read := range worker.answers {
+				name := worker.keys.key(uint32(id))
+				recursive = recursive || read.held && len(state.declared[name]) == 1 && state.alone(uint32(id), name)
 			}
 			if recursive {
 				for _, node := range local.order {
@@ -121,15 +126,15 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 				}
 			}
 			if recursive {
-				unstable := unstableLocal(state, worker.answers, e.file.Path)
+				unstable := unstableLocal(state, worker.keys, worker.answers)
 				for node := range state.state {
 					name := state.names[node]
-					if !unstable[name] {
+					if id, known := worker.keys.known(name); !known || !unstable.has(id) {
 						local.cache[name] = out.Summaries[name]
 					}
 				}
 				for scope, result := range worker.scopes {
-					if _, exists := e.scopes[scope]; !exists && result.reads != nil && !readsAny(result.reads, unstable) {
+					if _, exists := e.scopes[scope]; !exists && result.reads != nil && !result.reads.meets(unstable) {
 						e.scopes[scope] = result
 					}
 				}
@@ -144,14 +149,14 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 		// Own answers are immutable once served, and the external snapshot is
 		// unchanged throughout this worker. Only a held local recursion hole
 		// can differ when the completed cache is published.
-		differ := map[string]bool{}
-		for name, read := range worker.answers {
-			if read.held && len(state.declared[name]) == 1 && local.base.alone(e.file.Path, name) {
-				differ[name] = true
+		differ := &readSet{}
+		for id, read := range worker.answers {
+			if name := worker.keys.key(uint32(id)); read.held && len(state.declared[name]) == 1 && state.alone(uint32(id), name) {
+				differ.add(uint32(id))
 			}
 		}
 		for scope, result := range worker.scopes {
-			if _, exists := e.scopes[scope]; !exists && result.reads != nil && !readsAny(result.reads, differ) {
+			if _, exists := e.scopes[scope]; !exists && result.reads != nil && !result.reads.meets(differ) {
 				e.scopes[scope] = result
 			}
 		}
@@ -167,19 +172,23 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 
 // A recursive hole can change only contracts that transitively read it. Other
 // completed components and their body facts are stable across canonical replay.
-func unstableLocal(state *summarizing, answers map[string]answer, path string) map[string]bool {
-	bad := map[string]bool{}
-	for name, read := range answers {
-		if read.held && len(state.declared[name]) == 1 && state.base.alone(path, name) {
-			bad[name] = true
+func unstableLocal(state *summarizing, keys *contractKeys, answers []answer) *readSet {
+	bad := &readSet{}
+	for id, read := range answers {
+		if name := keys.key(uint32(id)); read.held && len(state.declared[name]) == 1 && state.alone(uint32(id), name) {
+			bad.add(uint32(id))
 		}
 	}
 	for changed := true; changed; {
 		changed = false
 		for node, reads := range state.dependencies {
-			name := state.names[node]
-			if !bad[name] && readsAny(reads, bad) {
-				bad[name] = true
+			if !reads.meets(bad) {
+				continue
+			}
+			// Numbered only once unstable: names no result read keep no
+			// number in the table the query environment shares.
+			if id := keys.id(state.names[node]); !bad.has(id) {
+				bad.add(id)
 				changed = true
 			}
 		}

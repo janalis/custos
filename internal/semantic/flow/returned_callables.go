@@ -87,7 +87,7 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 	owner.operations += body.operations
 	owner.copies += body.copies
 	if owner.reads != nil {
-		addReads(owner.reads, body.reads)
+		owner.reads.addAll(body.reads)
 	}
 	if !body.complete || body.generator || len(body.statics) != 0 || len(body.globalNames) != 0 || owner.operations > MaxTransfers || owner.copies > MaxCopied {
 		return nil
