@@ -117,3 +117,13 @@ func BenchmarkContractReads(b *testing.B) {
 		}
 	}
 }
+
+// A nil read set records nothing: adding to it does nothing.
+func TestNilReadSetTakesNoAddition(t *testing.T) {
+	var none *readSet
+	none.add(3)
+	none.addAll(&readSet{words: []uint64{1}})
+	if !none.empty() || none.has(3) {
+		t.Fatal("a nil read set recorded a read")
+	}
+}
