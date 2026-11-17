@@ -44,9 +44,9 @@ type Index struct {
 	methodMu         sync.RWMutex
 	methods          map[resolvedMethodKey]resolvedMethodEntry
 	// frozenMethods caches FindMethod once the index is frozen, for the
-	// generation it was made for: a run's workers resolve many distinct
-	// names side by side, and one map behind one lock made them wait on
-	// each other's misses.
+	// generation it was made for. A run's workers repeat each lookup many
+	// times, and a read map serves a repeated one without a lock; only a
+	// first lookup takes it.
 	frozenMethods atomic.Pointer[frozenMethodCache]
 	// memo holds the results of Memo, by key, once the index is frozen.
 	memo sync.Map // any -> memoEntry
@@ -672,23 +672,24 @@ type frozenMethodCache struct {
 func (ix *Index) findFrozenMethod(key resolvedMethodKey, generation uint64) *Method {
 	cache := ix.frozenMethods.Load()
 	if cache == nil || cache.generation < generation {
-		fresh := &frozenMethodCache{generation: generation}
-		if ix.frozenMethods.CompareAndSwap(cache, fresh) {
-			cache = fresh
-		}
+		// When another lookup swaps first, its cache is the one to use.
+		ix.frozenMethods.CompareAndSwap(cache, &frozenMethodCache{generation: generation})
+		cache = ix.frozenMethods.Load()
 	}
-	if cache == nil || cache.generation != generation {
-		// Another lookup replaced the cache first, or a base layer changed
-		// while this one ran: its answer is not kept.
+	if cache.generation != generation {
+		// A base layer changed while this lookup ran: its answer is not kept.
 		return ix.resolveMethod(key.class, key.name, key.version)
 	}
 	if method, found := cache.methods.Load(key); found {
 		return method
 	}
 	method := ix.resolveMethod(key.class, key.name, key.version)
-	// Lookup names may be slices of an editor buffer; retain only their bytes.
-	key.class, key.name = strings.Clone(key.class), strings.Clone(key.name)
-	cache.methods.Store(key, method)
+	// An answer that a base layer change may have mixed into is not kept.
+	if ix.generation() == generation {
+		// Lookup names may be slices of an editor buffer; retain only their bytes.
+		key.class, key.name = strings.Clone(key.class), strings.Clone(key.name)
+		cache.methods.Store(key, method)
+	}
 	return method
 }
 

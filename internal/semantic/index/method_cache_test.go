@@ -155,7 +155,7 @@ func BenchmarkFindMethodDirectParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			ix.FindMethod(classes[i%200], methods[i%2], phpversion.PHP84)
+			ix.FindMethod(classes[i%200], methods[(i/200)%2], phpversion.PHP84)
 			i++
 		}
 	})
