@@ -4,8 +4,6 @@ name: perf-isolated
 # the two binaries, checks that both give the same output, and uploads CPU
 # and allocation profiles of the branch.
 on:
-  push:
-    branches: [perf/walk-and-maps]
   workflow_dispatch:
     inputs:
       base:
@@ -34,7 +32,7 @@ jobs:
           coverage: none
       - name: Prepare fixed inputs and binaries
         env:
-          BASE_REF: ${{ inputs.base || 'perf/cli-walltime' }}
+          BASE_REF: ${{ inputs.base }}
         run: |
           base=$(git rev-parse --verify --quiet "$BASE_REF^{commit}" || git rev-parse --verify "origin/$BASE_REF^{commit}")
           git worktree add --detach "$RUNNER_TEMP/custos-base" "$base"
