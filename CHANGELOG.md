@@ -35,6 +35,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `--parse-once` no longer reports some incomplete analyses at another place
+  than a run without it: looking for a `define()` call with a computed name
+  inferred the receiver of every method call of the file, and the analysis of
+  a file it had already searched met the inference limits elsewhere.
 - The type-check rules no longer see null after a write into one of its
   offsets, which PHP turns into an array, in more places: a destructuring
   target (`[$a['x']] = …`), an increment (`$a['k']++`) and a write into a

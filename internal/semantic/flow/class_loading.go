@@ -34,8 +34,13 @@ func (e *Env) computedDefines() bool {
 			if found {
 				return false
 			}
+			// Only a function call can be define: a method call's name
+			// would need its receiver's type, which no syntax fact holds.
 			call, ok := n.(*syntax.FuncCall)
-			if name, builtin := e.callName(n); ok && builtin && name == "define" {
+			if !ok {
+				return true
+			}
+			if name, builtin := e.callName(call); builtin && name == "define" {
 				found = true
 				if arg, plain := firstArg(call.Args); plain {
 					_, literal := literalText(arg.Value)
