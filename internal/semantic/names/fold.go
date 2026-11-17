@@ -2,8 +2,9 @@ package names
 
 import (
 	"strings"
-	"sync"
 	"sync/atomic"
+
+	"custos/internal/semantic/readmap"
 )
 
 // maxFolded bounds the names Fold remembers, so a long-running server never
@@ -11,7 +12,7 @@ import (
 const maxFolded = 1 << 16
 
 var (
-	folded      sync.Map // name -> lower-cased name
+	folded      readmap.Map[string, string] // name -> lower-cased name
 	foldedCount atomic.Int64
 )
 
@@ -24,12 +25,12 @@ func Fold(name string) string {
 		return name
 	}
 	if v, ok := folded.Load(name); ok {
-		return v.(string)
+		return v
 	}
 	lower := strings.ToLower(name)
 	if lower != name && foldedCount.Load() < maxFolded {
 		// Clone the key: name may share the memory of a whole source file.
-		if _, loaded := folded.LoadOrStore(strings.Clone(name), lower); !loaded {
+		if folded.Store(strings.Clone(name), lower) {
 			foldedCount.Add(1)
 		}
 	}

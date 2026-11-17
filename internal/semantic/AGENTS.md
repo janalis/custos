@@ -4,8 +4,10 @@
 declarations, inheritance, inference, narrowing, and bounded value/state
 analysis with project-local callable summaries (`flow`); `wire`: the binary
 form of semantic values in caches kept between runs (each package encodes
-its own types, and a field added to an encoded type needs its codec). Production code may
-import this root and `internal/php`; never import inspections or adapters.
+its own types, and a field added to an encoded type needs its codec);
+`readmap`: the typed concurrent map for caches stored once per key and read
+by every worker. Production code may import this root and `internal/php`;
+never import inspections or adapters.
 Keep inference environment caches, flow snapshots and symbol-index
 synchronization within their owning packages.
 
