@@ -30,6 +30,12 @@ file is left intact.
 
 A failed publish can be retried with *Re-run failed jobs*; the tag is kept.
 
+To build a snapshot locally:
+
+```sh
+go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean --skip=publish
+```
+
 ### Branches
 
 Work lands on `develop`, the default branch; `main` holds what was last
@@ -48,12 +54,6 @@ git push origin origin/main:refs/heads/develop   # after: develop gets the relea
 
 The second push fails if `develop` moved during the release; merge
 `origin/main` into `develop` locally then, and push `develop`.
-
-To build a snapshot locally:
-
-```sh
-go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean --skip=publish
-```
 
 ## Documentation site
 
