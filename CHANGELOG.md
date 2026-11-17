@@ -23,7 +23,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   arguments and contract answers are no longer copied, each pair of
   contracts is compared once per round, and control-flow graphs start at
   their expected size. A cold `analyse` of a large project allocates about
-  10% less.
+  10% less and finishes about 6% sooner, with a lower memory peak.
 
 ### Fixed
 
