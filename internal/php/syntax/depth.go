@@ -26,7 +26,7 @@ func TreeDepth(stmts []Stmt) int {
 		if maxD > MaxDepth {
 			break
 		}
-		if s != nil && !isNilNode(s) {
+		if s != nil && !isNilStmt(s) {
 			visit(s, 1)
 		}
 	}
