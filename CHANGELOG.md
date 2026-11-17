@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-11-17
+
 ### Changed
 
 - The cross-file flow pass numbers the contracts it reads and records which
@@ -873,7 +875,8 @@ First public release.
   stay inside the project; `custos fix` never writes through symlinks; the
   language server rejects malformed or oversized messages.
 
-[Unreleased]: https://github.com/janalis/custos/compare/v0.1.14...HEAD
+[Unreleased]: https://github.com/janalis/custos/compare/v0.1.15...HEAD
+[0.1.15]: https://github.com/janalis/custos/compare/v0.1.14...v0.1.15
 [0.1.14]: https://github.com/janalis/custos/compare/v0.1.13...v0.1.14
 [0.1.13]: https://github.com/janalis/custos/compare/v0.1.12...v0.1.13
 [0.1.12]: https://github.com/janalis/custos/compare/v0.1.11...v0.1.12
