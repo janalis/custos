@@ -24,6 +24,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   contracts is compared once per round, and control-flow graphs start at
   their expected size. A cold `analyse` of a large project allocates about
   10% less and finishes about 6% sooner, with a lower memory peak.
+- Syntax tree walks and name lookups cost less: a walk checks each child
+  once, lower-cased names and dependency summaries are cached in a map read
+  without locks, and names are lower-cased only when they need it. A cold
+  `analyse` or `fix` of a large project finishes about 5% sooner.
 
 ### Fixed
 

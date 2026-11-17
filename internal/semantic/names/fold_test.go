@@ -2,6 +2,7 @@ package names
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -12,6 +13,13 @@ func TestFold(t *testing.T) {
 			t.Fatalf("Fold(%q) = %q", name, got)
 		}
 	}
+	long := "L" + strings.Repeat("o", maxFoldedBytes)
+	if got := Fold(long); got != strings.ToLower(long) {
+		t.Fatal(got)
+	}
+	if _, ok := folded.Load(long); ok {
+		t.Fatal("remembered a name past the length bound")
+	}
 	// Past the bound, names are still folded but no longer remembered.
 	before := foldedCount.Load()
 	foldedCount.Store(maxFolded)
@@ -21,6 +29,20 @@ func TestFold(t *testing.T) {
 	}
 	if _, ok := folded.Load("Unremembered1"); ok {
 		t.Fatal("remembered past the bound")
+	}
+}
+
+func TestLowerASCII(t *testing.T) {
+	// Every byte at every offset of a word and of the tail after it.
+	for c := range 256 {
+		for at := range 12 {
+			name := []byte(`abc\defg_h0z`)
+			name[at] = byte(c)
+			want := c < 0x80 && (c < 'A' || c > 'Z')
+			if got := lowerASCII(string(name)); got != want {
+				t.Fatalf("lowerASCII(%q) = %v", name, got)
+			}
+		}
 	}
 }
 

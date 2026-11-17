@@ -8,6 +8,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/readmap"
 )
 
 // MaxVendorBytes bounds the dependency files summarized on demand: larger ones
@@ -32,7 +33,7 @@ type Vendor struct {
 	files map[string]*vendorFile
 	// answers memoizes lookups by key: flow asks the same contracts and class
 	// metadata for every call.
-	answers sync.Map
+	answers readmap.Map[string, *vendorAnswer]
 }
 
 type vendorAnswer struct {
@@ -56,12 +57,11 @@ func (o Options) String() string { return "{" + strconv.FormatBool(o.Assertions)
 
 // lookup answers a folded summary key from the dependency file declaring it.
 func (v *Vendor) lookup(key string) (Summary, bool) {
-	if known, ok := v.answers.Load(key); ok {
-		answer := known.(vendorAnswer)
+	if answer, ok := v.answers.Load(key); ok {
 		return answer.summary, answer.ok
 	}
 	summary, ok := v.answer(key)
-	v.answers.Store(key, vendorAnswer{summary, ok})
+	v.answers.Store(key, &vendorAnswer{summary, ok})
 	return summary, ok
 }
 

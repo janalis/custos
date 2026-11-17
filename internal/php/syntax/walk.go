@@ -4,12 +4,12 @@ package syntax
 // children are skipped.
 func Children(n Node, fn func(Node)) {
 	e := func(x Expr) {
-		if x != nil && !isNilNode(x) {
+		if x != nil && !isNilExpr(x) {
 			fn(x)
 		}
 	}
 	s := func(x Stmt) {
-		if x != nil && !isNilNode(x) {
+		if x != nil && !isNilStmt(x) {
 			fn(x)
 		}
 	}
@@ -196,8 +196,12 @@ func Children(n Node, fn func(Node)) {
 		attrs(n.Attrs)
 		fn(n.Name)
 		params(n.Params)
-		if n.Body != nil && !isNilNode(n.Body) {
-			fn(n.Body)
+		// Body is an Expr (=> form) or a *Block.
+		switch b := n.Body.(type) {
+		case Expr:
+			e(b)
+		case Stmt:
+			s(b)
 		}
 	case *Param:
 		attrs(n.Attrs)
@@ -384,16 +388,26 @@ func Children(n Node, fn func(Node)) {
 	}
 }
 
-// isNilNode detects typed-nil interface values (e.g. (*Block)(nil) as Stmt).
-func isNilNode(n Node) bool {
-	switch v := n.(type) {
-	case *Block:
-		return v == nil
+// isNilExpr detects typed-nil Expr values (e.g. (*Name)(nil)). It switches
+// on the Expr itself: converting to Node would cost an itab lookup.
+func isNilExpr(x Expr) bool {
+	switch v := x.(type) {
 	case *Name:
 		return v == nil
 	case *Identifier:
 		return v == nil
 	case *Variable:
+		return v == nil
+	case *ClassLike:
+		return v == nil
+	}
+	return false
+}
+
+// isNilStmt detects typed-nil Stmt values (e.g. (*Block)(nil)).
+func isNilStmt(x Stmt) bool {
+	switch v := x.(type) {
+	case *Block:
 		return v == nil
 	case *ClassLike:
 		return v == nil

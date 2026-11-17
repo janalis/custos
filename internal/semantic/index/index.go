@@ -680,6 +680,9 @@ func (ix *Index) resolveMethod(class, name string, ver phpversion.Version) *Meth
 // resolveMethodDirect is resolveMethod also telling whether the class
 // itself answered, without a walk through its hierarchy.
 func (ix *Index) resolveMethodDirect(class, name string, ver phpversion.Version) (*Method, bool) {
+	// Not names.Fold: method names would compete with class names for the
+	// bounded fold cache, and findFrozenMethod already keeps the lookups
+	// through the hierarchy.
 	lname := strings.ToLower(name)
 	if c := ix.Class(class, ver); c != nil {
 		if ver != 0 && !c.Avail.In(ver) {
