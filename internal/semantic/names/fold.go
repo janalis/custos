@@ -44,6 +44,17 @@ func Fold(name string) string {
 	return lower
 }
 
+// Lower returns name lower-cased like strings.ToLower, without Fold's cache:
+// for keys that are mostly lower-cased already and too many to remember,
+// such as Class::method names. A lower-case ASCII name is returned as is,
+// checked eight bytes at a time.
+func Lower(name string) string {
+	if lowerASCII(name) {
+		return name
+	}
+	return strings.ToLower(name)
+}
+
 // lowerASCII reports a name of ASCII bytes without an upper-case letter,
 // which lower-casing leaves as it is. It tests eight bytes at a time: names
 // are mostly long namespaced keys.

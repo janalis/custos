@@ -2,6 +2,8 @@ package flow
 
 import (
 	"strings"
+
+	"custos/internal/semantic/names"
 )
 
 // begin starts recording the contracts a result computed while summaries
@@ -53,14 +55,14 @@ func addReads(into, from map[string]bool) {
 func (e *Env) contract(name string) (Summary, bool) {
 	if e.consulted == nil || name == "" {
 		if e.local != nil && name != "" {
-			if summary, known, own := e.localContract(strings.ToLower(name)); own {
+			if summary, known, own := e.localContract(names.Lower(name)); own {
 				return summary, known
 			}
 		}
 		return e.snapshot.lookup(name)
 	}
 	e.consulted[name] = true
-	key := strings.ToLower(name)
+	key := names.Lower(name)
 	if len(e.reading) > 0 {
 		e.reading[len(e.reading)-1][key] = true
 	}
