@@ -185,6 +185,12 @@ func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Op
 	}
 	snapshot := flow.NewSnapshotWithOptions(options)
 	against := make([]*flow.Snapshot, len(files))
+	// With the trees of --parse-once, the inference environments built on
+	// them are kept too, from the first summary on: that run already holds
+	// every analyzed file's tree, and trades memory for time.
+	if !record && trees != nil {
+		b.kept, b.keptLimit = make([]*infer.Env, len(files)), keepLimit()
+	}
 	if len(order) > 0 {
 		waves := make([][]int, maxWaves)
 		for i, path := range files {
@@ -197,12 +203,6 @@ func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Op
 				snapshot = flow.NewSnapshotWithOptions(options, b.results...)
 			}
 		}
-	}
-	// With the trees of --parse-once, the inference environments built on
-	// them are kept too: that run already holds every analysed file's tree,
-	// and trades memory for time.
-	if !record && trees != nil {
-		b.kept, b.keptLimit = make([]*infer.Env, len(files)), keepLimit()
 	}
 	b.Snapshot = b.compose(ctx, snapshot, against, ix, tree)
 	// No summary follows: the environments kept for one are released.
@@ -831,7 +831,7 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 				prior, earlier = b.priors[i][0].result, b.priors[i][0].against
 			}
 			b.results[i] = extractFlow(types.File, ix, b.opt.Version, snapshot, b.options, prior, earlier, types)
-			b.keep(i, types)
+			b.keep(i, types, snapshot)
 		} else {
 			return
 		}
@@ -855,6 +855,7 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 // when it has no tree.
 func (b *FlowBuild) types(i int, ix *index.Index, tree func(int) *syntax.File) *infer.Env {
 	if types := b.take(i); types != nil {
+		types.Renew()
 		return types
 	}
 	file := tree(i)
@@ -869,14 +870,21 @@ func (b *FlowBuild) types(i int, ix *index.Index, tree func(int) *syntax.File) *
 // only their environments are kept, while the kept ones fit keptLimit:
 // each holds the file's tree, names and inferred types, several times its
 // source.
-func (b *FlowBuild) keep(i int, types *infer.Env) {
-	if b.kept == nil || b.results[i] == nil || !b.results[i].ReadsOthers() {
+func (b *FlowBuild) keep(i int, types *infer.Env, snapshot *flow.Snapshot) {
+	if b.kept == nil || b.results[i] == nil || !b.results[i].ReadsOthers(snapshot) {
 		return
 	}
+	// Reserved with a compare-and-swap: concurrent workers near the limit
+	// must not refuse each other's environments.
 	cost := keptCost(b.sizes[i])
-	if b.keptBytes.Add(cost) > b.keptLimit {
-		b.keptBytes.Add(-cost)
-		return
+	for {
+		held := b.keptBytes.Load()
+		if held+cost > b.keptLimit {
+			return
+		}
+		if b.keptBytes.CompareAndSwap(held, held+cost) {
+			break
+		}
 	}
 	b.kept[i] = types
 }
