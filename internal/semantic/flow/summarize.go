@@ -157,8 +157,9 @@ type summarizing struct {
 	// innermost last.
 	track map[string]map[string]uint8
 	stack []map[string]uint8
-	// aloneKeys remembers base.alone for the file, per contract key number.
-	aloneKeys aloneKeys
+	// aloneKeys remembers base.alone for the file, per contract key number;
+	// the workers of a local environment share its own (see materializeLocal).
+	aloneKeys *aloneKeys
 }
 
 const (
@@ -329,6 +330,9 @@ func changedAnswers(keys *contractKeys, answers []answer, answered map[string]Su
 // answeredKey reports that a contract read while summaries were computed
 // gave an answer for key.
 func (s *summaryResolver) answeredKey(key string) bool {
-	id, known := s.keyTable().known(key)
+	if s.keys == nil {
+		return false
+	}
+	id, known := s.keys.known(key)
 	return known && int(id) < len(s.answers) && s.answers[id].known
 }

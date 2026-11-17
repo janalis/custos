@@ -88,7 +88,7 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 			worker.global, worker.globalTaint, worker.globalReads = e.global, e.globalTaint, e.globalReads
 		}
 		out := &File{Path: e.file.Path, options: e.options, Summaries: maps.Clone(local.inventory.out.Summaries)}
-		state := &summarizing{base: local.base, cached: local.cache, borrowed: e.scopes, out: out, declared: local.inventory.declared, names: local.inventory.names, state: map[syntax.Node]uint8{}, dependencies: map[syntax.Node]*readSet{}}
+		state := &summarizing{base: local.base, cached: local.cache, borrowed: e.scopes, out: out, declared: local.inventory.declared, names: local.inventory.names, state: map[syntax.Node]uint8{}, dependencies: map[syntax.Node]*readSet{}, aloneKeys: &local.alone}
 		worker.summarizing = state
 		var first syntax.Node
 		for _, node := range local.order {
@@ -115,7 +115,7 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 			recursive := false
 			for id, read := range worker.answers {
 				name := worker.keys.key(uint32(id))
-				recursive = recursive || read.held && len(state.declared[name]) == 1 && state.base.alone(e.file.Path, name)
+				recursive = recursive || read.held && len(state.declared[name]) == 1 && state.alone(uint32(id), name)
 			}
 			if recursive {
 				for _, node := range local.order {
@@ -126,7 +126,7 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 				}
 			}
 			if recursive {
-				unstable := unstableLocal(state, worker.keys, worker.answers, e.file.Path)
+				unstable := unstableLocal(state, worker.keys, worker.answers)
 				for node := range state.state {
 					name := state.names[node]
 					if id, known := worker.keys.known(name); !known || !unstable.has(id) {
@@ -151,7 +151,7 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 		// can differ when the completed cache is published.
 		differ := &readSet{}
 		for id, read := range worker.answers {
-			if name := worker.keys.key(uint32(id)); read.held && len(state.declared[name]) == 1 && local.base.alone(e.file.Path, name) {
+			if name := worker.keys.key(uint32(id)); read.held && len(state.declared[name]) == 1 && state.alone(uint32(id), name) {
 				differ.add(uint32(id))
 			}
 		}
@@ -172,18 +172,22 @@ func (e *Env) materializeLocal(key string, passes int) Summary {
 
 // A recursive hole can change only contracts that transitively read it. Other
 // completed components and their body facts are stable across canonical replay.
-func unstableLocal(state *summarizing, keys *contractKeys, answers []answer, path string) *readSet {
+func unstableLocal(state *summarizing, keys *contractKeys, answers []answer) *readSet {
 	bad := &readSet{}
 	for id, read := range answers {
-		if name := keys.key(uint32(id)); read.held && len(state.declared[name]) == 1 && state.base.alone(path, name) {
+		if name := keys.key(uint32(id)); read.held && len(state.declared[name]) == 1 && state.alone(uint32(id), name) {
 			bad.add(uint32(id))
 		}
 	}
 	for changed := true; changed; {
 		changed = false
 		for node, reads := range state.dependencies {
-			id := keys.id(state.names[node])
-			if !bad.has(id) && reads.meets(bad) {
+			if !reads.meets(bad) {
+				continue
+			}
+			// Numbered only once unstable: names no result read keep no
+			// number in the table the query environment shares.
+			if id := keys.id(state.names[node]); !bad.has(id) {
 				bad.add(id)
 				changed = true
 			}

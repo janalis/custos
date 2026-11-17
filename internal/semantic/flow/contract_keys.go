@@ -50,6 +50,9 @@ type readSet struct {
 }
 
 func (s *readSet) add(id uint32) {
+	if s == nil {
+		return
+	}
 	w := int(id >> 6)
 	if w >= len(s.words) {
 		s.grow(w + 1)
@@ -77,7 +80,7 @@ func (s *readSet) has(id uint32) bool {
 
 // addAll adds what from holds.
 func (s *readSet) addAll(from *readSet) {
-	if from == nil || len(from.words) == 0 {
+	if s == nil || from == nil || len(from.words) == 0 {
 		return
 	}
 	if len(from.words) > len(s.words) {

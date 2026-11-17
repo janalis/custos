@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 )
@@ -92,5 +93,27 @@ func TestChangedAnswersSkipKeysNotRead(t *testing.T) {
 	var e summaryResolver
 	if e.answeredKey("read") {
 		t.Fatal("nothing answered")
+	}
+}
+
+// BenchmarkContractReads records the contracts nested results read and
+// merges each into its enclosing one, as summaries of a file do.
+func BenchmarkContractReads(b *testing.B) {
+	keys := &contractKeys{}
+	names := make([]string, 300)
+	for i := range names {
+		names[i] = fmt.Sprintf(`app\service%d::run`, i)
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		outer := &readSet{}
+		for scope := range 30 {
+			inner := &readSet{}
+			for k := range 20 {
+				inner.add(keys.id(names[(scope*7+k*13)%len(names)]))
+			}
+			outer.addAll(inner)
+			_ = inner.meets(outer)
+		}
 	}
 }

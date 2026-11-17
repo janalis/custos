@@ -63,11 +63,11 @@ func (e *Env) contract(name string) (Summary, bool) {
 		// Local workers publish into one immutable view. Stable own and external
 		// answers cannot change; retain only local recursion holes for replay.
 		if !own && len(state.declared[key]) == 1 && state.alone(id, key) {
-			*e.answer(id) = answer{known: true, held: true}
+			*e.answerAt(id) = answer{known: true, held: true}
 		}
 		return summary, ok
 	}
-	at := e.answer(id)
+	at := e.answerAt(id)
 	read := *at
 	if !read.known {
 		read = answer{known: true, ok: ok}
@@ -84,8 +84,8 @@ func (e *Env) contract(name string) (Summary, bool) {
 	return summary, ok
 }
 
-// answer returns the entry of e.answers for the key numbered id.
-func (s *summaryResolver) answer(id uint32) *answer {
+// answerAt returns the entry of e.answers for the key numbered id.
+func (s *summaryResolver) answerAt(id uint32) *answer {
 	if int(id) >= len(s.answers) {
 		s.answers = append(s.answers, make([]answer, int(id)+1-len(s.answers))...)
 	}
@@ -133,6 +133,9 @@ func (e *Env) serve(key string, id uint32) (summary Summary, ok, own bool) {
 // alone is s.base.alone for the file being summarized and the key
 // numbered id: base is set before any contract is read and never changes.
 func (s *summarizing) alone(id uint32, key string) bool {
+	if s.aloneKeys == nil {
+		s.aloneKeys = &aloneKeys{}
+	}
 	return s.aloneKeys.holds(id, s.base, s.out.Path, key)
 }
 
