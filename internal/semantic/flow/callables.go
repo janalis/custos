@@ -68,18 +68,18 @@ func (e *Env) invokeCallable(at syntax.Node, values []Value, f *frame, r *scopeR
 			}
 			callee = r.values.at(args[0])
 			packed := r.values.at(args[1])
-			packed.elements = e.elements(args[1], f, r)
+			packed.setElements(e.elements(args[1], f, r))
 			list = &syntax.ArgList{Args: []syntax.Expr{&syntax.Arg{Value: args[1], Unpack: true}}}
 			values = []Value{packed}
 		}
 	}
-	if !callee.Complete || callee.replaced || callee.Invalidated != 0 {
+	if !callee.Complete || callee.replaced() || callee.Invalidated != 0 {
 		return Value{}, nil, false
 	}
-	if callee.returned != nil {
-		return e.invokeReturned(at, callee.returned, list, values, f, r)
+	if callee.returned() != nil {
+		return e.invokeReturned(at, callee.returned(), list, values, f, r)
 	}
-	if callee.targets == nil {
+	if callee.targets() == nil {
 		if target, known := e.invokableObject(call.Name, callee, at, f); known {
 			return e.invokeBoundMethod(at, target, list, values, f, r)
 		}
@@ -127,7 +127,7 @@ func (e *Env) invokeCallableTarget(at syntax.Node, expr syntax.Expr, list *synta
 		args = callbackDefaults(args, seen, summary.defaults)
 	}
 	result := substitute(summary.Return, args, true)
-	result.returned = e.bindReturned(at, summary.returned, args)
+	result.setReturned(e.bindReturned(at, summary.returned, args))
 	var sinks []Sink
 	for _, sink := range summary.Sinks {
 		sink.Argument = substitute(sink.Argument, args, true)

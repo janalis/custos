@@ -82,10 +82,10 @@ func (e *Env) evalCollectionNative(expr *pureExpr, left Value, slots []Value, r 
 		found := known && (expr.slot == 0 && scalar.k == 's' || expr.slot == 1 && scalar.k == 'i') || expr.slot == 2 && record
 		return scalarValue(constantScalar{k: 'b', b: found}), true
 	}
-	if !purePlainRecord(left) || len(left.elements.order) != len(left.elements.items) {
+	if !purePlainRecord(left) || len(left.elements().order) != len(left.elements().items) {
 		return Value{}, false
 	}
-	order := left.elements.order
+	order := left.elements().order
 	if expr.slot >= 2 {
 		if len(order) == 0 {
 			return scalarValue(constantScalar{k: 'n'}), true
@@ -104,7 +104,7 @@ func (e *Env) evalCollectionNative(expr *pureExpr, left Value, slots []Value, r 
 	set := &elementSet{whole: true, items: map[string]Value{}, width: len(order)}
 	result := Value{Complete: true, plain: true, deep: true}
 	for i, key := range order {
-		entry := scalarSnapshot(left.elements.items[key])
+		entry := scalarSnapshot(left.elements().items[key])
 		if expr.slot == 1 {
 			entry = scalarValue(pureKeyScalar(key))
 		}
@@ -113,7 +113,8 @@ func (e *Env) evalCollectionNative(expr *pureExpr, left Value, slots []Value, r 
 		set.order = append(set.order, text)
 		result = merge(result, entry)
 	}
-	result.elements, result.plain, result.deep = set, true, true
+	result.setElements(set)
+	result.plain, result.deep = true, true
 	return result, true
 }
 

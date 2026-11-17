@@ -61,7 +61,7 @@ func pureCaptures(expr syntax.Expr, captures map[string]Value, outer int) map[st
 		var projection *pureExpr
 		if scalar, known := knownScalar(value); known {
 			projection = pureConstant(scalar)
-		} else if value.Complete && !value.replaced && value.Invalidated == 0 {
+		} else if value.Complete && !value.replaced() && value.Invalidated == 0 {
 			for i, p := range params {
 				if p.Var != nil && value.Identity == p.Var.Span().Start+1 {
 					projection = &pureExpr{kind: pureSlot, slot: i, cost: 1, depth: 1}

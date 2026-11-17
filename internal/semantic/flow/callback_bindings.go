@@ -10,7 +10,7 @@ func (e *Env) callbackBindings(at syntax.Node, list *syntax.ArgList, values []Va
 	}
 	for i, node := range list.Args {
 		arg, ok := node.(*syntax.Arg)
-		if !ok || arg == nil || arg.ByRef || arg.Unpack && (values[i].elements == nil || !values[i].elements.whole || values[i].elements.optional) {
+		if !ok || arg == nil || arg.ByRef || arg.Unpack && (values[i].elements() == nil || !values[i].elements().whole || values[i].elements().optional) {
 			return nil, nil, false
 		}
 	}

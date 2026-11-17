@@ -86,8 +86,9 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 				next = unsettled(old, next, r)
 				next.Complete = next.Complete || old.Complete
 				next.NonFalse, next.NonNull, next.plain, next.deep = old.NonFalse, old.NonNull, old.plain, old.deep && next.deep
-				next.elements = old.elements.without(boundElement(a.Value))
-				next.Expr, next.origins = nil, origins(Value{}, old, r)
+				next.setElements(old.elements().without(boundElement(a.Value)))
+				next.setOrigins(origins(Value{}, old, r))
+				next.Expr = nil
 			}
 			f.write(r, variable.Name, next)
 		}
@@ -153,14 +154,14 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 		return unsettled(old, next, r)
 	}
 	// An array of numbers the callee left is one for the caller.
-	next.scalars = written.scalars
+	next.setScalars(written.scalars())
 	if body := e.localBody(name); body != nil {
 		params := syntax.VariableScopeParams(body)
 		at := positions[at]
 		if at >= 0 && at < len(params) && params[at].Var != nil {
 			result := e.scope(body)
 			written := result.exit.value(received(params[at].Var.Name))
-			next.origins = result.producers(written)
+			next.setOrigins(result.producers(written))
 		}
 	}
 	return next
@@ -214,7 +215,7 @@ func (e *Env) updated(name string, at int, list *syntax.ArgList, positions []int
 	}
 	next := unsettled(old, inputs, r)
 	// Reordering or shortening an array of numbers leaves one.
-	next.scalars = old.scalars && !tainted(inputs) && !strings.HasPrefix(name, "array_walk")
+	next.setScalars(old.scalars() && !tainted(inputs) && !strings.HasPrefix(name, "array_walk"))
 	return next
 }
 
@@ -284,7 +285,7 @@ func distinctReferenceLocals(list *syntax.ArgList, params []index.Param, positio
 		value := f.vars.value(name)
 		_, shared := f.aliased[name]
 		_, static := r.statics[name]
-		if !value.Complete || value.replaced || value.Invalidated != 0 || name == "" || external(name) || name == "GLOBALS" || names[name] || shared || static || r.globalNames[name] {
+		if !value.Complete || value.replaced() || value.Invalidated != 0 || name == "" || external(name) || name == "GLOBALS" || names[name] || shared || static || r.globalNames[name] {
 			return false
 		}
 		names[name] = true

@@ -66,7 +66,7 @@ func TestPurePredicateContracts(t *testing.T) {
 	} {
 		e, f := summarized(t, tc.source)
 		v := e.Value(argument(callsNamed(f, "probe")[0]))
-		empty := v.elements != nil && v.elements.whole && !v.elements.optional && len(v.elements.items) == 0
+		empty := v.elements() != nil && v.elements().whole && !v.elements().optional && len(v.elements().items) == 0
 		if empty != tc.empty {
 			t.Errorf("%s: empty=%v value=%+v", tc.source, empty, v)
 		}
@@ -106,7 +106,7 @@ func TestPureWrapperEditInvalidates(t *testing.T) {
 	}
 	e := New(use, resourceTypes(use, ix), next, Options{})
 	v := e.Value(argument(callsNamed(use, "probe")[0]))
-	if v.elements != nil && !v.elements.optional && len(v.elements.items) == 0 {
+	if v.elements() != nil && !v.elements().optional && len(v.elements().items) == 0 {
 		t.Fatal("old wrapper fact survived")
 	}
 }

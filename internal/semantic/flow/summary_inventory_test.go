@@ -27,9 +27,9 @@ func TestNestedValuesRemainOutOfSnapshots(t *testing.T) {
 	e, file := environment(t, `function factory(){return ['safe'=>'value','nested'=>['field'=>'text']];}function send(){header(['nested'=>['field'=>'text']]);}`, nil)
 	out := Extract(file, e.types.Index, e.types.PHP, nil, Options{})
 	for _, sum := range out.Summaries {
-		assertCompactElements(t, sum.Return.elements)
+		assertCompactElements(t, sum.Return.elements())
 		for _, sink := range sum.Sinks {
-			if sink.Argument.elements != nil {
+			if sink.Argument.elements() != nil {
 				t.Fatal("sink retained local element structure")
 			}
 		}
@@ -42,10 +42,10 @@ func assertCompactElements(t *testing.T, elements *elementSet) {
 		return
 	}
 	for _, value := range elements.items {
-		if value.Expr != nil || value.Identity != 0 || value.origins != nil || value.targets != nil || value.returned != nil {
+		if value.Expr != nil || value.Identity != 0 || value.origins() != nil || value.targets() != nil || value.returned() != nil {
 			t.Fatal("shape retained local execution metadata")
 		}
-		assertCompactElements(t, value.elements)
+		assertCompactElements(t, value.elements())
 	}
 }
 
@@ -56,11 +56,11 @@ func TestCompactShapeBudgetsAreDeterministic(t *testing.T) {
 		for i := range 40 {
 			nested.items[fmt.Sprint(i)] = Value{Complete: true}
 		}
-		input.items[key] = Value{Complete: true, elements: nested}
+		input.items[key] = Value{Complete: true, ext: rare(valueExt{elements: nested})}
 	}
 	fuel := MaxSources
 	want := compactElements(input, MaxDepth, &fuel)
-	if want.items["a"].elements == nil || want.items["z"].elements != nil {
+	if want.items["a"].elements() == nil || want.items["z"].elements() != nil {
 		t.Fatal("shape fuel did not follow stable key order")
 	}
 	for range 20 {

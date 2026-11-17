@@ -22,7 +22,7 @@ func (e *Env) evalClosure(n *syntax.Closure, f *frame, r *scopeResult, depth int
 	}
 	e.captureClosure(n, f, r)
 	if _, known := r.closures[n]; known {
-		v.targets = oneCallableTarget(n)
+		v.setTargets(oneCallableTarget(n))
 	}
 	return v
 }
@@ -34,7 +34,7 @@ func (e *Env) evalArrowFunction(n *syntax.ArrowFunction, f *frame, r *scopeResul
 	e.observeArrow(n, f, r)
 	e.captureClosure(n, f, r)
 	if _, known := r.closures[n]; known {
-		v.targets = oneCallableTarget(n)
+		v.setTargets(oneCallableTarget(n))
 	}
 	return v
 }

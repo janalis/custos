@@ -124,37 +124,37 @@ func encodeValue(w *wire.Writer, v *Value) {
 		return
 	}
 	defer w.Leave()
-	if v.Expr != nil || v.tested != nil || v.unless != nil {
+	if v.Expr != nil || v.tested() != nil || v.unless() != nil {
 		w.Fail(errSyntax)
 		return
 	}
-	w.Bools(v.record != nil, v.literal != nil, v.returned != nil, v.targets != nil, v.interval != nil, v.elements != nil, v.origins != nil,
-		v.Complete, v.NonFalse, v.NonNull, v.LengthKnown, v.scalars, v.matched, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull, v.replaced, v.entry, v.plain, v.deep)
-	if v.record != nil {
-		encodeResource(w, v.record)
+	w.Bools(v.record() != nil, v.literal() != nil, v.returned() != nil, v.targets() != nil, v.interval() != nil, v.elements() != nil, v.origins() != nil,
+		v.Complete, v.NonFalse, v.NonNull, v.lengthKnown(), v.scalars(), v.matched(), v.unlessFalse(), v.unlessNull(), v.skippedFalse(), v.skippedNull(), v.replaced(), v.entry(), v.plain, v.deep)
+	if v.record() != nil {
+		encodeResource(w, v.record())
 	}
-	if v.literal != nil {
-		encodeScalar(w, v.literal)
+	if v.literal() != nil {
+		encodeScalar(w, v.literal())
 	}
-	if v.returned != nil {
-		w.Bool(v.returned.contract != nil)
-		if v.returned.contract != nil {
-			encodeReturned(w, v.returned.contract)
+	if v.returned() != nil {
+		w.Bool(v.returned().contract != nil)
+		if v.returned().contract != nil {
+			encodeReturned(w, v.returned().contract)
 		}
-		encodeValues(w, v.returned.outer)
+		encodeValues(w, v.returned().outer)
 	}
-	if v.targets != nil {
-		for _, item := range v.targets.items {
+	if v.targets() != nil {
+		for _, item := range v.targets().items {
 			if item != nil {
 				w.Fail(errSyntax)
 				return
 			}
 		}
-		w.Len(len(v.targets.items), v.targets.items == nil)
+		w.Len(len(v.targets().items), v.targets().items == nil)
 	}
-	if v.interval != nil {
-		w.Int(v.interval.lo)
-		w.Int(v.interval.hi)
+	if v.interval() != nil {
+		w.Int(v.interval().lo)
+		w.Int(v.interval().hi)
 	}
 	w.Len(len(v.Sources), v.Sources == nil)
 	for _, s := range v.Sources {
@@ -165,8 +165,8 @@ func encodeValue(w *wire.Writer, v *Value) {
 		w.Int(int64(s.Parameter))
 		w.Bools(s.ValuesOnly, s.Keys, s.htmlDecoded)
 	}
-	if v.elements != nil {
-		e := v.elements
+	if v.elements() != nil {
+		e := v.elements()
 		w.Bools(e.hasResources, e.whole, e.optional)
 		w.Len(len(e.items), e.items == nil)
 		for key, item := range e.items {
@@ -177,8 +177,8 @@ func encodeValue(w *wire.Writer, v *Value) {
 		w.Int(int64(e.depth))
 		w.Int(int64(e.width))
 	}
-	if v.origins != nil {
-		o := v.origins
+	if v.origins() != nil {
+		o := v.origins()
 		w.Bools(o.full, o.compressed, o.other)
 		w.Len(len(o.items), o.items == nil)
 		for _, item := range o.items {
@@ -189,46 +189,47 @@ func encodeValue(w *wire.Writer, v *Value) {
 			w.Bools(item.NonFalse, item.NonNull)
 		}
 	}
-	w.Int(v.Length)
+	w.Int(v.length())
 	w.Uint(uint64(v.Identity))
-	w.Uint(uint64(v.storedIdentity))
+	w.Uint(uint64(v.storedIdentity()))
 	w.Uint(uint64(v.Invalidated))
 	w.Uint(uint64(v.Safe))
-	w.Uint(uint64(v.headerMask))
-	w.Uint(uint64(v.upload))
-	w.Uint(uint64(v.truth))
+	w.Uint(uint64(v.headerMask()))
+	w.Uint(uint64(v.upload()))
+	w.Uint(uint64(v.truth()))
 }
 
 func decodeValue(r *wire.Reader) Value {
 	var v Value
+	var x valueExt
 	if !r.Enter() {
 		return v
 	}
 	defer r.Leave()
 	var record, literal, returned, targets, interval, elements, origins bool
 	r.Bools(&record, &literal, &returned, &targets, &interval, &elements, &origins,
-		&v.Complete, &v.NonFalse, &v.NonNull, &v.LengthKnown, &v.scalars, &v.matched, &v.unlessFalse, &v.unlessNull, &v.skippedFalse, &v.skippedNull, &v.replaced, &v.entry, &v.plain, &v.deep)
+		&v.Complete, &v.NonFalse, &v.NonNull, &x.lengthKnown, &x.scalars, &x.matched, &x.unlessFalse, &x.unlessNull, &x.skippedFalse, &x.skippedNull, &x.replaced, &x.entry, &v.plain, &v.deep)
 	if record {
-		v.record = decodeResource(r)
+		x.record = decodeResource(r)
 	}
 	if literal {
-		v.literal = decodeScalar(r)
+		x.literal = decodeScalar(r)
 	}
 	if returned {
-		v.returned = &callableValue{}
+		x.returned = &callableValue{}
 		if r.Bool() {
-			v.returned.contract = decodeReturned(r)
+			x.returned.contract = decodeReturned(r)
 		}
-		v.returned.outer = decodeValues(r)
+		x.returned.outer = decodeValues(r)
 	}
 	if targets {
-		v.targets = &callableSet{}
+		x.targets = &callableSet{}
 		if n, isNil := r.Len(); !isNil {
-			v.targets.items = wire.Make[syntax.Expr](r, n)
+			x.targets.items = wire.Make[syntax.Expr](r, n)
 		}
 	}
 	if interval {
-		v.interval = &intInterval{lo: r.Int(), hi: r.Int()}
+		x.interval = &intInterval{lo: r.Int(), hi: r.Int()}
 	}
 	if n, isNil := r.Len(); !isNil {
 		v.Sources = wire.Make[Source](r, n)
@@ -253,7 +254,7 @@ func decodeValue(r *wire.Reader) Value {
 		e.order = r.Strings()
 		e.depth = int(r.Int())
 		e.width = int(r.Int())
-		v.elements = e
+		x.elements = e
 	}
 	if origins {
 		o := &originSet{}
@@ -264,15 +265,16 @@ func decodeValue(r *wire.Reader) Value {
 				r.Bools(&o.items[i].NonFalse, &o.items[i].NonNull)
 			}
 		}
-		v.origins = o
+		x.origins = o
 	}
-	v.Length = r.Int()
+	x.length = r.Int()
 	v.Identity = uint32(r.Uint())
-	v.storedIdentity = uint32(r.Uint())
+	x.storedIdentity = uint32(r.Uint())
 	v.Invalidated = uint32(r.Uint())
 	v.Safe = Context(r.Uint())
-	v.headerMask = uint8(r.Uint())
-	v.upload = uint8(r.Uint())
-	v.truth = uint8(r.Uint())
+	x.headerMask = uint8(r.Uint())
+	x.upload = uint8(r.Uint())
+	x.truth = uint8(r.Uint())
+	v.ext = rare(x)
 	return v
 }

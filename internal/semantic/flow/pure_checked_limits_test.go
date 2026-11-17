@@ -134,7 +134,7 @@ func TestPureCheckedLimits(t *testing.T) {
 	if _, ok := e.evalPure(&pureExpr{kind: pureInteger, op: syntax.TPow, left: &pureSlots[0], right: &pureSlots[0]}, []Value{number}, &scopeResult{}, MaxDepth); ok {
 		t.Fatal("unsupported integer opcode")
 	}
-	record := Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{"0": number}, order: []string{"0"}}}
+	record := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{"0": number}, order: []string{"0"}}})}
 	reverse := &pureExpr{kind: pureReverse, left: &pureSlots[0], right: pureConstant(constantScalar{k: 'b'})}
 	for _, r := range []scopeResult{{copies: MaxCopied}, {operations: MaxTransfers - 3}} {
 		if _, ok := e.evalPure(reverse, []Value{record}, &r, MaxDepth); ok {

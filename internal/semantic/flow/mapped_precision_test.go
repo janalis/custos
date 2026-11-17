@@ -64,7 +64,7 @@ func TestMappedRejectsUnorderedEntries(t *testing.T) {
 	at := callsNamed(file, "array_map")[0]
 	r := e.scope(nil)
 	values := append([]Value(nil), r.calls[r.callIndex[at]].Arguments...)
-	values[1].elements = values[1].elements.with("0", values[1].elements.items["0"])
+	values[1].setElements(values[1].elements().with("0", values[1].elements().items["0"]))
 	if _, known := e.mappedCallback(at, at.Args, values, &frame{}, r); known {
 		t.Fatal("unordered entries established positional mapping")
 	}
@@ -81,7 +81,7 @@ func TestNestedArrayGrowthStaysBounded(t *testing.T) {
 		if v.Complete && !tainted(v) {
 			t.Fatal("depth fallback erased aggregate taint")
 		}
-		if v.elements != nil && v.elements.depth > MaxDepth {
+		if v.elements() != nil && v.elements().depth > MaxDepth {
 			t.Fatal("unbounded local shape")
 		}
 	}
@@ -99,7 +99,7 @@ func TestNestedBranchingShapesStayBounded(t *testing.T) {
 	if value.Complete && !tainted(value) {
 		t.Fatal("branching fallback lost aggregate provenance")
 	}
-	if value.elements != nil && value.elements.depth > MaxDepth {
+	if value.elements() != nil && value.elements().depth > MaxDepth {
 		t.Fatal("branching shape exceeded structural budget")
 	}
 }

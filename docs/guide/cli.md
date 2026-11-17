@@ -90,6 +90,7 @@ These apply to both `analyse` and `fix`:
 | `--flow-order` | Summarize cross-file flow in the [order the last run saved](#paths): a scheduling hint for dependency discovery. |
 | `--parse-once` | Parse each analysed file once and keep its syntax tree until it is analysed, instead of parsing it again in each phase. Faster (about 5–15% on large projects) at the cost of memory (about 40% more at peak); findings are the same. |
 | `--cpuprofile FILE` | Write a Go CPU profile of the analysis to FILE (for `go tool pprof`). |
+| `--memprofile FILE` | Write a Go allocation profile of the analysis to FILE (for `go tool pprof`). |
 
 ## analyse
 

@@ -35,7 +35,7 @@ func TestNamedGuardArgumentProof(t *testing.T) {
 			if tc.context != 0 && (v.Safe&tc.context != 0) != tc.safe {
 				t.Fatalf("value %+v, want safe %v", v, tc.safe)
 			}
-			if tc.length && (!v.LengthKnown || v.Length != 4) {
+			if tc.length && (!v.lengthKnown() || v.length() != 4) {
 				t.Fatalf("missing exact length: %+v", v)
 			}
 		})

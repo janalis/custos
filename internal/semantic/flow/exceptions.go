@@ -137,7 +137,7 @@ func storedScalar(v Value) bool {
 	if !v.Complete {
 		return false
 	}
-	if v.interval != nil {
+	if v.interval() != nil {
 		return true
 	}
 	switch n := syntax.UnwrapParens(v.Expr).(type) {

@@ -19,7 +19,7 @@ func (e *Env) IntEntry(x syntax.Expr) (int64, bool) {
 		}
 	}
 	normal := e.scope(scope)
-	if value := normal.values.at(x); !normal.complete || value.Expr == nil && value.interval == nil && value.origins == nil {
+	if value := normal.values.at(x); !normal.complete || value.Expr == nil && value.interval() == nil && value.origins() == nil {
 		return 0, false
 	}
 	twin := *e

@@ -39,14 +39,14 @@ func cloneElements(s *elementSet) *elementSet {
 // its previous array cannot accumulate an unbounded chain of nested facts.
 func (s *elementSet) put(key string, value Value) {
 	height := bits.Len(uint(max(1, s.width)))
-	if value.elements != nil {
-		if value.elements.depth+height > MaxDepth {
-			value.elements = nil
+	if value.elements() != nil {
+		if value.elements().depth+height > MaxDepth {
+			value.setElements(nil)
 		} else {
-			height += value.elements.depth
+			height += value.elements().depth
 		}
 	}
-	s.hasResources = s.hasResources || value.storedIdentity != 0 || value.record != nil || value.elements != nil && value.elements.hasResources
+	s.hasResources = s.hasResources || value.storedIdentity() != 0 || value.record() != nil || value.elements() != nil && value.elements().hasResources
 	s.depth = max(s.depth, height)
 	s.items[key] = value
 }

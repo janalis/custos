@@ -44,5 +44,5 @@ func (e *Env) ParameterRead(scope syntax.Node, parameter int) (read, known bool)
 // entry value that was never read. Only a binding untracked code may have
 // replaced, or a source list cut at MaxSources, can hide one.
 func mayHideEntry(value Value) bool {
-	return value.replaced || !value.Complete && len(value.Sources) >= MaxSources
+	return value.replaced() || !value.Complete && len(value.Sources) >= MaxSources
 }

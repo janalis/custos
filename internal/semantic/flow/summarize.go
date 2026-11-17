@@ -16,7 +16,7 @@ import (
 // available. It does not open any other files. A supplied snapshot permits
 // bounded composition with previously summarized project wrappers.
 func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options) *File {
-	_, out := Summarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options)
+	_, out := summarizeFile(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, nil)
 	return out
 }
 
@@ -32,34 +32,55 @@ func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapsho
 // the environment then read what the snapshot with the file's summaries
 // reads (see Rebase).
 func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) (*Env, *File) {
+	return summarizeFile(file, types, snapshot, options, map[string]Summary{})
+}
+
+// summarizeFile is Summarize recording in answered the summary each contract
+// read first gave, which only Rebase needs: Extract, which drops the
+// environment, passes nil.
+func summarizeFile(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, answered map[string]Summary) (*Env, *File) {
 	e, order := summaryInventory(file, types, snapshot, options)
+	e.answered = answered
 	s := e.summarizing
 	s.track = map[string]map[string]uint8{}
 	out := s.out
 	for _, n := range order {
 		e.summarize(n)
 	}
-	finish(e, out, e.answers)
+	finish(e, out, nil)
 	return e, out
 }
 
 // finish publishes on out what summarizing it read: the contracts consulted
-// and, from answers, which the snapshot held and which the file served.
-func finish(e *Env, out *File, answers map[string]answer) {
+// and, from the answers of e joined by those of the callables kept from an
+// earlier summary (kept: whether the snapshot held each), which the
+// snapshot held and which the file served.
+func finish(e *Env, out *File, kept map[string]bool) {
 	out.callables = e.summarizing.track
 	e.summarizing = nil
 	out.consulted, e.consulted = e.consulted, nil
-	for key, read := range answers {
-		switch {
-		case read.held:
-			out.held = append(out.held, key)
-		case out.served == nil:
-			out.served = map[string]bool{key: true}
-		default:
-			out.served[key] = true
+	for key, read := range e.answers {
+		out.noteRead(key, read.held || kept[key])
+	}
+	for key, held := range kept {
+		if _, read := e.answers[key]; !read {
+			out.noteRead(key, held)
 		}
 	}
 	slices.Sort(out.held)
+}
+
+// noteRead records that a contract read while f was summarized came from
+// the snapshot (held) or from the file's own summaries.
+func (f *File) noteRead(key string, held bool) {
+	switch {
+	case held:
+		f.held = append(f.held, key)
+	case f.served == nil:
+		f.served = map[string]bool{key: true}
+	default:
+		f.served[key] = true
+	}
 }
 
 // summaryInventory builds declaration metadata without following callable bodies.
@@ -188,7 +209,7 @@ func (e *Env) summarize(n syntax.Node) {
 			if sum.ByRef == nil {
 				sum.ByRef = map[int]Value{}
 			}
-			sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, scalars: left.scalars}
+			sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, ext: rare(valueExt{scalars: left.scalars()})}
 		}
 	}
 	sum.Return = e.completedReturn(n, r, sum.Return)
@@ -203,15 +224,15 @@ func (e *Env) summarize(n syntax.Node) {
 	if sum.Fixed && !byReference(n) {
 		sum.returned = e.summarizeReturned(sum.Return, r, len(syntax.VariableScopeParams(n)))
 	}
-	sum.Return.returned = nil
-	sum.Return.targets = nil
 	sum.Return.Expr = nil
 	shapeFuel := MaxSources
-	sum.Return.elements = compactElements(sum.Return.elements, MaxDepth, &shapeFuel)
-	sum.Return.interval = nil
-	sum.Return.origins = nil
-	sum.Return.Identity, sum.Return.storedIdentity = 0, 0
-	sum.Return.record = nil
+	elements := compactElements(sum.Return.elements(), MaxDepth, &shapeFuel)
+	sum.Return.edit(func(x valueExt) valueExt {
+		x.returned, x.targets, x.elements, x.interval, x.origins = nil, nil, elements, nil, nil
+		x.storedIdentity, x.record = 0, nil
+		return x
+	})
+	sum.Return.Identity = 0
 	if !sum.Generator {
 		for _, c := range r.calls {
 			sum.Sinks = appendSinks(sum.Sinks, e.nativeSinks(c))
@@ -265,7 +286,7 @@ func (e *Env) Rebase(s *Snapshot) *Env {
 	if e.local != nil {
 		return NewLocal(e.file, e.types, s, e.options, e.local.guard)
 	}
-	differ := changedAnswers(e.answers, s.lookup)
+	differ := changedAnswers(e.answers, e.answered, s.lookup)
 	if len(differ) == 0 && snapshotOptions(s) == e.options {
 		e.snapshot = s
 		return e
@@ -282,11 +303,11 @@ func (e *Env) Rebase(s *Snapshot) *Env {
 	return n
 }
 
-func changedAnswers(answers map[string]answer, lookup func(string) (Summary, bool)) map[string]bool {
+func changedAnswers(answers map[string]answer, answered map[string]Summary, lookup func(string) (Summary, bool)) map[string]bool {
 	differ := map[string]bool{}
 	for key, read := range answers {
 		summary, ok := lookup(key)
-		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(read.summary, summary) {
+		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(answered[key], summary) {
 			differ[key] = true
 		}
 	}

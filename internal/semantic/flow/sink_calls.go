@@ -61,12 +61,11 @@ func (e *Env) nativeSinks(c Call) []Sink {
 		return nil
 	}
 	value := args[position]
-	value.targets = nil
-	value.returned = nil
+	value.edit(func(x valueExt) valueExt {
+		x.targets, x.returned, x.elements, x.interval, x.origins = nil, nil, nil, nil, nil
+		return x
+	})
 	value.Expr = nil
-	value.elements = nil
-	value.interval = nil
-	value.origins = nil
 	value.Identity = 0
 	sinks := []Sink{{Name: name, Context: context, Argument: value, Path: e.file.Path, Span: c.Node.Span()}}
 	if name == "header" {
@@ -123,7 +122,8 @@ func (e *Env) commands(body syntax.Node, r *scopeResult) []Sink {
 		}
 		if command, ok := n.(*syntax.InterpolatedString); ok && command.Backtick {
 			if value, reached := r.values.get(command); reached {
-				value.Expr, value.origins, value.Identity = nil, nil, 0
+				value.setOrigins(nil)
+				value.Expr, value.Identity = nil, 0
 				sinks = append(sinks, Sink{Name: "shell_exec", Context: Shell, Argument: value, Path: e.file.Path, Span: command.Span()})
 			}
 		}

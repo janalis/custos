@@ -9,7 +9,7 @@ import (
 // Operands are read from the evaluation snapshot, not reevaluated from their
 // syntax. The constant operator evaluator rejects mixed coercions and overflow.
 func evaluatedScalar(expr syntax.Expr, value Value, r *scopeResult) Value {
-	if !value.Complete || value.replaced || value.Invalidated != 0 {
+	if !value.Complete || value.replaced() || value.Invalidated != 0 {
 		return value
 	}
 	var scalar constantScalar
@@ -49,7 +49,7 @@ func evaluatedScalar(expr syntax.Expr, value Value, r *scopeResult) Value {
 	}
 	if known {
 		literal := scalar
-		value.literal = &literal
+		value.setLiteral(&literal)
 	}
 	return value
 }

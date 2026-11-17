@@ -117,7 +117,7 @@ func TestOriginSetsCompareByContent(t *testing.T) {
 			t.Errorf("sameOrigins(%+v)=%v", tc.other, got)
 		}
 	}
-	if a.holds(&Value{origins: &originSet{full: true}}) || !a.holds(&Value{}) {
+	if a.holds(&Value{ext: rare(valueExt{origins: &originSet{full: true}})}) || !a.holds(&Value{}) {
 		t.Error("a set holds more producers than are followed, or not an unknown value")
 	}
 	if (*originSet)(nil).excluding(true, true) != nil {
@@ -131,7 +131,7 @@ func TestSummariesKeepNoProducers(t *testing.T) {
 	const src = `function pick($a, $c){$u=parse_url($a); if($c){$u=scandir($a);} system($u); return $u;}`
 	e, f := environment(t, src, nil)
 	sum := Extract(f, e.types.Index, e.types.PHP, nil, Options{}).Summaries["pick"]
-	if sum.Return.origins != nil || sum.Return.Expr != nil || len(sum.Sinks) != 1 || sum.Sinks[0].Argument.origins != nil {
+	if sum.Return.origins() != nil || sum.Return.Expr != nil || len(sum.Sinks) != 1 || sum.Sinks[0].Argument.origins() != nil {
 		t.Fatalf("summary=%+v", sum)
 	}
 	again := Extract(syntax.Parse("test.php", []byte("<?php "+src), syntax.Options{Version: e.types.PHP}), e.types.Index, e.types.PHP, nil, Options{})
@@ -223,7 +223,7 @@ func TestIncompleteHoldersKeepSourcesWithoutProducers(t *testing.T) {
 		if got := len(written.Sources) > 0; got != tc.sources {
 			t.Errorf("%s sources=%v", tc.body, got)
 		}
-		if got := written.Expr != nil || written.origins != nil && len(written.origins.items) > 0; got != tc.producer {
+		if got := written.Expr != nil || written.origins() != nil && len(written.origins().items) > 0; got != tc.producer {
 			t.Errorf("%s producer=%v", tc.body, got)
 		}
 	}

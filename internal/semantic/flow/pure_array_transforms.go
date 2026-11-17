@@ -49,7 +49,7 @@ func (c *pureCompiler) arrayMerge(node *syntax.FuncCall, params []index.Param) *
 
 func (e *Env) evalArrayTransform(expr *pureExpr, left Value, slots []Value, r *scopeResult, depth int) (Value, bool) {
 	right, ok := e.evalPure(expr.right, slots, r, depth-1)
-	if !ok || !purePlainRecord(left) || len(left.elements.order) != len(left.elements.items) {
+	if !ok || !purePlainRecord(left) || len(left.elements().order) != len(left.elements().items) {
 		return Value{}, false
 	}
 	if expr.kind == pureColumn {
@@ -66,16 +66,16 @@ func (e *Env) evalArrayTransform(expr *pureExpr, left Value, slots []Value, r *s
 				return Value{}, false
 			}
 		}
-		result := Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{}}}
+		result := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{}}})}
 		if expr.other != nil {
-			result.elements.width = len(left.elements.order)
+			result.elements().width = len(left.elements().order)
 		}
-		for _, rowKey := range left.elements.order {
-			row := left.elements.items[rowKey]
+		for _, rowKey := range left.elements().order {
+			row := left.elements().items[rowKey]
 			if !purePlainRecord(row) {
 				return Value{}, false
 			}
-			value, present := row.elements.lookup(key)
+			value, present := row.elements().lookup(key)
 			if !present || !pureReadOnlyInputs([]Value{value}, nil) {
 				return Value{}, false
 			}
@@ -84,16 +84,16 @@ func (e *Env) evalArrayTransform(expr *pureExpr, left Value, slots []Value, r *s
 					return Value{}, false
 				}
 			} else {
-				index, held := row.elements.lookup(indexKey)
+				index, held := row.elements().lookup(indexKey)
 				key, known := pureRecordKey(index)
 				if !held || !known || len(index.Sources) != 0 {
 					return Value{}, false
 				}
 				r.copies++
-				if r.copies > MaxCopied || len(result.elements.items) >= pureLimit {
+				if r.copies > MaxCopied || len(result.elements().items) >= pureLimit {
 					return Value{}, false
 				}
-				putWinningEntry(result.elements, key, value)
+				putWinningEntry(result.elements(), key, value)
 			}
 			r.operations++
 			if r.operations > MaxTransfers {
@@ -101,31 +101,31 @@ func (e *Env) evalArrayTransform(expr *pureExpr, left Value, slots []Value, r *s
 			}
 		}
 		if expr.other != nil {
-			result = winningRecord(result.elements)
+			result = winningRecord(result.elements())
 		}
 		return result, result.Complete
 	}
-	if !purePlainRecord(right) || len(right.elements.order) != len(right.elements.items) {
+	if !purePlainRecord(right) || len(right.elements().order) != len(right.elements().items) {
 		return Value{}, false
 	}
-	count := len(left.elements.order) + len(right.elements.order)
+	count := len(left.elements().order) + len(right.elements().order)
 	r.copies += count
 	r.operations += count
 	if count > pureLimit || r.copies > MaxCopied || r.operations > MaxTransfers {
 		return Value{}, false
 	}
 	if expr.kind == pureCombine {
-		if len(left.elements.order) == 0 || len(left.elements.order) != len(right.elements.order) {
+		if len(left.elements().order) == 0 || len(left.elements().order) != len(right.elements().order) {
 			return Value{}, false
 		}
 		set := &elementSet{whole: true, width: count, items: map[string]Value{}}
-		for i, at := range left.elements.order {
-			value := left.elements.items[at]
+		for i, at := range left.elements().order {
+			value := left.elements().items[at]
 			key, known := pureRecordKey(value)
 			if !known || len(value.Sources) != 0 {
 				return Value{}, false
 			}
-			putWinningEntry(set, key, right.elements.items[right.elements.order[i]])
+			putWinningEntry(set, key, right.elements().items[right.elements().order[i]])
 		}
 		result := winningRecord(set)
 		return result, result.Complete
@@ -133,8 +133,8 @@ func (e *Env) evalArrayTransform(expr *pureExpr, left Value, slots []Value, r *s
 	set := &elementSet{whole: true, width: count, items: map[string]Value{}}
 	next := 0
 	for _, input := range []Value{left, right} {
-		for _, key := range input.elements.order {
-			value := input.elements.items[key]
+		for _, key := range input.elements().order {
+			value := input.elements().items[key]
 			if expr.kind == pureMerge && pureKeyScalar(key).k == 'i' {
 				key = strconv.Itoa(next)
 				next++
@@ -152,7 +152,8 @@ func winningRecord(set *elementSet) Value {
 	for _, key := range set.order {
 		result = merge(result, set.items[key])
 	}
-	result.elements, result.plain, result.deep = set, true, true
+	result.setElements(set)
+	result.plain, result.deep = true, true
 	return result
 }
 

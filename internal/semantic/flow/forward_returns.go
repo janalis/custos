@@ -28,7 +28,7 @@ func returnDeclaration(scope syntax.Node) syntax.Expr {
 }
 
 func (e *Env) summarizeForward(scope syntax.Node, r *scopeResult, value Value) *forwardReturn {
-	if !r.complete || r.generator || r.runs || byReference(scope) || !value.Complete || value.replaced || value.Invalidated != 0 || value.Identity == 0 {
+	if !r.complete || r.generator || r.runs || byReference(scope) || !value.Complete || value.replaced() || value.Invalidated != 0 || value.Identity == 0 {
 		return nil
 	}
 	selected := -1
@@ -60,19 +60,19 @@ func (e *Env) forwardedReturn(at syntax.Node, contract *forwardReturn, args []Va
 		return Value{}, nil, false
 	}
 	value := args[contract.parameter]
-	if !value.Complete || value.replaced || value.Invalidated != 0 {
+	if !value.Complete || value.replaced() || value.Invalidated != 0 {
 		return Value{}, nil, false
 	}
 	if scalar, known := knownScalar(value); known {
-		if value.literal == nil {
+		if value.literal() == nil {
 			literal := scalar
-			value.literal = &literal
+			value.setLiteral(&literal)
 		}
 		value = e.constrainType(contract.argument, value, !syntax.StrictTypes(e.file) || e.internalScalarCallback(at))
 		value = e.constrainType(contract.result, value, contract.weakReturn)
 		return value, nil, true
 	}
-	if value.elements == nil || !value.elements.whole || value.elements.optional || !wholeRecord(value.elements) || !recordForwardType(contract.argument) || !recordForwardType(contract.result) {
+	if value.elements() == nil || !value.elements().whole || value.elements().optional || !wholeRecord(value.elements()) || !recordForwardType(contract.argument) || !recordForwardType(contract.result) {
 		return Value{}, nil, false
 	}
 	// Another argument may be converted to text or destroyed at the boundary.
@@ -82,7 +82,7 @@ func (e *Env) forwardedReturn(at syntax.Node, contract *forwardReturn, args []Va
 		}
 	}
 	ids := map[uint32]bool{}
-	collectRecordIdentities(value.elements, ids)
+	collectRecordIdentities(value.elements(), ids)
 	states := map[uint32]State{}
 	for id := range ids {
 		if !recordResourceEvidence(at, id, f, r) {

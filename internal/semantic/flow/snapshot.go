@@ -3,6 +3,7 @@ package flow
 import (
 	"reflect"
 	"slices"
+	"sync"
 
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/names"
@@ -69,7 +70,7 @@ type File struct {
 	// declares them.
 	served map[string]bool
 	// callables records, per callable key, the contracts its summary read
-	// and how they were answered (see readAny), so that Resummarize can
+	// and how they were answered (see readAny), so that Reextract can
 	// keep the summaries no changed contract reaches.
 	callables map[string]map[string]uint8
 }
@@ -127,6 +128,8 @@ func (f *File) Basis(s *Snapshot) *Snapshot {
 
 // Snapshot is an immutable project-local summary collection. WithFile and
 // WithoutFile return copies; readers never observe mutations or need locks.
+// The one exception is an internal memo of contract comparisons (see
+// sameHeld), which guards itself; it changes no answer.
 //
 // Replacing one file is what every analysed file does to see its own buffer,
 // so it does not rebuild the collection: the result overlays the file on its
@@ -144,6 +147,13 @@ type Snapshot struct {
 	// replaced by own. The maps above are then unused.
 	base *Snapshot
 	own  *File
+	// compared memoizes, by pair of contracts held by an earlier snapshot
+	// and by this one, whether they are the same (see sameHeld): every
+	// file that consulted a contract compares the same pair.
+	compared struct {
+		sync.Mutex
+		same map[[2]*Summary]bool
+	}
 }
 
 // NewSnapshot creates an empty summary collection.
@@ -211,6 +221,37 @@ func (s *Snapshot) WithoutFile(path string) *Snapshot {
 // sameSummary compares two contracts through pointers, so that comparing
 // them copies neither.
 func sameSummary(a, b *Summary) bool { return reflect.DeepEqual(a, b) }
+
+// maxCompared bounds the comparisons a snapshot remembers.
+const maxCompared = 1 << 14
+
+// sameHeld is sameSummary for a contract was an earlier snapshot holds and
+// one is that s holds, remembered by s. Held contracts never change, and
+// the memo keeps both alive, so a pair of pointers names one comparison.
+func (s *Snapshot) sameHeld(was, is *Summary) bool {
+	if was == is {
+		return true
+	}
+	pair := [2]*Summary{was, is}
+	s.compared.Lock()
+	same, ok := s.compared.same[pair]
+	s.compared.Unlock()
+	if ok {
+		return same
+	}
+	same = sameSummary(was, is)
+	s.compared.Lock()
+	if s.compared.same == nil {
+		s.compared.same = map[[2]*Summary]bool{}
+	}
+	// A long-lived snapshot (language server) is compared with summaries of
+	// many earlier builds: bound what the memo keeps alive.
+	if len(s.compared.same) < maxCompared {
+		s.compared.same[pair] = same
+	}
+	s.compared.Unlock()
+	return same
+}
 
 // held is the contract a snapshot that is no overlay holds for name itself,
 // as lookup answers it; nil when lookup would answer otherwise.

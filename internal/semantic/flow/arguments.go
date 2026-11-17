@@ -144,7 +144,7 @@ func (e *Env) bindValues(list *syntax.ArgList, params []index.Param, values []Va
 					variadicNext++
 				}
 				elements = elements.with(key, value)
-				args[p].elements = elements
+				args[p].setElements(elements)
 				args[p].plain = true
 			}
 		} else {
@@ -171,7 +171,7 @@ func (e *Env) bindValues(list *syntax.ArgList, params []index.Param, values []Va
 					return nil, nil, false
 				}
 				for _, key := range t.ShapeKeys() {
-					v, held := values[i].elements.lookup(key.Name)
+					v, held := values[i].elements().lookup(key.Name)
 					isNamed := !types.IsIntKey(key.Name)
 					if key.Optional || !held || !uniqueArgument(key.Name, isNamed, names) || !put(key.Name, isNamed, v) {
 						return nil, nil, false

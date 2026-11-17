@@ -18,7 +18,7 @@ func constructionRecord(values ...Value) Value {
 		set.items[key] = value
 		set.order = append(set.order, key)
 	}
-	return Value{Complete: true, plain: true, deep: true, elements: set}
+	return Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: set})}
 }
 
 func TestPureArrayConstructionRefusals(t *testing.T) {
@@ -83,11 +83,11 @@ func TestPureArrayConstructionRuntimeBounds(t *testing.T) {
 	sourcedInt := integer(1)
 	sourcedInt.Sources = sourcedKey.Sources
 	deep := constructionRecord(text)
-	deep.elements.depth = MaxDepth - 1
+	deep.elements().depth = MaxDepth - 1
 	veryDeep := deep
-	ds := *deep.elements
+	ds := *deep.elements()
 	ds.depth = MaxDepth
-	veryDeep.elements = &ds
+	veryDeep.setElements(&ds)
 	invalid := text
 	invalid.Complete = false
 	many := text
@@ -95,9 +95,9 @@ func TestPureArrayConstructionRuntimeBounds(t *testing.T) {
 		many.Sources = append(many.Sources, Source{Kind: "input", Parameter: i})
 	}
 	optional := array
-	os := *array.elements
+	os := *array.elements()
 	os.optional = true
-	optional.elements = &os
+	optional.setElements(&os)
 	cases := []struct {
 		expr  *pureExpr
 		slots []Value

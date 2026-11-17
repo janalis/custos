@@ -25,7 +25,7 @@ func (e *Env) evalArray(n *syntax.Array, f *frame, r *scopeResult, depth int) Va
 		}
 	}
 	v.Expr = n
-	v.elements = e.literalElements(n, r)
+	v.setElements(e.literalElements(n, r))
 	return v
 }
 

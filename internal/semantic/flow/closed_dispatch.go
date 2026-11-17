@@ -147,7 +147,7 @@ func closedBinding(receiver syntax.Expr, f *frame) bool {
 	name := plainVariable(receiver)
 	value, tracked := f.vars.lookup(name)
 	_, aliased := f.aliased[name]
-	return tracked && !aliased && value.Complete && !value.replaced && value.Invalidated == 0
+	return tracked && !aliased && value.Complete && !value.replaced() && value.Invalidated == 0
 }
 
 // Precise return shapes and state effects require the body that actually runs,

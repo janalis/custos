@@ -52,18 +52,17 @@ func (s *summarizing) answered(key string, own bool) {
 	}
 }
 
-// Reextract is Extract keeping, as Resummarize does, the summaries of prior
-// that no contract differing between earlier and snapshot reaches.
-func Reextract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) *File {
-	_, out := Resummarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, prior, earlier)
-	return out
-}
-
-// Resummarize is Summarize for a file whose summaries prior were computed,
+// Reextract is Extract for a file whose summaries prior were computed,
 // from the same source, against earlier: the summary of a callable that
 // read no contract differing between earlier and snapshot, directly or
 // through a callable of the file summarized again, is kept as it was.
-func Resummarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) (*Env, *File) {
+func Reextract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) *File {
+	return resummarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, prior, earlier)
+}
+
+// resummarize computes what Reextract returns. Its environment is dropped,
+// so it records no summary for Rebase (see summarizeFile).
+func resummarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) *File {
 	e, order := summaryInventory(file, types, snapshot, options)
 	s := e.summarizing
 	s.track = map[string]map[string]uint8{}
@@ -83,23 +82,23 @@ func Resummarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, option
 	}
 	consulted := e.consulted
 	// The answers of the kept callables join those just read, for out
-	// only: e keeps the answers it was given.
-	answers := make(map[string]answer, len(e.answers))
-	maps.Copy(answers, e.answers)
+	// only: e keeps the answers it was given. Only whether the snapshot
+	// held each one matters there, so they join as flags, not as copies.
+	var keptReads map[string]bool
 	for key := range kept {
 		for read, bits := range prior.callables[key] {
 			consulted[read] = true
 			if bits&(readOwn|readHeld) == 0 {
 				continue
 			}
-			got := answers[read]
-			got.held = got.held || bits&readHeld != 0
-			got.own = got.own || bits&readOwn != 0
-			answers[read] = got
+			if keptReads == nil {
+				keptReads = map[string]bool{}
+			}
+			keptReads[read] = keptReads[read] || bits&readHeld != 0
 		}
 	}
-	finish(e, out, answers)
-	return e, out
+	finish(e, out, keptReads)
+	return out
 }
 
 // unreached returns the keys of the callables whose summaries f can give
@@ -155,7 +154,7 @@ func (f *File) differing(earlier, s *Snapshot, first bool) map[string]bool {
 		}
 		// Contracts both snapshots hold are compared where they are held.
 		if was, is := earlier.held(key), s.held(key); was != nil && is != nil {
-			if was != is && !sameSummary(was, is) {
+			if !s.sameHeld(was, is) {
 				out = differs(out, key)
 				if first {
 					return out

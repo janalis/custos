@@ -104,7 +104,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 			// The first invocation starts from the initial value, any other
 			// from what the function left (see declared).
 			held := known.state == staticHeld
-			f.setVar(name, Value{NonFalse: held && known.starts, entry: held, plain: known.plain, deep: known.deep})
+			f.setVar(name, Value{NonFalse: held && known.starts, plain: known.plain, deep: known.deep, ext: rare(valueExt{entry: held})})
 		}
 	default:
 		syntax.Children(n, func(child syntax.Node) {
@@ -138,14 +138,14 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 	if len(iterated.Sources) > 0 {
 		spread(n.Key, projectKeys(Value{Complete: true, Sources: iterated.Sources, Safe: iterated.Safe}), f, r)
 		item := projectValues(iterated)
-		if item.scalars {
+		if item.scalars() {
 			item.Safe |= everyContext
 		}
 		spread(n.Value, item, f, r)
-		if name := plainVariable(n.Value); name != "" && iterated.upload == uploadTable {
+		if name := plainVariable(n.Value); name != "" && iterated.upload() == uploadTable {
 			// Each element of the table is one uploaded file.
 			entry := f.vars.value(name)
-			entry.upload = uploadEntry
+			entry.setUpload(uploadEntry)
 			f.setVar(name, entry)
 		}
 	}

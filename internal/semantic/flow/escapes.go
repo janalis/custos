@@ -10,46 +10,49 @@ type escapeSet struct {
 	all        bool
 }
 
-func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *scopeResult) {
+func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *scopeResult, more ...Value) {
 	identities := map[uint32]bool{}
 	all := false
-	for _, value := range values {
-		collectRecordIdentities(value.elements, identities)
-		if value.Identity != 0 {
-			identities[value.Identity] = true
-		}
-		if value.Expr == nil {
-			continue
-		}
-		syntax.Inspect(value.Expr, func(child syntax.Node) bool {
-			if !r.complete {
-				return false
+	// The values written, then those the call adds (its receiver).
+	for _, list := range [...][]Value{values, more} {
+		for _, value := range list {
+			collectRecordIdentities(value.elements(), identities)
+			if value.Identity != 0 {
+				identities[value.Identity] = true
 			}
-			r.operations++
-			if r.operations > MaxTransfers {
-				r.complete = false
-				return false
+			if value.Expr == nil {
+				continue
 			}
-			if syntax.IsVariableScope(child) {
-				all = true
-				return false
-			}
-			if expr, ok := child.(syntax.Expr); ok {
-				if v := r.values.at(expr); v.Identity != 0 {
-					identities[v.Identity] = true
+			syntax.Inspect(value.Expr, func(child syntax.Node) bool {
+				if !r.complete {
+					return false
 				}
-			}
-			// An evaluated call already collected what its operands let
-			// escape: its subtree holds nothing more.
-			if memo, ok := r.escaped[child]; ok {
-				all = all || memo.all
-				for _, id := range memo.identities {
-					identities[id] = true
+				r.operations++
+				if r.operations > MaxTransfers {
+					r.complete = false
+					return false
 				}
-				return false
-			}
-			return true
-		})
+				if syntax.IsVariableScope(child) {
+					all = true
+					return false
+				}
+				if expr, ok := child.(syntax.Expr); ok {
+					if v := r.values.at(expr); v.Identity != 0 {
+						identities[v.Identity] = true
+					}
+				}
+				// An evaluated call already collected what its operands let
+				// escape: its subtree holds nothing more.
+				if memo, ok := r.escaped[child]; ok {
+					all = all || memo.all
+					for _, id := range memo.identities {
+						identities[id] = true
+					}
+					return false
+				}
+				return true
+			})
+		}
 	}
 	if r.escaped == nil {
 		r.escaped = map[syntax.Node]escapeSet{}
@@ -65,7 +68,7 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 	if all {
 		for _, valueCell := range f.vars {
 			value := valueCell.Value
-			collectRecordIdentities(value.elements, identities)
+			collectRecordIdentities(value.elements(), identities)
 		}
 	}
 	for id := range identities {
@@ -139,7 +142,8 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 		for name, oldCell := range f.vars {
 			old := oldCell.Value
 			v := unsettled(old, e.held(name, r), r)
-			v.Invalidated, v.replaced = stamp, true
+			v.setReplaced(true)
+			v.Invalidated = stamp
 			f.setVar(name, v)
 		}
 		return
@@ -164,7 +168,8 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 			written = e.held(name, r)
 		}
 		v := unsettled(f.vars.value(name), written, r)
-		v.Invalidated, v.replaced = stamp, true
+		v.setReplaced(true)
+		v.Invalidated = stamp
 		f.setVar(name, v)
 	}
 }
@@ -198,7 +203,7 @@ func (e *Env) holderWrites(scope syntax.Node, name string) Value {
 			written = effects(written, v, r)
 		}
 	}
-	written.origins = r.producers(written)
+	written.setOrigins(r.producers(written))
 	written.Expr = nil
 	return written
 }

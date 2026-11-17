@@ -72,7 +72,7 @@ func pureArrayBudget(size int, r *scopeResult) bool {
 }
 
 func constructPureEntry(set *elementSet, key string, value Value) bool {
-	if !pureReadOnlyInputs([]Value{value}, nil) || len(value.Sources) > MaxSources || value.elements != nil && value.elements.depth+bits.Len(uint(max(1, set.width))) > MaxDepth {
+	if !pureReadOnlyInputs([]Value{value}, nil) || len(value.Sources) > MaxSources || value.elements() != nil && value.elements().depth+bits.Len(uint(max(1, set.width))) > MaxDepth {
 		return false
 	}
 	putWinningEntry(set, key, value)
@@ -88,7 +88,7 @@ func (e *Env) evalArrayConstruction(expr *pureExpr, left Value, slots []Value, r
 	if expr.kind == pureFill {
 		return e.evalPureFill(expr, left, slots, r, depth)
 	}
-	if !purePlainRecord(left) || len(left.elements.order) != len(left.elements.items) {
+	if !purePlainRecord(left) || len(left.elements().order) != len(left.elements().items) {
 		return Value{}, false
 	}
 	if expr.kind == pureChunk {
@@ -105,13 +105,13 @@ func (e *Env) evalArrayConstruction(expr *pureExpr, left Value, slots []Value, r
 			return Value{}, false
 		}
 	}
-	size := len(left.elements.order)
+	size := len(left.elements().order)
 	if !pureArrayBudget(size, r) {
 		return Value{}, false
 	}
 	set := &elementSet{whole: true, width: size, items: map[string]Value{}}
-	for _, at := range left.elements.order {
-		entry := left.elements.items[at]
+	for _, at := range left.elements().order {
+		entry := left.elements().items[at]
 		key, known := pureRecordKey(entry)
 		if !known || len(entry.Sources) != 0 || !pureReadOnlyInputs([]Value{entry}, nil) {
 			return Value{}, false
@@ -163,7 +163,7 @@ func (e *Env) evalPureChunk(expr *pureExpr, input Value, slots []Value, r *scope
 	if !ok || !sk || size <= 0 || !fk || flag.k != 'b' || !pureReadOnlyInputs([]Value{preserve}, nil) {
 		return Value{}, false
 	}
-	length := len(input.elements.order)
+	length := len(input.elements().order)
 	width := length
 	if size < int64(width) {
 		width = int(size)
@@ -180,8 +180,8 @@ func (e *Env) evalPureChunk(expr *pureExpr, input Value, slots []Value, r *scope
 		end := min(start+width, length)
 		inner := &elementSet{whole: true, width: end - start, items: map[string]Value{}}
 		for at := start; at < end; at++ {
-			key := input.elements.order[at]
-			value := input.elements.items[key]
+			key := input.elements().order[at]
+			value := input.elements().items[key]
 			if !flag.b {
 				key = strconv.Itoa(at - start)
 			}
@@ -198,13 +198,13 @@ func (e *Env) evalPureChunk(expr *pureExpr, input Value, slots []Value, r *scope
 }
 
 func evalPureSum(input Value, r *scopeResult) (Value, bool) {
-	if !pureArrayBudget(len(input.elements.order), r) {
+	if !pureArrayBudget(len(input.elements().order), r) {
 		return Value{}, false
 	}
 	total := int64(0)
 	var sources []Source
-	for _, key := range input.elements.order {
-		value := input.elements.items[key]
+	for _, key := range input.elements().order {
+		value := input.elements().items[key]
 		scalar, known := knownScalar(value)
 		if !known || scalar.k != 'i' || !pureReadOnlyInputs([]Value{value}, nil) || len(value.Sources) > MaxSources || scalar.i > 0 && total > math.MaxInt64-scalar.i || scalar.i < 0 && total < math.MinInt64-scalar.i {
 			return Value{}, false

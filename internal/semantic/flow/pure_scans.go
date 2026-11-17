@@ -101,17 +101,17 @@ func (e *Env) evalQuery(expr *pureExpr, left Value, slots []Value, r *scopeResul
 	case pureSearch:
 		return e.evalSearch(expr, left, slots, r, depth)
 	}
-	if !purePlainRecord(left) || len(left.elements.order) != len(left.elements.items) || !pureArrayBudget(len(left.elements.order), r) {
+	if !purePlainRecord(left) || len(left.elements().order) != len(left.elements().items) || !pureArrayBudget(len(left.elements().order), r) {
 		return Value{}, false
 	}
 	if expr.kind == pureProduct {
 		return evalPureProduct(left)
 	}
 	// array_unique compares string forms and keeps the first key of each.
-	set := &elementSet{whole: true, width: len(left.elements.order), items: map[string]Value{}}
+	set := &elementSet{whole: true, width: len(left.elements().order), items: map[string]Value{}}
 	seen := map[string]bool{}
-	for _, key := range left.elements.order {
-		entry := left.elements.items[key]
+	for _, key := range left.elements().order {
+		entry := left.elements().items[key]
 		scalar, known := knownScalar(entry)
 		if !known || scalar.k != 'i' && scalar.k != 's' {
 			return Value{}, false
@@ -139,11 +139,11 @@ func (e *Env) evalSearch(expr *pureExpr, needle Value, slots []Value, r *scopeRe
 	}
 	strict, ok := e.evalPure(expr.other, slots, r, depth-1)
 	flag, known := knownScalar(strict)
-	if !ok || !known || flag.k != 'b' || !flag.b || !pureReadOnlyInputs([]Value{needle}, nil) || !purePlainRecord(haystack) || len(haystack.elements.order) != len(haystack.elements.items) || !pureArrayBudget(len(haystack.elements.order), r) {
+	if !ok || !known || flag.k != 'b' || !flag.b || !pureReadOnlyInputs([]Value{needle}, nil) || !purePlainRecord(haystack) || len(haystack.elements().order) != len(haystack.elements().items) || !pureArrayBudget(len(haystack.elements().order), r) {
 		return Value{}, false
 	}
-	for _, key := range haystack.elements.order {
-		equal, known := pureQueryIdentity(needle, haystack.elements.items[key], r, depth-1)
+	for _, key := range haystack.elements().order {
+		equal, known := pureQueryIdentity(needle, haystack.elements().items[key], r, depth-1)
 		if !known {
 			return Value{}, false
 		}
@@ -159,12 +159,12 @@ func (e *Env) evalSearch(expr *pureExpr, needle Value, slots []Value, r *scopeRe
 func (e *Env) evalExtreme(expr *pureExpr, first Value, slots []Value, r *scopeResult, depth int) (Value, bool) {
 	candidates := []Value{first}
 	if len(expr.args) == 0 {
-		if !purePlainRecord(first) || len(first.elements.order) != len(first.elements.items) || len(first.elements.order) == 0 || !pureArrayBudget(len(first.elements.order), r) {
+		if !purePlainRecord(first) || len(first.elements().order) != len(first.elements().items) || len(first.elements().order) == 0 || !pureArrayBudget(len(first.elements().order), r) {
 			return Value{}, false
 		}
 		candidates = candidates[:0]
-		for _, key := range first.elements.order {
-			candidates = append(candidates, first.elements.items[key])
+		for _, key := range first.elements().order {
+			candidates = append(candidates, first.elements().items[key])
 		}
 	}
 	for _, arg := range expr.args {
@@ -191,8 +191,8 @@ func (e *Env) evalExtreme(expr *pureExpr, first Value, slots []Value, r *scopeRe
 func evalPureProduct(input Value) (Value, bool) {
 	product := int64(1)
 	var sources []Source
-	for _, key := range input.elements.order {
-		value := input.elements.items[key]
+	for _, key := range input.elements().order {
+		value := input.elements().items[key]
 		scalar, known := knownScalar(value)
 		if !known || scalar.k != 'i' || !pureReadOnlyInputs([]Value{value}, nil) || len(value.Sources) > MaxSources {
 			return Value{}, false

@@ -7,18 +7,18 @@ func TestCompactAndSubstituteShapesAreImmutable(t *testing.T) {
 	out := Extract(file, e.types.Index, e.types.PHP, nil, Options{})
 	template := out.Summaries["row"].Return
 	fuel := MaxSources
-	if got := compactElements(template.elements, MaxDepth, &fuel); got != template.elements {
+	if got := compactElements(template.elements(), MaxDepth, &fuel); got != template.elements() {
 		t.Fatal("immutable compact shape was cloned")
 	}
 	dirty := substitute(template, []Value{{Complete: true, Sources: []Source{{Kind: "_GET", Parameter: -1}}}}, true)
 	clean := substitute(template, []Value{{Complete: true}}, true)
-	if !tainted(dirty.elements.items["dirty"]) || tainted(clean.elements.items["dirty"]) {
+	if !tainted(dirty.elements().items["dirty"]) || tainted(clean.elements().items["dirty"]) {
 		t.Fatal("caller-specific shape values crossed invocations")
 	}
-	if template.elements.items["dirty"].Sources[0].Parameter != 0 {
+	if template.elements().items["dirty"].Sources[0].Parameter != 0 {
 		t.Fatal("substitution mutated the template")
 	}
-	assertCompactElements(t, template.elements)
+	assertCompactElements(t, template.elements())
 }
 
 func TestEmptyShapesAreSharedWithoutMutation(t *testing.T) {
@@ -29,10 +29,10 @@ func TestEmptyShapesAreSharedWithoutMutation(t *testing.T) {
 	} {
 		e, file := summarized(t, source)
 		v := e.Value(argument(callsNamed(file, "probe")[0]))
-		if v.elements != emptyElements {
+		if v.elements() != emptyElements {
 			t.Fatalf("empty shape was reallocated: %s", source)
 		}
-		copy := v.elements.with("key", Value{Complete: true})
+		copy := v.elements().with("key", Value{Complete: true})
 		if len(copy.items) != 1 || len(emptyElements.items) != 0 || !emptyElements.whole {
 			t.Fatal("write mutated the shared empty shape")
 		}

@@ -76,7 +76,7 @@ func TestCallbackCoercionContext(t *testing.T) {
 	} {
 		e, f := summarized(t, tc.source)
 		v := e.Value(argument(callsNamed(f, "probe")[0]))
-		empty := v.elements != nil && v.elements.whole && !v.elements.optional && len(v.elements.items) == 0
+		empty := v.elements() != nil && v.elements().whole && !v.elements().optional && len(v.elements().items) == 0
 		if empty != tc.empty {
 			t.Fatalf("%s: %+v", tc.source, v)
 		}

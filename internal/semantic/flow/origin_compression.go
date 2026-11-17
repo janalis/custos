@@ -128,7 +128,7 @@ func (e *Env) CompressedOrigins(x syntax.Expr) bool {
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
 	v := r.values.at(x)
-	return r.complete && v.Expr == nil && v.origins != nil && v.origins.compressed
+	return r.complete && v.Expr == nil && v.origins() != nil && v.origins().compressed
 }
 
 // ProducerBudgetExceeded distinguishes an exhausted host scope from contract

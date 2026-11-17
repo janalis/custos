@@ -29,7 +29,7 @@ func (e *Env) assign(n *syntax.Assign, f *frame, r *scopeResult, depth int, targ
 			e.implicit(n, f, r)
 		}
 		v = compound(n, old, operand, scalar(r, old.Expr, MaxDepth))
-		v.interval = arithmetic(n.Op.Kind, old, operand)
+		v.setInterval(arithmetic(n.Op.Kind, old, operand))
 		// `??=` keeps or takes a value, `+=` may unite two arrays.
 		both := old.deep && operand.deep
 		v.plain, v.deep = n.Op.Kind != syntax.TCoalesceEqual || old.plain && operand.plain, both || n.Op.Kind != syntax.TCoalesceEqual && n.Op.Kind != syntax.TPlusEqual
@@ -76,7 +76,7 @@ func (e *Env) assign(n *syntax.Assign, f *frame, r *scopeResult, depth int, targ
 				bound.NonFalse, bound.NonNull = constantName(given) == "null" || constantName(given) == "true", constantName(given) == "true"
 			}
 		}
-		bound.elements = e.elements(n.Value, f, r)
+		bound.setElements(e.elements(n.Value, f, r))
 		f.write(r, target.Name, bound)
 		if source := plainVariable(n.Value); source != "" && f.aliased[source] == aliasAny {
 			// A copy of an array shares the slots references were taken of.
@@ -169,7 +169,7 @@ func compound(n *syntax.Assign, old, operand Value, scalar bool) Value {
 	case syntax.TMinusEqual, syntax.TMulEqual, syntax.TDivEqual, syntax.TModEqual, syntax.TPowEqual, syntax.TSlEqual, syntax.TSrEqual:
 		v.Safe |= everyContext
 	}
-	v = Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe, matched: v.matched && n.Op.Kind == syntax.TConcatEqual}
+	v = Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe, ext: rare(valueExt{matched: v.matched() && n.Op.Kind == syntax.TConcatEqual})}
 	if old.Expr != nil && n.Op.Kind != syntax.TCoalesceEqual {
 		v.Expr = n
 	}

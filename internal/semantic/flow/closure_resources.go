@@ -12,7 +12,7 @@ func projectClosureResources(at syntax.Node, result *Value, seeds map[string]Val
 			ids[value.Identity] = true
 		}
 		nested := map[uint32]bool{}
-		collectRecordIdentities(value.elements, nested)
+		collectRecordIdentities(value.elements(), nested)
 		for id := range nested {
 			if body.resourceInputs[id] {
 				ids[id] = true

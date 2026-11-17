@@ -140,7 +140,7 @@ func excludeValue(x syntax.Expr, f *frame, nonFalse, nonNull bool) {
 	if v, tracked := f.vars.lookup(variable.Name); tracked {
 		v.NonFalse = v.NonFalse || nonFalse
 		v.NonNull = v.NonNull || nonNull
-		v.origins = v.origins.excluding(nonFalse, nonNull, f.owner)
+		v.setOrigins(v.origins().excluding(nonFalse, nonNull, f.owner))
 		f.setVar(variable.Name, v)
 	}
 }
@@ -157,7 +157,7 @@ func (f *frame) excluding(name string, v Value, nonFalse, nonNull bool) {
 	if nonNull {
 		v.NonNull = true
 	}
-	v.origins = v.origins.excluding(nonFalse, nonNull, f.owner)
+	v.setOrigins(v.origins().excluding(nonFalse, nonNull, f.owner))
 	f.setVar(name, v)
 }
 
@@ -203,7 +203,7 @@ func refineIndirectClose(expr syntax.Expr, f *frame) {
 		switch node := syntax.UnwrapParens(expr).(type) {
 		case *syntax.Variable:
 			value := f.vars.value(node.Name)
-			if node.NameExpr != nil || !value.Complete || value.replaced || value.Invalidated != 0 {
+			if node.NameExpr != nil || !value.Complete || value.replaced() || value.Invalidated != 0 {
 				return
 			}
 			expr = value.Expr

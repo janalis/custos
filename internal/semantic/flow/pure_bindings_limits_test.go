@@ -79,7 +79,7 @@ func TestPureBindingRuntimeLimits(t *testing.T) {
 	if _, ok := e.evalPure(column, []Value{record(row)}, &scopeResult{}, MaxDepth); ok {
 		t.Fatal("source-bearing index accepted")
 	}
-	row.elements.items["id"] = text
+	row.elements().items["id"] = text
 	for _, r := range []scopeResult{{copies: MaxCopied}, {operations: MaxTransfers - 3}} {
 		if _, ok := e.evalPure(column, []Value{record(row)}, &r, MaxDepth); ok {
 			t.Fatal("column budget bypassed")
@@ -218,9 +218,9 @@ func TestPureBindingShapeAndSourceBounds(t *testing.T) {
 		}
 	}
 	optional := keys
-	set := *keys.elements
+	set := *keys.elements()
 	set.optional = true
-	optional.elements = &set
+	optional.setElements(&set)
 	expr := &pureExpr{kind: pureCombine, left: &pureSlots[0], right: &pureSlots[1]}
 	if _, ok := e.evalPure(expr, []Value{optional, keys}, &scopeResult{}, MaxDepth); ok {
 		t.Fatal("optional key shape accepted")
@@ -234,9 +234,9 @@ func TestPureBindingShapeAndSourceBounds(t *testing.T) {
 
 func TestPureTransformCombinedDepth(t *testing.T) {
 	e, _ := environment(t, ``, nil)
-	nested := Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{}, depth: MaxDepth - 1}}
+	nested := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{}, depth: MaxDepth - 1}})}
 	keys := winningRecord(&elementSet{whole: true, items: map[string]Value{"0": scalarValue(constantScalar{k: 's', s: "a"}), "1": scalarValue(constantScalar{k: 's', s: "b"})}, order: []string{"0", "1"}})
-	values := Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{"0": nested, "1": nested}, order: []string{"0", "1"}}}
+	values := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{"0": nested, "1": nested}, order: []string{"0", "1"}}})}
 	for _, kind := range []uint8{pureCombine, pureArrayReplace} {
 		expr := &pureExpr{kind: kind, left: &pureSlots[0], right: &pureSlots[1]}
 		result, ok := e.evalPure(expr, []Value{keys, values}, &scopeResult{}, MaxDepth)
@@ -244,7 +244,7 @@ func TestPureTransformCombinedDepth(t *testing.T) {
 		if kind == pureArrayReplace {
 			key = "0"
 		}
-		if !ok || result.elements.items[key].elements != nil {
+		if !ok || result.elements().items[key].elements() != nil {
 			t.Fatal("combined width bypassed nested depth bound")
 		}
 	}

@@ -97,7 +97,7 @@ func TestPureVMWorkLimits(t *testing.T) {
 		t.Fatal("discarded warning ignored")
 	}
 	// A record constructed inside a contract must not acquire a caller identity.
-	record := Value{Complete: true, elements: &elementSet{whole: true, hasResources: true}}
+	record := Value{Complete: true, ext: rare(valueExt{elements: &elementSet{whole: true, hasResources: true}})}
 	if _, _, ok := e.pureReturn(nil, &pureContract{outer: 1, expr: slot}, nil, []Value{record}, Value{}, nil, &scopeResult{}); ok {
 		t.Fatal("unproven record accepted")
 	}

@@ -91,18 +91,18 @@ func strictRecordValues(left, right Value, r *scopeResult, depth int, exhausted 
 	if ar && bk || br && ak {
 		return false, true
 	}
-	if !ar || !br || len(left.elements.order) != len(left.elements.items) || len(right.elements.order) != len(right.elements.items) {
+	if !ar || !br || len(left.elements().order) != len(left.elements().items) || len(right.elements().order) != len(right.elements().items) {
 		return false, false
 	}
-	if len(left.elements.order) != len(right.elements.order) {
+	if len(left.elements().order) != len(right.elements().order) {
 		return false, true
 	}
 	uncertain := false
-	for i, key := range left.elements.order {
-		if key != right.elements.order[i] {
+	for i, key := range left.elements().order {
+		if key != right.elements().order[i] {
 			return false, true
 		}
-		equal, known := strictRecordValues(left.elements.items[key], right.elements.items[key], r, depth-1, exhausted)
+		equal, known := strictRecordValues(left.elements().items[key], right.elements().items[key], r, depth-1, exhausted)
 		if *exhausted {
 			return false, false
 		}
@@ -118,7 +118,7 @@ func strictRecordValues(left, right Value, r *scopeResult, depth int, exhausted 
 
 // Pure query comparisons share identity semantics and the caller's work budget.
 func pureQueryIdentity(left, right Value, r *scopeResult, depth int) (bool, bool) {
-	if left.elements != nil && right.elements != nil {
+	if left.elements() != nil && right.elements() != nil {
 		return pureStrictRecord(left, right, r, depth)
 	}
 	a, ak := knownScalar(left)

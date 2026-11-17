@@ -87,8 +87,8 @@ func untest(x syntax.Expr, f *frame, identity bool) {
 				c, _ := compares(by.Left)
 				return identity && c.right != nil
 			}
-			if v, tracked := f.vars.lookup(n.Name); tracked && v.tested != nil && !strict(v.tested) {
-				v.tested = nil
+			if v, tracked := f.vars.lookup(n.Name); tracked && v.tested() != nil && !strict(v.tested()) {
+				v.setTested(nil)
 				f.setVar(n.Name, v)
 			}
 			// What a left operand decided from it may no longer hold.
@@ -116,7 +116,7 @@ func (e *Env) witness(n *syntax.Binary, f *frame) {
 	}
 	for _, operand := range [2]syntax.Expr{c.left, c.right} {
 		if v, tracked := f.vars.lookup(plainVariable(operand)); tracked {
-			v.tested = n
+			v.setTested(n)
 			f.setVar(plainVariable(operand), v)
 		}
 	}
@@ -132,9 +132,9 @@ func ran(cond syntax.Expr, f *frame, truth bool) {
 	if !ok {
 		return
 	}
-	by := f.vars.value(plainVariable(c.left)).tested
+	by := f.vars.value(plainVariable(c.left)).tested()
 	if by == nil {
-		by = f.vars.value(plainVariable(c.right)).tested
+		by = f.vars.value(plainVariable(c.right)).tested()
 	}
 	if by == nil {
 		return
@@ -144,7 +144,7 @@ func ran(cond syntax.Expr, f *frame, truth bool) {
 		return
 	}
 	for _, operand := range [2]syntax.Expr{left.left, left.right} {
-		if name := plainVariable(operand); name != "" && f.vars.value(name).tested != by {
+		if name := plainVariable(operand); name != "" && f.vars.value(name).tested() != by {
 			return
 		}
 	}
@@ -156,9 +156,9 @@ func ran(cond syntax.Expr, f *frame, truth bool) {
 	}
 	for name, vCell := range f.vars {
 		v := vCell.Value
-		if v.unless == by {
-			nonFalse, nonNull := v.unlessFalse, v.unlessNull
-			v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = nil, false, false, false, false
+		if v.unless() == by {
+			nonFalse, nonNull := v.unlessFalse(), v.unlessNull()
+			v.setUnlessFacts(nil, false, false, false, false)
 			f.excluding(name, v, nonFalse, nonNull)
 		}
 	}

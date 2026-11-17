@@ -20,7 +20,7 @@ func (e *Env) captureMethod(at syntax.Node, receiver Value, f *frame) (*boundMet
 	switch n := at.(type) {
 	case *syntax.MethodCall:
 		id, known := n.Name.(*syntax.Identifier)
-		if !known || n.NullSafe || !receiver.Complete && plainVariable(n.Var) != "this" || receiver.replaced || receiver.Invalidated != 0 || e.follows(n.Var, f) == followLoose {
+		if !known || n.NullSafe || !receiver.Complete && plainVariable(n.Var) != "this" || receiver.replaced() || receiver.Invalidated != 0 || e.follows(n.Var, f) == followLoose {
 			return nil, false
 		}
 		native := e.types.Native().TypeOf(n.Var)
@@ -78,7 +78,7 @@ func (e *Env) arrayMethodCallable(at syntax.Node, array *syntax.Array, f *frame,
 	}
 	object, method := r.values.at(objectExpr), r.values.at(methodExpr)
 	name, known := literalText(method.Expr)
-	if !object.Complete || object.replaced || object.Invalidated != 0 || !method.Complete || !known {
+	if !object.Complete || object.replaced() || object.Invalidated != 0 || !method.Complete || !known {
 		return nil, false
 	}
 	class, static := literalText(object.Expr)
@@ -115,7 +115,7 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 		args = callbackDefaults(args, seen, summary.defaults)
 	}
 	result := substitute(summary.Return, args, true)
-	result.returned = e.bindReturned(at, summary.returned, args)
+	result.setReturned(e.bindReturned(at, summary.returned, args))
 	var sinks []Sink
 	for _, sink := range summary.Sinks {
 		sink.Argument = substitute(sink.Argument, args, true)
@@ -160,7 +160,7 @@ func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *synta
 }
 
 func (e *Env) invokableObject(expr syntax.Expr, receiver Value, at syntax.Node, f *frame) (*boundMethod, bool) {
-	if !receiver.Complete || receiver.replaced || receiver.Invalidated != 0 || e.follows(expr, f) == followLoose {
+	if !receiver.Complete || receiver.replaced() || receiver.Invalidated != 0 || e.follows(expr, f) == followLoose {
 		return nil, false
 	}
 	typ := e.types.Native().TypeOf(expr)

@@ -75,7 +75,7 @@ func TestExpandedPureVMRefusals(t *testing.T) {
 	}{
 		{array, nil, MaxCopied},
 		{&pureExpr{kind: pureArray, args: []*pureExpr{one, slot}}, []Value{{Complete: true}}, 0},
-		{index, []Value{{Complete: true, plain: true, deep: true, elements: emptyElements}}, 0},
+		{index, []Value{{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: emptyElements})}}, 0},
 		{index, []Value{{Complete: true}}, 0},
 		{&pureExpr{kind: 255, left: one}, nil, 0},
 	} {
@@ -100,7 +100,7 @@ func TestStructuralPureInputs(t *testing.T) {
 	e, _ := environment(t, ``, nil)
 	key := pureConstant(constantScalar{k: 'i'})
 	contract := &pureContract{params: []pureParam{{}, {}}, expr: &pureExpr{kind: pureIndex, projects: true, left: &pureExpr{kind: pureSlot, slot: 0}, right: key}}
-	record := Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{"0": scalarValue(constantScalar{k: 's', s: "safe"})}}}
+	record := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{"0": scalarValue(constantScalar{k: 's', s: "safe"})}}})}
 	if _, _, known := e.pureReturn(nil, contract, []Value{record, {Complete: true}}, nil, Value{}, nil, &scopeResult{}); known {
 		t.Fatal("unused mutable argument permitted a structural proof")
 	}

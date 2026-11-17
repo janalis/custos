@@ -91,7 +91,7 @@ func TestFiniteFilterRollbackAndMutation(t *testing.T) {
 func TestPredicateParameterCoercionDoesNotInventEmptyOutput(t *testing.T) {
 	e, file := summarized(t, `$xs=array_filter([-0.0],fn(string $value)=>$value);probe($xs);`)
 	value := e.Value(argument(callsNamed(file, "probe")[0]))
-	if value.elements != nil && value.elements.whole && !value.elements.optional && len(value.elements.items) == 0 {
+	if value.elements() != nil && value.elements().whole && !value.elements().optional && len(value.elements().items) == 0 {
 		t.Fatal("unconverted falsey zero erased a truthy string predicate result")
 	}
 }

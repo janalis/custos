@@ -20,11 +20,11 @@ func (e *Env) filteredCallback(at syntax.Node, list *syntax.ArgList, values []Va
 		return Value{}, false
 	}
 	input, callee := bound[0], bound[1]
-	if !input.Complete || input.replaced || input.Invalidated != 0 || input.elements == nil || !input.elements.whole {
+	if !input.Complete || input.replaced() || input.Invalidated != 0 || input.elements() == nil || !input.elements().whole {
 		return Value{}, false
 	}
 	nullCallback := !seen[1] || constantName(callee.Expr) == "null"
-	if !nullCallback && (!callee.Complete || callee.replaced || callee.Invalidated != 0) {
+	if !nullCallback && (!callee.Complete || callee.replaced() || callee.Invalidated != 0) {
 		return Value{}, false
 	}
 	mode := int64(0)
@@ -38,18 +38,18 @@ func (e *Env) filteredCallback(at syntax.Node, list *syntax.ArgList, values []Va
 			return Value{}, false
 		}
 	}
-	keys := input.elements.order
-	if len(keys) != len(input.elements.items) {
+	keys := input.elements().order
+	if len(keys) != len(input.elements().items) {
 		return Value{}, false
 	}
 	if len(keys) == 0 {
-		return Value{Complete: true, Expr: call, plain: true, deep: true, elements: emptyElements}, true
+		return Value{Complete: true, Expr: call, plain: true, deep: true, ext: rare(valueExt{elements: emptyElements})}, true
 	}
 	prior, had := r.closureSinks[at]
-	selected := &elementSet{items: map[string]Value{}, width: len(keys), whole: true, optional: input.elements.optional}
+	selected := &elementSet{items: map[string]Value{}, width: len(keys), whole: true, optional: input.elements().optional}
 	result := Value{Complete: true, Expr: call, plain: true, deep: true}
 	for _, key := range keys {
-		original := input.elements.items[key]
+		original := input.elements().items[key]
 		predicate := original
 		if !nullCallback {
 			arguments := []Value{original}
@@ -71,8 +71,8 @@ func (e *Env) filteredCallback(at syntax.Node, list *syntax.ArgList, values []Va
 			r.copies += len(f.vars) + len(f.states)
 			branch := clone(f)
 			var valid bool
-			if callee.returned != nil {
-				predicate, _, valid = e.invokeReturned(at, callee.returned, forwarded, arguments, &branch, r)
+			if callee.returned() != nil {
+				predicate, _, valid = e.invokeReturned(at, callee.returned(), forwarded, arguments, &branch, r)
 			} else {
 				predicate, _, valid = e.invokeCallableSet(at, callee, forwarded, arguments, &branch, r)
 			}
@@ -103,7 +103,8 @@ func (e *Env) filteredCallback(at syntax.Node, list *syntax.ArgList, values []Va
 	if len(selected.items) == 0 {
 		selected = emptyElements
 	}
-	result.Expr, result.elements, result.plain, result.deep = call, selected, true, true
+	result.setElements(selected)
+	result.Expr, result.plain, result.deep = call, true, true
 	return result, true
 }
 

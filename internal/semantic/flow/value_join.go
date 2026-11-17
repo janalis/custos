@@ -5,11 +5,19 @@ import (
 )
 
 func merge(a, b Value) Value {
+	v, x := merged(a, b)
+	v.ext = derived(a.ext, x)
+	return v
+}
+
+// merged returns the join of a and b without its extension, and the
+// extension apart, for a caller to complete before installing it.
+func merged(a, b Value) (Value, valueExt) {
 	// A value without request data has nothing to escape: it is neutral for
 	// the escaping proof of the other operand, whether or not it is known.
 	sa, sb := a.Safe, b.Safe
-	ua, ub := a.upload, b.upload
-	ca, cb := a.scalars, b.scalars
+	ua, ub := a.upload(), b.upload()
+	ca, cb := a.scalars(), b.scalars()
 	switch {
 	case len(a.Sources) == 0 && len(b.Sources) == 0:
 		sa, sb, ua, ub, ca, cb = allContexts, allContexts, 0, 0, false, false
@@ -18,32 +26,36 @@ func merge(a, b Value) Value {
 	case len(b.Sources) == 0:
 		sb, ub, cb = allContexts, ua, ca
 	}
-	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
+	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull}
+	x := valueExt{headerMask: a.headerMask() & b.headerMask()}
+	if a.lengthKnown() && b.lengthKnown() && a.length() == b.length() {
+		x.length, x.lengthKnown = a.length(), true
+	}
 	if ta, tb := truthOutcomes(a), truthOutcomes(b); ta != 0 && tb != 0 {
-		v.truth = ta | tb
+		x.truth = ta | tb
 	}
-	v.interval = joinInts(a, b)
-	if sameScalar(a.literal, b.literal) {
-		v.literal = a.literal
+	x.interval = joinInts(a, b)
+	if sameScalar(a.literal(), b.literal()) {
+		x.literal = a.literal()
 	}
-	if a.storedIdentity == b.storedIdentity {
-		v.storedIdentity = a.storedIdentity
+	if a.storedIdentity() == b.storedIdentity() {
+		x.storedIdentity = a.storedIdentity()
 	}
-	if sameRecord(a.record, b.record) {
-		v.record = a.record
+	if sameRecord(a.record(), b.record()) {
+		x.record = a.record()
 	}
-	v.elements = common(a.elements, b.elements)
-	v.targets = joinCallableValues(a, b)
-	v.returned = joinReturned(a.returned, b.returned)
+	x.elements = common(a.elements(), b.elements())
+	x.targets = joinCallableValues(a, b)
+	x.returned = joinReturned(a.returned(), b.returned())
 	// Text of the program joined with a matched label is text of the program.
-	v.matched = (a.matched || b.matched) && (a.matched || a.written()) && (b.matched || b.written())
-	v.entry = a.entry && b.entry
-	v.replaced = a.replaced || b.replaced
-	v.plain, v.deep = a.plain && b.plain, a.deep && b.deep
-	v.scalars = ca && cb
+	x.matched = (a.matched() || b.matched()) && (a.matched() || a.written()) && (b.matched() || b.written())
+	x.entry = a.entry() && b.entry()
+	x.replaced = a.replaced() || b.replaced()
+	x.scalars = ca && cb
 	if ua == ub {
-		v.upload = ua
+		x.upload = ua
 	}
+	v.plain, v.deep = a.plain && b.plain, a.deep && b.deep
 	if a.Expr == b.Expr {
 		v.Expr = a.Expr
 	}
@@ -59,7 +71,7 @@ func merge(a, b Value) Value {
 	if v.Sources, whole = union(a.Sources, b.Sources); !whole {
 		v.Complete = false
 	}
-	return v
+	return v, x
 }
 
 // union joins two source lists, each in the order of before, without
@@ -125,10 +137,10 @@ func before(a, b Source) bool {
 // equal reports two values that hold the same facts. Element sets are
 // compared by identity, which merge keeps when nothing changes.
 func equal(v, w Value) bool {
-	if v.truth != w.truth || v.storedIdentity != w.storedIdentity || !sameRecord(v.record, w.record) || !sameScalar(v.literal, w.literal) || !sameReturned(v.returned, w.returned) || !sameCallableTargets(v.targets, w.targets) || !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.replaced != w.replaced || v.plain != w.plain || v.deep != w.deep {
+	if v.plain != w.plain || v.deep != w.deep || v.Complete != w.Complete || v.Safe != w.Safe || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.Expr != w.Expr || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
 		return false
 	}
-	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || !sameOrigins(v.origins, w.origins) || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
+	if v.ext != w.ext && !sameExt(v.ext, w.ext) {
 		return false
 	}
 	if len(v.Sources) > 0 && &v.Sources[0] == &w.Sources[0] {
@@ -140,4 +152,19 @@ func equal(v, w Value) bool {
 		}
 	}
 	return true
+}
+
+// sameExt reports two extensions that hold the same facts, as equal does.
+func sameExt(a, b *valueExt) bool {
+	var none valueExt
+	if a == nil {
+		a = &none
+	}
+	if b == nil {
+		b = &none
+	}
+	if a.truth != b.truth || a.storedIdentity != b.storedIdentity || !sameRecord(a.record, b.record) || !sameScalar(a.literal, b.literal) || !sameReturned(a.returned, b.returned) || !sameCallableTargets(a.targets, b.targets) || !sameInts(a.interval, b.interval) || a.tested != b.tested || a.unless != b.unless || a.unlessFalse != b.unlessFalse || a.unlessNull != b.unlessNull || a.skippedFalse != b.skippedFalse || a.skippedNull != b.skippedNull || a.matched != b.matched || a.entry != b.entry || a.replaced != b.replaced {
+		return false
+	}
+	return a.headerMask == b.headerMask && a.lengthKnown == b.lengthKnown && (!a.lengthKnown || a.length == b.length) && a.elements == b.elements && sameOrigins(a.origins, b.origins) && a.upload == b.upload && a.scalars == b.scalars
 }

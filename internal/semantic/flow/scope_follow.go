@@ -102,7 +102,9 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 	r.generator = e.generator(scope)
 	// Block 0 ends the scope however it is left; a normal completion passes
 	// through the block before it, which tells whether the scope can return.
-	g := graph{complete: true, env: e}
+	// The graph holds about a block per statement (before counts the
+	// expressions too), past the three that end the scope.
+	g := graph{complete: true, env: e, blocks: make([]block, 0, min(MaxBlocks, 3+before-values))}
 	exit := g.add(nil)
 	done := g.add(nil, exit)
 	x := exits{ret: done, thrown: exit, brk: done, cont: done}
@@ -264,7 +266,7 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 		}
 		if held := out.vars.value(b.pin); b.pin != "" && tainted(held) {
 			// The request data was just compared equal to a fixed text.
-			out.write(r, b.pin, Value{Complete: true, matched: true, plain: true, deep: true})
+			out.write(r, b.pin, Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{matched: true})})
 		} else if strings.Contains(b.pin, "\x00") {
 			out.match(r, b.pin)
 		}

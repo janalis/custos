@@ -6,6 +6,32 @@ import (
 	"custos/internal/php/syntax"
 )
 
+// BenchmarkMixedValueStore stores what a scope records: mostly values
+// without an extension, some with one.
+func BenchmarkMixedValueStore(b *testing.B) {
+	expressions := make([]syntax.Expr, 128)
+	for i := range expressions {
+		expressions[i] = &syntax.Literal{LitKind: syntax.LitInt}
+	}
+	interval := &intInterval{lo: 1, hi: 2}
+	b.ReportAllocs()
+	for b.Loop() {
+		store := newValueStore(len(expressions))
+		for i, expr := range expressions {
+			v := Value{Complete: true, Identity: uint32(i + 1), Expr: expr}
+			if i%16 == 0 {
+				v.setInterval(interval)
+			}
+			store.set(expr, v)
+		}
+		for i, expr := range expressions {
+			if store.at(expr).Identity != uint32(i+1) {
+				b.Fatal("lost value")
+			}
+		}
+	}
+}
+
 func TestValueStoreGrowthAndCopies(t *testing.T) {
 	var store valueStore
 	if value, known := store.get(nil); known || value.Complete {

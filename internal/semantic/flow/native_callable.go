@@ -48,7 +48,7 @@ func (e *Env) invokeNativeCallable(at syntax.Node, args *syntax.ArgList, values 
 					bound[i].Expr = captured.Expr
 					// A sealed callback pack holds the resource captured at creation,
 					// even when its source variable later names another stream.
-					if i == 0 && strings.EqualFold(strings.TrimPrefix(name, `\`), "fclose") && r.allocations[captured.Identity] && captured.Invalidated == 0 && !captured.replaced {
+					if i == 0 && strings.EqualFold(strings.TrimPrefix(name, `\`), "fclose") && r.allocations[captured.Identity] && captured.Invalidated == 0 && !captured.replaced() {
 						bound[i].Identity = captured.Identity
 					}
 				}

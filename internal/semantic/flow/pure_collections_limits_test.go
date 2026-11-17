@@ -59,7 +59,7 @@ func TestPureCollectionsEvaluationLimits(t *testing.T) {
 			t.Errorf("unsafe/budget result: %+v", tc.expr)
 		}
 	}
-	empty := Value{Complete: true, plain: true, deep: true, elements: &elementSet{whole: true, items: map[string]Value{}}}
+	empty := Value{Complete: true, plain: true, deep: true, ext: rare(valueExt{elements: &elementSet{whole: true, items: map[string]Value{}}})}
 	if appendPureEntry(&empty, scalarValue(constantScalar{k: 'i'}), &scopeResult{copies: MaxCopied}) {
 		t.Fatal("copy budget bypassed")
 	}

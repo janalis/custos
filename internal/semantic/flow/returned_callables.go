@@ -27,15 +27,17 @@ type callableValue struct {
 	outer    []Value
 }
 
-func compactCallableValue(value Value) Value {
+// compactCallableValue keeps what a callable retains of value, with
+// elements as its elements.
+func compactCallableValue(value Value, elements *elementSet) Value {
 	value = scalarSnapshot(value)
-	return Value{truth: value.truth, record: value.record, Complete: value.Complete, Sources: value.Sources, Safe: value.Safe, scalars: value.scalars, literal: value.literal}
+	return Value{Complete: value.Complete, Sources: value.Sources, Safe: value.Safe, ext: derived(value.ext, valueExt{record: value.record(), literal: value.literal(), elements: elements, truth: value.truth(), scalars: value.scalars()})}
 }
 
 func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *returnedCallable {
 	expr := syntax.UnwrapParens(value.Expr)
 	captures, known := owner.closures[expr]
-	if !known || !value.Complete || value.replaced || value.Invalidated != 0 || e.invocationDepth >= MaxDepth {
+	if !known || !value.Complete || value.replaced() || value.Invalidated != 0 || e.invocationDepth >= MaxDepth {
 		return nil
 	}
 	params := syntax.VariableScopeParams(expr)
@@ -46,7 +48,7 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 	contract.outerParams, _ = e.pureParameters(syntax.EnclosingVariableScope(expr))
 	seeds := map[string]Value{}
 	for name, capture := range captures {
-		if !capture.Complete || !capture.plain || !capture.deep || capture.replaced || capture.Invalidated != 0 {
+		if !capture.Complete || !capture.plain || !capture.deep || capture.replaced() || capture.Invalidated != 0 {
 			return nil
 		}
 		seeds[name] = compactReturnedValue(capture)
@@ -103,7 +105,7 @@ func (e *Env) summarizeReturned(value Value, owner *scopeResult, outer int) *ret
 			}
 		}
 	}
-	if !result.Complete || result.targets != nil || result.returned != nil {
+	if !result.Complete || result.targets() != nil || result.returned() != nil {
 		return nil
 	}
 	result = e.completedReturn(expr, body, result)
@@ -213,10 +215,8 @@ func joinReturned(a, b *callableValue) *callableValue {
 }
 
 func compactReturnedValue(value Value) Value {
-	out := compactCallableValue(value)
 	fuel := MaxSources
-	out.elements = compactElements(value.elements, MaxDepth, &fuel)
-	return out
+	return compactCallableValue(value, compactElements(value.elements(), MaxDepth, &fuel))
 }
 
 // Declared scalar bindings can coerce constants before a predicate observes
@@ -238,7 +238,7 @@ func (e *Env) constrainType(result types.Type, value Value, weak bool) Value {
 		return value
 	}
 	if !result.Has("array") && !result.Has("iterable") {
-		value.elements = nil
+		value.setElements(nil)
 	}
 	scalar, known := knownScalar(value)
 	if known {
@@ -258,23 +258,25 @@ func (e *Env) constrainType(result types.Type, value Value, weak bool) Value {
 				if converted, valid := convertScalar(scalar, result.Atoms()[0], weak); valid {
 					value.Expr = scalarExpression(converted)
 					literal := converted
-					value.literal = &literal
-					value.truth = scalarTruth(converted)
-					value.interval, value.origins = nil, nil
-					value.Identity, value.storedIdentity = 0, 0
-					value.record = nil
-					value.NonFalse, value.NonNull, value.LengthKnown = false, false, false
+					value.edit(func(x valueExt) valueExt {
+						x.literal, x.truth, x.interval, x.origins = &literal, scalarTruth(converted), nil, nil
+						x.storedIdentity, x.record, x.lengthKnown = 0, nil, false
+						return x
+					})
+					value.Identity = 0
+					value.NonFalse, value.NonNull = false, false
 					return value
 				}
 			}
-			value.literal = nil
-			value.truth = 0
-			value.Expr, value.interval, value.origins = nil, nil, nil
-			value.elements = nil
-			value.Complete, value.NonFalse, value.NonNull, value.LengthKnown = false, false, false, false
+			value.edit(func(x valueExt) valueExt {
+				x.literal, x.truth, x.interval, x.origins, x.elements, x.lengthKnown = nil, 0, nil, nil, nil, false
+				return x
+			})
+			value.Expr = nil
+			value.Complete, value.NonFalse, value.NonNull = false, false, false
 		}
 	} else {
-		value.truth = 0
+		value.setTruth(0)
 	}
 	return value
 }

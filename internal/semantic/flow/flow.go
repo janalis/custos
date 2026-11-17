@@ -39,64 +39,22 @@ type Source struct {
 // Value is a conservative union of possible inputs. Safe is the intersection
 // of proven escaping contexts. Expr and Identity require agreement on every path.
 type Value struct {
-	record   *resourceReturn
-	literal  *constantScalar
-	returned *callableValue
-	targets  *callableSet
-	interval *intInterval
-	Sources  []Source
-	Expr     syntax.Expr
-	// elements holds the literal-keyed elements of an array variable that
-	// are tracked on their own. Only a binding carries them: the value of an
-	// expression never does.
-	elements *elementSet
-	// origins lists the expressions that may have produced a binding the
-	// paths disagree on (Expr is then nil), each with what its own paths
-	// established. It means nothing while Expr is set.
-	origins *originSet
-	// tested and unless belong to a binding only, never to the value of an
-	// expression. tested is the short-circuit operation whose left operand
-	// last read the binding, which was not written since. unless is such an
-	// operation whose right operand assigns the binding and tests it in
-	// place: the binding is not false (unlessFalse) or not null (unlessNull)
-	// except where the last evaluation of the operation skipped that
-	// operand. Between the evaluation of the operation and the branch on its
-	// outcome, skippedFalse and skippedNull record that the value the
-	// skipped operand left in place was not false or not null.
-	tested, unless *syntax.Binary
-	Length         int64
-	Identity       uint32
-	storedIdentity uint32
-	Invalidated    uint32
-	Safe           Context
-	Complete       bool
-	NonFalse       bool
-	NonNull        bool
-	LengthKnown    bool
-	headerMask     uint8
-	// upload marks the table of uploaded files or one of its entries as PHP
-	// built it: only there are the server-chosen fields what they claim.
-	upload uint8
-	// scalars marks an array whose values are numbers, booleans or null
-	// while its keys remain whatever the request sent.
-	scalars bool
-	// matched marks request data a switch found equal to one of its string
-	// labels: the text of a label, not what the request sent.
-	matched bool
-	// unlessFalse, unlessNull, skippedFalse and skippedNull qualify unless.
-	unlessFalse, unlessNull, skippedFalse, skippedNull bool
-	// replaced marks a binding that code the analysis does not follow may
-	// have replaced since it was last written, on some path.
-	replaced bool
-	// entry marks the binding of a static variable that still holds what it
-	// held when its declaration was reached: nothing wrote it since.
-	entry bool
+	// ext holds what a value rarely carries. It is shared between copies
+	// and never written in place: see valueExt.
+	ext         *valueExt
+	Sources     []Source
+	Expr        syntax.Expr
+	Identity    uint32
+	Invalidated uint32
+	Safe        Context
+	Complete    bool
+	NonFalse    bool
+	NonNull     bool
 	// plain marks a value that is not an object: converting it to text,
 	// comparing it, iterating it or reading an offset of it runs no method.
 	// deep marks one that, when it is an array, holds no object either, at
 	// any depth: what is done with its elements runs none.
 	plain, deep bool
-	truth       uint8
 }
 
 // State is the most recent operation common to every reaching path.
@@ -168,7 +126,11 @@ type summaryResolver struct {
 	consulted map[string]bool
 	// answers holds what those contracts gave, and summarizing the state of
 	// the summaries being computed, which serve the file's own.
-	answers     map[string]answer
+	answers map[string]answer
+	// answered holds the summary each of those contracts first gave, which
+	// Rebase compares with what another snapshot gives; nil for summaries
+	// whose environment is dropped (Extract, Reextract).
+	answered    map[string]Summary
 	summarizing *summarizing
 	local       *localSummaries
 	// reading holds, innermost last, the contracts each result being

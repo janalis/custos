@@ -154,7 +154,7 @@ func (f *frame) bind(target, source string, site uint32) {
 func (f *frame) write(r *scopeResult, name string, v Value) {
 	// What is written is the binding's own value again, whatever replaced
 	// the operands it was computed from.
-	v.replaced = false
+	v.setReplaced(false)
 	f.unmatch(r, name)
 	if len(f.related) > 0 {
 		f.rewritten(r, name, v)
@@ -236,7 +236,7 @@ func unsettled(old, written Value, owners ...*scopeResult) Value {
 		}
 		v = merge(v, Value{Complete: true, Sources: written.Sources, Safe: written.Safe})
 	}
-	v.origins = origins(Value{}, written, owners...)
+	v.setOrigins(origins(Value{}, written, owners...))
 	return v
 }
 
@@ -273,11 +273,11 @@ func retain(r *scopeResult, cells int) bool {
 }
 
 // retained reports effects useful to either request-data or failure analysis.
-func retained(v Value) bool { return tainted(v) || v.Expr != nil || v.origins != nil }
+func retained(v Value) bool { return tainted(v) || v.Expr != nil || v.origins() != nil }
 
 // effects joins local writes, retaining their syntax only in the environment.
 func effects(a, b Value, owners ...*scopeResult) Value {
 	v := merge(a, b)
-	v.origins = origins(a, b, owners...)
+	v.setOrigins(origins(a, b, owners...))
 	return v
 }

@@ -55,7 +55,7 @@ func (e *Env) finishCall(n syntax.Node, args *syntax.ArgList, input *evaluatedCa
 	e.settleCall(n, name, builtin, args, input, first.Identity, &out, f, r)
 	// What PHP itself returns is what it declares. An array one of its
 	// functions returns holds what the function was given.
-	out.value.matched = derived && len(out.value.Sources) == 0
+	out.value.setMatched(derived && len(out.value.Sources) == 0)
 	kind := e.kinds(result, documented)
 	out.value.plain = builtin && kind&(kindKnown|kindObject|kindOpaque) == kindKnown
 	out.value.deep = out.value.plain && (kind&kindArray == 0 || e.sealed(n, name, args, r))
@@ -85,11 +85,11 @@ func mergeArguments(n syntax.Node, name string, builtin bool, args *syntax.ArgLi
 		if builtin && yieldsElements(name) {
 			a = projectValues(a)
 		}
-		if a.scalars && builtin && (yieldsElements(name) || name == "array_chunk" && len(values) == 2) {
+		if a.scalars() && builtin && (yieldsElements(name) || name == "array_chunk" && len(values) == 2) {
 			// Only the numbers of the array reach the result.
 			a.Safe |= everyContext
 		}
-		if a.matched {
+		if a.matched() {
 			labels++
 		} else if a.written() {
 			texts++
@@ -99,7 +99,8 @@ func mergeArguments(n syntax.Node, name string, builtin bool, args *syntax.ArgLi
 	out.Expr = n.(syntax.Expr)
 	out.Identity = 0
 	// Arrays of numbers put together make one; anything else does not.
-	out.upload, out.scalars = 0, out.scalars && builtin && (name == "array_merge" || name == "array_replace")
+	scalars := out.scalars() && builtin && (name == "array_merge" || name == "array_replace")
+	out.edit(func(x valueExt) valueExt { x.upload, x.scalars = 0, scalars; return x })
 	return builtin && edits(name) && labels > 0 && labels+texts == len(values)
 }
 

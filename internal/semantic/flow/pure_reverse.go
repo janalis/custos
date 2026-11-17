@@ -28,10 +28,10 @@ func (c *pureCompiler) reverse(node *syntax.FuncCall, params []index.Param) *pur
 func (e *Env) evalPureReverse(expr *pureExpr, input Value, slots []Value, r *scopeResult, depth int) (Value, bool) {
 	preserve, ok := e.evalPure(expr.right, slots, r, depth-1)
 	flag, known := knownScalar(preserve)
-	if !ok || !known || flag.k != 'b' || !purePlainRecord(input) || len(input.elements.order) != len(input.elements.items) {
+	if !ok || !known || flag.k != 'b' || !purePlainRecord(input) || len(input.elements().order) != len(input.elements().items) {
 		return Value{}, false
 	}
-	size := len(input.elements.order)
+	size := len(input.elements().order)
 	r.operations += size
 	r.copies += size
 	if size > pureLimit || r.operations > MaxTransfers || r.copies > MaxCopied {
@@ -41,8 +41,8 @@ func (e *Env) evalPureReverse(expr *pureExpr, input Value, slots []Value, r *sco
 	result := Value{Complete: true, plain: true, deep: true}
 	next := 0
 	for i := size - 1; i >= 0; i-- {
-		key := input.elements.order[i]
-		entry := input.elements.items[key]
+		key := input.elements().order[i]
+		entry := input.elements().items[key]
 		if !flag.b && pureKeyScalar(key).k == 'i' {
 			key = strconv.Itoa(next)
 			next++
@@ -51,6 +51,7 @@ func (e *Env) evalPureReverse(expr *pureExpr, input Value, slots []Value, r *sco
 		set.order = append(set.order, key)
 		result = merge(result, entry)
 	}
-	result.elements, result.plain, result.deep = set, true, true
+	result.setElements(set)
+	result.plain, result.deep = true, true
 	return result, true
 }

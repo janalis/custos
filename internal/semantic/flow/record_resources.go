@@ -14,7 +14,7 @@ type recordSite struct {
 func sameRecord(a, b *resourceReturn) bool { return a == b || a != nil && b != nil && *a == *b }
 
 func recordShape(value Value, change func(Value) Value) Value {
-	set := value.elements
+	set := value.elements()
 	if set == nil || !set.hasResources {
 		return value
 	}
@@ -24,13 +24,18 @@ func recordShape(value Value, change func(Value) Value) Value {
 		entry := recordShape(set.items[key], change)
 		out.put(key, change(entry))
 	}
-	value.elements = out
+	value.setElements(out)
 	return value
 }
 
 func eraseRecordResources(value Value) Value {
-	value = recordShape(value, func(entry Value) Value { entry.storedIdentity = 0; entry.record = nil; return entry })
-	value.storedIdentity, value.record = 0, nil
+	value = recordShape(value, func(entry Value) Value { return withRecord(entry, nil) })
+	return withRecord(value, nil)
+}
+
+// withRecord returns value holding record and no stored identity.
+func withRecord(value Value, record *resourceReturn) Value {
+	value.edit(func(x valueExt) valueExt { x.storedIdentity, x.record = 0, record; return x })
 	return value
 }
 
@@ -39,28 +44,28 @@ func collectRecordIdentities(set *elementSet, ids map[uint32]bool) {
 		return
 	}
 	for _, value := range set.items {
-		if value.storedIdentity != 0 {
-			ids[value.storedIdentity] = true
+		if value.storedIdentity() != 0 {
+			ids[value.storedIdentity()] = true
 		}
-		collectRecordIdentities(value.elements, ids)
+		collectRecordIdentities(value.elements(), ids)
 	}
 }
 
 func resourceElement(at syntax.Node, value Value, f *frame, r *scopeResult) Value {
 	out := elementValue(value)
 	// Ordinary object identities are never promoted by an array projection.
-	if value.storedIdentity != 0 && value.Complete && !value.replaced && value.Invalidated == 0 && recordResourceEvidence(at, value.storedIdentity, f, r) {
-		out.Identity = value.storedIdentity
+	if value.storedIdentity() != 0 && value.Complete && !value.replaced() && value.Invalidated == 0 && recordResourceEvidence(at, value.storedIdentity(), f, r) {
+		out.Identity = value.storedIdentity()
 	}
 	return out
 }
 
 func summarizeRecord(scope syntax.Node, r *scopeResult, sum Summary) Value {
 	value := sum.Return
-	if value.elements == nil || !value.elements.hasResources {
+	if value.elements() == nil || !value.elements().hasResources {
 		return value
 	}
-	if !sum.Fixed || !sum.Quiet || !value.Complete || value.replaced || value.Invalidated != 0 || byReference(scope) {
+	if !sum.Fixed || !sum.Quiet || !value.Complete || value.replaced() || value.Invalidated != 0 || byReference(scope) {
 		return eraseRecordResources(value)
 	}
 	borrowed := map[uint32]int{}
@@ -76,17 +81,16 @@ func summarizeRecord(scope syntax.Node, r *scopeResult, sum Summary) Value {
 }
 
 func recordContracts(value Value, r *scopeResult, borrowed map[uint32]int) Value {
-	if !wholeRecord(value.elements) {
+	if !wholeRecord(value.elements()) {
 		return eraseRecordResources(value)
 	}
 	tokens := map[uint32]int{}
 	return recordShape(value, func(entry Value) Value {
-		id := entry.storedIdentity
-		entry.storedIdentity = 0
-		entry.record = nil
-		if id == 0 || !entry.Complete || entry.Invalidated != 0 || entry.replaced {
-			return entry
+		id := entry.storedIdentity()
+		if id == 0 || !entry.Complete || entry.Invalidated != 0 || entry.replaced() {
+			return withRecord(entry, nil)
 		}
+		var record *resourceReturn
 		if r.allocations[id] {
 			token, ok := tokens[id]
 			if !ok {
@@ -97,11 +101,11 @@ func recordContracts(value Value, r *scopeResult, borrowed map[uint32]int) Value
 			if !state.closeChecked && (state.Operation == "fclose" || state.Operation == "pclose" || state.Operation == "curl_close") {
 				state = State{}
 			}
-			entry.record = &resourceReturn{fresh: true, parameter: -1, token: token, operation: state.Operation, checked: state.closeChecked}
+			record = &resourceReturn{fresh: true, parameter: -1, token: token, operation: state.Operation, checked: state.closeChecked}
 		} else if parameter, ok := borrowed[id]; ok {
-			entry.record = &resourceReturn{parameter: parameter}
+			record = &resourceReturn{parameter: parameter}
 		}
-		return entry
+		return withRecord(entry, record)
 	})
 }
 
@@ -126,8 +130,7 @@ func (e *Env) recordIdentity(at syntax.Node, token int) uint32 {
 func (e *Env) instantiateRecord(at syntax.Node, value Value, args []Value, f *frame, r *scopeResult) (Value, map[uint32]State) {
 	var states map[uint32]State
 	value = recordShape(value, func(entry Value) Value {
-		contract := entry.record
-		entry.record = nil
+		contract := entry.record()
 		if contract == nil {
 			return entry
 		}
@@ -136,6 +139,7 @@ func (e *Env) instantiateRecord(at syntax.Node, value Value, args []Value, f *fr
 		if contract.fresh {
 			id = e.recordIdentity(at, contract.token)
 			if id == 0 {
+				entry.setRecord(nil)
 				return entry
 			}
 			state = State{Operation: contract.operation, Span: at.Span(), Successful: contract.checked, closeChecked: contract.checked}
@@ -143,6 +147,7 @@ func (e *Env) instantiateRecord(at syntax.Node, value Value, args []Value, f *fr
 			var known bool
 			id, _, known = e.instantiateResource(at, contract, args, f, r)
 			if !known {
+				entry.setRecord(nil)
 				return entry
 			}
 			state = f.states[id]
@@ -153,7 +158,7 @@ func (e *Env) instantiateRecord(at syntax.Node, value Value, args []Value, f *fr
 			}
 			r.allocations[id] = true
 		}
-		entry.storedIdentity = id
+		entry.edit(func(x valueExt) valueExt { x.record, x.storedIdentity = nil, id; return x })
 		if states == nil {
 			states = map[uint32]State{}
 		}
@@ -164,17 +169,17 @@ func (e *Env) instantiateRecord(at syntax.Node, value Value, args []Value, f *fr
 }
 
 func (e *Env) projectClosureRecord(at syntax.Node, value Value, seeds map[string]Value, caller *frame, owner, body *scopeResult) (Value, map[uint32]State) {
-	if value.elements == nil || !value.elements.hasResources {
+	if value.elements() == nil || !value.elements().hasResources {
 		return value, nil
 	}
-	if body.runs || !value.Complete || value.replaced || value.Invalidated != 0 {
+	if body.runs || !value.Complete || value.replaced() || value.Invalidated != 0 {
 		return eraseRecordResources(value), nil
 	}
 	ids := map[uint32]int{}
 	var args []Value
 	for _, seed := range seeds {
 		nested := map[uint32]bool{}
-		collectRecordIdentities(seed.elements, nested)
+		collectRecordIdentities(seed.elements(), nested)
 		for id := range nested {
 			if !body.resourceInputs[id] {
 				continue
@@ -208,7 +213,7 @@ func wholeRecord(set *elementSet) bool {
 		return false
 	}
 	for _, entry := range set.items {
-		if !wholeRecord(entry.elements) {
+		if !wholeRecord(entry.elements()) {
 			return false
 		}
 	}
@@ -252,15 +257,15 @@ func pureRecordPass(body syntax.Node) bool {
 func invalidateCallbackRecords(values []Value, f *frame, r *scopeResult) {
 	ids := map[uint32]bool{}
 	for _, value := range values {
-		collectRecordIdentities(value.elements, ids)
+		collectRecordIdentities(value.elements(), ids)
 	}
 	for _, valueCell := range f.vars {
 		value := valueCell.Value
-		collectRecordIdentities(value.elements, ids)
+		collectRecordIdentities(value.elements(), ids)
 	}
 	for _, captures := range r.closures {
 		for _, value := range captures {
-			collectRecordIdentities(value.elements, ids)
+			collectRecordIdentities(value.elements(), ids)
 		}
 	}
 	for id := range ids {
@@ -275,14 +280,14 @@ func closureResourceInputs(at syntax.Node, seeds map[string]Value, caller *frame
 	}
 	ids := map[uint32]bool{}
 	for _, seed := range seeds {
-		if !seed.Complete || seed.replaced || seed.Invalidated != 0 {
+		if !seed.Complete || seed.replaced() || seed.Invalidated != 0 {
 			continue
 		}
 		if seed.Identity != 0 {
 			ids[seed.Identity] = true
 		}
-		if wholeRecord(seed.elements) {
-			collectRecordIdentities(seed.elements, ids)
+		if wholeRecord(seed.elements()) {
+			collectRecordIdentities(seed.elements(), ids)
 		}
 	}
 	for id := range ids {

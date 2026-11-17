@@ -21,7 +21,7 @@ func userArguments(list *syntax.ArgList, params []index.Param, values []Value, a
 		}
 		if i >= len(params) {
 			value := values[i]
-			if !value.Complete || value.replaced || value.Invalidated != 0 || (!value.plain || !value.deep) && value.literal == nil || value.Identity != 0 || value.elements != nil && value.elements.hasResources {
+			if !value.Complete || value.replaced() || value.Invalidated != 0 || (!value.plain || !value.deep) && value.literal() == nil || value.Identity != 0 || value.elements() != nil && value.elements().hasResources {
 				return list, values, false
 			}
 		}

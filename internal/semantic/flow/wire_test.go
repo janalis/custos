@@ -17,18 +17,19 @@ import (
 
 // wireSkipped names the fields the codec does not write: options, which a
 // decoder supplies; what makes a snapshot an overlay or a full collection,
-// which no Basis holds; and syntax nodes, which no summary keeps (encoding
+// which no Basis holds; the comparisons a snapshot remembers; and syntax nodes, which no summary keeps (encoding
 // one fails).
 var wireSkipped = map[string]bool{
-	"flow.File.options":     true,
-	"flow.Snapshot.options": true,
-	"flow.Snapshot.files":   true,
-	"flow.Snapshot.base":    true,
-	"flow.Snapshot.own":     true,
-	"flow.Value.Expr":       true,
-	"flow.Value.tested":     true,
-	"flow.Value.unless":     true,
-	"flow.Origin.Expr":      true,
+	"flow.File.options":      true,
+	"flow.Snapshot.options":  true,
+	"flow.Snapshot.files":    true,
+	"flow.Snapshot.base":     true,
+	"flow.Snapshot.own":      true,
+	"flow.Snapshot.compared": true,
+	"flow.Value.Expr":        true,
+	"flow.valueExt.tested":   true,
+	"flow.valueExt.unless":   true,
+	"flow.Origin.Expr":       true,
 }
 
 // The codec writes every field: a field added to a type a file or a basis
@@ -39,10 +40,10 @@ func TestWireFields(t *testing.T) {
 		"flow.File":             {"options", "Path", "Summaries", "consulted", "held", "served", "callables"},
 		"flow.Origin":           {"Expr", "NonFalse", "NonNull"},
 		"flow.Sink":             {"Name", "Context", "Argument", "Path", "Span"},
-		"flow.Snapshot":         {"options", "files", "summaries", "shared", "base", "own"},
+		"flow.Snapshot":         {"options", "files", "summaries", "shared", "base", "own", "compared"},
 		"flow.Source":           {"Kind", "Path", "Span", "Parameter", "ValuesOnly", "Keys", "htmlDecoded"},
 		"flow.Summary":          {"pure", "defaults", "forward", "argumentSensitive", "returned", "resource", "effects", "dispatch", "Return", "Sinks", "Generator", "Never", "ByRef", "Fixed", "Quiet", "Spares"},
-		"flow.Value":            {"record", "literal", "returned", "targets", "interval", "Sources", "Expr", "elements", "origins", "tested", "unless", "Length", "Identity", "storedIdentity", "Invalidated", "Safe", "Complete", "NonFalse", "NonNull", "LengthKnown", "headerMask", "upload", "scalars", "matched", "unlessFalse", "unlessNull", "skippedFalse", "skippedNull", "replaced", "entry", "plain", "deep", "truth"},
+		"flow.Value":            {"ext", "Sources", "Expr", "Identity", "Invalidated", "Safe", "Complete", "NonFalse", "NonNull", "plain", "deep"},
 		"flow.callableSet":      {"items"},
 		"flow.callableValue":    {"contract", "outer"},
 		"flow.constantScalar":   {"k", "i", "f", "s", "b"},
@@ -59,6 +60,7 @@ func TestWireFields(t *testing.T) {
 		"flow.returnedCallable": {"pure", "outerParams", "forward", "argumentSensitive", "params", "defaults", "result", "sinks"},
 		"flow.sinkClass":        {"Final", "Kind", "Modifiers", "Extends", "Traits", "Methods"},
 		"flow.sinkMethod":       {"Count", "Modifiers", "Parameters"},
+		"flow.valueExt":         {"record", "literal", "returned", "targets", "interval", "elements", "origins", "tested", "unless", "length", "storedIdentity", "lengthKnown", "headerMask", "upload", "scalars", "matched", "unlessFalse", "unlessNull", "skippedFalse", "skippedNull", "replaced", "entry", "truth"},
 		"index.Avail":           {"From", "To"},
 		"index.Param":           {"Name", "Type", "DocType", "DocValues", "Optional", "ByRef", "Variadic", "Promoted", "Default", "Out", "Gen", "Avail"},
 		"syntax.Span":           {"Start", "End"},
@@ -111,8 +113,8 @@ func TestWireRoundTrip(t *testing.T) {
 	for depth := range 5 {
 		var f File
 		var s Snapshot
-		wiretest.Fill(&f, depth, wireSkipped)
-		wiretest.Fill(&s, depth, wireSkipped)
+		wiretest.Fill(&f, depth, wireSkipped, "flow.Value.ext")
+		wiretest.Fill(&s, depth, wireSkipped, "flow.Value.ext")
 		files, snapshots := wireRoundTrip(t, []*File{&f}, []*Snapshot{&s}, Options{Assertions: true, Vendor: vendor})
 		f.options, s.options = Options{Assertions: true, Vendor: vendor}, Options{Assertions: true, Vendor: vendor}
 		if !reflect.DeepEqual(files[0], &f) {
@@ -122,7 +124,7 @@ func TestWireRoundTrip(t *testing.T) {
 			t.Fatalf("depth %d: the snapshot differs", depth)
 		}
 	}
-	empty := &File{Summaries: map[string]Summary{"k": {pure: &pureContract{expr: &pureExpr{args: []*pureExpr{nil, {}}}}, defaults: []Value{}, ByRef: map[int]Value{}, Return: Value{Sources: []Source{}, targets: &callableSet{items: []syntax.Expr{}}, elements: &elementSet{items: map[string]Value{}}, origins: &originSet{items: []Origin{}}}}}, consulted: map[string]bool{}, held: []string{}, served: map[string]bool{}, callables: map[string]map[string]uint8{"k": {}}}
+	empty := &File{Summaries: map[string]Summary{"k": {pure: &pureContract{expr: &pureExpr{args: []*pureExpr{nil, {}}}}, defaults: []Value{}, ByRef: map[int]Value{}, Return: Value{Sources: []Source{}, ext: rare(valueExt{targets: &callableSet{items: []syntax.Expr{}}, elements: &elementSet{items: map[string]Value{}}, origins: &originSet{items: []Origin{}}})}}}, consulted: map[string]bool{}, held: []string{}, served: map[string]bool{}, callables: map[string]map[string]uint8{"k": {}}}
 	basis := &Snapshot{summaries: map[string]*Summary{"none": nil}, shared: map[string]int{}}
 	files, snapshots := wireRoundTrip(t, []*File{empty, nil}, []*Snapshot{basis, nil}, Options{})
 	if !reflect.DeepEqual(files, []*File{empty, nil}) || !reflect.DeepEqual(snapshots, []*Snapshot{basis, nil}) {
@@ -151,12 +153,12 @@ func TestWireRefuses(t *testing.T) {
 	node := &syntax.Binary{}
 	for name, v := range map[string]Value{
 		"expression":   {Expr: node},
-		"tested":       {tested: node},
-		"unless":       {unless: node},
-		"target":       {targets: &callableSet{items: []syntax.Expr{node}}},
-		"origin":       {origins: &originSet{items: []Origin{{Expr: node}}}},
-		"nested":       {elements: &elementSet{items: map[string]Value{"k": {Expr: node}}}},
-		"nested items": {returned: &callableValue{outer: []Value{{Expr: node}}}},
+		"tested":       {ext: rare(valueExt{tested: node})},
+		"unless":       {ext: rare(valueExt{unless: node})},
+		"target":       {ext: rare(valueExt{targets: &callableSet{items: []syntax.Expr{node}}})},
+		"origin":       {ext: rare(valueExt{origins: &originSet{items: []Origin{{Expr: node}}}})},
+		"nested":       {ext: rare(valueExt{elements: &elementSet{items: map[string]Value{"k": {Expr: node}}}})},
+		"nested items": {ext: rare(valueExt{returned: &callableValue{outer: []Value{{Expr: node}}}})},
 	} {
 		e := NewEncoder()
 		mark := e.Mark()
@@ -192,14 +194,14 @@ func TestWireRefuses(t *testing.T) {
 	}
 	v := Value{}
 	for range wire.MaxDepth {
-		v = Value{returned: &callableValue{contract: &returnedCallable{result: v}}}
+		v = Value{ext: rare(valueExt{returned: &callableValue{contract: &returnedCallable{result: v}}})}
 	}
 	e = NewEncoder()
 	if e.File(&File{Summaries: map[string]Summary{"f": {Return: v}}}); e.Err() == nil {
 		t.Fatal("too deep value")
 	}
 	e = NewEncoder()
-	if e.File(&File{Summaries: map[string]Summary{"f": {returned: v.returned.contract}}}); e.Err() == nil {
+	if e.File(&File{Summaries: map[string]Summary{"f": {returned: v.returned().contract}}}); e.Err() == nil {
 		t.Fatal("too deep callable")
 	}
 	c := &pureContract{}
@@ -254,7 +256,7 @@ func TestWireCorrupt(t *testing.T) {
 	links := wire.MaxDepth/2 - 4
 	var v Value
 	for range links {
-		v = Value{returned: &callableValue{contract: &returnedCallable{result: v}}}
+		v = Value{ext: rare(valueExt{returned: &callableValue{contract: &returnedCallable{result: v}}})}
 	}
 	var c *pureContract
 	for range links {

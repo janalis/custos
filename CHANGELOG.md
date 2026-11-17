@@ -5,6 +5,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `analyse` and `fix` take `--memprofile FILE` to write a Go allocation
+  profile of the run, next to `--cpuprofile`.
+
 ### Changed
 
 - `analyse` and `fix` run the garbage collector less often (`GOGC=200`)
@@ -13,6 +18,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   ancestor). When the memory is unknown, the collector keeps the runtime
   defaults. A `GOGC` in the environment, `off` included, leaves the
   collector alone; a `GOMEMLIMIT` replaces only the soft limit. See [Memory](https://janalis.github.io/custos/guide/cli#memory).
+- The cross-file flow pass allocates less: flow values keep the references
+  and facts they rarely hold apart and take less than half the space, call
+  arguments and contract answers are no longer copied, each pair of
+  contracts is compared once per round, and control-flow graphs start at
+  their expected size. A cold `analyse` of a large project allocates about
+  10% less and finishes about 6% sooner, with a lower memory peak.
 
 ### Fixed
 

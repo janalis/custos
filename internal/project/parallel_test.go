@@ -55,6 +55,25 @@ func TestParallelIsolatesPanics(t *testing.T) {
 	}
 }
 
+func TestParallelStopsStartingAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var started atomic.Int32
+	err := parallel(ctx, 100, 1, func(i int) {
+		started.Add(1)
+		if i == 2 {
+			cancel()
+		}
+	}, nil)
+	if !errors.Is(err, context.Canceled) || started.Load() != 3 {
+		t.Fatalf("err %v, started %d", err, started.Load())
+	}
+	// Items start in index order on a single worker.
+	var order []int
+	if err := parallel(context.Background(), 5, 1, func(i int) { order = append(order, i) }, nil); err != nil || len(order) != 5 || order[0] != 0 || order[4] != 4 {
+		t.Fatalf("err %v, order %v", err, order)
+	}
+}
+
 func TestEachReportsTheFirstCrash(t *testing.T) {
 	var done atomic.Int32
 	err := Each(context.Background(), 8, func(i int) {

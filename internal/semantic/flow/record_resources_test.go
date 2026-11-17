@@ -77,18 +77,18 @@ func TestRecordContractBounds(t *testing.T) {
 		t.Fatal("record-site budget exceeded")
 	}
 	set := &elementSet{items: map[string]Value{}, whole: true, width: 1}
-	set.put("h", Value{Complete: true, record: &resourceReturn{fresh: true, token: 4097}})
-	value, states := e.instantiateRecord(at, Value{Complete: true, elements: set}, nil, &frame{}, &scopeResult{})
-	if len(states) != 0 || value.elements.items["h"].storedIdentity != 0 || set.items["h"].record == nil {
+	set.put("h", Value{Complete: true, ext: rare(valueExt{record: &resourceReturn{fresh: true, token: 4097}})})
+	value, states := e.instantiateRecord(at, Value{Complete: true, ext: rare(valueExt{elements: set})}, nil, &frame{}, &scopeResult{})
+	if len(states) != 0 || value.elements().items["h"].storedIdentity() != 0 || set.items["h"].record() == nil {
 		t.Fatal("exhausted record instantiated or mutated template")
 	}
 	for _, optional := range []bool{false, true} {
 		child := &elementSet{items: map[string]Value{}, whole: optional, optional: optional, width: 1}
-		child.put("h", Value{Complete: true, storedIdentity: 1})
+		child.put("h", Value{Complete: true, ext: rare(valueExt{storedIdentity: 1})})
 		parent := &elementSet{items: map[string]Value{}, whole: true, width: 1}
-		parent.put("child", Value{Complete: true, elements: child})
-		out := recordContracts(Value{elements: parent}, &scopeResult{allocations: map[uint32]bool{1: true}}, nil)
-		if out.elements.hasResources {
+		parent.put("child", Value{Complete: true, ext: rare(valueExt{elements: child})})
+		out := recordContracts(Value{ext: rare(valueExt{elements: parent})}, &scopeResult{allocations: map[uint32]bool{1: true}}, nil)
+		if out.elements().hasResources {
 			t.Fatal("uncertain record published an identity")
 		}
 	}
@@ -105,7 +105,7 @@ func TestRecordPassGuards(t *testing.T) {
 			t.Fatal("unsafe record pass accepted")
 		}
 		sum, _ := e.contract("wrap")
-		if sum.Return.elements != nil && sum.Return.elements.hasResources {
+		if sum.Return.elements() != nil && sum.Return.elements().hasResources {
 			t.Fatal("unsafe borrowed record published")
 		}
 	}
@@ -123,11 +123,11 @@ func TestRecordAndPredicateSnapshotChanges(t *testing.T) {
 	published := Extract(file, ix, phpversion.Max, nil, Options{})
 	var check func(Value)
 	check = func(v Value) {
-		if v.Expr != nil || v.Identity != 0 || v.storedIdentity != 0 || v.origins != nil || v.targets != nil || v.returned != nil {
+		if v.Expr != nil || v.Identity != 0 || v.storedIdentity() != 0 || v.origins() != nil || v.targets() != nil || v.returned() != nil {
 			t.Fatal("evaluation state escaped snapshot")
 		}
-		if v.elements != nil {
-			for _, entry := range v.elements.items {
+		if v.elements() != nil {
+			for _, entry := range v.elements().items {
 				check(entry)
 			}
 		}

@@ -21,12 +21,12 @@ func (e *Env) evalBinary(n *syntax.Binary, f *frame, r *scopeResult, depth int) 
 	}
 	v := merge(left, right)
 	if n.Op.Kind != syntax.TCoalesce {
-		v.interval = arithmetic(n.Op.Kind, left, right)
+		v.setInterval(arithmetic(n.Op.Kind, left, right))
 	}
 	v.Expr = n
 	v.Identity = 0
 	// Only a concatenation, or a choice, yields the text it is given.
-	v.matched = v.matched && (n.Op.Kind == syntax.TDot || n.Op.Kind == syntax.TCoalesce)
+	v.setMatched(v.matched() && (n.Op.Kind == syntax.TDot || n.Op.Kind == syntax.TCoalesce))
 	switch n.Op.Kind {
 	case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical,
 		syntax.TIsSmallerOrEqual, syntax.TIsGreaterOrEqual, syntax.TLess, syntax.TGreater,
@@ -66,7 +66,7 @@ func (e *Env) shortCircuit(n *syntax.Binary, f *frame, r *scopeResult, depth int
 		// the path that skips it: its test then says nothing of it.
 		reached := skipped.vars.value(stored.Var.(*syntax.Variable).Name)
 		produced := Value{Expr: syntax.UnwrapParens(stored.Value)}
-		if reached.Expr == produced.Expr || reached.Expr == nil && reached.origins != nil && (reached.origins.full || reached.origins.holds(&Value{Expr: produced.Expr, NonFalse: true, NonNull: true})) {
+		if reached.Expr == produced.Expr || reached.Expr == nil && reached.origins() != nil && (reached.origins().full || reached.origins().holds(&Value{Expr: produced.Expr, NonFalse: true, NonNull: true})) {
 			if r.stale == nil {
 				r.stale = map[*syntax.Assign]bool{}
 			}
@@ -100,8 +100,7 @@ func (e *Env) shortCircuit(n *syntax.Binary, f *frame, r *scopeResult, depth int
 		f.relate(n, ran)
 		*f = rejoin(skipped, *f, r)
 		if joined := f.vars.value(name); notFalse || notNull {
-			joined.unless, joined.unlessFalse, joined.unlessNull = n, false, false
-			joined.skippedFalse, joined.skippedNull = notFalse, notNull
+			joined.setUnlessFacts(n, false, false, notFalse, notNull)
 			f.setVar(name, joined)
 		}
 		return right
@@ -113,14 +112,14 @@ func (e *Env) shortCircuit(n *syntax.Binary, f *frame, r *scopeResult, depth int
 // evalUnary evaluates a unary operator or a cast.
 func (e *Env) evalUnary(n *syntax.Unary, f *frame, r *scopeResult, depth int) Value {
 	v := e.eval(n.Expr, f, r, depth+1)
-	v.interval = unaryInts(n.Op.Kind, v)
+	v.setInterval(unaryInts(n.Op.Kind, v))
 	if n.Op.Kind == syntax.TStringCast && !v.plain {
 		e.implicit(n, f, r)
 	}
 	v.Expr = n
 	v.Identity = 0
 	if n.Op.Kind != syntax.TArrayCast {
-		v.upload, v.scalars = 0, false
+		v.edit(func(x valueExt) valueExt { x.upload, x.scalars = 0, false; return x })
 	}
 	switch n.Op.Kind {
 	case syntax.TExclaim, syntax.TIntCast, syntax.TDoubleCast, syntax.TBoolCast, syntax.TMinus, syntax.TPlus:
