@@ -16,7 +16,20 @@ import (
 // available. It does not open any other files. A supplied snapshot permits
 // bounded composition with previously summarized project wrappers.
 func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options) *File {
-	_, out := summarizeFile(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, nil)
+	return ExtractWith(file, NewTypes(file, ix, php, options), snapshot, options)
+}
+
+// NewTypes returns the inference environment Extract and Reextract build for
+// file: one passed to ExtractWith or ReextractWith for several summaries of
+// the file keeps what it inferred from one to the next.
+func NewTypes(file *syntax.File, ix *index.Index, php phpversion.Version, options Options) *infer.Env {
+	return infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions})
+}
+
+// ExtractWith is Extract inferring types with types (see NewTypes), which
+// reads no snapshot: it serves later summaries of the same file.
+func ExtractWith(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) *File {
+	_, out := summarizeFile(file, types, snapshot, options, nil)
 	return out
 }
 

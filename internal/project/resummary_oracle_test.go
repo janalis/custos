@@ -15,6 +15,7 @@ import (
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
 )
 
 // Every summary computed again in compose comes out as a full summary of
@@ -31,8 +32,8 @@ func TestResummaryOracle(t *testing.T) {
 	var mu sync.Mutex
 	again, kept := 0, 0
 	var differ []string
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
-		got := old(f, ix, v, s, o, prior, earlier)
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options, prior *flow.File, earlier *flow.Snapshot, types *infer.Env) *flow.File {
+		got := old(f, ix, v, s, o, prior, earlier, types)
 		if prior == nil || earlier == nil || got == nil {
 			return got
 		}

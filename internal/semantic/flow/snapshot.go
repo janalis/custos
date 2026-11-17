@@ -372,3 +372,14 @@ func snapshotOptions(s *Snapshot) Options {
 	}
 	return s.options
 }
+
+// ReadsOthers reports that the summaries read a contract they did not
+// serve themselves: one another file's summaries may change.
+func (f *File) ReadsOthers() bool {
+	for name := range f.consulted {
+		if !f.served[names.Fold(name)] {
+			return true
+		}
+	}
+	return false
+}

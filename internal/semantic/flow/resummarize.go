@@ -50,7 +50,12 @@ func (s *summarizing) answered(key string, own bool) {
 // read no contract differing between earlier and snapshot, directly or
 // through a callable of the file summarized again, is kept as it was.
 func Reextract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) *File {
-	return resummarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options, prior, earlier)
+	return ReextractWith(file, NewTypes(file, ix, php, options), snapshot, options, prior, earlier)
+}
+
+// ReextractWith is Reextract inferring types with types (see NewTypes).
+func ReextractWith(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options, prior *File, earlier *Snapshot) *File {
+	return resummarize(file, types, snapshot, options, prior, earlier)
 }
 
 // resummarize computes what Reextract returns. Its environment is dropped,

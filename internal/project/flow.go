@@ -5,6 +5,7 @@ import (
 	"hash/maphash"
 	"maps"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -13,6 +14,7 @@ import (
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
 )
 
 // BuildFlowSnapshot builds project-local summaries without including vendor
@@ -64,6 +66,14 @@ type FlowBuild struct {
 	// made counts the summaries the build made instead of taking them from
 	// its priors.
 	made atomic.Int64
+	// kept holds, while a build that records no steps composes, the
+	// inference environment (with the tree and names it read) of the last
+	// summary of each file, which its next summary infers with instead of
+	// parsing and inferring again; keptBytes estimates what they hold,
+	// bounded by keptLimit (see keepLimit).
+	kept      []*infer.Env
+	keptBytes atomic.Int64
+	keptLimit int64
 }
 
 // flowStep is one summary a build made of a file, with the snapshot it
@@ -125,10 +135,12 @@ func BuildFlowRecorded(ctx context.Context, files []string, srcs [][]byte, opt s
 // (parsed from its source in srcs) is summarized from it instead of being
 // parsed again.
 func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int, earlier *FlowBuild, record bool, trees []*syntax.File) *FlowBuild {
-	// Sources are read once. Each summary parses its file again and keeps
-	// no tree: compose then holds the trees of the files being summarized,
-	// not those of every file, which take about ten times their source. A
-	// file that cannot be read or crashes the parser is not summarized.
+	// Sources are read once. A summary parses its file again unless the
+	// file's last summary kept its tree and inference environment (see
+	// keep): compose then holds the trees of the files being summarized and
+	// of those kept within a budget, not those of every file, which take
+	// about ten times their source. A file that cannot be read or crashes
+	// the parser is not summarized.
 	read := make([][]byte, len(files))
 	readable := make([]bool, len(files))
 	_ = parallel(ctx, len(files), 0, func(i int) {
@@ -186,7 +198,12 @@ func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Op
 			}
 		}
 	}
+	if !record {
+		b.kept, b.keptLimit = make([]*infer.Env, len(files)), keepLimit()
+	}
 	b.Snapshot = b.compose(ctx, snapshot, against, ix, tree)
+	// No summary follows: the environments kept for one are released.
+	b.kept = nil
 	// The earlier build's steps are no longer needed: the build now
 	// published must not keep them alive.
 	b.priors = nil
@@ -271,7 +288,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	probe := make([]*flow.File, len(dirty))
 	_ = parallel(context.Background(), len(dirty), summaryWorkers(runtime.GOMAXPROCS(0)), func(j int) {
 		if file := tree(dirty[j]); file != nil {
-			probe[j] = extractFlow(file, ix, b.opt.Version, b.Snapshot, b.options, nil, nil)
+			probe[j] = extractFlow(file, ix, b.opt.Version, b.Snapshot, b.options, nil, nil, nil)
 		}
 	}, nil)
 	for j, i := range dirty {
@@ -686,6 +703,11 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 				names := b.declared(work)
 				prev := b.resultsOf(work)
 				b.summarize(ctx, work, snapshot, against, ix, tree)
+				for _, i := range work {
+					if summarized[i] == maxSummaries {
+						b.take(i)
+					}
+				}
 				next := snapshot.Replace(prev, b.resultsOf(work))
 				// Only the files of work changed: the other contracts are
 				// those of snapshot.
@@ -796,7 +818,7 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 		var basis *flow.Snapshot
 		if step, ok := b.reuse(i, snapshot); ok {
 			b.results[i], basis = step.result, step.against
-		} else if file := tree(i); file != nil {
+		} else if types := b.types(i, ix, tree); types != nil {
 			b.made.Add(1)
 			// The file's first summary starts from the first one the
 			// earlier build made, if any, which read the same contracts
@@ -805,7 +827,8 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 			if prior == nil && len(b.priors) > 0 && len(b.priors[i]) > 0 {
 				prior, earlier = b.priors[i][0].result, b.priors[i][0].against
 			}
-			b.results[i] = extractFlow(file, ix, b.opt.Version, snapshot, b.options, prior, earlier)
+			b.results[i] = extractFlow(types.File, ix, b.opt.Version, snapshot, b.options, prior, earlier, types)
+			b.keep(i, types)
 		} else {
 			return
 		}
@@ -822,6 +845,63 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 			b.trace(i)
 		}
 	}, nil)
+}
+
+// types returns the inference environment the summary of file i infers
+// with: the one its last summary kept, else a new one over its tree; nil
+// when it has no tree.
+func (b *FlowBuild) types(i int, ix *index.Index, tree func(int) *syntax.File) *infer.Env {
+	if types := b.take(i); types != nil {
+		return types
+	}
+	file := tree(i)
+	if file == nil {
+		return nil
+	}
+	return flow.NewTypes(file, ix, b.opt.Version, b.options)
+}
+
+// keep keeps types, which just summarized file i, for its next summary.
+// Only summaries that read another file's contracts can be outdated, so
+// only their environments are kept, while the kept ones fit keptLimit:
+// each holds the file's tree, names and inferred types, several times its
+// source.
+func (b *FlowBuild) keep(i int, types *infer.Env) {
+	if b.kept == nil || b.results[i] == nil || !b.results[i].ReadsOthers() {
+		return
+	}
+	cost := keptCost(b.sizes[i])
+	if b.keptBytes.Add(cost) > b.keptLimit {
+		b.keptBytes.Add(-cost)
+		return
+	}
+	b.kept[i] = types
+}
+
+// take returns and forgets the environment kept for file i, nil for none.
+func (b *FlowBuild) take(i int) *infer.Env {
+	if b.kept == nil || b.kept[i] == nil {
+		return nil
+	}
+	types := b.kept[i]
+	b.kept[i] = nil
+	b.keptBytes.Add(-keptCost(b.sizes[i]))
+	return types
+}
+
+// keptCost estimates the live memory the environment of a file of size
+// bytes holds after a summary: on laravel, its tree, tokens and inferred
+// types took about 28 times its source.
+func keptCost(size int) int64 { return int64(size) * 28 }
+
+// keepBudget bounds the estimated memory of the environments kept at once:
+// laravel's take about 140 MiB. A soft memory limit (see debug.SetMemoryLimit)
+// lowers it to an eighth of that limit.
+var keepBudget int64 = 256 << 20
+
+// keepLimit returns keepBudget within the soft memory limit.
+func keepLimit() int64 {
+	return min(keepBudget, debug.SetMemoryLimit(-1)/8)
 }
 
 // seed takes as priors the steps earlier recorded for the files whose
@@ -910,12 +990,16 @@ func (b *FlowBuild) unsettled(snapshot *flow.Snapshot, against []*flow.Snapshot)
 }
 
 // extractFlow summarizes a file, again when prior holds its summaries
-// computed against earlier (see flow.Reextract); tests replace it to
+// computed against earlier (see flow.Reextract), inferring types with
+// types, a new environment when nil (see flow.NewTypes); tests replace it to
 // simulate a crash. A file whose summaries crash keeps none: calls into it
 // read as unresolved.
-var extractFlow = func(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *flow.Snapshot, options flow.Options, prior *flow.File, earlier *flow.Snapshot) *flow.File {
-	if prior != nil && earlier != nil {
-		return flow.Reextract(file, ix, php, snapshot, options, prior, earlier)
+var extractFlow = func(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *flow.Snapshot, options flow.Options, prior *flow.File, earlier *flow.Snapshot, types *infer.Env) *flow.File {
+	if types == nil {
+		types = flow.NewTypes(file, ix, php, options)
 	}
-	return flow.Extract(file, ix, php, snapshot, options)
+	if prior != nil && earlier != nil {
+		return flow.ReextractWith(file, types, snapshot, options, prior, earlier)
+	}
+	return flow.ExtractWith(file, types, snapshot, options)
 }
