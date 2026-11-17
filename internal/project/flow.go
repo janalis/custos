@@ -66,9 +66,9 @@ type FlowBuild struct {
 	// made counts the summaries the build made instead of taking them from
 	// its priors.
 	made atomic.Int64
-	// kept holds, while a build that records no steps composes, the
-	// inference environment (with the tree and names it read) of the last
-	// summary of each file, which its next summary infers with instead of
+	// kept holds, while a build given the trees of its files (--parse-once)
+	// that records no steps composes, the inference environment (with the
+	// tree and names it read) of the last summary of each file, which its next summary infers with instead of
 	// parsing and inferring again; keptBytes estimates what they hold,
 	// bounded by keptLimit (see keepLimit).
 	kept      []*infer.Env
@@ -135,12 +135,12 @@ func BuildFlowRecorded(ctx context.Context, files []string, srcs [][]byte, opt s
 // (parsed from its source in srcs) is summarized from it instead of being
 // parsed again.
 func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int, earlier *FlowBuild, record bool, trees []*syntax.File) *FlowBuild {
-	// Sources are read once. A summary parses its file again unless the
-	// file's last summary kept its tree and inference environment (see
-	// keep): compose then holds the trees of the files being summarized and
-	// of those kept within a budget, not those of every file, which take
-	// about ten times their source. A file that cannot be read or crashes
-	// the parser is not summarized.
+	// Sources are read once. Without trees, each summary parses its file
+	// again and keeps no tree: compose then holds the trees of the files
+	// being summarized, not those of every file, which take about ten times
+	// their source. With trees, the inference environment of a file's last
+	// summary is kept for its next one, within a budget (see keep). A file
+	// that cannot be read or crashes the parser is not summarized.
 	read := make([][]byte, len(files))
 	readable := make([]bool, len(files))
 	_ = parallel(ctx, len(files), 0, func(i int) {
@@ -198,7 +198,10 @@ func buildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Op
 			}
 		}
 	}
-	if !record {
+	// With the trees of --parse-once, the inference environments built on
+	// them are kept too: that run already holds every analysed file's tree,
+	// and trades memory for time.
+	if !record && trees != nil {
 		b.kept, b.keptLimit = make([]*infer.Env, len(files)), keepLimit()
 	}
 	b.Snapshot = b.compose(ctx, snapshot, against, ix, tree)

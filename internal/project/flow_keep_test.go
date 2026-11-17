@@ -12,14 +12,18 @@ import (
 	"custos/internal/semantic/infer"
 )
 
-// A file summarized again in a build that records no steps infers with the
-// environment of its last summary, within the budget; the language server's
-// recorded builds and a spent budget build a new one each time, and every
-// build composes the same snapshot.
+// A file summarized again in a build given its files' trees (--parse-once)
+// that records no steps infers with the environment of its last summary,
+// within the budget; a build without trees, the language server's recorded
+// builds and a spent budget build a new one each time, and every build
+// composes the same snapshot.
 func TestFlowKeepsEnvironmentForNextSummary(t *testing.T) {
 	files := writeChain(t, 4)
 	opt := syntax.Options{Version: phpversion.Default}
-	ix := BuildIndex(files, opt, infer.Options{})
+	ix, srcs, trees, _ := buildIndex(files, len(files), opt, infer.Options{}, nil, true)
+	parsedOnce := func() *FlowBuild {
+		return buildFlow(context.Background(), files, srcs, opt, ix, flow.Options{}, nil, nil, false, trees)
+	}
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
 	var mu sync.Mutex
@@ -46,8 +50,12 @@ func TestFlowKeepsEnvironmentForNextSummary(t *testing.T) {
 		return b, n
 	}
 	plain, n := reused(func() *FlowBuild { return BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{}) })
-	if n == 0 {
-		t.Fatal("no summary reused an environment")
+	if n != 0 {
+		t.Fatalf("build without trees reused %d environments", n)
+	}
+	once, n := reused(parsedOnce)
+	if n == 0 || !once.Snapshot.Equal(plain.Snapshot) {
+		t.Fatal("no summary of a parse-once build reused an environment")
 	}
 	recorded, n := reused(func() *FlowBuild {
 		return BuildFlowRecorded(context.Background(), files, nil, opt, ix, flow.Options{}, nil)
@@ -58,7 +66,7 @@ func TestFlowKeepsEnvironmentForNextSummary(t *testing.T) {
 	budget := keepBudget
 	t.Cleanup(func() { keepBudget = budget })
 	keepBudget = 0
-	spent, n := reused(func() *FlowBuild { return BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{}) })
+	spent, n := reused(parsedOnce)
 	if n != 0 || !spent.Snapshot.Equal(plain.Snapshot) {
 		t.Fatalf("spent budget reused %d environments", n)
 	}

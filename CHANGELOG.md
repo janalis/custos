@@ -10,12 +10,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The cross-file flow pass numbers the contracts it reads and records which
   ones each result read as bit sets, instead of sets of names. A cold
   `analyse` or `fix` uses about 1–3% less CPU; findings are the same.
-- A cold `analyse` or `fix` no longer parses a file and infers its types
-  again each time the cross-file flow pass summarizes it again: the file's
-  tree and inferred types are kept from one summary to the next, within a
-  memory budget, for the files whose summaries read another file's. Findings
-  are unchanged; a large project's run allocates about 8% less for a
-  higher memory peak.
+- `--parse-once` also keeps a file's inferred types from one cross-file flow
+  summary of the file to the next, within a memory budget, instead of
+  inferring them again. `analyse --parse-once` finishes up to about 6%
+  sooner than before (on composer's sources), for up to a fifth more memory
+  at peak; findings are the same.
 
 ## [0.1.14] - 2026-11-17
 
