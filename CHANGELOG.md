@@ -12,9 +12,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   `analyse` or `fix` uses about 1–3% less CPU; findings are the same.
 - `--parse-once` also keeps a file's inferred types from one cross-file flow
   summary of the file to the next, within a memory budget, instead of
-  inferring them again. `analyse --parse-once` finishes up to about 6%
-  sooner than before (on composer's sources), for up to a fifth more memory
-  at peak; findings are the same.
+  inferring them again. `analyse --parse-once` finishes about 3–9% sooner
+  than before, for up to a fifth more memory at peak (composer's sources);
+  findings are the same.
 
 ## [0.1.14] - 2026-11-17
 
