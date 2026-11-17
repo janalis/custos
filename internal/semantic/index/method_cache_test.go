@@ -62,24 +62,33 @@ func TestMethodCacheSeparatesVersionsAndBoundsStorage(t *testing.T) {
 		t.Fatal("cache limit changed resolution or retained excess entries")
 	}
 	ix.Freeze()
+	ix.FindMethod("Versioned", "run", phpversion.PHP80)
+	cache := ix.frozenMethods.Load()
 	for i := range maxResolvedMethods {
-		ix.frozenMethods.Store(resolvedMethodKey{class: fmt.Sprint(i)}, resolvedMethodEntry{generation: ix.generation()})
-	}
-	if ix.FindMethod("Versioned", "run", phpversion.PHP74) != nil || ix.FindMethod("Versioned", "run", phpversion.PHP80) == nil || frozenMethodCount(ix) != maxResolvedMethods+1 {
-		// Only the 7.4 lookup, which the class does not answer, is kept.
-		t.Fatal("frozen index cached a method the class declares itself")
+		cache.methods.Store(resolvedMethodKey{class: fmt.Sprint(i)}, nil)
 	}
 	for range 2 {
-		if ix.FindMethod("Heir", "run", phpversion.PHP74) != nil || ix.FindMethod("Heir", "run", phpversion.PHP80) == nil || frozenMethodCount(ix) != maxResolvedMethods+3 {
-			t.Fatal("frozen index evicted its method cache")
+		if ix.FindMethod("Versioned", "run", phpversion.PHP74) != nil || ix.FindMethod("Versioned", "run", phpversion.PHP80) == nil ||
+			ix.FindMethod("Heir", "run", phpversion.PHP74) != nil || ix.FindMethod("Heir", "run", phpversion.PHP80) == nil ||
+			ix.frozenMethods.Load().methods.Len() != maxResolvedMethods+4 {
+			t.Fatal("frozen index evicted its method cache or left a lookup out")
 		}
 	}
 }
 
-func frozenMethodCount(ix *Index) int {
-	n := 0
-	ix.frozenMethods.Range(func(any, any) bool { n++; return true })
-	return n
+func TestFrozenMethodCacheKeepsOnlyItsGeneration(t *testing.T) {
+	ix := New(nil)
+	ix.Add(extract(t, "run.php", `<?php class Runner{function run():int{}}`))
+	ix.Freeze()
+	key := resolvedMethodKey{class: "Runner", name: "run", version: phpversion.PHP84}
+	if ix.findFrozenMethod(key, ix.generation()) == nil {
+		t.Fatal("method unresolved")
+	}
+	// A lookup that began before a base layer changed resolves without
+	// touching the newer cache.
+	if ix.findFrozenMethod(key, ix.generation()-1) == nil || ix.frozenMethods.Load().generation != ix.generation() {
+		t.Fatal("stale lookup replaced the cache")
+	}
 }
 
 func TestFrozenMethodCacheTracksBaseLayer(t *testing.T) {
@@ -121,6 +130,32 @@ func BenchmarkFindMethodParallel(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			ix.FindMethod(classes[i%200], names[(i/200)%200], phpversion.PHP84)
+			i++
+		}
+	})
+}
+
+// BenchmarkFindMethodDirectParallel looks up methods the classes declare
+// themselves, as most lookups of a run do.
+func BenchmarkFindMethodDirectParallel(b *testing.B) {
+	var src strings.Builder
+	src.WriteString(`<?php`)
+	for i := range 200 {
+		fmt.Fprintf(&src, " class C%d{function Run(){} function stop(){}}", i)
+	}
+	ix := New(nil)
+	ix.Add(extract(b, "bench.php", src.String()))
+	ix.Freeze()
+	classes := make([]string, 200)
+	for i := range classes {
+		classes[i] = fmt.Sprintf("C%d", i)
+	}
+	methods := []string{"run", "Stop"}
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		i := 0
+		for pb.Next() {
+			ix.FindMethod(classes[i%200], methods[(i/200)%2], phpversion.PHP84)
 			i++
 		}
 	})

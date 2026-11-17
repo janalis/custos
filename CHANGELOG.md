@@ -28,6 +28,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   once, lower-cased names and dependency summaries are cached in a map read
   without locks, and names are lower-cased only when they need it. A cold
   `analyse` or `fix` of a large project finishes about 5% sooner.
+- Method lookups cost less: the methods a class declares itself, which most
+  lookups of a run ask for, are now cached too instead of resolved again on
+  each use.
+  A cold `analyse` uses about 2% less CPU.
 
 ### Fixed
 

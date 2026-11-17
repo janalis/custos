@@ -32,6 +32,14 @@ func TestFold(t *testing.T) {
 	}
 }
 
+func TestLower(t *testing.T) {
+	for name, want := range map[string]string{`app\thing::run`: `app\thing::run`, `App\Thing::Run`: `app\thing::run`, "": "", "ÉTÉ": "été", "İ": "i"} {
+		if got := Lower(name); got != want || got != strings.ToLower(name) {
+			t.Fatalf("Lower(%q) = %q", name, got)
+		}
+	}
+}
+
 func TestLowerASCII(t *testing.T) {
 	// Every byte at every offset of a word and of the tail after it.
 	for c := range 256 {
@@ -52,4 +60,20 @@ func BenchmarkFold(b *testing.B) {
 	for i := 0; b.Loop(); i++ {
 		Fold(names[i%len(names)])
 	}
+}
+
+func BenchmarkLower(b *testing.B) {
+	keys := []string{`illuminate\database\eloquent\builder::where`, `app\http\controllers\usercontroller::store`, `str_replace`}
+	b.Run("Lower", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; b.Loop(); i++ {
+			Lower(keys[i%len(keys)])
+		}
+	})
+	b.Run("strings.ToLower", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; b.Loop(); i++ {
+			strings.ToLower(keys[i%len(keys)])
+		}
+	})
 }
