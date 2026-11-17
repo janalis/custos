@@ -39,7 +39,9 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 		}
 		earlier := r
 		r = e.follow(scope, distrust, round == staticRounds)
-		addReads(r.reads, earlier.reads)
+		if r.reads != nil {
+			r.reads.addAll(earlier.reads)
+		}
 	}
 	r.finished = true
 	return r

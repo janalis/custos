@@ -227,7 +227,7 @@ func TestLocalBorrowedScopeRecordsStableDependencies(t *testing.T) {
 	}
 	// Snapshot-only dependencies are retained as well.
 	scope := local.scopes[functionNamed(file, "wrap")]
-	scope.reads["external"] = true
+	scope.reads.add(local.keyTable().id("external"))
 	delete(local.local.cache, "wrap")
 	local.contract("wrap")
 }

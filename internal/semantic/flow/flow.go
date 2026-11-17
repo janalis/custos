@@ -126,7 +126,9 @@ type summaryResolver struct {
 	consulted map[string]bool
 	// answers holds what those contracts gave, and summarizing the state of
 	// the summaries being computed, which serve the file's own.
-	answers map[string]answer
+	// answers is indexed by the number keys gives each key.
+	answers []answer
+	keys    *contractKeys
 	// answered holds the summary each of those contracts first gave, which
 	// Rebase compares with what another snapshot gives; nil for summaries
 	// whose environment is dropped (Extract, Reextract).
@@ -136,9 +138,9 @@ type summaryResolver struct {
 	// reading holds, innermost last, the contracts each result being
 	// computed read meanwhile; globalReads and staticReads those the cached
 	// globals and static variable facts were computed from.
-	reading     []map[string]bool
-	globalReads map[string]bool
-	staticReads map[syntax.Node]map[string]bool
+	reading     []*readSet
+	globalReads *readSet
+	staticReads map[syntax.Node]*readSet
 	localBodies map[string]syntax.Node
 	// nested holds the functions nestedSpares is looking into.
 	nested map[syntax.Node]bool
@@ -181,7 +183,7 @@ type scopeResult struct {
 	values             valueStore
 	// reads names the contracts the result was computed from, with those of
 	// the results and facts it read; nil when Summarize did not compute it.
-	reads     map[string]bool
+	reads     *readSet
 	before    map[syntax.NodeIdentity]map[uint32]State
 	calls     []Call
 	returns   []Value

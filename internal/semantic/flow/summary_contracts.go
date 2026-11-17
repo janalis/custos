@@ -8,18 +8,18 @@ import (
 
 // begin starts recording the contracts a result computed while summaries
 // are made reads; nil when they are not being made.
-func (s *summaryResolver) begin() map[string]bool {
+func (s *summaryResolver) begin() *readSet {
 	if s.consulted == nil {
 		return nil
 	}
-	reads := map[string]bool{}
+	reads := &readSet{}
 	s.reading = append(s.reading, reads)
 	return reads
 }
 
 // end stops recording for reads, which the result computing it, if any,
 // read as well.
-func (s *summaryResolver) end(reads map[string]bool) {
+func (s *summaryResolver) end(reads *readSet) {
 	if reads == nil {
 		return
 	}
@@ -29,24 +29,9 @@ func (s *summaryResolver) end(reads map[string]bool) {
 
 // depend records that the result being computed read one computed from
 // reads.
-func (s *summaryResolver) depend(reads map[string]bool) {
+func (s *summaryResolver) depend(reads *readSet) {
 	if len(s.reading) > 0 {
-		addReads(s.reading[len(s.reading)-1], reads)
-	}
-}
-
-func readsAny(reads, keys map[string]bool) bool {
-	for key := range reads {
-		if keys[key] {
-			return true
-		}
-	}
-	return false
-}
-
-func addReads(into, from map[string]bool) {
-	for key := range from {
-		into[key] = true
+		s.reading[len(s.reading)-1].addAll(reads)
 	}
 }
 
@@ -63,10 +48,11 @@ func (e *Env) contract(name string) (Summary, bool) {
 	}
 	e.consulted[name] = true
 	key := names.Lower(name)
+	id := e.keyTable().id(key)
 	if len(e.reading) > 0 {
-		e.reading[len(e.reading)-1][key] = true
+		e.reading[len(e.reading)-1].add(id)
 	}
-	summary, ok, own := e.serve(key)
+	summary, ok, own := e.serve(key, id)
 	if !own {
 		summary, ok = e.snapshot.lookup(key)
 	}
@@ -76,20 +62,15 @@ func (e *Env) contract(name string) (Summary, bool) {
 	if state := e.summarizing; state != nil && state.dependencies != nil {
 		// Local workers publish into one immutable view. Stable own and external
 		// answers cannot change; retain only local recursion holes for replay.
-		if !own && len(state.declared[key]) == 1 && state.base.alone(e.file.Path, key) {
-			if e.answers == nil {
-				e.answers = map[string]answer{}
-			}
-			e.answers[key] = answer{held: true}
+		if !own && len(state.declared[key]) == 1 && state.alone(id, key) {
+			*e.answer(id) = answer{known: true, held: true}
 		}
 		return summary, ok
 	}
-	read, again := e.answers[key]
-	if !again {
-		if e.answers == nil {
-			e.answers = map[string]answer{}
-		}
-		read = answer{ok: ok}
+	at := e.answer(id)
+	read := *at
+	if !read.known {
+		read = answer{known: true, ok: ok}
 		if e.answered != nil {
 			e.answered[key] = summary
 		}
@@ -99,14 +80,24 @@ func (e *Env) contract(name string) (Summary, bool) {
 	} else {
 		read.held = true
 	}
-	e.answers[key] = read
+	*at = read
 	return summary, ok
+}
+
+// answer returns the entry of e.answers for the key numbered id.
+func (s *summaryResolver) answer(id uint32) *answer {
+	if int(id) >= len(s.answers) {
+		s.answers = append(s.answers, make([]answer, int(id)+1-len(s.answers))...)
+	}
+	return &s.answers[id]
 }
 
 // answer is what a contract read while summaries were computed gave: a
 // summary or none (ok), the file's own (own), the snapshot's (held), or
 // each at some time. The summary itself is kept apart (Env.answered).
 type answer struct {
+	// known tells that the contract was read at all.
+	known     bool
 	ok        bool
 	own, held bool
 }
@@ -115,9 +106,9 @@ type answer struct {
 // snapshot with the file's summaries would answer from them: a class of the
 // file, or a callable of it declared once, summarized now unless its
 // summary is being made. own is false for any other key.
-func (e *Env) serve(key string) (summary Summary, ok, own bool) {
+func (e *Env) serve(key string, id uint32) (summary Summary, ok, own bool) {
 	s := e.summarizing
-	if s == nil || !s.base.alone(s.out.Path, key) {
+	if s == nil || !s.alone(id, key) {
 		return Summary{}, false, false
 	}
 	if strings.HasPrefix(key, sinkClassKey("")) {
@@ -137,4 +128,30 @@ func (e *Env) serve(key string) (summary Summary, ok, own bool) {
 		return s.out.Summaries[key], true, true
 	}
 	return Summary{}, false, false
+}
+
+// alone is s.base.alone for the file being summarized and the key
+// numbered id: base is set before any contract is read and never changes.
+func (s *summarizing) alone(id uint32, key string) bool {
+	return s.aloneKeys.holds(id, s.base, s.out.Path, key)
+}
+
+// aloneKeys remembers, per contract key number, whether a snapshot that
+// never changes declares the key in no file but one: 2 when it does, 1 when
+// it does not.
+type aloneKeys []uint8
+
+func (c *aloneKeys) holds(id uint32, base *Snapshot, path, key string) bool {
+	if int(id) >= len(*c) {
+		*c = append(*c, make([]uint8, int(id)+1-len(*c))...)
+	}
+	known := (*c)[id]
+	if known == 0 {
+		known = 1
+		if base.alone(path, key) {
+			known = 2
+		}
+		(*c)[id] = known
+	}
+	return known == 2
 }

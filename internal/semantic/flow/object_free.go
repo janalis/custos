@@ -195,7 +195,7 @@ func (e *Env) declared(scope syntax.Node) map[string]static {
 	e.statics[scope] = known
 	if reads != nil {
 		if e.staticReads == nil {
-			e.staticReads = map[syntax.Node]map[string]bool{}
+			e.staticReads = map[syntax.Node]*readSet{}
 		}
 		e.staticReads[scope] = reads
 	}

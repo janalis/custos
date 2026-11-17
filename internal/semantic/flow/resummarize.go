@@ -22,29 +22,22 @@ const (
 // returned function runs.
 func (e *Env) tracking(s *summarizing, key string) func() {
 	reads := e.begin()
-	s.stack = append(s.stack, key)
+	bits := s.track[key]
+	if bits == nil {
+		bits = map[string]uint8{}
+		s.track[key] = bits
+	}
+	s.stack = append(s.stack, bits)
 	return func() {
 		s.stack = s.stack[:len(s.stack)-1]
 		e.end(reads)
-		bits := s.track[key]
-		if bits == nil {
-			bits = map[string]uint8{}
-			s.track[key] = bits
-		}
-		for read := range reads {
-			bits[read] |= readAny
-		}
+		reads.each(func(id uint32) { bits[e.keys.key(id)] |= readAny })
 	}
 }
 
 // answered records how the callable being summarized had key answered.
 func (s *summarizing) answered(key string, own bool) {
-	top := s.stack[len(s.stack)-1]
-	bits := s.track[top]
-	if bits == nil {
-		bits = map[string]uint8{}
-		s.track[top] = bits
-	}
+	bits := s.stack[len(s.stack)-1]
 	if own {
 		bits[key] |= readOwn
 	} else {

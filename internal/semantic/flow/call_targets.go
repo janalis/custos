@@ -238,7 +238,7 @@ func (e *Env) overrides(receiver, method, declaring string) bool {
 // read: whatever reads the answer again depends on them too.
 type cachedAnswer struct {
 	holds bool
-	reads map[string]bool
+	reads *readSet
 }
 
 func (e *Env) override(receiver, method, declaring string) bool {

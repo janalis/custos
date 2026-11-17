@@ -17,7 +17,7 @@ func TestOverridesReplayReads(t *testing.T) {
 			t.Fatal("B::m replaces A::m")
 		}
 		e.end(reads)
-		if !reads["b::m"] {
+		if !e.readsKey(reads, "b::m") {
 			t.Fatalf("reader %d: reads=%v, want b::m", i, reads)
 		}
 	}
@@ -44,7 +44,7 @@ func TestBackedReplayReads(t *testing.T) {
 			t.Fatal("D::__get may answer $this->p")
 		}
 		e.end(reads)
-		if !reads["d::__get"] {
+		if !e.readsKey(reads, "d::__get") {
 			t.Fatalf("reader %d: reads=%v, want d::__get", i, reads)
 		}
 	}

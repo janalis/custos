@@ -59,11 +59,14 @@ func finish(e *Env, out *File, kept map[string]bool) {
 	out.callables = e.summarizing.track
 	e.summarizing = nil
 	out.consulted, e.consulted = e.consulted, nil
-	for key, read := range e.answers {
-		out.noteRead(key, read.held || kept[key])
+	for id, read := range e.answers {
+		if read.known {
+			key := e.keys.key(uint32(id))
+			out.noteRead(key, read.held || kept[key])
+		}
 	}
 	for key, held := range kept {
-		if _, read := e.answers[key]; !read {
+		if !e.answeredKey(key) {
 			out.noteRead(key, held)
 		}
 	}
@@ -144,15 +147,18 @@ type summarizing struct {
 	base         *Snapshot
 	cached       map[string]Summary
 	borrowed     map[syntax.Node]*scopeResult
-	dependencies map[syntax.Node]map[string]bool
+	dependencies map[syntax.Node]*readSet
 	out          *File
 	declared     map[string][]syntax.Node
 	names        map[syntax.Node]string
 	state        map[syntax.Node]uint8
 	// track records what each callable read (see File.callables); stack
-	// holds the callables being summarized, innermost last.
+	// holds the entries of track of the callables being summarized,
+	// innermost last.
 	track map[string]map[string]uint8
-	stack []string
+	stack []map[string]uint8
+	// aloneKeys remembers base.alone for the file, per contract key number.
+	aloneKeys aloneKeys
 }
 
 const (
@@ -286,8 +292,8 @@ func (e *Env) Rebase(s *Snapshot) *Env {
 	if e.local != nil {
 		return NewLocal(e.file, e.types, s, e.options, e.local.guard)
 	}
-	differ := changedAnswers(e.answers, e.answered, s.lookup)
-	if len(differ) == 0 && snapshotOptions(s) == e.options {
+	differ := changedAnswers(e.keys, e.answers, e.answered, s.lookup)
+	if differ.empty() && snapshotOptions(s) == e.options {
 		e.snapshot = s
 		return e
 	}
@@ -295,21 +301,34 @@ func (e *Env) Rebase(s *Snapshot) *Env {
 	if snapshotOptions(s) != e.options {
 		return n
 	}
+	// The results kept number their reads as e does.
+	n.keys = e.keys
 	for scope, r := range e.scopes {
-		if r.reads != nil && !readsAny(r.reads, differ) {
+		if r.reads != nil && !r.reads.meets(differ) {
 			n.scopes[scope] = r
 		}
 	}
 	return n
 }
 
-func changedAnswers(answers map[string]answer, answered map[string]Summary, lookup func(string) (Summary, bool)) map[string]bool {
-	differ := map[string]bool{}
-	for key, read := range answers {
+func changedAnswers(keys *contractKeys, answers []answer, answered map[string]Summary, lookup func(string) (Summary, bool)) *readSet {
+	differ := &readSet{}
+	for id, read := range answers {
+		if !read.known {
+			continue
+		}
+		key := keys.key(uint32(id))
 		summary, ok := lookup(key)
 		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(answered[key], summary) {
-			differ[key] = true
+			differ.add(uint32(id))
 		}
 	}
 	return differ
+}
+
+// answeredKey reports that a contract read while summaries were computed
+// gave an answer for key.
+func (s *summaryResolver) answeredKey(key string) bool {
+	id, known := s.keyTable().known(key)
+	return known && int(id) < len(s.answers) && s.answers[id].known
 }

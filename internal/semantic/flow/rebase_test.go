@@ -25,10 +25,10 @@ func TestSummariesServeTheCallablesOfTheFile(t *testing.T) {
 	if !tainted(own.Summaries["a"].Return) {
 		t.Fatalf("a=%+v", own.Summaries["a"])
 	}
-	if read := env.answers["b"]; !read.own || read.held || !read.ok {
+	if read := env.answerFor("b"); !read.own || read.held || !read.ok {
 		t.Fatalf("b answered %+v", read)
 	}
-	if read := env.answers[sinkClassKey("K")]; !read.own || !read.ok {
+	if read := env.answerFor(sinkClassKey("K")); !read.own || !read.ok {
 		t.Fatalf("class answered %+v", read)
 	}
 	overlay := (*Snapshot)(nil).WithFile(own)
@@ -44,7 +44,7 @@ func TestSummariesServeTheCallablesOfTheFile(t *testing.T) {
 func TestRebaseKeepsTheResultsTheSummariesDoNotChange(t *testing.T) {
 	e, f := environment(t, `function a($c){ if ($c) { return b($c); } return $_GET['x']; } function b($c){ return a($c); } function c($x){ return strlen($x); }`, nil)
 	env, own := Summarize(f, e.types, nil, Options{})
-	if read := env.answers["a"]; !read.held || read.ok {
+	if read := env.answerFor("a"); !read.held || read.ok {
 		t.Fatalf("a answered %+v", read)
 	}
 	rebased := env.Rebase((*Snapshot)(nil).WithFile(own))
@@ -104,7 +104,7 @@ func TestOnlyACallableNoOtherFileDeclaresIsServed(t *testing.T) {
 	}
 	e, f := environment(t, `function x(){ return 1; } function w(){ return x(); }`, nil)
 	env, _ := Summarize(f, e.types, shared, Options{})
-	if read := env.answers["x"]; read.own || !read.held {
+	if read := env.answerFor("x"); read.own || !read.held {
 		t.Fatalf("x answered %+v", read)
 	}
 }
