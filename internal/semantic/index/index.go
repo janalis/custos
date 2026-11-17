@@ -9,6 +9,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/names"
+	"custos/internal/semantic/readmap"
 )
 
 // Index holds symbols keyed by lower-case FQN (constants: exact case, with
@@ -42,10 +43,11 @@ type Index struct {
 	methodGeneration uint64
 	methodMu         sync.RWMutex
 	methods          map[resolvedMethodKey]resolvedMethodEntry
-	// frozenMethods caches FindMethod once the index is frozen: a run's
-	// workers resolve many distinct names side by side, and one map behind
-	// one lock made them wait on each other's misses.
-	frozenMethods sync.Map // resolvedMethodKey -> resolvedMethodEntry
+	// frozenMethods caches FindMethod once the index is frozen, for the
+	// generation it was made for: a run's workers resolve many distinct
+	// names side by side, and one map behind one lock made them wait on
+	// each other's misses.
+	frozenMethods atomic.Pointer[frozenMethodCache]
 	// memo holds the results of Memo, by key, once the index is frozen.
 	memo sync.Map // any -> memoEntry
 	// globals caches GlobalNames for globalsGeneration.
@@ -653,46 +655,56 @@ type memoEntry struct {
 	value      any
 }
 
+// frozenMethodCache holds the methods a frozen index resolved while every
+// layer was at generation.
+type frozenMethodCache struct {
+	generation uint64
+	methods    readmap.Map[resolvedMethodKey, *Method]
+}
+
 // findFrozenMethod is FindMethod on a frozen index. Its cache is never
 // bounded: a frozen index serves a single run, whose lookups would otherwise
-// keep evicting each other. A base layer may still change, so entries keep
-// the generation they were resolved for.
+// keep evicting each other. It keeps every answer, a method the class
+// declares itself included: a run asks for the same few thousand methods
+// tens of times each, and the read map serves a repeated lookup without the
+// lock its first one takes. A base layer may still change; the cache then
+// starts over for the new generation.
 func (ix *Index) findFrozenMethod(key resolvedMethodKey, generation uint64) *Method {
-	if cached, found := ix.frozenMethods.Load(key); found && cached.(resolvedMethodEntry).generation == generation {
-		return cached.(resolvedMethodEntry).method
+	cache := ix.frozenMethods.Load()
+	if cache == nil || cache.generation < generation {
+		fresh := &frozenMethodCache{generation: generation}
+		if ix.frozenMethods.CompareAndSwap(cache, fresh) {
+			cache = fresh
+		}
 	}
-	method, direct := ix.resolveMethodDirect(key.class, key.name, key.version)
-	// A method the class declares itself is found as fast as a cached one:
-	// only the lookups through the hierarchy are kept.
-	if !direct {
-		// Lookup names may be slices of an editor buffer; retain only their bytes.
-		key.class, key.name = strings.Clone(key.class), strings.Clone(key.name)
-		ix.frozenMethods.Store(key, resolvedMethodEntry{generation: generation, method: method})
+	if cache == nil || cache.generation != generation {
+		// Another lookup replaced the cache first, or a base layer changed
+		// while this one ran: its answer is not kept.
+		return ix.resolveMethod(key.class, key.name, key.version)
 	}
+	if method, found := cache.methods.Load(key); found {
+		return method
+	}
+	method := ix.resolveMethod(key.class, key.name, key.version)
+	// Lookup names may be slices of an editor buffer; retain only their bytes.
+	key.class, key.name = strings.Clone(key.class), strings.Clone(key.name)
+	cache.methods.Store(key, method)
 	return method
 }
 
 func (ix *Index) resolveMethod(class, name string, ver phpversion.Version) *Method {
-	m, _ := ix.resolveMethodDirect(class, name, ver)
-	return m
-}
-
-// resolveMethodDirect is resolveMethod also telling whether the class
-// itself answered, without a walk through its hierarchy.
-func (ix *Index) resolveMethodDirect(class, name string, ver phpversion.Version) (*Method, bool) {
 	// Not names.Fold: method names would compete with class names for the
-	// bounded fold cache, and findFrozenMethod already keeps the lookups
-	// through the hierarchy.
+	// bounded fold cache, and FindMethod already keeps the lookups.
 	lname := strings.ToLower(name)
 	if c := ix.Class(class, ver); c != nil {
 		if ver != 0 && !c.Avail.In(ver) {
-			return nil, true
+			return nil
 		}
 		if m := c.Methods[lname]; m != nil && !m.Magic && (ver == 0 || m.Avail.In(ver)) {
-			return m.at(ver), true
+			return m.at(ver)
 		}
 	}
-	return ix.findComposedMethod(class, lname, ver), false
+	return ix.findComposedMethod(class, lname, ver)
 }
 
 func (ix *Index) findComposedMethod(class, name string, ver phpversion.Version) *Method {
