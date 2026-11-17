@@ -30,8 +30,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   `analyse` or `fix` of a large project finishes about 5% sooner.
 - Method lookups cost less: the methods a class declares itself, which most
   lookups of a run ask for, are now cached too instead of resolved again on
-  each use.
-  A cold `analyse` uses about 2% less CPU.
+  each use. A cold `analyse` uses about 2% less CPU.
 
 ### Fixed
 
