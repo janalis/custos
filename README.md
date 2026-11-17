@@ -84,16 +84,16 @@ and a formatter.
 
 | Tool | Kind | Time | Peak memory |
 | :--- | :--- | ---: | ---: |
-| Mago analyze | analyzer | 0.83 s | 397 MB |
-| **custos analyse** | analyzer | 5.21 s | 496 MB |
-| Phan | analyzer | 14.5 s | 1.7 GB |
-| PHPStan | analyzer | 21.6 s | 1.7 GB |
-| Psalm | analyzer | 54.7 s | 2.5 GB |
-| Mago lint | linter | 0.23 s | 193 MB |
-| PHP_CodeSniffer | linter | 6.29 s | 132 MB |
-| **custos fix** | fixer | 5.28 s | 472 MB |
-| PHP-CS-Fixer | fixer | 9.23 s | 179 MB |
-| Rector | fixer | 25.3 s | 3.5 GB |
+| Mago analyze | analyzer | 0.66 s | 399 MB |
+| **custos analyse** | analyzer | 3.85 s | 631 MB |
+| Phan | analyzer | 12.9 s | 1.7 GB |
+| PHPStan | analyzer | 19.7 s | 1.6 GB |
+| Psalm | analyzer | 45.4 s | 2.5 GB |
+| Mago lint | linter | 0.19 s | 204 MB |
+| PHP_CodeSniffer | linter | 5.62 s | 132 MB |
+| **custos fix** | fixer | 3.88 s | 602 MB |
+| PHP-CS-Fixer | fixer | 7.69 s | 180 MB |
+| Rector | fixer | 25.0 s | 3.4 GB |
 
 **Features** (✓ yes, ◐ partial, — no):
 
