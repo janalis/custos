@@ -162,8 +162,9 @@ func IsBuiltinType(name string) bool { return builtinTypes[strings.ToLower(name)
 
 // IsSpecialClass reports whether name is self, static or parent.
 func IsSpecialClass(name string) bool {
-	// Only ASCII letters lower-case to these words, keeping their length:
-	// other names need no lower-cased copy.
+	// PHP folds class names over ASCII only, so a name of another length
+	// cannot be one of these words (strings.ToLower would also map a few
+	// non-ASCII letters, such as U+0130, onto them; PHP does not).
 	if len(name) != len("self") && len(name) != len("static") {
 		return false
 	}
