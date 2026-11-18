@@ -87,7 +87,9 @@ jobs:
           path: docs/.vitepress/dist
 
   deploy:
-    if: github.event_name != 'pull_request'
+    # The github-pages environment accepts main only: elsewhere (a run by
+    # hand on develop) the site is built, not deployed.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:
