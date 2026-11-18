@@ -358,12 +358,20 @@ func (f *localScopeFacts) stable(ctx *analysis.Context, e syntax.Expr, start []s
 	return true
 }
 
-// boundByReference reports whether a resolved callee may bind an argument
-// passing name by reference, other than e itself.
+// boundByReference reports whether a callee may bind an argument passing
+// name by reference, other than e itself: a resolved callee taking it by
+// reference, or one that does not resolve, whose parameters are unknown.
 func (f *localScopeFacts) boundByReference(ctx *analysis.Context, e syntax.Expr, name string) bool {
 	for _, list := range f.passed[name] {
 		callee, ok := ResolveCallee(ctx, list.Parent())
 		if !ok {
+			for _, node := range list.Args {
+				if arg, ok := node.(*syntax.Arg); ok && !arg.Unpack {
+					if v := argumentRoot(arg.Value); v != nil && v.Name == name && syntax.UnwrapParens(arg.Value) != syntax.UnwrapParens(e) {
+						return true
+					}
+				}
+			}
 			continue
 		}
 		for _, ref := range ReferenceArguments(list, callee.Params, true) {

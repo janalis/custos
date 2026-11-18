@@ -1,6 +1,8 @@
 package semanticquery
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"custos/internal/inspection/analysis"
@@ -86,7 +88,10 @@ func TestStableLocalValue(t *testing.T) {
 		{"parse_str into the local", fn + "$a = 'x'; parse_str($p, $a); strrev($a); }", LocalStability{}, false},
 		{"call-time reference", fn + "$a = 'x'; g(&$a); strrev($a); }", LocalStability{}, false},
 		{"element by reference", fn + "$a = ['x']; settype($a[0], 'int'); strrev($a); }", LocalStability{}, false},
-		{"unresolved callee", fn + "$a = 'x'; g($a); strrev($a); }", LocalStability{}, true},
+		{"unresolved callee", fn + "$a = 'x'; g($a); strrev($a); }", LocalStability{}, false},
+		{"unresolved callee, element", fn + "$a = ['x']; g($a[0]); strrev($a); }", LocalStability{}, false},
+		{"unresolved callee, unpacked", fn + "$a = ['x']; g(...$a); strrev($a); }", LocalStability{}, true},
+		{"unresolved callee, other local", fn + "$a = 'x'; g($b); strrev($a); }", LocalStability{}, true},
 		{"by-value argument", fn + "$a = 'x'; strlen($a); strrev($a); }", LocalStability{}, true},
 		{"own argument", fn + "$a = ['x']; sort($a); }", LocalStability{}, true},
 		{"first-class callable", fn + "$a = 'x'; $c = strlen(...); strrev($a); }", LocalStability{}, true},
@@ -120,4 +125,29 @@ func TestStableLocalValue(t *testing.T) {
 			t.Fatal("an absent expression reads no local")
 		}
 	})
+}
+
+// BenchmarkStableLocalValue asks about every probed local of a long scope:
+// the scope's facts are gathered once per file and options, not per call.
+func BenchmarkStableLocalValue(b *testing.B) {
+	var src strings.Builder
+	src.WriteString("<?php function f($p) {\n")
+	for i := range 300 {
+		fmt.Fprintf(&src, "  $a%d = 'x' . $p; $b%d = $a%d; g($b%d, $p); strrev($a%d);\n", i, i, i, i, i)
+	}
+	src.WriteString("}\n")
+	p := nativeProbe{check: func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if name, ok := c.Name.(*syntax.Name); ok && name.Value == "strrev" {
+			StableLocalValue(ctx, c.Args.Args[0].(*syntax.Arg).Value, LocalStability{})
+		}
+	}}
+	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}})
+	if err != nil {
+		b.Fatal(err)
+	}
+	f := []byte(src.String())
+	b.ReportAllocs()
+	for b.Loop() {
+		e.Analyze(syntax.Parse("bench.php", f, syntax.Options{}))
+	}
 }

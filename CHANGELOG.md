@@ -37,7 +37,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   assigned into it. A rule no longer trusts the value in such scopes where it
   did before; a two-argument `parse_str()` into another variable, a
   namespaced function named `extract()`, or (for ArrayRandInvalidCount) a
-  write inside a nested function, no longer withdraws the proof.
+  write inside a nested function, no longer withdraws the proof. A local passed
+  to a call custos cannot resolve is no longer trusted either, as the callee
+  may take it by reference.
 - The rule reference and `custos explain` state each rule's PHP range as the
   rule applies it: ArrayColumnMissingField runs from PHP 5.5,
   UnpackedNamedArgumentCollision from PHP 8.1 and SimpleXmlLoadFileUsage up
