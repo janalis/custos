@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-11-18
+
 ### Added
 
 - `analyse` keeps each checked file's findings in the cache and reports them
@@ -944,7 +946,8 @@ First public release.
   stay inside the project; `custos fix` never writes through symlinks; the
   language server rejects malformed or oversized messages.
 
-[Unreleased]: https://github.com/janalis/custos/compare/v0.1.15...HEAD
+[Unreleased]: https://github.com/janalis/custos/compare/v0.1.16...HEAD
+[0.1.16]: https://github.com/janalis/custos/compare/v0.1.15...v0.1.16
 [0.1.15]: https://github.com/janalis/custos/compare/v0.1.14...v0.1.15
 [0.1.14]: https://github.com/janalis/custos/compare/v0.1.13...v0.1.14
 [0.1.13]: https://github.com/janalis/custos/compare/v0.1.12...v0.1.13
