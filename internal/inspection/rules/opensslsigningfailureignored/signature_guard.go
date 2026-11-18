@@ -202,7 +202,7 @@ func (g guard) verifiedBefore(at syntax.Expr) bool {
 // the signature, given what it held before: not null any more when it was
 // unset or null, not empty when it was `”`.
 func (g guard) writtenAt(at syntax.Expr) bool {
-	if g.required == always || semanticquery.NativeLabelled(g.ctx, at) {
+	if g.required == always || semanticquery.NativeLabeled(g.ctx, at) {
 		return false
 	}
 	env := g.ctx.Types().Native()

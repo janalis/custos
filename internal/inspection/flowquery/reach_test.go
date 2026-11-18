@@ -372,9 +372,9 @@ func stateMachine(n int, entered, looped bool) string {
 	return b.String()
 }
 
-// labelledTail is a function of n jumps to a label that returns, then n
+// labeledTail is a function of n jumps to a label that returns, then n
 // labeled statements no jump names.
-func labelledTail(n int) string {
+func labeledTail(n int) string {
 	var b strings.Builder
 	b.WriteString("<?php function f(int $n) { ")
 	for i := 0; i < n; i++ {
@@ -388,10 +388,10 @@ func labelledTail(n int) string {
 	return b.String()
 }
 
-// labelledBlocks is a function of depth blocks, one in the other, each
+// labeledBlocks is a function of depth blocks, one in the other, each
 // entered by a jump to a label written after a `return`, with n statements
 // in the innermost.
-func labelledBlocks(depth, n int) string {
+func labeledBlocks(depth, n int) string {
 	var b strings.Builder
 	b.WriteString("<?php function f(int $n) { ")
 	for i := 0; i < depth; i++ {
@@ -437,8 +437,8 @@ func TestReachableManyLabelsAndJumpsLinear(t *testing.T) {
 		{"state machine nothing enters", stateMachine(4000, false, false), 0},
 		{"state machine in an endless loop", stateMachine(4000, true, true), 4000},
 		{"state machine in an endless loop nothing enters", stateMachine(4000, false, true), 0},
-		{"labels no jump names", labelledTail(4000), 0},
-		{"labeled blocks", labelledBlocks(100, 2000), 2000},
+		{"labels no jump names", labeledTail(4000), 0},
+		{"labeled blocks", labeledBlocks(100, 2000), 2000},
 		{"ring nothing enters", deadRing(4000, false), 0},
 		{"ring nothing enters, in a block", deadRing(4000, true), 0},
 	} {
@@ -467,7 +467,7 @@ func BenchmarkReachableDeadTail(b *testing.B) {
 // each time.
 func BenchmarkReachableJumps(b *testing.B) {
 	benchmarkReachable(b, map[string]string{
-		"states": stateMachine(1000, true, false), "looped": stateMachine(1000, true, true), "labels": labelledTail(1000), "blocks": labelledBlocks(50, 500), "ring": deadRing(1000, true),
+		"states": stateMachine(1000, true, false), "looped": stateMachine(1000, true, true), "labels": labeledTail(1000), "blocks": labeledBlocks(50, 500), "ring": deadRing(1000, true),
 	})
 }
 

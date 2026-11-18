@@ -32,7 +32,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if errors == nil || afterFailedParse(ctx, errors) {
 		return
 	}
-	if silentProbe(fetch) || !semanticquery.NativeLabelled(ctx, fetch.Var) && semanticquery.NativeNarrowedExcludes(ctx, fetch.Var, types.Of("array", "false"), "false") {
+	if silentProbe(fetch) || !semanticquery.NativeLabeled(ctx, fetch.Var) && semanticquery.NativeNarrowedExcludes(ctx, fetch.Var, types.Of("array", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(fetch, message)

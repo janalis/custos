@@ -66,7 +66,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // entry's earlier isDot()/isDir()/isFile()/isLink() results and of its name
 // (getFilename(), argument-less getBasename()), joined over those calls.
 func dotEntriesExcludedAt(ctx *analysis.Context, loop *syntax.Foreach, c *syntax.FuncCall, variable string) uint8 {
-	if semanticquery.NativeLabelled(ctx, c) {
+	if semanticquery.NativeLabeled(ctx, c) {
 		return 0 // a jump may land between a test and the call
 	}
 	env := ctx.Types().Native()

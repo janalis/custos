@@ -228,6 +228,24 @@ func TestProjectUsesSymbolCache(t *testing.T) {
 	}
 }
 
+// A run that analyzes fewer files (or none, as the language server's index)
+// keeps the declarations of the other analyzed files in the cache.
+func TestSourceDeclarationsCarriedOver(t *testing.T) {
+	root, dir := t.TempDir(), t.TempDir()
+	a, b := filepath.Join(root, "a.php"), filepath.Join(root, "b.php")
+	writeFile(t, a, "<?php function a_fn() {}\n")
+	writeFile(t, b, "<?php function b_fn() {}\n")
+	backdate(t, a, b)
+	opt := syntax.Options{Version: phpversion.Default}
+	BuildIndexCached([]string{a, b}, 2, opt, infer.Options{}, OpenSymbolCache(dir, root, opt, infer.Options{}))
+	BuildIndexCached([]string{a, b}, 1, opt, infer.Options{}, OpenSymbolCache(dir, root, opt, infer.Options{}))
+	extracted := countExtractions(t)
+	BuildIndexCached([]string{a, b}, 2, opt, infer.Options{}, OpenSymbolCache(dir, root, opt, infer.Options{}))
+	if n := extracted(); n != 0 {
+		t.Fatalf("%d analyzed files parsed again after a narrower run", n)
+	}
+}
+
 // Declarations read back by content get this process's digest: a digest
 // is keyed per process, and another one's would never match.
 func TestSourceDeclarationsGetThisProcessDigest(t *testing.T) {

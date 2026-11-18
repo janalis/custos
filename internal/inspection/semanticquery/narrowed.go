@@ -17,7 +17,7 @@ import (
 // local is left to the flow analysis, which knows the calls that may enter
 // the function again and assign it; other expressions prove nothing.
 func NativeNarrowedExcludes(ctx *analysis.Context, x syntax.Expr, seed types.Type, atom string) bool {
-	if NativeLabelled(ctx, x) {
+	if NativeLabeled(ctx, x) {
 		return false // a jump may land between a guard and the read
 	}
 	var t types.Type

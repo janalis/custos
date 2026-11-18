@@ -76,7 +76,7 @@ func canonicalPath(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 // false, while path still holds the same file.
 func directoryVerified(ctx *analysis.Context, at, path syntax.Expr, source syntax.Node) bool {
 	variable, ok := syntax.UnwrapParens(path).(*syntax.Variable)
-	if !ok || semanticquery.NativeLabelled(ctx, at) {
+	if !ok || semanticquery.NativeLabeled(ctx, at) {
 		return false
 	}
 	env := ctx.Types().Native()

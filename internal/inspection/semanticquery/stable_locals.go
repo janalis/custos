@@ -65,7 +65,7 @@ func StableLocalValue(ctx *analysis.Context, e syntax.Expr, opts LocalStability)
 		return true
 	}
 	for scope := syntax.EnclosingVariableScope(e); ; scope = syntax.EnclosingVariableScope(scope) {
-		if !scopeFactsOf(ctx, scope, opts).stable(ctx, e, start, opts) {
+		if !memoScopeFacts(ctx, scope, opts).stable(ctx, e, start, opts) {
 			return false
 		}
 		if _, arrow := scope.(*syntax.ArrowFunction); !arrow {
@@ -92,6 +92,17 @@ type localScopeFacts struct {
 	// passed: local -> argument lists passing it (or one of its elements),
 	// which may bind it by reference once the callee is resolved.
 	passed map[string][]*syntax.ArgList
+}
+
+// scopeFactsKey memoizes the facts of a scope under given options: every
+// rule and variable asking about the scope shares one walk of it.
+type scopeFactsKey struct {
+	scope syntax.Node
+	opts  LocalStability
+}
+
+func memoScopeFacts(ctx *analysis.Context, scope syntax.Node, opts LocalStability) *localScopeFacts {
+	return ctx.File.Memo(scopeFactsKey{scope, opts}, func() any { return scopeFactsOf(ctx, scope, opts) }).(*localScopeFacts)
 }
 
 func scopeFactsOf(ctx *analysis.Context, scope syntax.Node, opts LocalStability) *localScopeFacts {

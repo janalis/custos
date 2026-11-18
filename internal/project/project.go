@@ -151,7 +151,7 @@ func (p *Project) prepare(keepTrees, report bool) (engine *analysis.Engine, sour
 	if report {
 		found = cache.findings(p.Files, findingsInputs{
 			root: p.Options.Root, recorded: p.Options.RecordedKey, parseOnce: p.Options.ParseOnce,
-			engine: engine, world: worldDigest(p.Options.Root, indexed, skipped), php: php,
+			engine: engine, world: func() string { return worldDigest(p.Options.Root, indexed, skipped) }, php: php,
 		}, snapshot, options)
 	}
 	sources = make([][]byte, len(p.Files))

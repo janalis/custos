@@ -80,5 +80,5 @@ func lengthProven(ctx *analysis.Context, input syntax.Expr, length int64) bool {
 	if n, known := ctx.Flow().ExactLength(input); known && n == length {
 		return true
 	}
-	return !semanticquery.NativeLabelled(ctx, input) && ctx.Types().Native().NarrowedFrom(input, types.String).LengthsOnly(length, length)
+	return !semanticquery.NativeLabeled(ctx, input) && ctx.Types().Native().NarrowedFrom(input, types.String).LengthsOnly(length, length)
 }

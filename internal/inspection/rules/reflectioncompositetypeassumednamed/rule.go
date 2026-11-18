@@ -96,7 +96,7 @@ func guarded(ctx *analysis.Context, call *syntax.MethodCall, typ string) bool {
 	if !strings.Contains(typ, "|") {
 		class = `\ReflectionIntersectionType`
 	}
-	if semanticquery.NativeLabelled(ctx, call.Var) {
+	if semanticquery.NativeLabeled(ctx, call.Var) {
 		return false // a jump may land between a guard and the call
 	}
 	t := ctx.Types().Native().NarrowedFrom(call.Var, types.Of(class, `\ReflectionType`))

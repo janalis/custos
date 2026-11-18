@@ -60,7 +60,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// The cases the subject may still be there: comparisons and assignments
 	// narrow them, unless a jump may land between those and the match.
-	if names, ok := ctx.Types().Native().TypeOf(match.Cond).EnumCaseNames(classes[0]); ok && !semanticquery.NativeLabelled(ctx, match.Cond) {
+	if names, ok := ctx.Types().Native().TypeOf(match.Cond).EnumCaseNames(classes[0]); ok && !semanticquery.NativeLabeled(ctx, match.Cond) {
 		for name := range missing {
 			if !slices.Contains(names, name) {
 				delete(missing, name)

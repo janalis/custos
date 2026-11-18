@@ -91,6 +91,9 @@ func TestFindingsCacheOracle(t *testing.T) {
 		p.Engine, _ = analysis.NewEngine(catalogue.All(), analysis.Config{PHP: phpversion.PHP84})
 	}), 0)
 	check("back", runFindings(t, root, dir, nil), 0)
+	// Composer's installed packages are part of the world rules see.
+	writeFile(t, filepath.Join(root, "vendor", "composer", "installed.json"), `{"packages": []}`)
+	check("installed", runFindings(t, root, dir, nil), 0)
 	recording := func(p *Project) {
 		p.Engine = p.Engine.WithRecorded(func(string, []byte) func(diagnostic.Finding, []diagnostic.Finding) bool { return nil })
 	}

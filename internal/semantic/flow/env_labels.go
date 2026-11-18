@@ -21,12 +21,12 @@ import (
 // around it: the variables of a loop body or of an element key say nothing
 // about where the checked value was tested.
 func (e *Env) Labeled(at syntax.Node) bool {
-	return e.LabelledBefore(at, at)
+	return e.LabeledBefore(at, at)
 }
 
-// LabelledBefore is Labeled for a value checked in one place and used in
+// LabeledBefore is Labeled for a value checked in one place and used in
 // another: the labels count up to use, the variables are the ones of checked.
-func (e *Env) LabelledBefore(checked, use syntax.Node) bool {
+func (e *Env) LabeledBefore(checked, use syntax.Node) bool {
 	scope := syntax.EnclosingVariableScope(use)
 	r := e.scope(scope)
 	if r.labeled == 0 || r.labeled > use.Span().Start {

@@ -34,7 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	blocking := semanticquery.CallArgument(wait.Args, flags, "flags") == nil
-	if semanticquery.NativeLabelled(ctx, c) || !waited(ctx, wait, c, blocking) || !exited(ctx, wait, input, c) {
+	if semanticquery.NativeLabeled(ctx, c) || !waited(ctx, wait, c, blocking) || !exited(ctx, wait, input, c) {
 		ctx.ReportNode(c, message)
 	}
 }

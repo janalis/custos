@@ -239,7 +239,7 @@ func NativeStreamMode(ctx *analysis.Context, h, at syntax.Expr) (string, bool) {
 // rule its failure out. fseek fails with -1 rather than false: its result
 // must be known to be 0.
 func NativeCallSucceeded(ctx *analysis.Context, c, at syntax.Expr) bool {
-	if NativeLabelled(ctx, at) {
+	if NativeLabeled(ctx, at) {
 		return false
 	}
 	if f, ok := c.(*syntax.FuncCall); ok && NativeBuiltinName(ctx, f) == "fseek" {
@@ -583,7 +583,7 @@ func nativeAvailableClass(ctx *analysis.Context, name string) *index.Class {
 // NativeFailureFlowOnly reports reads whose producer paths must be checked by
 // flow instead of a lexical guard or the inferred type of an earlier write.
 func NativeFailureFlowOnly(ctx *analysis.Context, e syntax.Expr) bool {
-	if NativeLabelled(ctx, e) {
+	if NativeLabeled(ctx, e) {
 		return true
 	}
 	reaching, single := ctx.Flow().Reaching(e)

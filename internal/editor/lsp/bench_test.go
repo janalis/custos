@@ -191,10 +191,10 @@ func (l labeled) Check(ctx *analysis.Context, n syntax.Node) {
 	pprof.SetGoroutineLabels(context.Background())
 }
 
-// labelledFile is labeled for a rule that also checks whole files.
-type labelledFile struct{ labeled }
+// labeledFile is labeled for a rule that also checks whole files.
+type labeledFile struct{ labeled }
 
-func (l labelledFile) CheckFile(ctx *analysis.Context) {
+func (l labeledFile) CheckFile(ctx *analysis.Context) {
 	pprof.SetGoroutineLabels(l.ctx)
 	l.Rule.(analysis.FileRule).CheckFile(ctx)
 	pprof.SetGoroutineLabels(context.Background())
@@ -219,7 +219,7 @@ func TestRuleCost(t *testing.T) {
 	for _, r := range catalogue.All() {
 		l := labeled{r, pprof.WithLabels(context.Background(), pprof.Labels("rule", r.ID()))}
 		if _, ok := r.(analysis.FileRule); ok {
-			rules = append(rules, labelledFile{l})
+			rules = append(rules, labeledFile{l})
 		} else {
 			rules = append(rules, l)
 		}

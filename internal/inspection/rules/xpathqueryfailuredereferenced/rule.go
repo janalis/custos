@@ -31,7 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		receiver = c.Var
 	}
 	q, ok := semanticquery.NativeValue(ctx, receiver).(*syntax.MethodCall)
-	if ok && semanticquery.NativeMethod(ctx, q, "DOMXPath", "query") && !ctx.Flow().Excludes(receiver, "false") && (semanticquery.NativeLabelled(ctx, receiver) || !semanticquery.NativeNarrowedExcludes(ctx, receiver, types.Of(`\DOMNodeList`, "false"), "false")) {
+	if ok && semanticquery.NativeMethod(ctx, q, "DOMXPath", "query") && !ctx.Flow().Excludes(receiver, "false") && (semanticquery.NativeLabeled(ctx, receiver) || !semanticquery.NativeNarrowedExcludes(ctx, receiver, types.Of(`\DOMNodeList`, "false"), "false")) {
 		ctx.ReportNode(n, message)
 	}
 }

@@ -105,7 +105,7 @@ func scalarCall(ctx *analysis.Context, call *syntax.FuncCall) bool {
 // assignment reaching use, and the tested expression must still carry it)
 // whose result the conditions guarding use prove negative.
 func guarded(ctx *analysis.Context, use, origin syntax.Expr) bool {
-	if semanticquery.NativeLabelled(ctx, use) {
+	if semanticquery.NativeLabeled(ctx, use) {
 		return false // a jump may land between the test and the use
 	}
 	return semanticquery.NativeEarlierCallProves(ctx, use, func(x syntax.Expr) (types.Type, func(types.Type) bool) {

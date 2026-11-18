@@ -1,13 +1,16 @@
 package project
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/platform/safeio"
 	"custos/internal/project/config"
 	"custos/internal/semantic/index"
@@ -123,7 +126,9 @@ func vendorDirBytes(b []byte) string {
 	if json.Unmarshal(b, &c) != nil || c.Config.VendorDir == "" || !filepath.IsLocal(c.Config.VendorDir) {
 		return "vendor"
 	}
-	return filepath.Clean(c.Config.VendorDir)
+	// Slash-separated, as snapshots name their files on every platform;
+	// filepath.Join and filepath.FromSlash accept it as well.
+	return path.Clean(filepath.ToSlash(c.Config.VendorDir))
 }
 
 // BuildIndex parses files in parallel and returns their symbols layered over
@@ -249,7 +254,7 @@ func indexSource(i int, path string, opt syntax.Options, options infer.Options, 
 	if fs != nil {
 		// A digest is keyed for the life of the process (see index.Digest):
 		// one read back from the cache is another process's.
-		fs.Digest = index.Digest(&syntax.File{Src: src, Version: opt.Version})
+		fs.Digest = index.Digest(&syntax.File{Src: src, Version: cmp.Or(opt.Version, phpversion.Default)})
 	}
 	return fs, src
 }

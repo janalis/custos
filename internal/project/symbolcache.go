@@ -180,11 +180,19 @@ func (c *SymbolCache) store(path string, info os.FileInfo, fs *index.FileSymbols
 
 // Save writes the entries this run used, unless they are the ones it read.
 // Files no longer indexed drop out.
+// The declarations of analyzed files this run did not read are carried
+// over: a run over a few files, or the language server's, which analyzes
+// none, must not drop the entries of a run over the whole project.
 func (c *SymbolCache) Save() error {
-	if c == nil || !c.missed && !c.sourcesMissed && len(c.fresh) == len(c.old) && len(c.sources) == len(c.oldSources) {
+	if c == nil || !c.missed && !c.sourcesMissed && len(c.fresh) == len(c.old) {
 		return nil
 	}
-	return writeCache(c.path, symbolCacheFile{Key: c.key, Files: c.fresh, Sources: c.sources})
+	sources := maps.Clone(c.oldSources)
+	if sources == nil {
+		sources = map[string]cachedSource{}
+	}
+	maps.Copy(sources, c.sources)
+	return writeCache(c.path, symbolCacheFile{Key: c.key, Files: c.fresh, Sources: sources})
 }
 
 // source returns the declarations of the analyzed file i at path, whose

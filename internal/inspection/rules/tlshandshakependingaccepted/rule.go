@@ -75,7 +75,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // the stream, written in body before write, is known to have returned true
 // (neither false nor the pending 0) where write runs.
 func tlsHandshakeCompleted(ctx *analysis.Context, body syntax.Stmt, stream syntax.Expr, write *syntax.FuncCall) bool {
-	if semanticquery.NativeLabelled(ctx, write) {
+	if semanticquery.NativeLabeled(ctx, write) {
 		return false
 	}
 	return semanticquery.NativeEarlierCallProvesIn(ctx, body, write, func(x syntax.Expr) (types.Type, func(types.Type) bool) {

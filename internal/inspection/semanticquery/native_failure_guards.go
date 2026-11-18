@@ -84,12 +84,12 @@ func NativeCurlDefault(ctx *analysis.Context, at syntax.Node, handle syntax.Expr
 	return true
 }
 
-// NativeLabelled reports that a `goto` label is written before a node in its
+// NativeLabeled reports that a `goto` label is written before a node in its
 // variable scope. The node can then be reached by a jump, without the
 // conditions written before it or around it having been evaluated: a guard
 // proves nothing by where it is written, and only the facts the flow
 // analysis established on the paths that reach the node count.
-func NativeLabelled(ctx *analysis.Context, at syntax.Node) bool {
+func NativeLabeled(ctx *analysis.Context, at syntax.Node) bool {
 	return ctx.Flow().Labeled(at)
 }
 

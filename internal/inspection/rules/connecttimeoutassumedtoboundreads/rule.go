@@ -50,7 +50,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // by origin, written before read in its scope, is known to have succeeded
 // there.
 func timeoutSet(ctx *analysis.Context, read *syntax.FuncCall, handle syntax.Expr, origin *syntax.FuncCall) bool {
-	if semanticquery.NativeLabelled(ctx, read) {
+	if semanticquery.NativeLabeled(ctx, read) {
 		return false // a jump may land between the call and the read
 	}
 	return semanticquery.NativeEarlierCallProves(ctx, read, func(x syntax.Expr) (types.Type, func(types.Type) bool) {

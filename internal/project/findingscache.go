@@ -87,8 +87,9 @@ type findingsInputs struct {
 	root, recorded string
 	parseOnce      bool
 	engine         *analysis.Engine
-	// world digests the inputs of the Composer world.
-	world string
+	// world digests the inputs of the Composer world, when the run keeps
+	// findings at all.
+	world func() string
 	// php lists the analyzed PHP files, whose declarations c.prints holds.
 	php []string
 }
@@ -115,7 +116,7 @@ func (c *SymbolCache) findings(files []string, in findingsInputs, snapshot *flow
 	}{in.engine.Rules(), int(cfg.PHP), cfg.ComparisonStyle, cfg.Rules, cfg.Flow.String()})
 	cwd, _ := os.Getwd()
 	h := sha256.New()
-	fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\x00%t\x00%s\x00%s\n", c.key, cwd, absolute(in.root), engine, in.parseOnce, in.recorded, in.world)
+	fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\x00%t\x00%s\x00%s\n", c.key, cwd, absolute(in.root), engine, in.parseOnce, in.recorded, in.world())
 	for _, path := range slices.Sorted(maps.Keys(c.fresh)) {
 		e := c.fresh[path]
 		fmt.Fprintf(h, "%s\x00%d\x00%d\n", path, e.Size, e.ModTime)
