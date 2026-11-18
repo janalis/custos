@@ -103,12 +103,12 @@ Visit every method call expression.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits, and static `assert…` helpers called in a PHPUnit test case (E3). |
-| EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model (E4). |
+| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits, and static `assert…` helpers called in a PHPUnit test case. |
+| EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model. |
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 
@@ -231,5 +231,3 @@ namespace PHPUnit\Framework {
   `"{$this->m()}"` to `"{static::m()}"` turns the call into literal text,
   because a brace only starts an interpolation when a `$` follows it.
   custos still reports such calls but offers no fix (F2).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

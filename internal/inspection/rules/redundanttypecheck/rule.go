@@ -1,4 +1,5 @@
-// Package redundanttypecheck implements the RedundantTypeCheck inspection.
+// Package redundanttypecheck implements the native RedundantTypeCheck
+// inspection.
 package redundanttypecheck
 
 import (

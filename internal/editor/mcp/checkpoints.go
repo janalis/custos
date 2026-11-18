@@ -427,7 +427,7 @@ func (s *Server) validate(ctx context.Context, w *workspace, cp *checkpoint, reb
 	if snap := s.snapshots[cp.ID]; snap != nil {
 		changed, err := project.ChangedInputs(ctx, snap)
 		if err != nil {
-			// A cancelled request says nothing about the inputs.
+			// A canceled request says nothing about the inputs.
 			cp.Stale = ctx.Err() == nil
 			return err
 		}

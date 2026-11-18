@@ -17,6 +17,7 @@ const message = "Quote the Content-Disposition filename."
 
 type rule struct{}
 
+// New returns the ContentDispositionFilenameNeedsQuoting inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ContentDispositionFilenameNeedsQuoting" }
 func (rule) Semantic()                {}
@@ -27,7 +28,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	key, value, _, known := semanticquery.ExpansionHeader(ctx, c)
+	key, value, _, known := semanticquery.LiteralHeader(ctx, c)
 	if !known || key != "content-disposition" {
 		return
 	}

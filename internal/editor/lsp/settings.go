@@ -3,7 +3,6 @@ package lsp
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"path/filepath"
 
 	"custos/internal/inspection/analysis"
@@ -64,7 +63,7 @@ func (s *Server) configure() error {
 		if err := json.Unmarshal(s.initOpts, &over); err != nil {
 			return fmt.Errorf("initializationOptions: %w", err)
 		}
-		if cfg, err = mergeOverrides(cfg, over); err != nil {
+		if cfg, err = config.Overlay(cfg, over); err != nil {
 			return err
 		}
 	}
@@ -143,7 +142,7 @@ func withBaseline(e *analysis.Engine, bl *baseline.Baseline) *analysis.Engine {
 }
 
 // loadBaselineFile reads a baseline file (a test seam).
-var loadBaselineFile = baseline.Load
+var loadBaselineFile = baseline.LoadConfigured
 
 // reloadBaseline rereads the baseline after its file changed on disk.
 func (s *Server) reloadBaseline() {
@@ -162,55 +161,4 @@ func (s *Server) reloadBaseline() {
 	if !stale {
 		s.reanalyzeAll()
 	}
-}
-
-// mergeOverrides applies client-provided settings on top of the project config.
-func mergeOverrides(base *config.Config, over config.File) (*config.Config, error) {
-	f := config.File{Flow: &config.FlowSettings{}, PHP: over.PHP, ComparisonStyle: over.ComparisonStyle, ShortOpenTag: over.ShortOpenTag, Rules: over.Rules}
-	if f.PHP == "" {
-		f.PHP = base.PHP.String()
-	}
-	if f.ComparisonStyle == "" && base.ComparisonStyle == analysis.StyleYoda {
-		f.ComparisonStyle = "yoda"
-	}
-	if over.Flow != nil {
-		*f.Flow = *over.Flow
-	}
-	if f.Flow.Assertions == nil {
-		f.Flow.Assertions = &base.Flow.Assertions
-	}
-	if f.Flow.Order == nil {
-		f.Flow.Order = &base.FlowOrder
-	}
-	if f.ShortOpenTag == nil {
-		f.ShortOpenTag = &base.ShortOpenTag
-	}
-	merged, err := config.Resolve(base.Root, f)
-	if err != nil {
-		return nil, err
-	}
-	// What to analyse stays the project's choice.
-	merged.Paths, merged.Exclude, merged.Baseline = base.Paths, base.Exclude, base.Baseline
-	// A client rule entry overrides the project's field by field.
-	for id, rc := range base.Rules {
-		over, ok := merged.Rules[id]
-		if !ok {
-			merged.Rules[id] = rc
-			continue
-		}
-		if over.Enabled == nil {
-			over.Enabled = rc.Enabled
-		}
-		if over.Severity == "" {
-			over.Severity = rc.Severity
-		}
-		opts := maps.Clone(rc.Options)
-		if opts == nil {
-			opts = map[string]any{}
-		}
-		maps.Copy(opts, over.Options)
-		over.Options = opts
-		merged.Rules[id] = over
-	}
-	return merged, nil
 }

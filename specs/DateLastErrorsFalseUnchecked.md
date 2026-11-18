@@ -1,7 +1,7 @@
 ---
 id: DateLastErrorsFalseUnchecked
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "8.2", max: "" }
 ---
@@ -65,7 +65,7 @@ No automatic fix: substituting a fabricated diagnostics array changes handling p
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -101,4 +101,4 @@ function firstError(): string {
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

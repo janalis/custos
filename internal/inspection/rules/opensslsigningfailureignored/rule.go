@@ -1,4 +1,5 @@
-// Package opensslsigningfailureignored implements OpenSslSigningFailureIgnored.
+// Package opensslsigningfailureignored implements the native
+// OpenSslSigningFailureIgnored inspection.
 package opensslsigningfailureignored
 
 import (
@@ -11,6 +12,7 @@ const message = "Check signing success before publishing the signature."
 
 type rule struct{}
 
+// New returns the OpenSslSigningFailureIgnored inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "OpenSslSigningFailureIgnored" }
 func (rule) Semantic()                {}

@@ -1,4 +1,5 @@
-// Package ftppendingtransferacceptedascomplete implements FtpPendingTransferAcceptedAsComplete.
+// Package ftppendingtransferacceptedascomplete implements the native
+// FtpPendingTransferAcceptedAsComplete inspection.
 package ftppendingtransferacceptedascomplete
 
 import (
@@ -14,6 +15,7 @@ const message = "Wait for FTP_FINISHED before reporting success."
 
 type rule struct{}
 
+// New returns the FtpPendingTransferAcceptedAsComplete inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "FtpPendingTransferAcceptedAsComplete" }
 func (rule) Semantic()                {}

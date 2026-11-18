@@ -72,7 +72,7 @@ func TestRecordedUpdateOracle(t *testing.T) {
 		sources[e.path] = []byte(e.src)
 		calls.Store(0)
 		start := time.Now()
-		next, ok := build.Update(map[string][]byte{e.path: []byte(e.src)}, ix)
+		next, ok := build.Update(context.Background(), map[string][]byte{e.path: []byte(e.src)}, ix)
 		took, made := time.Since(start), calls.Load()
 		if !ok {
 			t.Fatalf("%s: update refused", e.path)

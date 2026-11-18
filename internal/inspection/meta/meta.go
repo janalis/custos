@@ -1,5 +1,5 @@
 // Package meta holds the catalogue of rule facts: identifiers, groups,
-// default severities and option schemas. Upstream-modelled facts are generated
+// default severities and option schemas. Upstream-modeled facts are generated
 // by tools/extract; native facts are authored independently. Both catalogues
 // contain facts only — never descriptions or messages.
 package meta
@@ -25,7 +25,7 @@ type Option struct {
 type Rule struct {
 	Native           bool                `json:"-"` // authored for custos; no upstream counterpart
 	ID               string              `json:"id"`
-	LegacyID         string              `json:"legacyId"` // PhpStorm short name, honoured by @noinspection
+	LegacyID         string              `json:"legacyId"` // PhpStorm short name, honored by @noinspection
 	Group            string              `json:"group"`
 	Severity         diagnostic.Severity `json:"severity"`
 	EnabledByDefault bool                `json:"enabledByDefault"`

@@ -1,7 +1,7 @@
 ---
 id: SlowArrayOperationsInLoop
 group: Performance
-kind: syntax
+kind: semantic
 needs: []
 php: { min: "", max: "" }
 ---
@@ -250,9 +250,7 @@ function collect(array $batches, $repo)
   uses `$xMax`/`$loopsMax`, overwriting a variable of that name that the
   code already uses (a parameter, a value read after the loop, the limit of
   an enclosing loop that got the same fix). custos picks the first numbered
-  variant that does not occur in the scope and keeps nested loops apart. An
-  EA fixture where the preferred name already occurs in the file now gets
-  the numbered name; that case is listed in `testdata/ea-divergences.json`.
+  variant that does not occur in the scope and keeps nested loops apart.
 - **Comparisons only — custos diverges from upstream** (F-1). Upstream
   accepts any binary operator, so `$ok && count($a)` or `$i + strlen($s)` is
   reported as a loop limit and rewritten. Such conditions are not length

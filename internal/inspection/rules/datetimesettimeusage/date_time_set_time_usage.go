@@ -22,7 +22,7 @@ func (dateTimeSetTimeUsage) Kinds() []syntax.NodeKind {
 const dateTimeSetTimeMsg = "Microseconds argument requires PHP 7.1+; on this version the call returns false."
 
 func (dateTimeSetTimeUsage) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP >= phpversion.PHP71 { // E1
+	if ctx.PHP.AtLeast(phpversion.PHP71) { // E1
 		return
 	}
 	var name syntax.Expr

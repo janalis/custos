@@ -1,4 +1,5 @@
-// Package nonexhaustiveenummatch implements the NonExhaustiveEnumMatch inspection.
+// Package nonexhaustiveenummatch implements the native
+// NonExhaustiveEnumMatch inspection.
 package nonexhaustiveenummatch
 
 import (
@@ -13,6 +14,7 @@ import (
 
 type rule struct{}
 
+// New returns the NonExhaustiveEnumMatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "NonExhaustiveEnumMatch" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMatch} }
@@ -20,7 +22,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMatch} 
 const message = "Handle every reachable enum case."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP81 {
+	if ctx.PHP.Below(phpversion.PHP81) {
 		return
 	}
 	match := n.(*syntax.Match)

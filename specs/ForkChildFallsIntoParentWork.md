@@ -1,9 +1,9 @@
 ---
 id: ForkChildFallsIntoParentWork
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # ForkChildFallsIntoParentWork
@@ -19,7 +19,7 @@ Terminate or separate the fork child branch. This opt-in rule applies the policy
 - D1b. A break, continue or goto that leaves the child block is not a termination: the child then runs loop iterations or later code the parent also runs, so the block is still reported. Jumps confined to a loop or switch opened inside the block, or to a nested closure, do not count; a jump with a literal level leaves when the level exceeds the number of loops and switches opened inside the block around it (`continue 2` in a `switch` inside a loop of the block stays inside), and one with any other level expression is assumed to leave.
 - D1c. Unknown termination summaries are excluded. When the last effective statement of the block is a function, method or static call, report only when the callee resolves to a declaration that can return. No report when the callee cannot be resolved (undeclared or dynamic function, unresolved receiver or class, dynamic method name), when it resolves to an abstract or interface method, when its declared, documented or body-derived return type is `never`, or when its declaration lives in the analyzed file and its body ends abruptly on every path without any return statement of its own. Builtins that normally return, including `pcntl_exec` (which returns on failure), are reported.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
@@ -73,4 +73,4 @@ $pid=pcntl_fork(); if ($pid===0) { runQueueWorkerUntilShutdown(); } echo "contin
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

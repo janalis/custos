@@ -186,7 +186,7 @@ None.
 
 ## PHP versions
 
-None. Named arguments (PHP 8.0) appear in the upstream fixture, which runs at
+No gating. Named arguments (PHP 8.0) appear in the upstream fixture, which runs at
 the test default level; parse them regardless of level.
 
 ## Examples
@@ -345,5 +345,3 @@ inverted.)
 - **Unbraced bodies (custos).** When the ignored `mkdir()` statement is the
   unbraced body of an `if`/`else`/loop, the D4 replacement is wrapped in
   braces: a bare `if (…) { throw … }` would capture the outer `else`.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

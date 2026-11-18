@@ -13,6 +13,7 @@ const message = "Use the mutated Imagick object after resizing."
 
 type rule struct{}
 
+// New returns the ImagickResizeStatusUsedAsImage inspection.
 func New() analysis.Rule { return rule{} }
 func (rule) ID() string  { return "ImagickResizeStatusUsedAsImage" }
 func (rule) Semantic()   {}

@@ -5,11 +5,11 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
-	v "custos/internal/php/version"
+	phpversion "custos/internal/php/version"
 )
 
 func TestBeforeLanguageFeature(t *testing.T) {
-	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"IteratorMaterializationKeyCollision"}, PHP: v.PHP54})
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"IteratorMaterializationKeyCollision"}, PHP: phpversion.PHP54})
 	if err != nil {
 		t.Fatal(err)
 	}

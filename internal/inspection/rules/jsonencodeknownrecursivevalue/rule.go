@@ -46,8 +46,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 func cyclic(ctx *analysis.Context, at syntax.Node, root string) bool {
 	arrays := map[string]bool{}
 	edges := map[string]map[string]string{}
-	modelled := map[syntax.Node]bool{}
-	for _, event := range semanticquery.ExpansionDLocalEvents(ctx, at) {
+	modeled := map[syntax.Node]bool{}
+	for _, event := range semanticquery.LocalEvents(ctx, at) {
 		if event.Span().Start >= at.Span().Start {
 			break
 		}
@@ -63,7 +63,7 @@ func cyclic(ctx *analysis.Context, at syntax.Node, root string) bool {
 				_, array := syntax.UnwrapParens(a.Value).(*syntax.Array)
 				arrays[v.Name] = array && !a.ByRef && a.Op.Kind == syntax.TEqual
 				delete(edges, v.Name)
-				modelled[v] = true
+				modeled[v] = true
 			}
 			if slot, ok := a.Var.(*syntax.ArrayDimFetch); ok {
 				v, local := slot.Var.(*syntax.Variable)
@@ -79,10 +79,10 @@ func cyclic(ctx *analysis.Context, at syntax.Node, root string) bool {
 					return false
 				}
 				delete(edges[v.Name], key)
-				modelled[v] = true
+				modeled[v] = true
 				if to, ref := syntax.UnwrapParens(a.Value).(*syntax.Variable); ref && a.ByRef && a.Op.Kind == syntax.TEqual && arrays[v.Name] && arrays[to.Name] {
 					edges[v.Name][key] = to.Name
-					modelled[to] = true
+					modeled[to] = true
 				}
 			}
 		}
@@ -96,14 +96,14 @@ func cyclic(ctx *analysis.Context, at syntax.Node, root string) bool {
 			return false
 		}
 	}
-	return cycle(edges, root, map[string]bool{}, map[string]bool{}) && undisturbed(ctx, at, edges, modelled)
+	return cycle(edges, root, map[string]bool{}, map[string]bool{}) && undisturbed(ctx, at, edges, modeled)
 }
 
 // undisturbed rejects every construct before at that may change a graph
-// variable without being one of the modelled assignments: destructuring and
+// variable without being one of the modeled assignments: destructuring and
 // foreach targets, increments, aliases, copies, dynamic variables, included
 // code and the calls the event list does not carry.
-func undisturbed(ctx *analysis.Context, at syntax.Node, edges map[string]map[string]string, modelled map[syntax.Node]bool) bool {
+func undisturbed(ctx *analysis.Context, at syntax.Node, edges map[string]map[string]string, modeled map[syntax.Node]bool) bool {
 	tracked := map[string]bool{}
 	for from, slots := range edges {
 		tracked[from] = true
@@ -119,7 +119,7 @@ func undisturbed(ctx *analysis.Context, at syntax.Node, edges map[string]map[str
 		}
 		switch n := n.(type) {
 		case *syntax.Variable:
-			ok = n.NameExpr == nil && (!tracked[n.Name] || modelled[n])
+			ok = n.NameExpr == nil && (!tracked[n.Name] || modeled[n])
 		case *syntax.StaticCall, *syntax.New, *syntax.Include, *syntax.Eval:
 			ok = false
 		}

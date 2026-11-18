@@ -16,6 +16,7 @@ const message = "Handle fork failure separately."
 
 type rule struct{}
 
+// New returns the ForkFailureTreatedAsParent inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ForkFailureTreatedAsParent" }
 func (rule) Semantic()                {}

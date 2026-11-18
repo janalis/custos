@@ -1,4 +1,5 @@
-// Package passwordverifyargumentsreversed implements PasswordVerifyArgumentsReversed.
+// Package passwordverifyargumentsreversed implements the native
+// PasswordVerifyArgumentsReversed inspection.
 package passwordverifyargumentsreversed
 
 import (
@@ -12,6 +13,7 @@ const message = "Pass the password before its stored hash."
 
 type rule struct{}
 
+// New returns the PasswordVerifyArgumentsReversed inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PasswordVerifyArgumentsReversed" }
 func (rule) Semantic()                {}
@@ -22,7 +24,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	if ctx.PHP < phpversion.PHP55 || !semanticquery.NativeBuiltin(ctx, c, "password_verify") {
+	if ctx.PHP.Below(phpversion.PHP55) || !semanticquery.NativeBuiltin(ctx, c, "password_verify") {
 		return
 	}
 	origin := semanticquery.OriginCall(ctx, semanticquery.CallArgument(c.Args, 0, "password"), "password_hash")

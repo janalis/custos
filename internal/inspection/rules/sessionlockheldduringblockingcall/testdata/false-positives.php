@@ -67,3 +67,4 @@ function closedFirst($ch)
     session_write_close();
     curl_exec($ch);
 }
+ini_set('session.save_handler', 'files'); session_start(); session_write_close(); sleep(8);

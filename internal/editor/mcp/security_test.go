@@ -484,13 +484,13 @@ func TestPreparedFixValidationAndBudgets(t *testing.T) {
 	invoke(ctx, t, s, "prepare_fixes", Input{CheckpointID: id, Iterative: true, Rule: "unnecessaryassertion", Path: "missing.php"})
 	invoke(ctx, t, s, "prepare_fixes", Input{CheckpointID: id, Iterative: true, Rule: "UnnecessaryAssertion"})
 	rejected(ctx, t, s, "prepare_fixes", Input{CheckpointID: id, Iterative: true, Rule: "wrong"})
-	cancelled, cancel := context.WithCancel(ctx)
+	canceled, cancel := context.WithCancel(ctx)
 	cancel()
-	if _, err := s.prepare(cancelled, w, cp, snap, Input{Iterative: true}); err == nil {
-		t.Fatal("cancelled preparation")
+	if _, err := s.prepare(canceled, w, cp, snap, Input{Iterative: true}); err == nil {
+		t.Fatal("canceled preparation")
 	}
-	if _, err := s.prepare(cancelled, w, cp, snap, Input{Choices: []Choice{{FindingID: "0"}}}); err == nil {
-		t.Fatal("cancelled selected preparation")
+	if _, err := s.prepare(canceled, w, cp, snap, Input{Choices: []Choice{{FindingID: "0"}}}); err == nil {
+		t.Fatal("canceled selected preparation")
 	}
 	engine, err := analysis.NewEngine([]analysis.Rule{editRule{edit: "("}}, snap.Config.Analysis())
 	if err != nil {
@@ -604,7 +604,7 @@ func TestCheckpointBudgetsAndCancelledPublication(t *testing.T) {
 	}
 	delete(s.snapshots, cp.ID)
 	if err := s.validate(&validationContext{Context: ctx, stop: counter.steps + 1}, w, cp, true); err == nil || s.snapshots[cp.ID] != nil {
-		t.Fatal("cancelled rebuild published", err)
+		t.Fatal("canceled rebuild published", err)
 	}
 	saved := ruleCatalogue
 	ruleCatalogue = func() ([]meta.Rule, error) { return nil, errors.New("metadata unavailable") }
@@ -778,20 +778,20 @@ func TestCancellationBeforeCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := change{Path: "a.php", Source: source, Output: []byte("<?php $x=0;"), Perm: 0o600}
-	cancelled, cancel := context.WithCancel(ctx)
+	canceled, cancel := context.WithCancel(ctx)
 	cancel()
-	if err := replaceContext(cancelled, s.workspaces["default"], c); err == nil {
-		t.Fatal("already cancelled write")
+	if err := replaceContext(canceled, s.workspaces["default"], c); err == nil {
+		t.Fatal("already canceled write")
 	}
 	active, cancel := context.WithCancel(ctx)
 	beforeCommit = func(*os.Root, string) { cancel() }
 	defer func() { beforeCommit = nil }()
 	if err := replaceContext(active, s.workspaces["default"], c); err == nil {
-		t.Fatal("cancelled replacement committed")
+		t.Fatal("canceled replacement committed")
 	}
 	after, err := os.ReadFile(filepath.Join(root, "a.php"))
 	if err != nil || string(after) != string(source) {
-		t.Fatal("cancelled write changed source", err)
+		t.Fatal("canceled write changed source", err)
 	}
 }
 
@@ -831,7 +831,7 @@ func TestBufferDeclarationsAndOverlayFailure(t *testing.T) {
 	}
 	_, err := s.analyze(&validationContext{Context: ctx, stop: counter.steps + 1}, s.workspaces["default"], Input{Path: "unsaved.php", Buffer: &buffer})
 	if err == nil {
-		t.Fatal("cancelled overlay published")
+		t.Fatal("canceled overlay published")
 	}
 }
 

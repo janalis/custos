@@ -38,3 +38,5 @@ function deferredOperation(bool $member) {
     if (!$member) { header('Location: /join'); }
     return function () { purgeArchive(); };
 }
+/** @custos-protected */ function deleteRecord() {}
+function good(bool $allowed) { if (!$allowed) { header('Location: /signin'); return; } deleteRecord(); }

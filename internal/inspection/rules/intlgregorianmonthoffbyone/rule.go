@@ -14,6 +14,7 @@ const message = "Use zero-based Gregorian month numbers."
 
 type rule struct{}
 
+// New returns the IntlGregorianMonthOffByOne inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "IntlGregorianMonthOffByOne" }
 func (rule) Semantic()                {}

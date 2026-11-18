@@ -6,7 +6,7 @@ title: SplFixedArrayShrinkDiscardsValues
 
 # SplFixedArrayShrinkDiscardsValues
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Enabled policy forbids discarding populated fixed-array slots. Track known size and assigned slots of builtin SplFixedArray; report setSize with smaller nonnegative literal size when at least one populated slot is outside the new bounds. A null value still counts as populated when assignment is proven.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 - `offsetSet` with a literal index populates that slot and `offsetUnset` with a literal index releases it, exactly like the bracket forms; writes and releases are applied in source order, so a slot refilled after its release is populated again. An earlier `setSize` on the same array already dropped the slots past its bound.
 
 ## Exceptions (no report)

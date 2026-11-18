@@ -1,4 +1,5 @@
-// Package sqlitefetchbothleaksduplicatecolumns implements SqliteFetchBothLeaksDuplicateColumns.
+// Package sqlitefetchbothleaksduplicatecolumns implements the native
+// SqliteFetchBothLeaksDuplicateColumns inspection.
 package sqlitefetchbothleaksduplicatecolumns
 
 import (
@@ -16,6 +17,7 @@ const message = "Fetch named SQLite columns before JSON serialization."
 
 type rule struct{}
 
+// New returns the SqliteFetchBothLeaksDuplicateColumns inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SqliteFetchBothLeaksDuplicateColumns" }
 func (rule) Semantic()                {}
@@ -37,7 +39,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	mode := semanticquery.CallArgument(q.Args, 0, "mode")
-	if mode != nil && !semanticquery.ExpansionGlobalConstant(ctx, mode, "SQLITE3_BOTH") {
+	if mode != nil && !semanticquery.ReadsGlobalConstant(ctx, mode, "SQLITE3_BOTH") {
 		return
 	}
 	if !jsonOnly(ctx, q) {

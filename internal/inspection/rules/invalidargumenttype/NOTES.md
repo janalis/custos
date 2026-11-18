@@ -24,7 +24,7 @@ it means PHPDoc contradicts the code, which is another rule's concern.
 
 ## Builtin parameter types
 
-`semanticquery.TrustedBuiltinTypes` trusts a builtin from PHP 8.0, in the
+`semanticquery` trusts the declared types of a builtin from PHP 8.0, in the
 directory of a bundled extension (`semanticquery.BundledStub`), unless it
 is listed in `semanticquery/stub_type_drift.txt`. That list was generated
 by dumping every stub function and method resolved at PHP 8.0, 8.1, 8.2,

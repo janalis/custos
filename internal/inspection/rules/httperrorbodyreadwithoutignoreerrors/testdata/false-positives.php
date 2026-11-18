@@ -13,3 +13,4 @@ function viaUnknownParams(array $params)
 {
     return fopen('http://service.test/missing', 'r', false, stream_context_create(['http' => ['method' => 'GET']], $params));
 }
+$ctx = stream_context_create(["http" => ["ignore_errors" => true]]); file_get_contents("https://service.test/data", false, $ctx);

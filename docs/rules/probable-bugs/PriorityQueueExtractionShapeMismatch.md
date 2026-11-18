@@ -6,7 +6,7 @@ title: PriorityQueueExtractionShapeMismatch
 
 # PriorityQueueExtractionShapeMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -31,7 +31,7 @@ Reported:
 
 - Track builtin SplPriorityQueue mode (default EXTR_DATA) and literal inserted data. Report indexing extracted/current/top values by data or priority when the proven extraction mode does not produce that field and the inserted data type cannot provide it. EXTR_BOTH provides both fields; EXTR_PRIORITY provides only priority itself. Report the indexed expression.
 - The mode is proven only by `setExtractFlags` calls that always run before the extraction. A `setExtractFlags` call on the queue variable that merely may run first (inside a branch, a loop, a short-circuit or ternary operand, a nested closure or arrow function, or later in a loop that also contains the extraction) leaves the mode unknown. An `insert` call that merely may run first never proves the queue holds a value, but its data and priority still count as possible extracted shapes.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

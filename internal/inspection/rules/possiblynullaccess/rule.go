@@ -1,4 +1,5 @@
-// Package possiblynullaccess implements the PossiblyNullAccess inspection.
+// Package possiblynullaccess implements the native PossiblyNullAccess
+// inspection.
 package possiblynullaccess
 
 import (

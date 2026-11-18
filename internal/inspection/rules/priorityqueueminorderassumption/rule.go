@@ -14,6 +14,7 @@ const message = "Reverse priorities for smallest-first extraction."
 
 type rule struct{}
 
+// New returns the PriorityQueueMinOrderAssumption inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PriorityQueueMinOrderAssumption" }
 func (rule) Semantic()                {}

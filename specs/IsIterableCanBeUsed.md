@@ -1,7 +1,7 @@
 ---
 id: IsIterableCanBeUsed
 group: Language level migration
-kind: syntax
+kind: semantic
 needs: []
 php: { min: "7.1", max: "" }
 ---

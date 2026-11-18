@@ -16,6 +16,7 @@ const message = "Read the normalized query parameter key."
 
 type rule struct{}
 
+// New returns the ParseStrKeyNormalizationMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ParseStrKeyNormalizationMismatch" }
 func (rule) Semantic()                {}

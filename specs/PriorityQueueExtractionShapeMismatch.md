@@ -3,7 +3,7 @@ id: PriorityQueueExtractionShapeMismatch
 group: Probable bugs
 kind: semantic
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # PriorityQueueExtractionShapeMismatch
@@ -17,7 +17,7 @@ Match the priority queue extraction mode.
 - D1. Track builtin SplPriorityQueue mode (default EXTR_DATA) and literal inserted data. Report indexing extracted/current/top values by data or priority when the proven extraction mode does not produce that field and the inserted data type cannot provide it. EXTR_BOTH provides both fields; EXTR_PRIORITY provides only priority itself. Report the indexed expression.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. The mode is proven only by `setExtractFlags` calls that always run before the extraction. A `setExtractFlags` call on the queue variable that merely may run first (inside a branch, a loop, a short-circuit or ternary operand, a nested closure or arrow function, or later in a loop that also contains the extraction) leaves the mode unknown. An `insert` call that merely may run first never proves the queue holds a value, but its data and priority still count as possible extracted shapes.
-- D4. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D4. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
@@ -40,7 +40,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -75,4 +75,4 @@ function nextPriority(bool $both) {
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

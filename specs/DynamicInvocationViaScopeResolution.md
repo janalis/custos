@@ -94,12 +94,11 @@ No fix for D3b.
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
+None.
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 
@@ -236,5 +235,3 @@ $car::build();
   (also when declared inside a method), top-level code and unrelated
   classes, where the original call cannot succeed on another receiver.
   Upstream always rewrites.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

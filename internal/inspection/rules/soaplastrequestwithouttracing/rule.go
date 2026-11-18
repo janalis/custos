@@ -12,6 +12,7 @@ const message = "Enable SOAP tracing before retrieving the request."
 
 type rule struct{}
 
+// New returns the SoapLastRequestWithoutTracing inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SoapLastRequestWithoutTracing" }
 func (rule) Semantic()                {}
@@ -22,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
-	if !semanticquery.ExpansionDUnaliased(ctx, c.Var, n) {
+	if !semanticquery.UnaliasedLocal(ctx, c.Var, n) {
 		return
 	}
 	if !semanticquery.NativeMethod(ctx, c, "SoapClient", "__getLastRequest") {

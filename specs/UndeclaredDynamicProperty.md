@@ -16,7 +16,7 @@ Detect assigning a missing instance property on a resolved PHP 8.2+ class with a
 
 - D1. Report assigning a missing instance property on a resolved PHP 8.2+ class with a complete known hierarchy.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -36,7 +36,7 @@ No automatic fix: declaring a property changes visibility, serialization and ini
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -51,6 +51,6 @@ class Person {} $p=new Person(); <warning descr="Declare this property before as
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: require a final runtime class or an exact fresh allocation. A nominal non-final base parameter may receive a subclass declaring the property. An immediately preceding resolved property_exists rejection with a single throw or return excludes a simple subsequent write; unknown calls or additional branch work cannot establish this proof.

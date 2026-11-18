@@ -1,9 +1,9 @@
 ---
 id: UnpackedNamedArgumentCollision
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
-php: { min: "8.0", max: "" }
+php: { min: "8.1", max: "" }
 ---
 
 # UnpackedNamedArgumentCollision
@@ -17,7 +17,7 @@ Detect an explicit or unpacked argument binding a parameter already certainly bo
 - D1. Report an explicit or unpacked argument binding a parameter already certainly bound by a literal unpacked array on the same call.
 - D1a. Model PHP's argument counter when assigning positional values: a positional value takes the slot after the highest parameter slot filled so far, whether that slot was filled positionally or by name. A name collected by a variadic parameter fills no slot and leaves the counter unchanged.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -38,11 +38,11 @@ No automatic fix: choosing which value to retain is application intent.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
-Available from PHP 8.0. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
+Available from PHP 8.1, which allows unpacking string keys. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
 ## Examples
 
@@ -53,7 +53,7 @@ function send($id) {} send(...['id'=>7],<error descr="Bind each argument only on
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: duplicate array keys are normalized before argument binding. Unknown key types, negative automatic indices with version-dependent behavior, and maximum integer keys cannot establish a collision and are excluded.
 

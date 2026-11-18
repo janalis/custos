@@ -1,8 +1,10 @@
 package analysis
 
 import (
+	"context"
 	"fmt"
 	"maps"
+	"runtime/pprof"
 	"slices"
 
 	"custos/internal/diagnostic"
@@ -34,6 +36,9 @@ type Engine struct {
 	flow   *flow.Snapshot
 	// recorded tells which findings a baseline hides (see WithRecorded).
 	recorded Recorded
+	// labels holds, per rule, the profiler labels its checks run under
+	// (Config.LabelRules); nil when checks are not labeled.
+	labels []context.Context
 }
 
 // Recorded returns, for the file at path whose source is src, whether a
@@ -51,6 +56,9 @@ func (e *Engine) WithRecorded(recorded Recorded) *Engine {
 	configured.recorded = recorded
 	return &configured
 }
+
+// Recording reports whether the checks see a baseline (see WithRecorded).
+func (e *Engine) Recording() bool { return e.recorded != nil }
 
 // NewEngine builds an engine from the registered rules and cfg.
 func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
@@ -97,6 +105,9 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 			ar.explicit[k] = true
 		}
 		idx := int32(len(e.rules))
+		if cfg.LabelRules {
+			e.labels = append(e.labels, pprof.WithLabels(context.Background(), pprof.Labels("rule", m.ID)))
+		}
 		_, ar.file = r.(FileRule)
 		e.rules = append(e.rules, ar)
 		e.ids[m.ID] = int(idx)
@@ -215,12 +226,17 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 			}
 		}
 	}()
+	if e.labels != nil {
+		// Work outside a check (the walk, suppressions) stays unlabeled.
+		defer pprof.SetGoroutineLabels(context.Background())
+	}
 	for _, i := range e.files {
 		if disabled[int(i)] {
 			continue
 		}
 		cur = int(i)
 		ctx.cur = &e.rules[i]
+		e.label(i)
 		rule := e.rules[i].rule.(FileRule)
 		if isolated {
 			ctx.isolate(ruleCheck{int(i), nil}, func() { rule.CheckFile(ctx) })
@@ -229,18 +245,24 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 		}
 	}
 	if len(e.rules) > len(e.files) || len(e.files) == 0 {
+		e.unlabel()
 		syntax.InspectFile(f, func(n syntax.Node) bool {
-			for _, i := range e.byKind[n.Kind()] {
+			subscribed := e.byKind[n.Kind()]
+			for _, i := range subscribed {
 				if disabled != nil && disabled[int(i)] {
 					continue
 				}
 				cur = int(i)
 				ctx.cur = &e.rules[i]
+				e.label(i)
 				if isolated {
 					ctx.isolate(ruleCheck{int(i), n}, func() { e.rules[i].rule.Check(ctx, n) })
 				} else {
 					e.rules[i].rule.Check(ctx, n)
 				}
+			}
+			if len(subscribed) > 0 {
+				e.unlabel()
 			}
 			return true
 		})
@@ -272,6 +294,22 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 		})
 	}
 	return diagnostic.AnalysisResult{Findings: out, Incomplete: ctx.incomplete()}, -1, ""
+}
+
+// label marks the calling goroutine as running rule i's checks, so CPU
+// profile samples taken until the next label or unlabel carry the rule's
+// ID. Shared data a check builds first (types, flow) is charged to it.
+func (e *Engine) label(i int32) {
+	if e.labels != nil {
+		pprof.SetGoroutineLabels(e.labels[i])
+	}
+}
+
+// unlabel ends the current rule label.
+func (e *Engine) unlabel() {
+	if e.labels != nil {
+		pprof.SetGoroutineLabels(context.Background())
+	}
 }
 
 // isolate runs check k, skipping it when it needs shared data that failed

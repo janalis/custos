@@ -30,7 +30,7 @@ custos reads `custos.json` from the project root. Every key is optional.
 | `comparisonStyle` | `"regular"` (`$x === null`) or `"yoda"` (`null === $x`): the operand order that comparison rules expect and that quick-fixes write. Without it, the project's PHP-CS-Fixer or Mago configuration decides (see [Comparison style](#comparison-style)); otherwise `"regular"`. |
 | `shortOpenTag` | Treat `<?` as an opening tag, as with PHP's `short_open_tag` setting. Default `false`. |
 | `flow.assertions` | Trust `assert()` calls as guards. Default `false`. See [Assertions](#assertions). |
-| `parseOnce` | Keep each analysed file's syntax tree between phases, as [`--parse-once`](./cli#paths) does: faster, more memory. `custos fix` and the language server ignore it. Default `false`. |
+| `parseOnce` | Keep each analyzed file's syntax tree between phases, as [`--parse-once`](./cli#paths) does: faster, more memory. `custos fix` and the language server ignore it. Default `false`. |
 | `flow.order` | Summarize cross-file flow in the order the last run saved, as [`--flow-order`](./cli#paths) does; the language server honors it too. Default `false`. |
 | `paths` | What `custos analyse` and `custos fix` check when no path is given. Relative to the root; must stay inside it. Default: the root. |
 | `exclude` | Extra directories to skip. See [Excluded directories](#excluded-directories). |
@@ -84,10 +84,10 @@ or a path of several names, skipped at any depth below each scanned path (not
 the root): with `"paths": ["src"]`, write `"gen"` or `"sub/gen"` to skip
 `src/sub/gen` (and `src/app/sub/gen`), not `"src/sub/gen"`.
 
-Declaration files that never run are not analysed either: php-src's
+Declaration files that never run are not analyzed either: php-src's
 extension stubs (`*.stub.php`) and Drupal's hook documentation
 (`*.api.php`). Their classes and functions are still known to the other
-files, and a file named on the command line is analysed.
+files, and a file named on the command line is analyzed.
 
 ## Target PHP version
 
@@ -149,7 +149,7 @@ documentation as proof.
 
 `analyse` and `fix` keep, between runs, the declarations of the files they
 index without checking them and the cross-file summaries of the checked
-files, under `custos` in the user cache directory or in `$CUSTOS_CACHE_DIR`.
+files, and `analyse` the findings of each checked file, under `custos` in the user cache directory or in `$CUSTOS_CACHE_DIR`.
 A change to the configuration that changes what a run checks or how
 (`php`, `shortOpenTag`, `flow.assertions`, `paths`, `exclude`) sets the
 affected parts aside; findings are the same with or without the cache. See

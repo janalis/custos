@@ -36,13 +36,7 @@ Reported:
 
 - Unknown or nonempty separators and shadowed application functions are excluded.
 - Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. No report when a variable of the separator expression, or a variable whose value was copied into it by assignment, can be rewritten behind the tracked assignments:
-  - it is captured by reference in a closure `use` list in the scope (including the closure that is the scope itself);
-  - it is declared `global` in the scope;
-  - it is the operand of `++` or `--` (incrementing an empty string yields `"1"`);
-  - it is bound by reference as an array item (`['k' => &$sep]`);
-  - the scope calls the builtin `extract()`, or `parse_str()` with a single argument, either of which may define any local;
-  - the call is at file level, where locals are globals, and the file declares the variable `global` in any function or mentions `$GLOBALS` anywhere.
+- E3. No report when a variable of the separator expression cannot be trusted. Each such variable is proven only while nothing in its scope can change it behind its plain assignments, anywhere and in any statement order: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument a resolved callee binds by reference, other than the inspected argument itself); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A `global` or `static` declaration of it, or a by-reference capture by the closure that is the scope, removes the proof too. In top-level code, where locals are globals, a `global` declaration naming it in any function of the file, or a `$GLOBALS` access anywhere in the file, does as well. The same holds for every local whose value an assignment stores into it, whatever the assigned expression computes, directly or through further assignments. A read inside an arrow function also checks the scopes the arrow function captures from. Incrementing an empty string yields `"1"`.
 
   The check is lexical and deliberately conservative: it does not prove that the rewriting code runs between the assignment and the call.
 
@@ -53,10 +47,6 @@ No automatic fix: byte splitting, code-point splitting and grapheme splitting ar
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

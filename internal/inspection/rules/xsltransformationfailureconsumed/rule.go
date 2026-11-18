@@ -13,6 +13,7 @@ const message = "Reject transformation failure before using the XML."
 
 type rule struct{}
 
+// New returns the XslTransformationFailureConsumed inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "XslTransformationFailureConsumed" }
 func (rule) Semantic()                {}

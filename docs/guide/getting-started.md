@@ -19,7 +19,7 @@ src/Invoice.php:3:5: warning: Variable $total is used only once; inline its valu
 src/Invoice.php:6:7: info: Stray semicolon; remove it. [UnnecessarySemicolon] (fixable)
 src/Invoice.php:7:6: error: Restrict the classes unserialize() may create via its second argument. [UnserializeExploits]
 
-1 file(s) analysed: 1 error(s), 1 warning(s), 1 info
+1 file(s) analyzed: 1 error(s), 1 warning(s), 1 info
 ```
 
 The command fails when a finding is a warning or worse; `--fail-on` changes

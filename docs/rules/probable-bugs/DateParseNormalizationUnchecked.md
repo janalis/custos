@@ -44,10 +44,6 @@ No automatic fix: the application must choose rejection or normalization policy.
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

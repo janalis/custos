@@ -6,7 +6,7 @@ title: DecompressionFailureConsumed
 
 # DecompressionFailureConsumed
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -34,7 +34,7 @@ Ignore producers belonging to other result contracts when selecting an
 unchecked result. When several assignments reach a use, each producer is
 checked on its own: an unguarded decompression result is reported even when
 the other paths use another API or are guarded. When the producers cannot be
-tracked within the analysis budget, nothing is reported.
+tracked, nothing is reported.
 
 - Report results of gzdecode, gzuncompress, gzinflate or inflate_add reaching strlen/strtoupper without a dominating strict false guard. Follow direct expressions and unchanged locals. Exclude matching encoder/decoder roundtrips with default encoding and omitted or valid literal compression level.
 - Error suppression does not change the result: a decompression call wrapped in `@` (directly or through the assigned local) is followed like the bare call.

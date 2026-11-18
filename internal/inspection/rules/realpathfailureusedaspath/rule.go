@@ -23,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	if !semanticquery.ExpansionDPathCall(ctx, c) {
+	if !semanticquery.PathArgumentCall(ctx, c) {
 		return
 	}
 	b, ok := semanticquery.NativeLocalValue(ctx, semanticquery.CallArgument(c.Args, 0, "filename")).(*syntax.Binary)
@@ -31,7 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	for _, input := range []syntax.Expr{b.Left, b.Right} {
-		if !semanticquery.ExpansionDUnaliased(ctx, input, c) {
+		if !semanticquery.UnaliasedLocal(ctx, input, c) {
 			continue
 		}
 		source, known := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "realpath").(*syntax.FuncCall)

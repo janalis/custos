@@ -203,7 +203,7 @@ func uaCheckTyped(ctx *analysis.Context, c phpunit.PuCall) {
 // uaRedundant reports whether assertion c checks what the declared type
 // already guarantees (Part A).
 func uaRedundant(ctx *analysis.Context, c phpunit.PuCall) bool {
-	if ctx.PHP < phpversion.PHP70 { // E1
+	if ctx.PHP.Below(phpversion.PHP70) { // E1
 		return false
 	}
 	pos := 0 // D1

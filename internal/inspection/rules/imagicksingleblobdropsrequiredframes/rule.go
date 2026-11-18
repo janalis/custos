@@ -12,6 +12,7 @@ const message = "Export every frame when frame preservation is enabled."
 
 type rule struct{}
 
+// New returns the ImagickSingleBlobDropsRequiredFrames inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ImagickSingleBlobDropsRequiredFrames" }
 func (rule) Semantic()                {}
@@ -22,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
-	if semanticquery.NativeMethod(ctx, c, "Imagick", "getImageBlob") && ctx.Bool("preserveFrames") && semanticquery.ExpansionDFrames(ctx, c) >= 2 {
+	if semanticquery.NativeMethod(ctx, c, "Imagick", "getImageBlob") && ctx.Bool("preserveFrames") && semanticquery.AppendedFrames(ctx, c) >= 2 {
 		ctx.ReportNode(n, message)
 	}
 }

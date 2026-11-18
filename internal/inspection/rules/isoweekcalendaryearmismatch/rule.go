@@ -1,4 +1,5 @@
-// Package isoweekcalendaryearmismatch implements the IsoWeekCalendarYearMismatch inspection.
+// Package isoweekcalendaryearmismatch implements the native
+// IsoWeekCalendarYearMismatch inspection.
 package isoweekcalendaryearmismatch
 
 import (
@@ -10,6 +11,7 @@ import (
 
 type rule struct{}
 
+// New returns the IsoWeekCalendarYearMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "IsoWeekCalendarYearMismatch" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall, syntax.KMethodCall} }

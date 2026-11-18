@@ -56,15 +56,15 @@ func TestReviewSafety(t *testing.T) {
 }
 
 // Flow analysis currently withholds its facts in functions using goto or
-// levelled jumps, so those shapes are checked on the helper directly.
+// leveled jumps, so those shapes are checked on the helper directly.
 func TestJumpsOut(t *testing.T) {
 	for _, tc := range []struct {
 		name, body string
 		want       bool
 	}{
 		{"goto", "goto out;", true},
-		{"levelled break", "while ($n) { break 2; } exit;", true},
-		{"levelled continue", "while ($n) { continue 2; } exit;", true},
+		{"leveled break", "while ($n) { break 2; } exit;", true},
+		{"leveled continue", "while ($n) { continue 2; } exit;", true},
 		{"plain break", "break;", true},
 		{"plain continue", "continue;", true},
 		{"inner break", "foreach ($w as $x) { break; } exit;", false},

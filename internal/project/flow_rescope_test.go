@@ -64,7 +64,7 @@ func countSummaries(t *testing.T) map[string]int {
 // keeps only the summaries the update extracted.
 func updateLikeFull(t *testing.T, build *FlowBuild, path, src string, ix *index.Index, counts map[string]int) *FlowBuild {
 	t.Helper()
-	next, ok := build.Update(map[string][]byte{path: []byte(src)}, ix)
+	next, ok := build.Update(context.Background(), map[string][]byte{path: []byte(src)}, ix)
 	if !ok {
 		t.Fatal("update refused")
 	}
@@ -184,7 +184,7 @@ func TestFlowUpdateRescopeWithoutSummaries(t *testing.T) {
 	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
 	counts := countSummaries(t)
 	edit := "<?php function ping($n) { if ($n) { pong(helper($n)); } passthru($n); }"
-	next, ok := build.Update(map[string][]byte{paths["ping.php"]: []byte(edit), paths["shell.php"]: []byte("<?php function shell($c) { exec($c); }")}, ix)
+	next, ok := build.Update(context.Background(), map[string][]byte{paths["ping.php"]: []byte(edit), paths["shell.php"]: []byte("<?php function shell($c) { exec($c); }")}, ix)
 	if !ok || counts[paths["loop.php"]] == 0 {
 		t.Fatalf("not rebuilt whole: %v", counts)
 	}

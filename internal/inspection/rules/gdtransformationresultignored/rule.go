@@ -13,6 +13,7 @@ const message = "Use the image returned by the transformation."
 
 type rule struct{}
 
+// New returns the GdTransformationResultIgnored inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GdTransformationResultIgnored" }
 func (rule) Semantic()                {}
@@ -22,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
-	if ctx.PHP < phpversion.PHP55 {
+	if ctx.PHP.Below(phpversion.PHP55) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -32,7 +33,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	e := semanticquery.CallArgument(c.Args, 0, "image")
-	if !semanticquery.ExpansionDUnaliased(ctx, e, n) {
+	if !semanticquery.UnaliasedLocal(ctx, e, n) {
 		return
 	}
 	if discardedTransformation(ctx, c, e) {

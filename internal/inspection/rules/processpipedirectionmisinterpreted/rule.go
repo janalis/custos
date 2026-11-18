@@ -12,6 +12,7 @@ const message = "Choose pipe modes from the child perspective."
 
 type rule struct{}
 
+// New returns the ProcessPipeDirectionMisinterpreted inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ProcessPipeDirectionMisinterpreted" }
 func (rule) Semantic()                {}
@@ -30,10 +31,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	if !semanticquery.ExpansionDUnaliased(ctx, pipe.Var, n) {
+	if !semanticquery.UnaliasedLocal(ctx, pipe.Var, n) {
 		return
 	}
-	open := semanticquery.ExpansionCOutputCall(ctx, c, pipe.Var, []string{"proc_open"}, 2, "pipes")
+	open := semanticquery.OutputParameterCall(ctx, c, pipe.Var, []string{"proc_open"}, 2, "pipes")
 	if open == nil || !success(ctx, open, c) {
 		return
 	}

@@ -1,4 +1,5 @@
-// Package hashfilefailureusedasdigest implements HashFileFailureUsedAsDigest.
+// Package hashfilefailureusedasdigest implements the native
+// HashFileFailureUsedAsDigest inspection.
 package hashfilefailureusedasdigest
 
 import (
@@ -12,6 +13,7 @@ const message = "Reject file hashing failure before using the digest."
 
 type rule struct{}
 
+// New returns the HashFileFailureUsedAsDigest inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "HashFileFailureUsedAsDigest" }
 func (rule) Semantic()                {}

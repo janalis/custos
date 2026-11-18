@@ -1,4 +1,5 @@
-// Package curlresponsezerorejected implements CurlResponseZeroRejected.
+// Package curlresponsezerorejected implements the native
+// CurlResponseZeroRejected inspection.
 package curlresponsezerorejected
 
 import (
@@ -11,6 +12,7 @@ const message = "Compare cURL transport failure strictly with false."
 
 type rule struct{}
 
+// New returns the CurlResponseZeroRejected inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CurlResponseZeroRejected" }
 func (rule) Semantic()                {}

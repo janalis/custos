@@ -1,7 +1,7 @@
 ---
 id: JsonDecodeKnownInvalidUtf8
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Identify json_decode with constant invalid UTF-8 bytes unless flags include JSON
 
 - D1. Report json_decode with constant invalid UTF-8 bytes unless flags include JSON_INVALID_UTF8_IGNORE or JSON_INVALID_UTF8_SUBSTITUTE; validation uses actual string bytes.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

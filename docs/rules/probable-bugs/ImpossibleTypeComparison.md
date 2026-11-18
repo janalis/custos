@@ -139,7 +139,7 @@ can correct.
 
 ## PHP versions
 
-All versions.
+No gating.
 
 ## Configure
 

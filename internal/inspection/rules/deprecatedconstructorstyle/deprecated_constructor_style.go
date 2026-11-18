@@ -19,7 +19,7 @@ func (deprecatedConstructorStyle) ID() string               { return "Deprecated
 func (deprecatedConstructorStyle) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethod} }
 
 func (deprecatedConstructorStyle) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP >= phpversion.PHP80 { // E7: a plain method there, renaming would remove it from callers
+	if ctx.PHP.AtLeast(phpversion.PHP80) { // E7: a plain method there, renaming would remove it from callers
 		return
 	}
 	m := n.(*syntax.Method)

@@ -39,7 +39,7 @@ func (p localContractExtraProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		})
 		result = fmt.Sprint(NativeCallSucceeded(ctx, call, c))
 	case "effects":
-		result = fmt.Sprint(len(NativeMethodStateCalls(ctx, c, a, "setSize")))
+		result = fmt.Sprint(len(nativeMethodStateCalls(ctx, c, a, "setSize")))
 	default:
 		p.localContractProbe.Check(ctx, n)
 		return

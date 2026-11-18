@@ -3,7 +3,7 @@ id: RecursiveTraversalOmitsDirectories
 group: Probable bugs
 kind: semantic
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # RecursiveTraversalOmitsDirectories
@@ -16,7 +16,7 @@ Include parent nodes when traversing directories. This opt-in inspection applies
 
 - D1. Enabled policy requires directory nodes as well as leaves. Report construction of RecursiveIteratorIterator wrapping a proven RecursiveDirectoryIterator, directly or through RecursiveCallbackFilterIterator, when the mode is omitted. Highlight constructor call.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
@@ -64,4 +64,4 @@ $dir = new RecursiveDirectoryIterator("."); $it = new RecursiveIteratorIterator(
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

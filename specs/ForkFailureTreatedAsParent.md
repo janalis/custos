@@ -1,9 +1,9 @@
 ---
 id: ForkFailureTreatedAsParent
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # ForkFailureTreatedAsParent
@@ -17,7 +17,7 @@ Handle fork failure separately.
 - D1. Report direct/unchanged-local pcntl_fork result tested by an if truthiness or negation condition; -1 is truthy. Numeric three-way dispatch remains outside this check.
 - D1a. No report when failure is already excluded on every path to the test: the comparisons of the fork result with known integers that guard the test leave -1 out. The fork result is the local while it still resolves to the reported call, or the plain assignment that stores that call (`($pid = pcntl_fork()) === -1`); a known integer is a literal, possibly signed, or a local whose only value is one (`$failed = -1`). A comparison guards the test as the condition of an enclosing `if`/`elseif` body, as an earlier condition of the chain for a later arm, as a ternary condition or short-circuit operand, or as the condition of an earlier `if` whose body always leaves (return, throw, exit, break, continue), in the same statement list or one enclosing it inside the same function. So `if ($pid === -1) { exit(1); }`, `if ($pid < 0) { return; }`, `-1 === $pid` and `0 > $pid` before the test exclude failure, as does testing inside `if ($pid !== -1) { … }` or `if ($pid >= 0) { … }`. Unrelated statements between guard and test do not matter.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
@@ -74,4 +74,4 @@ if ($worker) { echo "parent"; }
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -50,7 +50,7 @@ property it creates a second, unrelated property with the same name.
   declaration's default differs from the found property's default:
   defaults are compared as source text with whitespace removed; `null`
   (any case) and a missing default on an untyped property are the same;
-  a missing default on a typed property (uninitialised) differs from any
+  a missing default on a typed property (uninitialized) differs from any
   default.
   Equal text is not enough when the default is evaluated relative to the
   declaring class or file; such defaults count as different unless they
@@ -115,7 +115,7 @@ None.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `REPORT_PRIVATE_REDEFINITION` | bool | true | Also report re-declarations of an ancestor's (or ancestor trait's) private property (D5). |
+| `REPORT_PRIVATE_REDEFINITION` | bool | true | Also report re-declarations of an ancestor's (or ancestor trait's) private property. |
 
 ## PHP versions
 

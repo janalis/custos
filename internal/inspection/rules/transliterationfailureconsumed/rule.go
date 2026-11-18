@@ -12,6 +12,7 @@ const message = "Check transliteration before consuming text."
 
 type rule struct{}
 
+// New returns the TransliterationFailureConsumed inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "TransliterationFailureConsumed" }
 func (rule) Semantic()                {}

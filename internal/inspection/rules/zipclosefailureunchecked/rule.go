@@ -13,6 +13,7 @@ const message = "Check archive finalization before returning success."
 
 type rule struct{}
 
+// New returns the ZipCloseFailureUnchecked inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ZipCloseFailureUnchecked" }
 func (rule) Semantic()                {}

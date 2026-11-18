@@ -13,6 +13,7 @@ const message = "Use the 24-hour calendar field."
 
 type rule struct{}
 
+// New returns the IntlTwelveHourFieldUsedForTwentyFourHourTime inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "IntlTwelveHourFieldUsedForTwentyFourHourTime" }
 func (rule) Semantic()                {}
@@ -29,7 +30,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	field := semanticquery.CallArgument(c.Args, 0, "field")
 	hour := semanticquery.CallArgument(c.Args, 1, "value")
 	value, ok := semanticquery.NativeInt(ctx, hour)
-	if !ok || rewrittenOutsideAssignments(ctx.File, hour) || value < 12 || value > 23 || !semanticquery.ExpansionCConstant(ctx, field, "IntlCalendar", "FIELD_HOUR") {
+	if !ok || rewrittenOutsideAssignments(ctx.File, hour) || value < 12 || value > 23 || !semanticquery.BuiltinClassConstant(ctx, field, "IntlCalendar", "FIELD_HOUR") {
 		return
 	}
 	constant := syntax.UnwrapParens(field).(*syntax.ClassConstFetch)

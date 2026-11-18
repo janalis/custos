@@ -68,8 +68,9 @@ diffs, writes and exit decisions. `AnalyzeBuffer` processes supplied editor
 bytes without filesystem reads.
 
 `catalogue.All` constructs inspections in the original group order, sorted by
-ID within each group. Categories are metadata. The engine subscribes
-inspections by node kind and walks each parsed file once. Names, symbols,
+ID within each group; `tools/gencatalogue` generates it from the rule facts.
+Categories are metadata. The engine subscribes inspections by node kind and
+walks each parsed file once. Names, symbols,
 types, flow environments and memoized queries are lazy per-file context data.
 An inspection implementing `analysis.SemanticRule` makes the runner build the
 project index first; one implementing `analysis.FlowRule` requests
@@ -310,7 +311,7 @@ writes, `eval()` and `include` already make the locals defined before them
 unknown in every environment. Properties need nothing more: native property
 types are their declarations, and native narrowing of a property ends at the
 next call. Code run implicitly (magic methods, destructors, autoloaders,
-property hooks) is not modelled. The proven environment has its own caches:
+property hooks) is not modeled. The proven environment has its own caches:
 use it only for the values a check is about to report, after the default or
 native environment already found a candidate.
 
@@ -322,9 +323,9 @@ null to a builtin's scalar parameter outside strict mode, value refinements
 against a value without facts). `AllRejected` (every member rejected) and
 `SomeRejected` (at least one member rejected, such as a nullable value where
 null is not allowed) split definite from possible mismatches. The types
-package cannot see the index: `semanticquery.AcceptContext` supplies the
-strict mode of the file and index-backed class relations
-(`semanticquery.IndexRelations`). A known non-subtype is rejected only when
+package cannot see the index: `semanticquery` supplies the strict mode of
+the file and index-backed class relations in the acceptance context its
+argument, property, return and type-check queries pass. A known non-subtype is rejected only when
 the actual class is final or both are classes; an interface the actual class
 does not implement stays `Maybe`, since a subclass may implement it. Pair
 `Accepts` with `ProvenTypeOf` for proven findings.
@@ -640,6 +641,11 @@ Measure hot-path changes with `make bench` and allocation counts.
 `make architecture`, included in `make verify`, checks production imports,
 forbids cross-inspection dependencies and validates catalogue completeness,
 unique registration, lowercase ID directories, constructors, specs and fixtures.
+Each inspection package's comment opens with
+`Package <pkg> implements the [native ]<ID> inspection.`, and its fixtures
+follow the [naming scheme](./fixtures#files) without sidecars that restate
+the defaults. It also holds each spec's `kind` to the rule's `Semantic()` and `Flow()`
+markers, and inspection code to `AtLeast`/`Below` for PHP version gates.
 PHP, semantic, diagnostic, analysis and fixing packages cannot depend on CLI,
 LSP, reporting, project orchestration or filesystem adapters. The MCP adapter
 may use project operations, fixing, analysis contracts, rule metadata, the
@@ -656,8 +662,8 @@ to exercise complete execution paths.
 
 ## Extending features
 
-- Add an inspection in its ID package with its spec and fixtures, then one
-  constructor in the catalogue; see [Adding a rule](./adding-a-rule).
+- Add an inspection in its ID package with its spec and fixtures, then
+  regenerate the catalogue; see [Adding a rule](./adding-a-rule).
 - Improve inference in `semantic/infer`, with tests there. Environment,
   expressions, operators, calls, members, variables, conditions, guards and
   invalidation have separate files in the same package and share existing caches.

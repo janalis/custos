@@ -1,7 +1,7 @@
 ---
 id: MillisecondsUsedAsUnixSeconds
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Detect date, gmdate or DateTime setTimestamp consuming a positive literal timest
 
 - D1. Report date, gmdate or DateTime setTimestamp consuming a positive literal timestamp between 100000000000 and 9999999999999 under an explicit millisecond-input contract.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -35,7 +35,7 @@ No automatic fix: rounding negative/fractional timestamps and intended dates req
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -50,4 +50,4 @@ echo <warning descr="Convert millisecond timestamps to seconds explicitly.">date
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

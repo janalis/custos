@@ -90,6 +90,7 @@ extract:
 	$(MAKE) rules-doc
 
 rules-doc:
+	$(GO) generate ./internal/inspection/catalogue
 	$(GO) run ./tools/rulesdoc
 	$(GO) run ./tools/genexplain
 	$(GO) run ./tools/rulesref

@@ -64,6 +64,16 @@ was modified in the last two seconds. One set of summaries is kept per
 project and settings: runs over different paths replace each other's.
 Findings are the same with or without them.
 
+`analyse` also keeps each checked file's findings. A later run reports them
+again, without checking the file, when the file's source is the same and
+nothing its findings depend on changed: the checked files' declarations,
+the cross-file summaries, the files read for their declarations, Composer's
+metadata, the enabled rules and their settings, the baseline, `--parse-once`
+and the directory the command runs from. An edit inside a function body that
+leaves what the function does for its callers as it was is checked alone;
+one that changes it, or changes a declaration, has every file checked again.
+`fix` never takes findings from the cache.
+
 Cross-file flow follows dependencies even on a first run. Recursive groups
 are analyzed under bounded work limits; summaries that do not settle are
 left unresolved.
@@ -86,10 +96,10 @@ These apply to both `analyse` and `fix`:
 | `--comparison-style regular\|yoda` | Preferred operand order for comparison rules and their quick-fixes. |
 | `--config DIR` | Start the search for the [project root](./configuration#project-root) here. |
 | `--exclude a,b` | Extra directories to skip, as `exclude` in `custos.json`. |
-| `--no-cache` | Do not reuse or save the [declarations of dependencies and cross-file summaries](#paths) between runs. |
+| `--no-cache` | Do not reuse or save the [declarations of dependencies, cross-file summaries and findings](#paths) between runs. |
 | `--flow-order` | Summarize cross-file flow in the [order the last run saved](#paths): a scheduling hint for dependency discovery. |
 | `--parse-once` | Parse each analyzed file once and keep its syntax tree until it is analyzed, instead of parsing it again in each phase, and keep the types inferred for a file between its cross-file flow summaries. Compared with a run without it: faster (about 1–12% on large projects, most where flow summaries are redone often) at the cost of memory (about 30–65% more at peak). Findings are the same, except possibly where type inference reaches its recursion limit. `analyse` only: `fix` ignores it. |
-| `--cpuprofile FILE` | Write a Go CPU profile of the analysis to FILE (for `go tool pprof`). |
+| `--cpuprofile FILE` | Write a Go CPU profile of the analysis to FILE (for `go tool pprof`). Samples taken while a rule runs carry a `rule` label with its ID: `go tool pprof -tags FILE` lists the time per rule. Data rules share, such as inferred types and flow, is charged to the first rule that needs it in each file. |
 | `--memprofile FILE` | Write a Go allocation profile of the analysis to FILE (for `go tool pprof`). |
 
 ## analyse

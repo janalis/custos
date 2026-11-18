@@ -233,13 +233,13 @@ None.
 
 ## PHP versions
 
-None. Upstream fixtures run at the PhpStorm test default level (5.6–7.0).
+No gating. Upstream fixtures run at the PhpStorm test default level (5.6–7.0).
 
 ## Examples
 
 ```php
 <?php
-interface Labelled            { public function __toString(); }
+interface Labeled             { public function __toString(); }
 interface Plain               {}
 abstract class BaseTag        { abstract public function __toString(); }
 class Tag extends BaseTag     { function __toString(): string { return "t"; } }
@@ -247,7 +247,7 @@ class ChildTag extends Tag    {}
 class Invoice                 {}
 class Stamp extends DateTimeImmutable {}
 
-function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
+function compare(Labeled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
     return [
         $l == 'x',
         <error descr="\Plain has no __toString(), so it cannot be compared to a string.">$p != 'x'</error>,
@@ -278,7 +278,7 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
 
 ```php
 <?php
-interface Labelled            { public function __toString(); }
+interface Labeled             { public function __toString(); }
 interface Plain               {}
 abstract class BaseTag        { abstract public function __toString(); }
 class Tag extends BaseTag     { function __toString(): string { return "t"; } }
@@ -286,7 +286,7 @@ class ChildTag extends Tag    {}
 class Invoice                 {}
 class Stamp extends DateTimeImmutable {}
 
-function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
+function compare(Labeled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
     return [
         $l == 'x',
         $p != 'x',
@@ -397,5 +397,3 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
   operand may also be `null` (`?Money`, `Money|null`): `null` compares with
   an object or with `null` loosely as strictly, so only the object case
   differs (`function same(?Money $a, ?Money $b) { return $a == $b; }`).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

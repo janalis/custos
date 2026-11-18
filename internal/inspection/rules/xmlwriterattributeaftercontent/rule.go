@@ -12,6 +12,7 @@ const message = "Write attributes before element content."
 
 type rule struct{}
 
+// New returns the XmlWriterAttributeAfterContent inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "XmlWriterAttributeAfterContent" }
 func (rule) Semantic()                {}
@@ -22,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
-	if !semanticquery.ExpansionDUnaliased(ctx, c.Var, n) {
+	if !semanticquery.UnaliasedLocal(ctx, c.Var, n) {
 		return
 	}
 	if !semanticquery.NativeMethod(ctx, c, "XMLWriter", "writeAttribute") && !semanticquery.NativeMethod(ctx, c, "XMLWriter", "startAttribute") {
@@ -30,8 +31,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	stack := []bool{}
 	attribute := false
-	for _, p := range semanticquery.ExpansionDMethods(ctx, c, c.Var) {
-		switch semanticquery.ExpansionDMethodName(p) {
+	for _, p := range semanticquery.ObjectMethodHistory(ctx, c, c.Var) {
+		switch semanticquery.LiteralMethodName(p) {
 		case "startelement", "startelementns":
 			stack = append(stack, false)
 		case "endelement", "fullendelement":

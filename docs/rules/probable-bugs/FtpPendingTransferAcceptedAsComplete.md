@@ -17,7 +17,7 @@ Identify boolean test of ftp_nb_get/put/fget/fput/continue in a branch returning
 - Report boolean test of ftp_nb_get/put/fget/fput/continue in a branch returning true or emitting constant completion text. Require literal complete output or explicit success return; variable names cannot establish intent.
 - The tested branch is the one that runs when the returned status is non-zero, so `FTP_MOREDATA` reaches it: the body of `if (call)`, or the `else` of `if (!call)`. Parentheses, a plain assignment of the status, `!` and `==`/`!=`/`===`/`!==` against a boolean literal are followed with their polarity. The status is an integer, so a strict comparison of the status itself with a boolean has a fixed outcome: `!==` always holds (the body is the branch), `===` never does (the `else` is).
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

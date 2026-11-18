@@ -16,6 +16,7 @@ const message = "Keep the inverse trigonometric argument within minus one and on
 
 type rule struct{}
 
+// New returns the InverseTrigInvalidRealDomain inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "InverseTrigInvalidRealDomain" }
 func (rule) Semantic()                {}

@@ -12,6 +12,7 @@ const message = "Parse XML boolean text explicitly."
 
 type rule struct{}
 
+// New returns the SimpleXmlTextCastAsBoolean inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SimpleXmlTextCastAsBoolean" }
 func (rule) Semantic()                {}
@@ -29,14 +30,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if creation == nil {
 		return
 	}
-	if methods := semanticquery.ExpansionDMethods(ctx, u, u.Expr); methods == nil || len(methods) > 0 || !semanticquery.ExpansionDPristine(ctx, u.Expr, u) {
+	if methods := semanticquery.ObjectMethodHistory(ctx, u, u.Expr); methods == nil || len(methods) > 0 || !semanticquery.MembersUnwrittenBefore(ctx, u.Expr, u) {
 		return
 	}
 	s, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(creation.Args, 0, "data"))
 	if !known {
 		return
 	}
-	_, text, plain, known := semanticquery.ExpansionDXML(s)
+	_, text, plain, known := semanticquery.ParseLiteralXML(s)
 	if known && plain && (text == "true" || text == "false") {
 		ctx.ReportNode(n, message)
 	}

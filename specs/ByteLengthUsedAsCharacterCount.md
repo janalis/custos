@@ -1,7 +1,7 @@
 ---
 id: ByteLengthUsedAsCharacterCount
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -37,7 +37,7 @@ No automatic fix: code-point versus grapheme counting and encoding must be selec
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -60,4 +60,4 @@ $frame = pack('N', strlen('héllo')) . 'héllo';
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

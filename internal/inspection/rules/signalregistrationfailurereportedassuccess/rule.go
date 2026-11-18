@@ -12,6 +12,7 @@ const message = "Return registration status or handle failure."
 
 type rule struct{}
 
+// New returns the SignalRegistrationFailureReportedAsSuccess inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SignalRegistrationFailureReportedAsSuccess" }
 func (rule) Semantic()                {}

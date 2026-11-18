@@ -15,6 +15,7 @@ const message = "Use a positive logarithm argument."
 
 type rule struct{}
 
+// New returns the LogarithmInvalidRealDomain inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "LogarithmInvalidRealDomain" }
 func (rule) Semantic()                {}

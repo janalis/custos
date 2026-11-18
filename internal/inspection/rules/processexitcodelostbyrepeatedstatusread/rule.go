@@ -13,6 +13,7 @@ const message = "Keep the exit code from the first completed status."
 
 type rule struct{}
 
+// New returns the ProcessExitCodeLostByRepeatedStatusRead inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ProcessExitCodeLostByRepeatedStatusRead" }
 func (rule) Semantic()                {}
@@ -22,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
-	if ctx.PHP >= phpversion.PHP83 {
+	if ctx.PHP.AtLeast(phpversion.PHP83) {
 		return
 	}
 	a := n.(*syntax.ArrayDimFetch)
@@ -34,7 +35,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !semanticquery.NativeBuiltin(ctx, second, "proc_get_status") {
 		return
 	}
-	if !semanticquery.ExpansionDUnaliased(ctx, semanticquery.CallArgument(second.Args, 0, "process"), n) {
+	if !semanticquery.UnaliasedLocal(ctx, semanticquery.CallArgument(second.Args, 0, "process"), n) {
 		return
 	}
 	for p := n.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {

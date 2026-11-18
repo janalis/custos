@@ -12,6 +12,7 @@ const message = "Check image decoding success before using the image."
 
 type rule struct{}
 
+// New returns the ImageDecodeFailureUnchecked inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ImageDecodeFailureUnchecked" }
 func (rule) Semantic()                {}

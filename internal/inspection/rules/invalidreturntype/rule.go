@@ -1,4 +1,5 @@
-// Package invalidreturntype implements the InvalidReturnType inspection.
+// Package invalidreturntype implements the native InvalidReturnType
+// inspection.
 package invalidreturntype
 
 import (

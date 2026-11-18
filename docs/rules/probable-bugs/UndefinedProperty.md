@@ -101,7 +101,7 @@ None: the intended property cannot be guessed.
 
 ## PHP versions
 
-All versions.
+No gating.
 
 ## Configure
 

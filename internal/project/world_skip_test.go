@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -74,13 +75,13 @@ func TestIndexSourcesSkipping(t *testing.T) {
 	}
 	at := func(f string) string { return filepath.Join(root, filepath.FromSlash(f)) }
 	files, skipped := IndexSourcesSkipping(root, nil, []string{root}, []string{"Gen", "vendor"})
-	if want := []string{at("src/A.php"), at("vendor/acme/lib/src/D.php")}; !slices.Equal(files, want) {
+	if want := []string{at("src/A.php"), at("src/api.stub.php"), at("vendor/acme/lib/src/D.php")}; !slices.Equal(files, want) {
 		t.Fatalf("files %v, want %v", files, want)
 	}
 	if want := []string{at("src/.cache"), at("src/Gen"), at("vendor/acme/lib/src/test"), at("vendor/janalis/custos")}; !slices.Equal(sortedCopy(skipped.Dirs), want) {
 		t.Fatalf("dirs %v, want %v", skipped.Dirs, want)
 	}
-	if want := []string{at("src/api.stub.php"), at("src/old.inc"), at("src/view.hh")}; !slices.Equal(sortedCopy(skipped.Files), want) {
+	if want := []string{at("src/old.inc"), at("src/view.hh")}; !slices.Equal(sortedCopy(skipped.Files), want) {
 		t.Fatalf("files %v, want %v", skipped.Files, want)
 	}
 	if _, skipped := IndexSourcesSkipping(root, nil, []string{at("missing")}, nil); !slices.Contains(skipped.Dirs, at("missing")) {
@@ -99,11 +100,11 @@ func TestIndexUnread(t *testing.T) {
 		t.Fatal(err)
 	}
 	opt := syntax.Options{Version: phpversion.PHP84}
-	if _, srcs, trees, unread := buildIndex([]string{big}, 1, opt, infer.Options{}, nil, true); !slices.Equal(unread, []string{big}) || srcs[0] == nil || trees[0] == nil {
+	if _, srcs, trees, unread := buildIndex(context.Background(), []string{big}, 1, opt, infer.Options{}, nil, true); !slices.Equal(unread, []string{big}) || srcs[0] == nil || trees[0] == nil {
 		t.Fatalf("kept tree: unread %v", unread)
 	}
 	cache := OpenSymbolCache(t.TempDir(), root, opt, infer.Options{})
-	if _, unread := BuildIndexUnread([]string{big}, opt, infer.Options{}, cache); !slices.Equal(unread, []string{big}) {
+	if _, unread := BuildIndexUnread(context.Background(), []string{big}, opt, infer.Options{}, cache); !slices.Equal(unread, []string{big}) {
 		t.Fatalf("cached: unread %v", unread)
 	}
 	locked := filepath.Join(root, "vendor", "acme")

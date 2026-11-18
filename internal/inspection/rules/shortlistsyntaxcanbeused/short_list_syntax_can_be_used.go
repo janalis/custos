@@ -23,7 +23,7 @@ func (shortListSyntaxCanBeUsed) Kinds() []syntax.NodeKind {
 }
 
 func (shortListSyntaxCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP71 { // E1
+	if ctx.PHP.Below(phpversion.PHP71) { // E1
 		return
 	}
 	l := n.(*syntax.List)

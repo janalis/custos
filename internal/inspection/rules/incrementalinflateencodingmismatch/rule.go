@@ -11,6 +11,7 @@ const message = "Match the inflate encoding to the input."
 
 type rule struct{}
 
+// New returns the IncrementalInflateEncodingMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "IncrementalInflateEncodingMismatch" }
 func (rule) Semantic()                {}

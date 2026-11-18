@@ -150,7 +150,7 @@ func (cp *cpState) paramSet(p *syntax.Param) (map[string]bool, bool) {
 		}
 	}
 	// custos: a class that does not resolve (`@param unknown_type $x`, a
-	// misspelt or unindexed class) says nothing about accepted values.
+	// misspelled or unindexed class) says nothing about accepted values.
 	for t := range set {
 		if strings.HasPrefix(t, `\`) && cp.ctx.Index().Class(t, cp.ctx.PHP) == nil {
 			return nil, false

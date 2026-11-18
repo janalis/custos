@@ -102,3 +102,4 @@ function shortCircuit($in)
     $raw = fread($in, 4);
     return strlen($raw) === 4 && unpack('Nsize', $raw);
 }
+$header = fread($stream, 4); if (strlen($header) !== 4) { return; } unpack('Nsize', $header);

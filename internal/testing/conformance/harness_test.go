@@ -69,6 +69,18 @@ func TestCheck(t *testing.T) {
 	if _, err := Check(&fakeEngine{fixErr: boom}, Request{}, []byte("x"), []byte("x"), CompareOptions{}); !errors.Is(err, boom) {
 		t.Fatalf("fix error: %v", err)
 	}
+	// Without a .fixed file, a fix must leave the fixture as it is.
+	found := []Finding{{Severity: diagnostic.SeverityWarning, Message: "m", Start: 0, End: 1}}
+	noFix := CompareOptions{NoFixWithoutFixed: true}
+	if _, err := Check(&fakeEngine{findings: found, fixErr: boom}, Request{}, []byte("x"), nil, noFix); !errors.Is(err, boom) {
+		t.Fatalf("fix error without a .fixed file: %v", err)
+	}
+	if res, _ := Check(&fakeEngine{findings: found, fixed: "y"}, Request{}, []byte("x"), nil, noFix); res.FixDiff == "" {
+		t.Fatal("an unshown fix accepted")
+	}
+	if res, _ := Check(&fakeEngine{findings: found, fixed: "x"}, Request{}, []byte("x"), nil, noFix); res.FixDiff != "" {
+		t.Fatalf("no fix rejected: %s", res.FixDiff)
+	}
 }
 
 func TestSortExpectations(t *testing.T) {

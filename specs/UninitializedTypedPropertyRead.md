@@ -16,7 +16,7 @@ Detect reading a resolved typed instance property when every incoming path prove
 
 - D1. Report reading a resolved typed instance property when every incoming path proves it remains uninitialized.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -37,7 +37,7 @@ No automatic fix: an appropriate initial value cannot be inferred.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -52,6 +52,6 @@ class Meter {public int $value;} echo <error descr="Initialize this typed proper
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: null-coalescing on the left operand is a guarded read and is excluded. The same guard covers element and sub-property reads chained on the property, up to the first call. Every ancestor and trait must resolve before absence of constructor or magic initialization can establish an uninitialized fresh instance.

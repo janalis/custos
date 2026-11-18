@@ -1,4 +1,5 @@
-// Package pgreturnedrowsusedasaffectedrows implements PgReturnedRowsUsedAsAffectedRows.
+// Package pgreturnedrowsusedasaffectedrows implements the native
+// PgReturnedRowsUsedAsAffectedRows inspection.
 package pgreturnedrowsusedasaffectedrows
 
 import (
@@ -12,6 +13,7 @@ const message = "Use affected-row count for this statement."
 
 type rule struct{}
 
+// New returns the PgReturnedRowsUsedAsAffectedRows inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PgReturnedRowsUsedAsAffectedRows" }
 func (rule) Semantic()                {}

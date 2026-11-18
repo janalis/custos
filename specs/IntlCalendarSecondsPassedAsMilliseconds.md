@@ -1,7 +1,7 @@
 ---
 id: IntlCalendarSecondsPassedAsMilliseconds
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "5.5", max: "" }
 ---
@@ -16,8 +16,8 @@ Convert seconds to calendar milliseconds.
 
 - D1. Report resolved IntlCalendar::setTime with direct time(), or an unchanged local assigned time(), as its timestamp. Exclude arbitrary numbers and arithmetic/computed timestamps. Offer a fix only for the direct call argument.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
-- D4. A local is not unchanged when it, or a variable whose value was copied into it, is captured by reference in a closure `use` of the same scope or bound by a `catch` clause of that scope. A file-level variable is also a global: a `global` declaration naming it, or any `$GLOBALS` access anywhere in the file, removes proof as well. A by-value capture does not.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
+- D4. A local timestamp is proven only while nothing in its scope can change it behind its plain assignments, anywhere and in any statement order: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument a resolved callee binds by reference, other than the inspected argument itself); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A `global` or `static` declaration of it removes the proof too; a by-reference capture by the closure that is the scope keeps it, since only the closure's caller can rebind the variable, between calls. In top-level code, where locals are globals, a `global` declaration naming it in any function of the file, or a `$GLOBALS` access anywhere in the file, removes the proof as well. The same holds for every local whose value an assignment stores into it, whatever the assigned expression computes, directly or through further assignments. A read inside an arrow function also checks the scopes the arrow function captures from. A by-value capture keeps the proof.
 
 ## Exceptions (no report)
 
@@ -69,4 +69,4 @@ $c = IntlCalendar::createInstance(); $c->setTime(time() * 1000);
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

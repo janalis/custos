@@ -33,7 +33,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, plain := astquery.PlainVariableName(h); !plain {
 		return
 	}
-	if !semanticquery.ExpansionDUnaliased(ctx, h, c) {
+	if !semanticquery.UnaliasedLocal(ctx, h, c) {
 		return
 	}
 	length, k := semanticquery.NativeInt(ctx, semanticquery.CallArgument(c.Args, 1, "length"))

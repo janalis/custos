@@ -13,6 +13,7 @@ const message = "Reject account lookup failure before indexing."
 
 type rule struct{}
 
+// New returns the PosixAccountLookupFailureDereferenced inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PosixAccountLookupFailureDereferenced" }
 func (rule) Semantic()                {}
@@ -26,7 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !astquery.ArrayFetchRequiresRead(a) {
 		return
 	}
-	if !semanticquery.ExpansionDPristine(ctx, a.Var, n) && !semanticquery.NativeFailureFlowOnly(ctx, a.Var) {
+	if !semanticquery.MembersUnwrittenBefore(ctx, a.Var, n) && !semanticquery.NativeFailureFlowOnly(ctx, a.Var) {
 		return
 	}
 	// Among several reaching assignments only a lookup result counts: an

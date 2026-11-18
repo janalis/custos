@@ -41,7 +41,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	var fixes []diagnostic.Fix
 	// A named function or a closure held in a variable may be called elsewhere
 	// for its arithmetic result, so only an inline comparator is rewritten.
-	if len(values) == 1 && ctx.PHP >= phpversion.PHP70 && inlineCallback(callback) {
+	if len(values) == 1 && ctx.PHP.AtLeast(phpversion.PHP70) && inlineCallback(callback) {
 		b := syntax.UnwrapParens(values[0]).(*syntax.Binary)
 		fixes = append(fixes, diagnostic.Fix{Title: "Compare without float truncation", Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: b.Op.Span, NewText: "<=>"}} }})
 	}

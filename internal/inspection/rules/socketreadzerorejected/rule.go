@@ -1,4 +1,5 @@
-// Package socketreadzerorejected implements SocketReadZeroRejected.
+// Package socketreadzerorejected implements the native
+// SocketReadZeroRejected inspection.
 package socketreadzerorejected
 
 import (
@@ -11,6 +12,7 @@ const message = "Compare socket read failure strictly with false."
 
 type rule struct{}
 
+// New returns the SocketReadZeroRejected inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SocketReadZeroRejected" }
 func (rule) Semantic()                {}

@@ -36,7 +36,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -62,4 +62,4 @@ $fp = fopen("php://memory", "r+"); fwrite($fp, "
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

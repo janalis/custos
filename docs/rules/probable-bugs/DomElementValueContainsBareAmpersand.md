@@ -52,10 +52,6 @@ None. A safe repair requires choosing values, error handling, or application beh
 
 Apply throughout PHP 5.3–8.5 only where the extension API and syntax exist.  Do not flag API unavailability through this rule. Legacy DOM classes are the initial target; modern Dom namespace classes require independently established matching contracts.
 
-## Options
-
-None. Use normal rule configuration to enable or disable the inspection.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

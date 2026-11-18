@@ -35,3 +35,4 @@ if ($raw !== serialize(false) && $top === false) {
 if ($top === false) {
     throw new RuntimeException('corrupt payload');
 }
+if(unserialize($bytes)===false){echo "false";}

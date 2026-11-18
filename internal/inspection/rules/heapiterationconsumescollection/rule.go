@@ -14,6 +14,7 @@ const message = "Iterate a clone to preserve the heap."
 
 type rule struct{}
 
+// New returns the HeapIterationConsumesCollection inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "HeapIterationConsumesCollection" }
 func (rule) Semantic()                {}

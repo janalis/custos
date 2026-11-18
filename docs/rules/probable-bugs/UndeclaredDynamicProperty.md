@@ -29,7 +29,7 @@ Reported:
 
 - Report assigning a missing instance property on a resolved PHP 8.2+ class with a complete known hierarchy.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -44,10 +44,6 @@ No automatic fix: declaring a property changes visibility, serialization and ini
 ## PHP versions
 
 Available from PHP 8.2. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

@@ -1,7 +1,7 @@
 ---
 id: HashContextUsedAfterFinalization
 group: Security
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Identify hash_update, hash_copy or hash_final on the same local context after un
 
 - D1. Report hash_update, hash_copy or hash_final on the same local context after unconditional hash_final, with no replacement.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 - D4. The earlier hash_final must run on every path to the later call. A hash_final in a `match` arm body, or in the arguments or member name of a call reached through a `?->` chain, proves nothing for calls outside that arm or chain; calls inside the same arm or chain are still checked.
 - D5. Between the earlier hash_final and the later call the context variable must not be rebound. Besides plain assignment, a rebinding is: a `[...]`/`list(...)` destructuring target (positional, keyed or nested), a `foreach` key or value binding, a `catch` variable, a call to `extract` or `parse_str`, and any user function, method, static method or constructor call that receives the variable.
 - D6. When the context variable is a by-reference parameter, or is declared `global` or `static` in the scope, any intervening user function, method, static method or constructor call may replace it and invalidates proof. Calls to resolved builtin functions do not.

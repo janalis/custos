@@ -38,7 +38,7 @@ Reported:
 
 - Report discarded return from modify, add, sub, setDate, setTime, setTimestamp or setTimezone on a receiver proven DateTimeImmutable.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -58,10 +58,6 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 ## PHP versions
 
 Available from PHP 5.5. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

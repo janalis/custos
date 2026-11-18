@@ -11,6 +11,7 @@ const message = "Instantiate a class using the trait."
 
 type rule struct{}
 
+// New returns the TraitInstantiation inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "TraitInstantiation" }
 func (rule) Semantic()                {}

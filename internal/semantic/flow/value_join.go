@@ -76,7 +76,7 @@ func merged(a, b Value) (Value, valueExt) {
 
 // union joins two source lists, each in the order of before, without
 // repeating a source. It returns a itself when b adds nothing, so that a
-// value joined again with what it already holds stays recognisably the
+// value joined again with what it already holds stays recognizably the
 // same; the result never shares spare capacity a later append could write
 // to. Sources past MaxSources are dropped, which the second result reports.
 func union(a, b []Source) ([]Source, bool) {

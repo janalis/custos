@@ -1,4 +1,5 @@
-// Package iteratorcountchangesrequiredposition implements IteratorCountChangesRequiredPosition.
+// Package iteratorcountchangesrequiredposition implements the native
+// IteratorCountChangesRequiredPosition inspection.
 package iteratorcountchangesrequiredposition
 
 import (
@@ -11,6 +12,7 @@ const message = "Restore the iterator position after counting."
 
 type rule struct{}
 
+// New returns the IteratorCountChangesRequiredPosition inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "IteratorCountChangesRequiredPosition" }
 func (rule) Semantic()                {}

@@ -22,7 +22,7 @@ string literal, and flags objects compared to strings that have no
 
 ```php{13,15,17,19,20,21,23,24,26,27,28,29,30} [Before]
 <?php
-interface Labelled            { public function __toString(); }
+interface Labeled             { public function __toString(); }
 interface Plain               {}
 abstract class BaseTag        { abstract public function __toString(); }
 class Tag extends BaseTag     { function __toString(): string { return "t"; } }
@@ -30,7 +30,7 @@ class ChildTag extends Tag    {}
 class Invoice                 {}
 class Stamp extends DateTimeImmutable {}
 
-function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
+function compare(Labeled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
     return [
         $l == 'x',
         $p != 'x',
@@ -61,7 +61,7 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
 
 ```php [After fix]
 <?php
-interface Labelled            { public function __toString(); }
+interface Labeled             { public function __toString(); }
 interface Plain               {}
 abstract class BaseTag        { abstract public function __toString(); }
 class Tag extends BaseTag     { function __toString(): string { return "t"; } }
@@ -69,7 +69,7 @@ class ChildTag extends Tag    {}
 class Invoice                 {}
 class Stamp extends DateTimeImmutable {}
 
-function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
+function compare(Labeled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
     return [
         $l == 'x',
         $p != 'x',

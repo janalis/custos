@@ -16,6 +16,7 @@ const message = "Reject signal-wait failure before handling the result."
 
 type rule struct{}
 
+// New returns the SignalWaitFailureAcceptedAsSignal inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SignalWaitFailureAcceptedAsSignal" }
 func (rule) Semantic()                {}

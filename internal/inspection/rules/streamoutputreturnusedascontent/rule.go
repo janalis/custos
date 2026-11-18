@@ -16,6 +16,7 @@ const message = "Output the stream without printing its byte count."
 
 type rule struct{}
 
+// New returns the StreamOutputReturnUsedAsContent inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "StreamOutputReturnUsedAsContent" }
 func (rule) Semantic()                {}

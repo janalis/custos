@@ -1,7 +1,7 @@
 ---
 id: NonVoidFunctionFallsThrough
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "7.0", max: "" }
 ---
@@ -18,7 +18,7 @@ Identify the return type of an explicitly nonvoid nongenerator function when str
 - D1a. The proof is path-aware for repeated tests. While walking a block, remember each condition whose outcome is fixed on the current path: inside a branch its own condition holds or fails, and after an `if` only one side of which continues, the condition has the value of the continuing side. A later `if` whose condition is the same test, or its exact logical complement, is decided by that fact instead of being treated as open. Complement pairs are `==`/`!=`, `===`/`!==`, `<`/`>=` and `>`/`<=`, with operands in either order. Only conditions made of a plain variable, or a comparison between a plain variable and another plain variable or scalar literal, are remembered. A bare variable and a loose comparison with `true` or `false` are the same truthiness test; a strict comparison with `true` or `false` counts as one only for a parameter declared exactly `bool`. Any assignment or increment on the continuing path forgets every remembered condition.
 - D1b. An expression statement that cannot complete ends its path like a `throw` statement: a throw expression, a plain `=` assignment whose value is one, and a `match` whose subject throws or whose every arm body throws (a subject matching no arm raises an error as well).
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

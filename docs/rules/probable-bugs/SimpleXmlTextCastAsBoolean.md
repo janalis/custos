@@ -16,7 +16,7 @@ Identify boolean cast of a locally constructed SimpleXMLElement whose literal so
 
 - Report boolean cast of a locally constructed SimpleXMLElement whose literal sole text content is a boolean spelling true/false and whose element has no children or attributes. Literal false produces true under object conversion; disabled by default because parsing intent remains optional.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

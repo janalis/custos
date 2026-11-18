@@ -1,4 +1,5 @@
-// Package pdogroupedfetchreadsremovedcolumn implements PdoGroupedFetchReadsRemovedColumn.
+// Package pdogroupedfetchreadsremovedcolumn implements the native
+// PdoGroupedFetchReadsRemovedColumn inspection.
 package pdogroupedfetchreadsremovedcolumn
 
 import (
@@ -15,6 +16,7 @@ const message = "Read the group column from the group key."
 
 type rule struct{}
 
+// New returns the PdoGroupedFetchReadsRemovedColumn inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PdoGroupedFetchReadsRemovedColumn" }
 func (rule) Semantic()                {}
@@ -44,7 +46,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	if !ok {
 		return
 	}
-	if !semanticquery.ExpansionDPristine(ctx, group.Var, fetch) || pdoGroupedRowsRewritten(ctx, group.Var, fetch) {
+	if !semanticquery.MembersUnwrittenBefore(ctx, group.Var, fetch) || pdoGroupedRowsRewritten(ctx, group.Var, fetch) {
 		return
 	}
 	all, ok := semanticquery.NativeLocalValue(ctx, group.Var).(*syntax.MethodCall)
@@ -71,7 +73,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	}
 	flagsByName := false
 	if b, ok := syntax.UnwrapParens(modeExpr).(*syntax.Binary); ok && (b.Op.Kind == syntax.TPlus || b.Op.Kind == syntax.TBar) {
-		flagsByName = (semanticquery.ExpansionCConstant(ctx, b.Left, "PDO", "FETCH_GROUP") && semanticquery.ExpansionCConstant(ctx, b.Right, "PDO", "FETCH_ASSOC")) || (semanticquery.ExpansionCConstant(ctx, b.Right, "PDO", "FETCH_GROUP") && semanticquery.ExpansionCConstant(ctx, b.Left, "PDO", "FETCH_ASSOC"))
+		flagsByName = (semanticquery.BuiltinClassConstant(ctx, b.Left, "PDO", "FETCH_GROUP") && semanticquery.BuiltinClassConstant(ctx, b.Right, "PDO", "FETCH_ASSOC")) || (semanticquery.BuiltinClassConstant(ctx, b.Right, "PDO", "FETCH_GROUP") && semanticquery.BuiltinClassConstant(ctx, b.Left, "PDO", "FETCH_ASSOC"))
 	}
 	if !flagsByName && (!known || mode != 65538) {
 		return

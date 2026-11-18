@@ -12,6 +12,7 @@ const message = "Supply decimal strings before BCMath arithmetic."
 
 type rule struct{}
 
+// New returns the BcMathFloatOperand inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "BcMathFloatOperand" }
 func (rule) Semantic()                {}
@@ -22,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	for _, operand := range semanticquery.ExpansionBcOperands(ctx, c) {
+	for _, operand := range semanticquery.BCMathOperands(ctx, c) {
 		if operand != nil && ctx.Types().Native().TypeOf(operand).OnlyOf("float") {
 			ctx.ReportNode(c, message)
 			return

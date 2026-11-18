@@ -16,6 +16,7 @@ const message = "Check that the collection contains an element."
 
 type rule struct{}
 
+// New returns the EmptySplCollectionExtraction inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "EmptySplCollectionExtraction" }
 func (rule) Semantic()                {}

@@ -1,7 +1,7 @@
 ---
 id: CurlCustomHeadWithoutNoBody
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---

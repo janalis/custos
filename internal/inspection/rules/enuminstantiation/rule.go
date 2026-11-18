@@ -14,12 +14,13 @@ const message = "Use an enum case instead of instantiation."
 
 type rule struct{}
 
+// New returns the EnumInstantiation inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "EnumInstantiation" }
 func (rule) Semantic()                {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KNew} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP81 {
+	if ctx.PHP.Below(phpversion.PHP81) {
 		return
 	}
 	v := n.(*syntax.New)

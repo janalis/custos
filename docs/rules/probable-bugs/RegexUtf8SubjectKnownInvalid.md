@@ -17,7 +17,7 @@ Identify preg_match, preg_match_all, preg_replace or preg_split with known u mod
 - Report preg_match, preg_match_all, preg_replace or preg_split with known u modifier and a constant subject whose bytes fail strict UTF-8 validation; exclude byte-oriented patterns.
 - The u modifier is known only when the constant pattern has a usable delimiter layout: after optional leading whitespace, the delimiter is an ASCII character other than a letter, a digit, a backslash or NUL; the body ends at the first unescaped closing delimiter; for the bracket-style delimiters `(`, `[`, `{` and `<` the closing delimiter is the matching `)`, `]`, `}` or `>`, counted with nesting; everything after it consists only of modifier letters (plus spaces and newlines), one of which is `u`.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

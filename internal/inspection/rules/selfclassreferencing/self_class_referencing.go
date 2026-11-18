@@ -126,7 +126,7 @@ func (c *selfRefCheck) ref(n *syntax.Name) {
 }
 
 // rebinds reports whether swapping `self` and the class name at n could change
-// behaviour. custos: self::m() forwards the late static binding, Name::m()
+// behavior. custos: self::m() forwards the late static binding, Name::m()
 // resets it: inside m(), static:: and `new static` name the calling subclass
 // in one spelling and this class in the other. Subclasses may also live
 // outside the index when the class extends one it does not hold.
@@ -137,7 +137,7 @@ func (c *selfRefCheck) rebinds(n *syntax.Name) bool {
 }
 
 func (c *selfRefCheck) magic(n *syntax.MagicConst) {
-	if !c.reverse || n.Token.Kind != syntax.TClassC || c.ctx.PHP < phpversion.PHP55 {
+	if !c.reverse || n.Token.Kind != syntax.TClassC || c.ctx.PHP.Below(phpversion.PHP55) {
 		return
 	}
 	span := n.Span()

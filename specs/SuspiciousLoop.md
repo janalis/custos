@@ -111,7 +111,7 @@ None.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `VERIFY_VARIABLES_OVERRIDE` | bool | `true` | Enables the parameter and outer-loop clash checks (D2–D4). |
+| `VERIFY_VARIABLES_OVERRIDE` | bool | `true` | Enables the parameter and outer-loop clash checks. |
 
 ## PHP versions
 

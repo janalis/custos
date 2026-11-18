@@ -567,7 +567,7 @@ func dfiElementWrite(ctx *analysis.Context, d *syntax.ArrayDimFetch) bool {
 // iteration (continue or break not bound by a nested loop or switch,
 // return, throw, exit) without being one itself: later statements then run
 // on some iterations only, and moving them out of the loop changes
-// behaviour. Nested functions and classes are skipped.
+// behavior. Nested functions and classes are skipped.
 func dfiMayLeave(s syntax.Stmt) bool {
 	switch s.(type) {
 	case *syntax.Break, *syntax.Continue, *syntax.Return:

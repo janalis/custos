@@ -95,8 +95,7 @@ strlen(label());
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies.
-These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 NullPointerException, when it runs together with this rule, leaves to it
 the arguments this rule reports. A suppression comment naming NullPointerException
 (or its PhpStorm name) suppresses this rule's findings too, so that

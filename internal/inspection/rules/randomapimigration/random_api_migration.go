@@ -33,7 +33,7 @@ func (randomAPIMigration) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	table := randomClassic // D1
-	if ctx.Bool("SUGGEST_USING_RANDOM_INT") && ctx.PHP >= phpversion.PHP70 {
+	if ctx.Bool("SUGGEST_USING_RANDOM_INT") && ctx.PHP.AtLeast(phpversion.PHP70) {
 		table = randomModern
 	}
 	name = strings.ToLower(name) // function names are case-insensitive
@@ -53,7 +53,7 @@ func (randomAPIMigration) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// Since PHP 7.1 rand(), srand() and getrandmax() are aliases of their
 	// mt_* counterparts: the rename changes nothing (E5).
-	if suggested != "random_int" && ctx.PHP >= phpversion.PHP71 {
+	if suggested != "random_int" && ctx.PHP.AtLeast(phpversion.PHP71) {
 		return
 	}
 	msg := "Prefer " + suggested + "() over " + name + "()."

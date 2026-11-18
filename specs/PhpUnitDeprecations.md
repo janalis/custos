@@ -1,7 +1,7 @@
 ---
 id: PhpUnitDeprecations
 group: PHPUnit
-kind: syntax
+kind: semantic
 needs: []
 php: { min: "", max: "" }
 ---
@@ -230,5 +230,3 @@ final class ExportTest
   `assertContains()` (strict from 9.0, unlike `in_array()`) and Grav and
   Symfony (PHPUnit installed by symfony/phpunit-bridge outside `vendor/`)
   `assertRegExp()` (removed in 10).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

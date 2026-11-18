@@ -70,7 +70,7 @@ func (cryptographicallySecureRandomness) Check(ctx *analysis.Context, n syntax.N
 }
 
 // resultVerified implements D3: the call result is assigned to a target
-// that is false-checked (or to no recognisable target), or the assignment
+// that is false-checked (or to no recognizable target), or the assignment
 // itself is strictly compared with false (custos diverges).
 func resultVerified(ctx *analysis.Context, call *syntax.FuncCall) bool {
 	p := call.Parent()

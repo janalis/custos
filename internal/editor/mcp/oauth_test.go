@@ -91,10 +91,10 @@ func TestOAuthIntrospection(t *testing.T) {
 		t.Fatal("redirect accepted")
 	}
 	status = 200
-	cancelled, cancel := context.WithCancel(context.Background())
+	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, _, err := s.authenticate(cancelled, "opaque"); err == nil {
-		t.Fatal("cancelled introspection accepted")
+	if _, _, err := s.authenticate(canceled, "opaque"); err == nil {
+		t.Fatal("canceled introspection accepted")
 	}
 	handler, err := s.HTTPHandler("test")
 	if err != nil {

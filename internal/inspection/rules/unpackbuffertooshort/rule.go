@@ -16,6 +16,7 @@ const message = "Provide enough bytes for the unpack format."
 
 type rule struct{}
 
+// New returns the UnpackBufferTooShort inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "UnpackBufferTooShort" }
 func (rule) Semantic()                {}
@@ -29,14 +30,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.NativeBuiltin(ctx, c, "unpack") {
 		return
 	}
-	if ctx.PHP < phpversion.PHP71 && c.Args != nil && len(c.Args.Args) > 2 {
+	if ctx.PHP.Below(phpversion.PHP71) && c.Args != nil && len(c.Args.Args) > 2 {
 		return
 	}
 	format, ok := semanticquery.NativeString(ctx, semanticquery.CallArgument(c.Args, 0, "format"))
 	if !ok || len(format) > 4096 {
 		return
 	}
-	if (ctx.PHP < phpversion.PHP56 && strings.ContainsAny(format, "JP")) || (ctx.PHP < phpversion.PHP72 && strings.ContainsAny(format, "gGeE")) || (ctx.PHP < phpversion.PHP55 && strings.Contains(format, "Z")) {
+	if (ctx.PHP.Below(phpversion.PHP56) && strings.ContainsAny(format, "JP")) || (ctx.PHP.Below(phpversion.PHP72) && strings.ContainsAny(format, "gGeE")) || (ctx.PHP.Below(phpversion.PHP55) && strings.Contains(format, "Z")) {
 		return
 	}
 	data, ok := semanticquery.NativeString(ctx, semanticquery.CallArgument(c.Args, 1, "string"))

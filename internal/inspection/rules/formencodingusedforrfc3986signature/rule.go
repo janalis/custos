@@ -14,6 +14,7 @@ const message = "Use RFC3986 query encoding for this signature protocol."
 
 type rule struct{}
 
+// New returns the FormEncodingUsedForRfc3986Signature inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "FormEncodingUsedForRfc3986Signature" }
 func (rule) Semantic()                {}
@@ -21,7 +22,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
-	if ctx.PHP < phpversion.PHP54 || !semanticquery.NativeBuiltin(ctx, c, "hash_hmac") {
+	if ctx.PHP.Below(phpversion.PHP54) || !semanticquery.NativeBuiltin(ctx, c, "hash_hmac") {
 		return
 	}
 	scope, ok := syntax.EnclosingVariableScope(c).(*syntax.Function)

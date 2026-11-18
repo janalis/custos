@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Within one attribute-bearing declaration, resolve attribute class identities; report the second and subsequent use of a class whose Attribute flags prove IS_REPEATABLE absent. This predicts failure on ReflectionAttribute::newInstance.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

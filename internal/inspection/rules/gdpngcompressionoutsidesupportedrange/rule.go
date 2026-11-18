@@ -13,6 +13,7 @@ const message = "Supply PNG compression between zero and nine."
 
 type rule struct{}
 
+// New returns the GdPngCompressionOutsideSupportedRange inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GdPngCompressionOutsideSupportedRange" }
 func (rule) Semantic()                {}

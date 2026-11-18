@@ -22,7 +22,7 @@ Identify concatenation of an unchecked realpath result followed by consumption b
   - an earlier statement of an enclosing block that leaves it on failure: an `if` whose first branch always terminates, or `test || throw …` (PHP 8.0+), `test or exit`/`die`, `failed && exit`.
   - Composition is exact: inside a condition, a test protects the true branch only as a top-level `&&` conjunct and the false branch (or a terminating guard) only as a top-level `||` disjunct. `if ($root || $other)` and `if (!$root && $other) { return; }` prove nothing.
   - The check may sit between the concatenation and the consuming call when the joined string was stored in a variable first.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

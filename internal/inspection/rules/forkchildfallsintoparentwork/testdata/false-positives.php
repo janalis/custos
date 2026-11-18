@@ -233,3 +233,4 @@ function forkEndlessDeclarations(ForkDaemon $daemon)
     }
     return $pid;
 }
+$pid=pcntl_fork(); if ($pid===0) { echo "child"; exit; } echo "continuation";

@@ -1,4 +1,5 @@
-// Package intervaldaycomponentastotal implements the IntervalDayComponentAsTotal inspection.
+// Package intervaldaycomponentastotal implements the native
+// IntervalDayComponentAsTotal inspection.
 package intervaldaycomponentastotal
 
 import (
@@ -12,6 +13,7 @@ import (
 
 type rule struct{}
 
+// New returns the IntervalDayComponentAsTotal inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "IntervalDayComponentAsTotal" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }

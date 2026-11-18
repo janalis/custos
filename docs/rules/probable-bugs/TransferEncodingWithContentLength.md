@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Track effective Transfer-Encoding and Content-Length headers set by builtin header in the same straight-line response segment. Report the second header establishing both. Header replacement and header_remove update state; either order is supported.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

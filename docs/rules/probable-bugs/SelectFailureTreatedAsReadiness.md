@@ -6,7 +6,7 @@ title: SelectFailureTreatedAsReadiness
 
 # SelectFailureTreatedAsReadiness
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,7 +29,7 @@ Reported:
 
 - Report a direct or unchanged-local stream_select result compared strictly !== 0. False passes this readiness test. Loose != 0 excludes false and is not reported; explicit three-way handling and other comparison forms are outside this subset.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 

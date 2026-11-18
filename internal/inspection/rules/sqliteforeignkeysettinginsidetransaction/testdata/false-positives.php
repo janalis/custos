@@ -115,3 +115,4 @@ function otherDriver()
     $pdo->beginTransaction();
     $pdo->exec('PRAGMA foreign_keys = ON');
 }
+$db = new SQLite3(':memory:'); $db->exec('PRAGMA foreign_keys=ON; BEGIN;');

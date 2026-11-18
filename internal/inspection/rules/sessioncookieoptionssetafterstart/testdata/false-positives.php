@@ -49,3 +49,4 @@ function closed() {
     session_write_close();
     session_set_cookie_params(3600);
 }
+session_set_cookie_params(['secure' => true]); session_start();

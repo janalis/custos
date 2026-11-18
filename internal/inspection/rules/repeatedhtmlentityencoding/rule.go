@@ -1,4 +1,5 @@
-// Package repeatedhtmlentityencoding implements the RepeatedHtmlEntityEncoding inspection.
+// Package repeatedhtmlentityencoding implements the native
+// RepeatedHtmlEntityEncoding inspection.
 package repeatedhtmlentityencoding
 
 import (
@@ -10,6 +11,7 @@ import (
 
 type rule struct{}
 
+// New returns the RepeatedHtmlEntityEncoding inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "RepeatedHtmlEntityEncoding" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }

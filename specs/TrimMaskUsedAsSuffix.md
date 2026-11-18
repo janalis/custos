@@ -1,7 +1,7 @@
 ---
 id: TrimMaskUsedAsSuffix
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Detect trim, ltrim or rtrim using a literal extension-like mask beginning with a
 
 - D1. Report trim, ltrim or rtrim using a literal extension-like mask beginning with a dot and containing at least two alphabetic characters.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -35,7 +35,7 @@ No automatic fix: prefix/suffix intent and repeated-removal behavior are unknown
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -50,4 +50,4 @@ $base=<warning descr="Remove the suffix explicitly instead of using a trim mask.
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

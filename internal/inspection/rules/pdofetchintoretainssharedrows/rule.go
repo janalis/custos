@@ -1,4 +1,5 @@
-// Package pdofetchintoretainssharedrows implements PdoFetchIntoRetainsSharedRows.
+// Package pdofetchintoretainssharedrows implements the native
+// PdoFetchIntoRetainsSharedRows inspection.
 package pdofetchintoretainssharedrows
 
 import (
@@ -14,6 +15,7 @@ const message = "Clone fetched objects before retaining snapshots."
 
 type rule struct{}
 
+// New returns the PdoFetchIntoRetainsSharedRows inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PdoFetchIntoRetainsSharedRows" }
 func (rule) Semantic()                {}
@@ -88,7 +90,7 @@ func pdoFetchIntoMethod(ctx *analysis.Context, c *syntax.MethodCall, name string
 	}
 	id, ok := c.Name.(*syntax.Identifier)
 	receiver, simple := c.Var.(*syntax.Variable)
-	if !ok || !simple || !strings.EqualFold(id.Value, name) || !semanticquery.ExpansionDUnaliased(ctx, receiver, c) {
+	if !ok || !simple || !strings.EqualFold(id.Value, name) || !semanticquery.UnaliasedLocal(ctx, receiver, c) {
 		return false
 	}
 	var origin *syntax.MethodCall

@@ -1206,7 +1206,7 @@
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,
-    "hasFix": false
+    "hasFix": true
   },
   {
     "id": "ImpossibleTypeComparison",

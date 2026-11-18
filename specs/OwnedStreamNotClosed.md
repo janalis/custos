@@ -1,7 +1,7 @@
 ---
 id: OwnedStreamNotClosed
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Detect an owned successfully opened stream leaving its local scope without close
 
 - D1. Report an owned successfully opened stream leaving its local scope without close, return or ownership transfer.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 - D4. The report is made on a `return` statement whose expression only lends the handle: every mention of the local in the returned expression is an argument of a resolved builtin stream call that reads, writes, positions or inspects the stream without closing or keeping it (`fgets`, `fread`, `fwrite`, `ftell`, `feof`, `stream_get_contents`, ...).
 
 ## Exceptions (no report)
@@ -39,7 +39,7 @@ No automatic fix: adding finally may alter exception/return interactions and res
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -58,4 +58,4 @@ function paired($path) { $h = fopen($path, 'rb'); if ($h === false) { return nul
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

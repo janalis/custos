@@ -16,7 +16,7 @@ Detect match over a resolved enum when reachable enum cases are missing and ther
 
 - D1. Report match over a resolved enum when reachable enum cases are missing and there is no default arm.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 - D4. An arm condition written as a constant of the enum that aliases one of its cases (`const Fallback = self::Left;`, directly or through another such constant) handles that case.
 - D5. The required cases are the ones the subject may still hold at the match. Strict comparisons (`===`, `!==`) of the subject with a case of its enum (or an aliasing constant) narrow them where they guard the match: an equality that holds leaves one case, one that fails removes that case. Conditions combine through `!`, `&&`/`and`, `||`/`or` (each side of a true disjunction keeps what it proves), comparisons with `true`/`false` and a local holding a comparison's result. A comparison guards the match:
   - in the taken branch of an `if` / `elseif` / `else` chain, of a ternary or of a loop condition, in the right operand of `&&` / `||`, or in a `match` arm (a `default` arm keeps the cases earlier arms did not take);
@@ -43,7 +43,7 @@ No automatic fix: missing result expressions cannot be invented.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -66,7 +66,7 @@ function sign(Side $s): int {if ($s === Side::Down) {return -1;} return match($s
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: a single enum case established by a dominating local assignment narrows the required case set. Other enum cases are unreachable for that subject and are not reported.
 

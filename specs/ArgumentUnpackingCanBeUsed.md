@@ -1,7 +1,7 @@
 ---
 id: ArgumentUnpackingCanBeUsed
 group: Language level migration
-kind: syntax
+kind: semantic
 needs: []
 php: { min: "5.6", max: "" }
 ---
@@ -184,9 +184,7 @@ class Report {
   keys" error, so custos keeps the fix only for arrays known to be
   integer-keyed, reports unknown arrays without a fix, and does not report
   string-keyed literals. From 8.0 both forms treat string keys as named
-  arguments, so the fix is always offered there. EA cases run at the 5.6
-  default level whose expected output rewrites variable arguments are listed
-  in `testdata/ea-divergences.json`.
+  arguments, so the fix is always offered there.
 - **Name resolution (custos diverges):** upstream matches the call name
   textually and ignores its namespace, so calls to a user function such as
   `Lib\call_user_func_array` (qualified, or unqualified inside namespace

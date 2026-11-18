@@ -1,7 +1,7 @@
 ---
 id: UntrustedHeaderValue
 group: Security
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -43,10 +43,10 @@ object lifetimes, reference bindings and loose comparisons establish no proof.
 
 - D1. Report request-derived data reaching a response-header value without a dominating CR/LF rejection or safe construction summary.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 - D4. A CR/LF rejection is recognized for a variable when the tested expression still carries the single assignment that reaches the header value, and the conditions guarding the use prove the test found no line break: the branch of an `if`/`elseif`/`else` chain, a ternary or `match (true)` arm, or the right operand of `&&`/`||` entered only then, or code after an `if` whose branch for a line break always leaves (`exit`, `return`, `throw`, `break`, `continue`), with or without other arms. The test result may also be kept in a local and tested there. A jump label between the test and the use voids it.
 - D5. The accepted line-break tests are a two-argument builtin `preg_match` with a literal, modifier-free pattern made of one character class holding exactly CR and LF (delimiter `/`, `#` or `~`, single- or double-quoted), and a two-argument builtin `strpbrk` whose literal character list contains both bytes. They may be used bare, negated with `!`, compared with `===`, `==`, `!==`, `!=` against `0`, `1` (`preg_match` only) or `false` in either operand order, written as `preg_match(...) > 0`, and combined through `||` (rejecting guard) or `&&` (accepting branch). The paired `str_contains` checks and the `preg_match(...) === 0` forms established by the shared flow analysis remain accepted.
-- D6. The header value is examined structurally: a concatenation or interpolated string is safe when every part is; a ternary when both results are; a `match` when every arm result is (the subject and arm conditions only select, and a throwing arm yields nothing); a variable when its single reaching assignment is. The walk is bounded to 32 nested steps; deeper values keep the report. A variable is followed to its reaching assignment only when its scope cannot rebind it behind that assignment; a reference alias, a by-reference closure capture, `foreach` or argument, a `catch` binding or `static` declaration of the same name, `extract()`, an assignment through a variable variable, a `global` declaration of it or a `$GLOBALS` access that is not a different literal entry keeps the report.
+- D6. The header value is examined structurally: a concatenation or interpolated string is safe when every part is; a ternary when both results are; a `match` when every arm result is (the subject and arm conditions only select, and a throwing arm yields nothing); a variable when its single reaching assignment is. The walk is bounded to 32 nested steps; deeper values keep the report. A variable is followed to its reaching assignment only when nothing in its scope can change it behind its plain assignments, anywhere and in any statement order: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument a resolved callee binds by reference, other than the inspected argument itself); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A `global` or `static` declaration of it, or a by-reference capture by the closure that is the scope, removes the proof too. In top-level code, where locals are globals, a `global` declaration naming it in any function of the file, or a `$GLOBALS` access anywhere in the file, does as well. The same holds for every local whose value an assignment stores into it, whatever the assigned expression computes, directly or through further assignments. Otherwise the report is kept.
 
 - D7. A known callback invoked by a complete finite filter can carry unsafe header uses through a wrapper. Callback arguments follow the filter's value-only, key-only or combined mode. Unknown targets, incomplete argument packs and unsupported callback bindings establish no such proof.
 
@@ -93,7 +93,7 @@ independent and reject uncertain calls, conversions, references and mutable stat
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -119,4 +119,4 @@ header('X-Sort: ' . $direction); // not reported: only literals can be selected
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

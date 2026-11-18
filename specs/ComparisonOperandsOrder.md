@@ -79,9 +79,7 @@ F4. A moved operand never fuses with a neighboring word. A space is added
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
-| (none) | | | Driven by the global comparison style setting (`comparisonStyle`: `regular` default, or `yoda`). |
+None. Driven by the global comparison style setting (`comparisonStyle`: `regular` default, or `yoda`).
 
 ## PHP versions
 

@@ -6,7 +6,7 @@ title: ZipFirstEntryTreatedAsMissing
 
 # ZipFirstEntryTreatedAsMissing
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,7 +29,7 @@ Reported:
 
 - Report a resolved ZipArchive::locateName call whose result is the whole condition of an `if`, `elseif`, `while` or `do`/`while`, either directly, negated once with `!`, or through a plain `=` assignment in that condition. Zero is a valid index. Highlight the negation when there is one, otherwise the condition expression (including the assignment).
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 - Report a loose comparison (`==`, `!=`, `<>`) of that call, or of a plain `=` assignment of it, with the `false` constant on either side, wherever the comparison appears. Highlight the whole comparison. Strict false comparisons, comparisons with other values and later separate comparisons are excluded.
 
 ## Exceptions (no report)

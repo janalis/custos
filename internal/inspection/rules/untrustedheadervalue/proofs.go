@@ -28,7 +28,7 @@ var scalarBuiltins = map[string]bool{
 
 // inert proves that no request-controlled CR or LF byte can appear in the
 // string conversion of e. Every part the structure does not settle must be
-// completely analysed and free of header taint.
+// completely analyzed and free of header taint.
 func inert(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 	e = syntax.UnwrapParens(e)
 	if depth == 0 {
@@ -71,7 +71,7 @@ func inert(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		return scalarCall(ctx, x)
 	case *syntax.Variable:
 		origin := ctx.Flow().Value(x)
-		if !origin.Complete || origin.Expr == nil || semanticquery.RebindableVariable(ctx, x) {
+		if !origin.Complete || origin.Expr == nil || !semanticquery.StableLocalValue(ctx, x, semanticquery.LocalStability{}) {
 			return false
 		}
 		return guarded(ctx, x, origin.Expr) || inert(ctx, origin.Expr, depth-1)

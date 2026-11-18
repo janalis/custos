@@ -1,7 +1,7 @@
 ---
 id: GeneratorRewindAfterAdvance
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "5.5", max: "" }
 ---
@@ -16,7 +16,7 @@ Identify rewind on a locally created generator proven to have advanced beyond it
 
 - D1. Report rewind on a locally created generator proven to have advanced beyond its initial yield using next or send. Require a known generator body with at least two reachable yields.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

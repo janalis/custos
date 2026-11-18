@@ -672,7 +672,7 @@ func (c *csrCtx) arrayOnly(e syntax.Expr) bool {
 
 // mergeable implements D9.
 func (c *csrCtx) mergeable(a, b csrCall) bool {
-	if c.ctx.PHP >= phpversion.PHP74 {
+	if c.ctx.PHP.AtLeast(phpversion.PHP74) {
 		return true
 	}
 	for _, e := range []syntax.Expr{a.args[0], a.args[1], b.args[0], b.args[1]} {

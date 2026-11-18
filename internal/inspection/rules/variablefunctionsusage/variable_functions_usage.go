@@ -84,7 +84,7 @@ func vfuInlineArgs(ctx *analysis.Context, call *syntax.FuncCall, target string) 
 	if !ok || len(vals) == 0 {
 		return "", false
 	}
-	if ctx.PHP >= phpversion.PHP80 { // D4a: non-integer keys are named arguments
+	if ctx.PHP.AtLeast(phpversion.PHP80) { // D4a: non-integer keys are named arguments
 		for _, it := range arr.Items {
 			if it.Key == nil {
 				continue
@@ -142,7 +142,7 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, forward bool) (
 			}
 		}
 	} else { // D6b
-		if _, isVar := astquery.PlainVariableName(a0); isVar && ctx.PHP < phpversion.PHP54 {
+		if _, isVar := astquery.PlainVariableName(a0); isVar && ctx.PHP.Below(phpversion.PHP54) {
 			return "", false
 		}
 		first = a0

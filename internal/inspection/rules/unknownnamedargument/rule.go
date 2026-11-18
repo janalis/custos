@@ -1,4 +1,5 @@
-// Package unknownnamedargument implements the UnknownNamedArgument inspection.
+// Package unknownnamedargument implements the native UnknownNamedArgument
+// inspection.
 package unknownnamedargument
 
 import (
@@ -14,6 +15,7 @@ import (
 
 type rule struct{}
 
+// New returns the UnknownNamedArgument inspection.
 func New() analysis.Rule { return rule{} }
 func (rule) ID() string  { return "UnknownNamedArgument" }
 func (rule) Kinds() []syntax.NodeKind {
@@ -49,7 +51,7 @@ var driftedStubs = map[string]bool{
 }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP80 {
+	if ctx.PHP.Below(phpversion.PHP80) {
 		return
 	}
 	var args *syntax.ArgList

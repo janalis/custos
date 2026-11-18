@@ -16,7 +16,7 @@ Identify parent fwrite to proc_open pipe whose known descriptor mode is w, or pa
 
 - Report parent fwrite to proc_open pipe whose known descriptor mode is w, or parent fread/stream_get_contents on mode r. Child-relative r yields parent writable pipe; child-relative w yields parent readable pipe. Require successful process creation and exact pipe descriptor provenance.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

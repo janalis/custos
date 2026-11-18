@@ -47,3 +47,4 @@ echo 10 % $height;
 $length = 2.5;
 Registry::reset();
 echo 10 % $length;
+$r = fmod(9, 0.25);

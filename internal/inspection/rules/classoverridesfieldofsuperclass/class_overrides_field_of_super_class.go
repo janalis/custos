@@ -88,7 +88,7 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 			continue
 		}
 		// D6c: attributes, hooks, `final` and asymmetric visibility are
-		// behaviour the inherited declaration does not have (or, for an
+		// behavior the inherited declaration does not have (or, for an
 		// abstract or hooked one, that this declaration implements or
 		// replaces).
 		foundSet := found.Visibility
@@ -100,7 +100,7 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 			continue
 		}
 		// D6b: a re-declaration that changes the default value is how a
-		// subclass overrides it; dropping it would change behaviour.
+		// subclass overrides it; dropping it would change behavior.
 		ownDef := ""
 		if item.Default != nil {
 			ownDef = ctx.Text(item.Default)

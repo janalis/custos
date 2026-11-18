@@ -21,7 +21,7 @@ Identify curl_exec result used in a truthiness-based failure branch when the sam
 - The failure condition must negate the call an odd number of times, counting each `!` and each loose `== false` between the call and the `if`. Parentheses and assignments are transparent.
 
 - A failure test must select a falsy result: count negation and loose equality with literal false, on either side, by parity. Parentheses, error suppression and the right-hand value of a plain non-reference assignment preserve the test. Compound assignments and assignment targets do not.
-- Require every supported path through the failure body to throw or return literal false. A conditional rejection alone is insufficient. Structured blocks and conditional branches are bounded; suspension, jumps, unsupported control flow and budget exhaustion establish no rejection proof.
+- Require every supported path through the failure body to throw or return literal false. A conditional rejection alone is insufficient. Structured blocks and conditional branches are bounded; suspension, jumps, unsupported control flow and code too complex to analyze establish no rejection proof.
 
 ## Exceptions (no report)
 

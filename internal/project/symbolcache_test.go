@@ -70,13 +70,13 @@ func TestSymbolCacheReusesUnchangedDeclarations(t *testing.T) {
 	if ix := build(); extracted() != 3 || ix.Class(`Lib\Thing`, phpversion.Default) == nil {
 		t.Fatal("cold run")
 	}
-	if ix := build(); extracted() != 1 || ix.Class(`Lib\Thing`, phpversion.Default) == nil || ix.Function(`Lib\wrap`, phpversion.Default) == nil {
-		t.Fatal("warm run must parse only the analysed file")
+	if ix := build(); extracted() != 0 || ix.Class(`Lib\Thing`, phpversion.Default) == nil || ix.Function(`Lib\wrap`, phpversion.Default) == nil {
+		t.Fatal("warm run must parse no file")
 	}
 	// A changed file is parsed again; another PHP version starts afresh.
 	writeFile(t, lib, "<?php\nnamespace Lib;\nclass Other {}\n")
 	backdate(t, lib)
-	if ix := build(); extracted() != 2 || ix.Class(`Lib\Other`, phpversion.Default) == nil {
+	if ix := build(); extracted() != 1 || ix.Class(`Lib\Other`, phpversion.Default) == nil {
 		t.Fatal("changed file")
 	}
 	ix, _ := BuildIndexCached(files, 1, syntax.Options{Version: phpversion.PHP74}, infer.Options{}, OpenSymbolCache(dir, root, syntax.Options{Version: phpversion.PHP74}, infer.Options{}))
@@ -214,8 +214,36 @@ func TestProjectUsesSymbolCache(t *testing.T) {
 	extracted := countExtractions(t)
 	p.AnalyzeReport()
 	cold := extracted()
-	if p.AnalyzeReport(); cold != 2 || extracted() != 1 {
-		t.Fatalf("cold %d, warm must parse only the analysed file", cold)
+	if p.AnalyzeReport(); cold != 2 || extracted() != 0 {
+		t.Fatalf("cold %d, a warm run must parse no file for the index", cold)
+	}
+	// An analyzed file is trusted by content: its declarations are
+	// extracted again once its source changes.
+	writeFile(t, filepath.Join(root, "src", "a.php"), "<?php\n$x = new Lib\\Thing(); function f() {}\n")
+	if p.AnalyzeReport(); extracted() != 1 {
+		t.Fatal("an edited analyzed file must be parsed again")
+	}
+	if p.AnalyzeReport(); extracted() != 0 {
+		t.Fatal("the edited file's declarations were not kept")
+	}
+}
+
+// Declarations read back by content get this process's digest: a digest
+// is keyed per process, and another one's would never match.
+func TestSourceDeclarationsGetThisProcessDigest(t *testing.T) {
+	root, dir := t.TempDir(), t.TempDir()
+	app := filepath.Join(root, "app.php")
+	writeFile(t, app, "<?php function app_fn() {}\n")
+	opt := syntax.Options{Version: phpversion.Default}
+	BuildIndexCached([]string{app}, 1, opt, infer.Options{}, OpenSymbolCache(dir, root, opt, infer.Options{}))
+	c := OpenSymbolCache(dir, root, opt, infer.Options{})
+	for _, e := range c.oldSources {
+		e.Symbols.Digest = 1 // as another process saved it
+	}
+	ix, _ := BuildIndexCached([]string{app}, 1, opt, infer.Options{}, c)
+	src, _ := os.ReadFile(app)
+	if !ix.Holds(app, index.Digest(syntax.ParseBest(app, src, opt))) {
+		t.Fatal("the cached declarations keep another process's digest")
 	}
 }
 

@@ -6,7 +6,7 @@ title: CollatorSortDiscardsRequiredKeys
 
 # CollatorSortDiscardsRequiredKeys
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -30,7 +30,7 @@ Reported:
 - Enabled policy requires preserving known noninteger record keys. Report Collator::sort applied to a local array proven to have at least one string key, including a known literal. Skip list arrays, unknown keys, and Collator::asort.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
-- D4. A by-reference escape includes a closure declared in the same scope that captures the sorted variable with `use (&$var)`: calling it can replace the array without any visible assignment, so the literal is no longer proof wherever the closure is declared. The same holds when the sorted variable is a plain copy (`$copy = $var`, transitively) of such a captured local, when the sort runs inside the capturing closure itself, and when a catch clause in the scope binds the variable. By-value captures, captures of other variables, and captures written in a nested function, method, closure or arrow function (which name that scope's own variable) keep the proof.
+- D4. The sorted variable is proven only while nothing in its scope can change it behind its plain assignments, anywhere and in any statement order: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument a resolved callee binds by reference, other than the inspected argument itself); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A `global` or `static` declaration of it, or a by-reference capture by the closure that is the scope, removes the proof too. In top-level code, where locals are globals, a `global` declaration naming it in any function of the file, or a `$GLOBALS` access anywhere in the file, does as well. The same holds for every local whose value an assignment stores into it, whatever the assigned expression computes, directly or through further assignments. A read inside an arrow function also checks the scopes the arrow function captures from. The sort's own by-reference binding of its argument does not count. By-value captures, captures of other variables, and captures written in a nested function, method, closure or arrow function (which name that scope's own variable) keep the proof.
 
 ## Exceptions (no report)
 

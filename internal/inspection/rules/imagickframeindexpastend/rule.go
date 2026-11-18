@@ -12,6 +12,7 @@ const message = "Select an index below the image count."
 
 type rule struct{}
 
+// New returns the ImagickFrameIndexPastEnd inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ImagickFrameIndexPastEnd" }
 func (rule) Semantic()                {}
@@ -26,7 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
-	if !semanticquery.ExpansionDUnaliased(ctx, c.Var, n) {
+	if !semanticquery.UnaliasedLocal(ctx, c.Var, n) {
 		return
 	}
 	if !semanticquery.NativeMethod(ctx, c, "Imagick", "setIteratorIndex") {
@@ -48,7 +49,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known || index < 0 {
 		return
 	}
-	count := semanticquery.ExpansionDFrames(ctx, c)
+	count := semanticquery.AppendedFrames(ctx, c)
 	if count > 0 && index >= int64(count) {
 		ctx.ReportNode(n, message)
 	}

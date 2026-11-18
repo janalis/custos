@@ -1,7 +1,7 @@
 ---
 id: SenselessTernaryOperator
 group: Confusing constructs
-kind: semantic
+kind: syntax
 needs: [names, types]
 php: { min: "", max: "" }
 ---

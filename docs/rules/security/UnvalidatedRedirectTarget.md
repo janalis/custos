@@ -36,9 +36,9 @@ Reported:
 
 - Report request-derived data reaching a Location header without a proven permitted-local-target or finite destination policy.
 - The first argument of `header()` is read as the ordered operands of its concatenation chain and of any interpolated string (double-quoted or heredoc) inside it, ignoring grouping parentheses. The leading operands whose text is statically known form the written prefix; the call is a redirect when that prefix starts with `Location:` in any letter case. Every operand after the prefix is checked, so request data followed by a suffix (`'Location: ' . $_GET['return'] . '?saved=1'`) or embedded in an interpolated string is reported exactly like a trailing operand.
-- A `match` expression, written in place or reached through a variable with one agreeing definition, contributes only the request data of its arm results. The subject chooses an arm but is never part of the produced value. An arm that yields request data is still reported. Selections nested more than eight levels deep are treated as request-derived. A variable is followed to its reaching assignment only when its scope cannot rebind it behind that assignment; a reference alias, a by-reference closure capture, `foreach` or argument, a `catch` binding or `static` declaration of the same name, `extract()`, an assignment through a variable variable, a `global` declaration of it or a `$GLOBALS` access that is not a different literal entry keeps the report.
+- A `match` expression, written in place or reached through a variable with one agreeing definition, contributes only the request data of its arm results. The subject chooses an arm but is never part of the produced value. An arm that yields request data is still reported. Selections nested more than eight levels deep are treated as request-derived. A variable is followed to its reaching assignment only when nothing in its scope can change it behind its plain assignments, anywhere and in any statement order: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument a resolved callee binds by reference, other than the inspected argument itself); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A `global` or `static` declaration of it, or a by-reference capture by the closure that is the scope, removes the proof too. In top-level code, where locals are globals, a `global` declaration naming it in any function of the file, or a `$GLOBALS` access anywhere in the file, does as well. The same holds for every local whose value an assignment stores into it, whatever the assigned expression computes, directly or through further assignments. Otherwise the report is kept.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -56,10 +56,6 @@ No automatic fix: the set of permitted destinations must be supplied by the appl
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

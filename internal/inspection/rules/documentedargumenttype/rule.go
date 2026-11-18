@@ -1,5 +1,5 @@
-// Package documentedargumenttype implements the DocumentedArgumentType
-// inspection.
+// Package documentedargumenttype implements the native
+// DocumentedArgumentType inspection.
 package documentedargumenttype
 
 import (

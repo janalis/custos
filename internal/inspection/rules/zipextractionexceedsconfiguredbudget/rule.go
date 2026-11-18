@@ -1,4 +1,6 @@
-// Package zipextractionexceedsconfiguredbudget checks explicit extraction budgets.
+// Package zipextractionexceedsconfiguredbudget implements the native
+// ZipExtractionExceedsConfiguredBudget inspection. It checks explicit
+// extraction budgets.
 package zipextractionexceedsconfiguredbudget
 
 import (
@@ -13,6 +15,7 @@ const message = "Validate ZIP extraction against configured limits."
 
 type rule struct{}
 
+// New returns the ZipExtractionExceedsConfiguredBudget inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ZipExtractionExceedsConfiguredBudget" }
 func (rule) Semantic()                {}
@@ -26,7 +29,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	opened := false
 	for _, fact := range ctx.Flow().Calls(syntax.EnclosingVariableScope(c)) {
 		m, ok := fact.Node.(*syntax.MethodCall)
-		if !ok || !semanticquery.NativeDominates(m, c) || !semanticquery.ExpansionCSame(ctx, m.Var, c.Var) {
+		if !ok || !semanticquery.NativeDominates(m, c) || !semanticquery.SameStableExpr(ctx, m.Var, c.Var) {
 			continue
 		}
 		if semanticquery.NativeMethod(ctx, m, "ZipArchive", "open") {
@@ -56,7 +59,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			if ok && b.Op.Kind == syntax.TGreater {
 				limit, known := semanticquery.NativeInt(ctx, b.Right)
 				p, ok := b.Left.(*syntax.PropertyFetch)
-				if ok && known && limit > 0 && limit <= int64(maxEntries) && semanticquery.ExpansionCSame(ctx, p.Var, c.Var) {
+				if ok && known && limit > 0 && limit <= int64(maxEntries) && semanticquery.SameStableExpr(ctx, p.Var, c.Var) {
 					if name, ok := p.Name.(*syntax.Identifier); ok && name.Value == "numFiles" {
 						countOK = true
 						countEnd = guard.Span().End
@@ -74,7 +77,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, fact := range ctx.Flow().Calls(syntax.EnclosingVariableScope(c)) {
 		m, ok := fact.Node.(*syntax.MethodCall)
-		if !ok || m.Span().Start >= c.Span().Start || !semanticquery.ExpansionCSame(ctx, m.Var, c.Var) {
+		if !ok || m.Span().Start >= c.Span().Start || !semanticquery.SameStableExpr(ctx, m.Var, c.Var) {
 			continue
 		}
 		mutation := false
@@ -102,7 +105,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		for _, node := range call.Args.Args {
-			if arg, ok := node.(*syntax.Arg); ok && semanticquery.ExpansionCSame(ctx, arg.Value, c.Var) {
+			if arg, ok := node.(*syntax.Arg); ok && semanticquery.SameStableExpr(ctx, arg.Value, c.Var) {
 				return
 			}
 		}
@@ -162,11 +165,11 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	cond, ok := loop.Cond[0].(*syntax.Binary)
-	if !ok || cond.Op.Kind != syntax.TLess || !semanticquery.ExpansionCSame(ctx, cond.Left, init.Var) {
+	if !ok || cond.Op.Kind != syntax.TLess || !semanticquery.SameStableExpr(ctx, cond.Left, init.Var) {
 		return false
 	}
 	end, ok := cond.Right.(*syntax.PropertyFetch)
-	if !ok || !semanticquery.ExpansionCSame(ctx, end.Var, archive) {
+	if !ok || !semanticquery.SameStableExpr(ctx, end.Var, archive) {
 		return false
 	}
 	name, ok := end.Name.(*syntax.Identifier)
@@ -174,7 +177,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	step, ok := loop.Loop[0].(*syntax.IncDec)
-	if !ok || step.Op.Kind != syntax.TInc || !semanticquery.ExpansionCSame(ctx, step.Var, init.Var) {
+	if !ok || step.Op.Kind != syntax.TInc || !semanticquery.SameStableExpr(ctx, step.Var, init.Var) {
 		return false
 	}
 	body, ok := loop.Body.(*syntax.Block)
@@ -190,7 +193,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	stat, ok := entry.Value.(*syntax.MethodCall)
-	if !ok || !semanticquery.NativeMethod(ctx, stat, "ZipArchive", "statIndex") || !semanticquery.ExpansionCSame(ctx, stat.Var, archive) || !semanticquery.ExpansionCSame(ctx, semanticquery.CallArgument(stat.Args, 0, "index"), init.Var) {
+	if !ok || !semanticquery.NativeMethod(ctx, stat, "ZipArchive", "statIndex") || !semanticquery.SameStableExpr(ctx, stat.Var, archive) || !semanticquery.SameStableExpr(ctx, semanticquery.CallArgument(stat.Args, 0, "index"), init.Var) {
 		return false
 	}
 	fail, ok := body.Stmts[1].(*syntax.If)
@@ -198,7 +201,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	failCond, ok := fail.Cond.(*syntax.Binary)
-	if !ok || failCond.Op.Kind != syntax.TIsIdentical || !semanticquery.ExpansionCSame(ctx, failCond.Left, entry.Var) {
+	if !ok || failCond.Op.Kind != syntax.TIsIdentical || !semanticquery.SameStableExpr(ctx, failCond.Left, entry.Var) {
 		return false
 	}
 	isFalse, known := astquery.BoolConst(failCond.Right)
@@ -214,7 +217,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	size, ok := negativeCond.Left.(*syntax.ArrayDimFetch)
-	if !ok || !semanticquery.ExpansionCSame(ctx, size.Var, entry.Var) {
+	if !ok || !semanticquery.SameStableExpr(ctx, size.Var, entry.Var) {
 		return false
 	}
 	key, known := semanticquery.NativeString(ctx, size.Dim)
@@ -230,7 +233,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	bound, ok := budget.Cond.(*syntax.Binary)
-	if !ok || bound.Op.Kind != syntax.TGreater || !semanticquery.ExpansionCSame(ctx, bound.Left, size) {
+	if !ok || bound.Op.Kind != syntax.TGreater || !semanticquery.SameStableExpr(ctx, bound.Left, size) {
 		return false
 	}
 	remaining, ok := bound.Right.(*syntax.Binary)
@@ -246,7 +249,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	add, ok := addition.Expr.(*syntax.Assign)
-	if !ok || add.Op.Kind != syntax.TPlusEqual || !semanticquery.ExpansionCSame(ctx, add.Var, remaining.Right) || !semanticquery.ExpansionCSame(ctx, add.Value, size) {
+	if !ok || add.Op.Kind != syntax.TPlusEqual || !semanticquery.SameStableExpr(ctx, add.Var, remaining.Right) || !semanticquery.SameStableExpr(ctx, add.Value, size) {
 		return false
 	}
 	// The accumulator must begin at zero immediately before this loop.
@@ -259,7 +262,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	initial, ok := previousExpr.Expr.(*syntax.Assign)
-	if !ok || initial.Op.Kind != syntax.TEqual || !semanticquery.ExpansionCSame(ctx, initial.Var, add.Var) {
+	if !ok || initial.Op.Kind != syntax.TEqual || !semanticquery.SameStableExpr(ctx, initial.Var, add.Var) {
 		return false
 	}
 	zero, known = semanticquery.NativeInt(ctx, initial.Value)

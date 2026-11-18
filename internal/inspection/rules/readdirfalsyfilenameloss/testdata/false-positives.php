@@ -22,3 +22,4 @@ function review_false_positives($h, $names, $cached, $other) {
     $entry = readdir($h);
     return $entry;
 }
+while (($entry = readdir($dir)) !== false) { echo $entry; }

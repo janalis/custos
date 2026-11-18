@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Resolve ReflectionFunction or ReflectionMethod constructed from a known declaration. For invokeArgs, inspect literal string keys against resolved parameter names; report an unknown key only when the target is nonvariadic. Numeric keys remain positional. Account for inherited methods and named constructor arguments.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

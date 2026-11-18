@@ -1,7 +1,7 @@
 ---
 id: ArrayMapMissingCallbackReturn
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -44,7 +44,7 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -64,4 +64,4 @@ array_map(function($v){return trim($v);}, $names);
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

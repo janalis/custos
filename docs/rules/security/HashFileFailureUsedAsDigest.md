@@ -16,7 +16,7 @@ Identify unchecked hash_file result consumed as file contents or as an expected 
 
 - Report unchecked hash_file result consumed as file contents or as an expected digest in strict comparison; exclude result propagation and guarded false rejection.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 - A use is guarded when false cannot reach it for the same reaching value (no reassignment or invalidation between guard and use). Recognized guards:
   - an earlier statement of any enclosing block that is an `if` without `elseif`/`else` whose body always leaves the path (return, throw, exit, break, continue) and whose condition holds whenever the value is false; unrelated statements may sit between the guard and the use;
   - an enclosing `if` body or ternary arm selected by a condition that excludes false, or the `else` body/arm when the condition holds for false;

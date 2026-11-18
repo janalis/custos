@@ -169,7 +169,7 @@ func pregQuoteCompared(call *syntax.FuncCall) bool {
 
 // pregQuoteEscapes lists the characters preg_quote() escapes by itself.
 func pregQuoteEscapes(ctx *analysis.Context) string {
-	if ctx.PHP >= phpversion.PHP73 {
+	if ctx.PHP.AtLeast(phpversion.PHP73) {
 		return `.\+*?[^]$(){}=!<>|:-#`
 	}
 	return `.\+*?[^]$(){}=!<>|:-`

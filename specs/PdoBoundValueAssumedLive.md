@@ -1,7 +1,7 @@
 ---
 id: PdoBoundValueAssumedLive
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -17,7 +17,7 @@ Identify execute without parameters when a locally bound scalar variable was rea
 - D1. Report execute without parameters when a locally bound scalar variable was reassigned after bindValue and no rebind occurred. Only track resolved PDOStatement and same variable used as binding input; changing it may be intentional so disabled by default.
 - D1a. A later `bindValue` or `bindParam` on the same statement counts as a rebind when it can target the same placeholder. Two statically known names are the same placeholder when they are equal after dropping one leading `:` from each (`':n'` and `'n'` address one placeholder); two statically known positions must be equal; a name never matches a position. When either placeholder argument is not statically known, the later binding is assumed to rebind.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

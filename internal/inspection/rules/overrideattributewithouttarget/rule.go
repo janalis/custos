@@ -14,13 +14,14 @@ const message = "Apply Override to an inherited member."
 
 type rule struct{}
 
+// New returns the OverrideAttributeWithoutTarget inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "OverrideAttributeWithoutTarget" }
 func (rule) Semantic()                {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAttribute} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	a := n.(*syntax.Attribute)
-	if ctx.PHP < phpversion.PHP83 {
+	if ctx.PHP.Below(phpversion.PHP83) {
 		return
 	}
 	name := ctx.Names().Class(a.Name.Value, a.Name.Span().Start)
@@ -49,7 +50,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	case *syntax.Property:
-		if ctx.PHP < phpversion.PHP85 || len(x.Props) != 1 {
+		if ctx.PHP.Below(phpversion.PHP85) || len(x.Props) != 1 {
 			return
 		}
 		member = x.Props[0].Var.Name

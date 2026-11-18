@@ -176,7 +176,7 @@ func (c *Context) InferOptions() infer.Options {
 func (c *Context) TypeOf(x syntax.Expr) types.Type { return c.Types().TypeOf(x) }
 
 // IsGlobalFunctionCall reports whether call is a call to the global function
-// `global` (case-insensitive), honouring namespaces, `use function` and
+// `global` (case-insensitive), honoring namespaces, `use function` and
 // same-named functions declared in the current namespace (this file or the
 // project index), which PHP prefers over the global fallback.
 func (c *Context) IsGlobalFunctionCall(call *syntax.FuncCall, global string) bool {

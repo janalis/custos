@@ -12,6 +12,7 @@ const message = "Select a quotient or remainder before using the GMP result."
 
 type rule struct{}
 
+// New returns the GmpDivisionPairUsedAsNumber inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GmpDivisionPairUsedAsNumber" }
 func (rule) Semantic()                {}

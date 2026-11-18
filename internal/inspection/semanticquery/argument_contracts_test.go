@@ -239,7 +239,7 @@ func TestNamedParameterArgument(t *testing.T) {
 func TestUnknownOptionalArgumentContracts(t *testing.T) {
 	probeNative(t, `probe(header('X-Test: yes', replace: true, replace: false), header('X-Test: yes', ...$options), $db->execute(...$params));`, func(ctx *analysis.Context, probe *syntax.FuncCall) {
 		header := CallArgument(probe.Args, 0, "").(*syntax.FuncCall)
-		if _, _, _, known := ExpansionHeader(ctx, header); known {
+		if _, _, _, known := LiteralHeader(ctx, header); known {
 			t.Fatal("unpacked replacement policy was treated as omitted")
 		}
 		execute := CallArgument(probe.Args, 2, "").(*syntax.MethodCall)

@@ -70,7 +70,7 @@ func TestReviewSafety(t *testing.T) {
 			}
 		})
 	}
-	// Unknown receivers and top-level code keep the existing behaviour; archives
+	// Unknown receivers and top-level code keep the existing behavior; archives
 	// without a flow identity are matched by spelling.
 	const holder = `<?php function make(): ZipArchive { return new ZipArchive(); } class Holder { public ZipArchive $zip; public ZipArchive $other; public static ZipArchive $shared; function probe(Holder $o, Holder $p) { `
 	for source, want := range map[string]int{

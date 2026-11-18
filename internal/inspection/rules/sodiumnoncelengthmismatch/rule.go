@@ -13,6 +13,7 @@ const message = "Use the required secretbox nonce length."
 
 type rule struct{}
 
+// New returns the SodiumNonceLengthMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SodiumNonceLengthMismatch" }
 func (rule) Semantic()                {}
@@ -20,7 +21,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
-	if ctx.PHP < phpversion.PHP72 || !semanticquery.NativeBuiltin(ctx, c, "sodium_crypto_secretbox") {
+	if ctx.PHP.Below(phpversion.PHP72) || !semanticquery.NativeBuiltin(ctx, c, "sodium_crypto_secretbox") {
 		return
 	}
 	nonce := semanticquery.CallArgument(c.Args, 1, "nonce")

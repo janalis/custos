@@ -1,7 +1,7 @@
 ---
 id: FastDigestUsedForPasswordStorage
 group: Security
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -17,7 +17,7 @@ Detect a password input positively established by an HTML password-field mapping
 - D1. Report a password input positively established by an HTML password-field mapping or explicit annotated password parameter reaching md5/sha1/hash and then a persisted credential field.
 - D4. Recognize password inputs only through an exact `@param password-string $parameter` annotation on their declaring callable or a positively resolved HTML password-field mapping. Recognize persistence only through a resolved project callable explicitly documented with `@custos-credential-store`. Do not infer either contract from identifiers.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -36,7 +36,7 @@ No automatic fix: migrating existing credential storage and verification require
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -52,4 +52,4 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -29,7 +29,7 @@ func (multiAssignmentUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		if a, isArr := target.(*syntax.Array); isArr && !a.Short {
 			return
 		}
-		if ctx.PHP < phpversion.PHP55 { // D1 / E1
+		if ctx.PHP.Below(phpversion.PHP55) { // D1 / E1
 			return
 		}
 		v, ok := as.Value.(*syntax.Variable) // D3

@@ -1,0 +1,26 @@
+<?php
+class Key
+{
+    private $data = [];
+    private $label;
+
+    public function __construct(?array $data = null, string $label = 'k')
+    {
+        $this->label = $label;
+        if (!$data) {
+            return; // keeps the [] default
+        }
+        $this->data = $data;
+    }
+}
+
+class Token
+{
+    private $value;
+
+    public function __construct(string $value)
+    {
+        $check = function () { return true; };
+        $this->value = $value;
+    }
+}

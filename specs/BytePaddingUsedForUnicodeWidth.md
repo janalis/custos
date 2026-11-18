@@ -1,7 +1,7 @@
 ---
 id: BytePaddingUsedForUnicodeWidth
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -35,7 +35,7 @@ No automatic fix: display columns, graphemes and code points require different i
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -50,4 +50,4 @@ $padded=<warning descr="Pad Unicode text using the intended width model.">str_pa
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

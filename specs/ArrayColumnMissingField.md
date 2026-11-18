@@ -1,9 +1,9 @@
 ---
 id: ArrayColumnMissingField
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
-php: { min: "", max: "" }
+php: { min: "5.5", max: "" }
 ---
 
 # ArrayColumnMissingField
@@ -35,11 +35,11 @@ No automatic fix: whether to omit, reject, or substitute missing rows is an appl
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
-Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
+Available from PHP 5.5, which introduced `array_column()`. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
 ## Examples
 
@@ -50,4 +50,4 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

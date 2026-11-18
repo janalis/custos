@@ -1,4 +1,5 @@
-// Package argumentcountmismatch implements the ArgumentCountMismatch inspection.
+// Package argumentcountmismatch implements the native ArgumentCountMismatch
+// inspection.
 package argumentcountmismatch
 
 import "custos/internal/inspection/analysis"

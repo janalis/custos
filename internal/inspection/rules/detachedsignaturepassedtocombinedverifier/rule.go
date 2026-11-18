@@ -1,4 +1,5 @@
-// Package detachedsignaturepassedtocombinedverifier implements DetachedSignaturePassedToCombinedVerifier.
+// Package detachedsignaturepassedtocombinedverifier implements the native
+// DetachedSignaturePassedToCombinedVerifier inspection.
 package detachedsignaturepassedtocombinedverifier
 
 import (
@@ -12,6 +13,7 @@ const message = "Verify detached signatures with the detached API."
 
 type rule struct{}
 
+// New returns the DetachedSignaturePassedToCombinedVerifier inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DetachedSignaturePassedToCombinedVerifier" }
 func (rule) Semantic()                {}
@@ -22,7 +24,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	if ctx.PHP >= phpversion.PHP72 && semanticquery.NativeBuiltin(ctx, c, "sodium_crypto_sign_open") && semanticquery.OriginCall(ctx, semanticquery.CallArgument(c.Args, 0, "signed_message"), "sodium_crypto_sign_detached") != nil {
+	if ctx.PHP.AtLeast(phpversion.PHP72) && semanticquery.NativeBuiltin(ctx, c, "sodium_crypto_sign_open") && semanticquery.OriginCall(ctx, semanticquery.CallArgument(c.Args, 0, "signed_message"), "sodium_crypto_sign_detached") != nil {
 		ctx.ReportNode(c, message)
 	}
 }

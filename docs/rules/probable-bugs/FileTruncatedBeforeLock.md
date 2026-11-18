@@ -32,7 +32,7 @@ Reported:
 - Report fopen in w/w+ variants followed by exclusive flock on the same identity.
   The lock is exclusive only when the `flock` operation (second argument, or named `operation`) is proven to be `LOCK_EX`, optionally combined with `LOCK_NB` through bitwise or. The operation may be written with the constants, with their integer values, or through a local holding such a value.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -48,10 +48,6 @@ No automatic fix: changing mode also requires correctly positioned truncation an
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

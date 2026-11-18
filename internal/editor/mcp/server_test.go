@@ -137,9 +137,9 @@ func TestRecoveryAndInputs(t *testing.T) {
 		t.Fatal(err)
 	}
 	rejected(ctx, t, recovered, "analyze", Input{Paths: []string{"link"}})
-	cancelled, cancel := context.WithCancel(ctx)
+	canceled, cancel := context.WithCancel(ctx)
 	cancel()
-	rejected(cancelled, t, recovered, "analyze", Input{})
+	rejected(canceled, t, recovered, "analyze", Input{})
 }
 
 func TestBufferAndSelections(t *testing.T) {
@@ -353,9 +353,9 @@ func TestCancelledValidationKeepsCheckpoint(t *testing.T) {
 	if len(cp.Findings) != 1 {
 		t.Fatal(cp.Findings)
 	}
-	cancelled, cancel := context.WithCancel(ctx)
+	canceled, cancel := context.WithCancel(ctx)
 	cancel()
-	if err := s.validate(cancelled, s.workspaces["default"], cp, true); err == nil || cp.Stale {
+	if err := s.validate(canceled, s.workspaces["default"], cp, true); err == nil || cp.Stale {
 		t.Fatal("cancellation invalidated the checkpoint", err)
 	}
 	if out := invoke(ctx, t, s, "findings", Input{CheckpointID: id}); out["total"] != 1 {

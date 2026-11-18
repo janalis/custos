@@ -12,13 +12,14 @@ const message = "Use the attribute on a permitted target."
 
 type rule struct{}
 
+// New returns the AttributeTargetMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "AttributeTargetMismatch" }
 func (rule) Semantic()                {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAttribute} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	a := n.(*syntax.Attribute)
-	if ctx.PHP < phpversion.PHP80 {
+	if ctx.PHP.Below(phpversion.PHP80) {
 		return
 	}
 	_, flags, known := semanticquery.NativeAttributeFlags(ctx, a)

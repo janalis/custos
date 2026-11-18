@@ -1,4 +1,4 @@
-// Package documentedreturntype implements the DocumentedReturnType
+// Package documentedreturntype implements the native DocumentedReturnType
 // inspection.
 package documentedreturntype
 

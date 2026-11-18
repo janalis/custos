@@ -21,7 +21,7 @@ func (packedHashtableOptimization) Kinds() []syntax.NodeKind {
 }
 
 func (packedHashtableOptimization) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP70 { // D1
+	if ctx.PHP.Below(phpversion.PHP70) { // D1
 		return
 	}
 	arr := n.(*syntax.Array)

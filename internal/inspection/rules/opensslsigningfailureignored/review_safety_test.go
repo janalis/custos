@@ -34,7 +34,7 @@ func TestReviewSafety(t *testing.T) {
 		{"truthy ternary", fn(sign + "echo $s ? base64_encode($s) : '';"), 0},
 		{"else of empty", fn(sign + "echo empty($s) ? '' : bin2hex($s);"), 0},
 		{"short circuit", fn(sign + "isset($s) && file_put_contents('sig', $s);"), 0},
-		{"null initialised", fn("$s = null; " + sign + "if (!isset($s)) { return; } " + publish), 0},
+		{"null initialized", fn("$s = null; " + sign + "if (!isset($s)) { return; } " + publish), 0},
 		{"first statement of closure", "<?php $f = function ($d, $k) { " + sign + "if (empty($s)) { return; } " + publish + " };", 0},
 		{"other variables", fn(sign + "if (empty($s)) { return; } $g = fn ($s) => $s; " + publish), 0},
 		{"saved verification", fn(sign + "$ok = openssl_verify($d, $s, $p); if ($ok !== 1) { return; } " + publish), 0},
@@ -90,7 +90,7 @@ func TestReviewSafety(t *testing.T) {
 		{"other call compared", fn(sign + "if (check($d) !== 1) { return; } " + publish), 1},
 		{"variable compared", fn(sign + "if ($d !== 1) { return; } " + publish), 1},
 		{"loose comparison", fn(sign + "if (openssl_verify($d, $s, $p) != 1) { return; } " + publish), 0},
-		// Shapes the guard analysis does not decide keep the base behaviour.
+		// Shapes the guard analysis does not decide keep the base behavior.
 		{"property signature", fn("openssl_sign($d, $this->s, $k); echo base64_encode($this->s);"), 0},
 		{"dynamic signature", fn("openssl_sign($d, $$d, $k); echo base64_encode($$d);"), 1},
 		{"captured by closure", fn("$g = function () use (&$s) { $s = 'old'; }; $g(); " + sign + "if (empty($s)) { return; } " + publish), 0},

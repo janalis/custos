@@ -18,6 +18,7 @@ var invalidators = []string{
 
 type rule struct{}
 
+// New returns the ZipEntryNameCollision inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ZipEntryNameCollision" }
 func (rule) Semantic()                {}
@@ -72,7 +73,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // change its entries: no write to the receiver or to an object it is read
 // from, and no call other than a builtin function.
 func undisturbed(ctx *analysis.Context, body syntax.Node, c, add *syntax.MethodCall) bool {
-	if !semanticquery.ExpansionCSame(ctx, c.Var, add.Var) {
+	if !semanticquery.SameStableExpr(ctx, c.Var, add.Var) {
 		return false
 	}
 	chain := []syntax.Expr{}
@@ -100,7 +101,7 @@ func undisturbed(ctx *analysis.Context, body syntax.Node, c, add *syntax.MethodC
 			clean = clean && semanticquery.NativeBuiltinName(ctx, x) != ""
 		case *syntax.Assign:
 			for _, e := range chain {
-				clean = clean && !semanticquery.ExpansionCSame(ctx, x.Var, e)
+				clean = clean && !semanticquery.SameStableExpr(ctx, x.Var, e)
 			}
 		}
 		return clean

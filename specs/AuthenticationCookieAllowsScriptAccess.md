@@ -1,7 +1,7 @@
 ---
 id: AuthenticationCookieAllowsScriptAccess
 group: Security
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---

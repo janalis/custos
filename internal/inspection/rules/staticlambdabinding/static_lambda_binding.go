@@ -23,7 +23,7 @@ func (staticLambdaBinding) Kinds() []syntax.NodeKind {
 }
 
 func (staticLambdaBinding) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP54 { // D1
+	if ctx.PHP.Below(phpversion.PHP54) { // D1
 		return
 	}
 	var root syntax.Node

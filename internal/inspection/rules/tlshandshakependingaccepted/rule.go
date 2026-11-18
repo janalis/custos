@@ -1,4 +1,5 @@
-// Package tlshandshakependingaccepted implements TlsHandshakePendingAccepted.
+// Package tlshandshakependingaccepted implements the native
+// TlsHandshakePendingAccepted inspection.
 package tlshandshakependingaccepted
 
 import (
@@ -12,6 +13,7 @@ const message = "Require a completed TLS handshake before writing."
 
 type rule struct{}
 
+// New returns the TlsHandshakePendingAccepted inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "TlsHandshakePendingAccepted" }
 func (rule) Semantic()                {}

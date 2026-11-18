@@ -6,3 +6,4 @@ function dump(SplMinHeap $heap): int {
     foreach ($copy as $v) { echo $v, " "; }
     return count($heap);
 }
+$h = new SplMinHeap(); $h->insert(4); foreach (clone $h as $item) {}

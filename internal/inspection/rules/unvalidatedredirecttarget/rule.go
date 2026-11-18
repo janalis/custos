@@ -96,7 +96,7 @@ func fixedLocalQuery(target string) bool {
 
 // encodedQueryValue proves the operand is the result of a builtin URL encoder.
 func encodedQueryValue(ctx *analysis.Context, piece syntax.Expr) bool {
-	if v, variable := piece.(*syntax.Variable); variable && semanticquery.RebindableVariable(ctx, v) {
+	if v, variable := piece.(*syntax.Variable); variable && !semanticquery.StableLocalValue(ctx, v, semanticquery.LocalStability{}) {
 		return false
 	}
 	call, ok := semanticquery.NativeValue(ctx, piece).(*syntax.FuncCall)

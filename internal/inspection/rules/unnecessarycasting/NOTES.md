@@ -32,7 +32,7 @@ Set them before the first `TypeOf` call.
   - a method call's receiver is typed by T-rules only, and a receiver class
     lacking the method contributes nothing (the others still count);
   - the R-function subject argument is typed by T-rules;
-  - arithmetic normalises `T[]` to array and sees a parenthesised numeric
+  - arithmetic normalizes `T[]` to array and sees a parenthesised numeric
     literal as a numeric literal;
   - `c ?: b` needs a non-empty type for `c` minus null;
   - `self`/`static`/`parent` member contracts are kept as written for the

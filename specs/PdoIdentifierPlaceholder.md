@@ -1,7 +1,7 @@
 ---
 id: PdoIdentifierPlaceholder
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Detect PDO prepare with a named or positional parameter marker in a table-name p
 
 - D1. Report PDO prepare when the parsed literal SQL has a parameter marker, named (`:name`) or positional (`?`), as the first token after one of the keywords FROM, JOIN, UPDATE, INTO or TABLE. Only whitespace and comments may separate the keyword from the marker; keywords are matched case-insensitively. The rule applies at any parenthesis depth, so a subquery's table reference counts.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -36,7 +36,7 @@ No automatic fix: permitted identifiers and quoting policy must be supplied by t
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -53,4 +53,4 @@ function fine(PDO $pdo) { $pdo->prepare('SELECT EXTRACT(YEAR FROM :day) WHERE :a
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

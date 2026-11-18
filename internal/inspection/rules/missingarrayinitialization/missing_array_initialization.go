@@ -6,7 +6,7 @@ import (
 )
 
 // missingArrayInitialization reports `$name[] = …` pushes nested in two or
-// more loops of a function where $name is never initialised.
+// more loops of a function where $name is never initialized.
 type missingArrayInitialization struct{}
 
 func (missingArrayInitialization) ID() string { return "MissingArrayInitialization" }
@@ -74,17 +74,17 @@ func (missingArrayInitialization) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 
 	// D7: any direct assignment operand / foreach header occurrence.
-	initialised := false
+	initialized := false
 	syntax.Inspect(body, func(c syntax.Node) bool {
-		if initialised {
+		if initialized {
 			return false
 		}
 		if cv, ok := c.(*syntax.Variable); ok && cv.Name == name && initialisesArray(cv) {
-			initialised = true
+			initialized = true
 		}
-		return !initialised
+		return !initialized
 	})
-	if initialised {
+	if initialized {
 		return
 	}
 	ctx.ReportNode(access, "Array '$"+name+"' is never initialized; initialize it before the loops.")

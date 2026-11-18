@@ -48,10 +48,6 @@ The fix only inserts text before and after the condition, so comments, arguments
 
 Apply throughout PHP 5.3–8.5 only where the extension API and syntax exist.  Do not flag API unavailability through this rule.
 
-## Options
-
-None. Use normal rule configuration to enable or disable the inspection.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

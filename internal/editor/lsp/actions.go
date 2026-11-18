@@ -132,13 +132,13 @@ func (s *Server) buildEdit(data actionData) *workspaceEdit {
 
 	var edits []diagnostic.TextEdit
 	if data.Suppress {
-		edit, ok := suppressEdit(withBaseline(e, bl), bl, path, text, findings, data, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+		edit, ok := suppressEdit(withBaseline(e, bl), bl, path, text, findings, data, cfg.Parse())
 		if !ok {
 			return nil
 		}
 		edits = []diagnostic.TextEdit{edit}
 	} else if data.All {
-		res := fixing.FixSource(e, path, text, fixing.Options{Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
+		res := fixing.FixSource(e, path, text, fixing.Options{Parse: cfg.Parse()})
 		if res.Applied == 0 {
 			return nil
 		}
@@ -196,7 +196,7 @@ func (s *Server) executeCommand(p executeCommandParams) (any, *rpcError) {
 	}
 	text, lines, version, path, e, cfg, revision := d.text, d.lines, d.version, d.path, s.engine, s.cfg, d.revision
 	s.mu.Unlock()
-	opt := fixing.Options{Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}}
+	opt := fixing.Options{Parse: cfg.Parse()}
 	if only != "" {
 		m, ok := meta.Lookup(only)
 		if !ok {
@@ -221,7 +221,7 @@ func (s *Server) executeCommand(p executeCommandParams) (any, *rpcError) {
 }
 
 // suppressEdit builds the `// @custos-ignore` edit for one finding and checks
-// it by re-analysing the edited source: exactly that finding must go away
+// it by re-analyzing the edited source: exactly that finding must go away
 // (a comment before a file's first statement would silence the rule in the
 // whole file, so such an edit is refused). e analyzes with baseline bl,
 // which hides the findings it covers from both counts.

@@ -14,6 +14,7 @@ const message = "Supply location and uri in non-WSDL mode."
 
 type rule struct{}
 
+// New returns the SoapNonWsdlRequiredOptionsMissing inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SoapNonWsdlRequiredOptionsMissing" }
 func (rule) Semantic()                {}

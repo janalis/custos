@@ -112,7 +112,7 @@ func TestMalformedReferenceArgumentsDoNotInventWrites(t *testing.T) {
 }
 
 // summarized returns an environment that knows the summaries of its own file,
-// as every analysed file does.
+// as every analyzed file does.
 func summarized(t testing.TB, src string) (*Env, *syntax.File) {
 	t.Helper()
 	e, f := environment(t, src, nil)
@@ -220,7 +220,7 @@ func TestReferenceParametersCarryWhatTheCalleeLeaves(t *testing.T) {
 		{"callee leaves its reference variadic", `function f(&...$xs){return count($xs);} $v='ls'; f($v); probe($v);`, false},
 		{"closure unsets its reference capture", `$v='ls'; $g=function() use (&$v){$v=$_GET['z']; unset($v);}; $g(); probe($v);`, true},
 		{"named argument", `function fill($c, &$x){$x=$_GET['a'];} $v='ls'; fill(x: $v, c: 1); probe($v);`, true},
-		{"callee too large to summarise", `function big(&$x){` + strings.Repeat("$x=[$x,$x];", 2) + `eval('1;'); $x='safe';} $v=$_GET['a']; big($v); probe($v);`, true},
+		{"callee too large to summarize", `function big(&$x){` + strings.Repeat("$x=[$x,$x];", 2) + `eval('1;'); $x='safe';} $v=$_GET['a']; big($v); probe($v);`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := summarized(t, tc.src)

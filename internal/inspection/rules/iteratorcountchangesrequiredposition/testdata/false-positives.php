@@ -73,3 +73,4 @@ function emptyIterator(): void
     iterator_count($it);
     var_dump($it->key());
 }
+$it = new ArrayIterator([7, 11]); iterator_count($it); $it->rewind(); echo $it->current();

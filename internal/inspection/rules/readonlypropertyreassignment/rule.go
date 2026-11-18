@@ -1,4 +1,5 @@
-// Package readonlypropertyreassignment implements the ReadonlyPropertyReassignment inspection.
+// Package readonlypropertyreassignment implements the native
+// ReadonlyPropertyReassignment inspection.
 package readonlypropertyreassignment
 
 import (
@@ -13,6 +14,7 @@ import (
 
 type rule struct{}
 
+// New returns the ReadonlyPropertyReassignment inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ReadonlyPropertyReassignment" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign} }
@@ -20,7 +22,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign}
 const message = "Initialize this readonly property only once."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP81 {
+	if ctx.PHP.Below(phpversion.PHP81) {
 		return
 	}
 	assign := n.(*syntax.Assign)
@@ -45,7 +47,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	method, ok := syntax.EnclosingFuncLike(assign).(*syntax.Method)
-	if ok && strings.EqualFold(method.Name.Value, "__clone") && ctx.PHP >= phpversion.PHP83 {
+	if ok && strings.EqualFold(method.Name.Value, "__clone") && ctx.PHP.AtLeast(phpversion.PHP83) {
 		return
 	}
 	statement, ok := assign.Parent().(*syntax.ExprStmt)

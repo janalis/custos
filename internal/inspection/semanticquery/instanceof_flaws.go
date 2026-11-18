@@ -172,7 +172,7 @@ func redundantInstanceofs(ctx *analysis.Context, ops []syntax.Expr, op syntax.To
 			}
 			for _, b := range group {
 				k := flawClassKey(entries[b].fqn)
-				if b == a || k == "datetimeinterface" && ctx.PHP < phpversion.PHP55 || !anc[k] {
+				if b == a || k == "datetimeinterface" && ctx.PHP.Below(phpversion.PHP55) || !anc[k] {
 					continue
 				}
 				// a's class is a subtype of b's: under || the specific

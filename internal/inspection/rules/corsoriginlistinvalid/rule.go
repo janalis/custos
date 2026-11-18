@@ -15,6 +15,7 @@ const message = "Send one allowed origin in the CORS header."
 
 type rule struct{}
 
+// New returns the CorsOriginListInvalid inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CorsOriginListInvalid" }
 func (rule) Semantic()                {}
@@ -25,7 +26,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	key, value, _, known := semanticquery.ExpansionHeader(ctx, c)
+	key, value, _, known := semanticquery.LiteralHeader(ctx, c)
 	if !known || key != "access-control-allow-origin" {
 		return
 	}

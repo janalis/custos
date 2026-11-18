@@ -85,13 +85,11 @@ F2. The edit never fuses with a neighboring token. When the byte just
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
-| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |
+None. Operand order follows the global comparison style (`regular` default / `yoda`).
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 

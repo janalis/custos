@@ -45,7 +45,7 @@ func (propertyInitializationFlaws) Check(ctx *analysis.Context, n syntax.Node) {
 
 // pifNullableTyped implements E1.
 func pifNullableTyped(ctx *analysis.Context, typ syntax.Expr) bool {
-	if typ == nil || ctx.PHP < phpversion.PHP74 {
+	if typ == nil || ctx.PHP.Below(phpversion.PHP74) {
 		return false
 	}
 	nullish := func(e syntax.Expr) bool {

@@ -1,4 +1,5 @@
-// Package domtextassignmentdestroyschildren implements DomTextAssignmentDestroysChildren.
+// Package domtextassignmentdestroyschildren implements the native
+// DomTextAssignmentDestroysChildren inspection.
 package domtextassignmentdestroyschildren
 
 import (
@@ -14,6 +15,7 @@ const message = "Preserve child nodes when adding element text."
 
 type rule struct{}
 
+// New returns the DomTextAssignmentDestroysChildren inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DomTextAssignmentDestroysChildren" }
 func (rule) Semantic()                {}
@@ -32,7 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || (id.Value != "nodeValue" && id.Value != "textContent") {
 		return
 	}
-	if !semanticquery.ExpansionDOMElementChildren(ctx, p.Var, a) && !documentElementHasChildren(ctx, p.Var, a) && !createdBeforeWrite(ctx, p.Var, a) {
+	if !semanticquery.DOMElementHasChildren(ctx, p.Var, a) && !documentElementHasChildren(ctx, p.Var, a) && !createdBeforeWrite(ctx, p.Var, a) {
 		return
 	}
 	if childMayBeDetached(ctx, p.Var, a) {

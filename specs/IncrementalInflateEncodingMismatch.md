@@ -1,7 +1,7 @@
 ---
 id: IncrementalInflateEncodingMismatch
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "7.0", max: "" }
 ---
@@ -16,7 +16,7 @@ Match the inflate encoding to the input.
 
 - D1. Track a local/direct inflate_init context into inflate_add, comparing a direct/unchanged-local gzencode, gzcompress or gzdeflate output against its resolved encoding constant. Report proven mismatched gzip, zlib or raw formats. Explicit alternative encoder formats and transformed data remain unknown.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
@@ -64,4 +64,4 @@ $c=inflate_init(ZLIB_ENCODING_GZIP); inflate_add($c,gzencode("sample"));
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

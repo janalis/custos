@@ -1,4 +1,5 @@
-// Package millisecondsusedasunixseconds implements the MillisecondsUsedAsUnixSeconds inspection.
+// Package millisecondsusedasunixseconds implements the native
+// MillisecondsUsedAsUnixSeconds inspection.
 package millisecondsusedasunixseconds
 
 import (
@@ -11,6 +12,7 @@ import (
 
 type rule struct{}
 
+// New returns the MillisecondsUsedAsUnixSeconds inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "MillisecondsUsedAsUnixSeconds" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall, syntax.KMethodCall} }

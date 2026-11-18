@@ -37,7 +37,7 @@ Reported:
 
 ## Exceptions (no report)
 
-Parentheses around the producer do not bypass consumer checks. Captures into nested scopes and exhausted consumer budgets withhold the fix, while retaining the finding at the proven identifier use.
+Parentheses around the producer do not bypass consumer checks. Captures into nested scopes and consumers too numerous to check withhold the fix, while retaining the finding at the proven identifier use.
 
 - Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
 - Both @custos-ignore PgIdentifierEscapedAsLiteral and @noinspection PgIdentifierEscapedAsLiteral suppress this native rule.
@@ -53,10 +53,6 @@ Use exact byte edits and preserve comments, evaluation count, argument order and
 ## PHP versions
 
 Apply throughout PHP 5.3–8.5 only where the extension API and syntax exist. PostgreSQL literal/identifier escaping requires PHP 5.4.4 or later. Do not flag API unavailability through this rule.
-
-## Options
-
-None. Use normal rule configuration to enable or disable the inspection.
 
 ## Configure
 

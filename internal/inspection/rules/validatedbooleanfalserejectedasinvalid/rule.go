@@ -68,7 +68,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	branch, ok := b.Parent().(*syntax.If)
-	if ok && semanticquery.ExpansionDFinalOutcome(ctx, branch.Body, false) {
+	if ok && semanticquery.TerminalOutcome(ctx, branch.Body, false) {
 		ctx.ReportNode(b, message)
 	}
 }

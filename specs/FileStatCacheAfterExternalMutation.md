@@ -1,9 +1,9 @@
 ---
 id: FileStatCacheAfterExternalMutation
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "8.2" }
+php: { min: "", max: "8.2" }
 ---
 
 # FileStatCacheAfterExternalMutation

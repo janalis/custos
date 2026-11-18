@@ -1,7 +1,7 @@
 ---
 id: ArrowFunctionCapturedCounter
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "7.4", max: "" }
 ---
@@ -35,7 +35,7 @@ No automatic fix: choosing reference capture and state lifetime requires intent.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -50,4 +50,4 @@ $n = 0; $next = <warning descr="Use persistent shared state for this counter.">f
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

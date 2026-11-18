@@ -89,7 +89,7 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 	// is rewritten. Before PHP 8.0 stripos() reads a non-string needle as a
 	// character code, where the conversion made it a string.
 	if multibyte || !caseSearchEquivalent(args, dirs) ||
-		(ctx.PHP < phpversion.PHP80 && !ctx.TypeOf(needle).OnlyOf("string")) {
+		(ctx.PHP.Below(phpversion.PHP80) && !ctx.TypeOf(needle).OnlyOf("string")) {
 		ctx.Report(span, msg)
 		return
 	}

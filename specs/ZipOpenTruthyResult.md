@@ -1,9 +1,9 @@
 ---
 id: ZipOpenTruthyResult
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # ZipOpenTruthyResult

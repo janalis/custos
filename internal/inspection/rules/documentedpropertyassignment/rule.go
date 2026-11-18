@@ -1,4 +1,4 @@
-// Package documentedpropertyassignment implements the
+// Package documentedpropertyassignment implements the native
 // DocumentedPropertyAssignment inspection.
 package documentedpropertyassignment
 

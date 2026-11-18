@@ -124,7 +124,10 @@ func TestBaselineShowsRepeatsOfRecordedFindings(t *testing.T) {
 	// The shown finding, when no access follows it, can be suppressed: the
 	// check of the edit analyzes with the baseline too.
 	cl.change(uri, 2, "<?php\nfunction f(?Exception $a) {\n$a->getMessage();\n$a->getCode();\n}\n")
-	cl.diagsN(uri, 1)
+	// Diagnostics of the edited version: the first version, which has as
+	// many, may be published again meanwhile (once the index or the flow
+	// summaries are rebuilt), and its actions are gone.
+	cl.diagsAt(uri, 2, 1)
 	line := map[string]any{"line": 3, "character": 0}
 	res := cl.call(2, "textDocument/codeAction", map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line, "end": line}, "context": map[string]any{}})
 	var actions []codeAction

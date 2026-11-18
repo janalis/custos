@@ -17,7 +17,7 @@ import (
 
 // Keeping the trees between phases changes no result: the same findings,
 // including for a file that cannot be read and one whose declarations
-// crash extraction (it is still analysed).
+// crash extraction (it is still analyzed).
 func TestParseOnceMatches(t *testing.T) {
 	root, paths := oracleFixture(t)
 	writeFile(t, filepath.Join(root, "src", "c.php"), `<?php function c($v) { exec($_GET['x']); }`)

@@ -77,7 +77,7 @@ func writeText(w io.Writer, items []diagnostic.Item, files int) error {
 		}
 		counts[it.Severity]++
 	}
-	_, err := fmt.Fprintf(w, "\n%d file(s) analysed: %d error(s), %d warning(s), %d info\n", files, counts["error"], counts["warning"], counts["info"])
+	_, err := fmt.Fprintf(w, "\n%d file(s) analyzed: %d error(s), %d warning(s), %d info\n", files, counts["error"], counts["warning"], counts["info"])
 	return err
 }
 

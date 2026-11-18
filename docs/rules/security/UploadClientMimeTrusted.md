@@ -42,7 +42,7 @@ Reported:
 - The call is reached only if the type matched: the conditions guarding it limit the entry type to string literals that all contain `/`. Tests combine through `!`, parentheses, `&&`/`and` and `||`/`or` (each side of a disjunction must limit it), and guard the call from the branch of an `if`/`elseif`/`else` chain, a ternary or `match (true)` arm, the right operand of `&&`/`||`, or code after an `if` whose branch for another type always leaves (return, throw, exit, break, continue), with or without other arms.
 - A call of the project between the test and the call, which may write `$_FILES`, a jump label between them, a write to the entry, or a test of another entry proves nothing.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -57,10 +57,6 @@ No automatic fix: content types, file size limits and image decoding policy must
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

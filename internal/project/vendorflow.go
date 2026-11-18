@@ -2,6 +2,7 @@ package project
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -24,6 +25,17 @@ func WithVendorFlow(root string, ix *index.Index, parse syntax.Options, options 
 		return dir != "" && strings.HasPrefix(absoluteFrom(cwd, path), dir+string(filepath.Separator))
 	}
 	read := func(path string) ([]byte, error) { return safeio.ReadFile(path, flow.MaxVendorBytes) }
+	options.Vendor = flow.NewVendor(ix, parse, options.Assertions, within, read)
+	return options
+}
+
+// confinedVendorFlow is WithVendorFlow for a captured root: the index names
+// its files relative to root (with forward slashes), and dependency files
+// under the vendor directory vendor are read inside root, whatever the
+// working directory.
+func confinedVendorFlow(root *os.Root, vendor string, ix *index.Index, parse syntax.Options, options flow.Options) flow.Options {
+	within := func(name string) bool { return vendor == "." || strings.HasPrefix(path.Clean(name), vendor+"/") }
+	read := func(name string) ([]byte, error) { return ReadConfined(root, name, flow.MaxVendorBytes) }
 	options.Vendor = flow.NewVendor(ix, parse, options.Assertions, within, read)
 	return options
 }

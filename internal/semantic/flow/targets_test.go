@@ -111,7 +111,7 @@ func TestLabelledScopes(t *testing.T) {
 	many := strings.Repeat("if ($c) { other(); } ", MaxBlocks)
 	for _, tc := range []struct {
 		name, src string
-		labelled  bool
+		labeled   bool
 	}{
 		{"no label", `function f($c) { probe($c); }`, false},
 		{"label before", `function f($c) { again: probe($c); if ($c) { goto again; } }`, true},
@@ -167,8 +167,8 @@ func TestLabelledScopes(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)
-			if got := e.Labelled(callsNamed(f, "probe")[0]); got != tc.labelled {
-				t.Fatalf("labelled=%v", got)
+			if got := e.Labeled(callsNamed(f, "probe")[0]); got != tc.labeled {
+				t.Fatalf("labeled=%v", got)
 			}
 		})
 	}
@@ -184,9 +184,9 @@ func TestLabelledBeforeAUse(t *testing.T) {
 		e, f := environment(t, src, nil)
 		checked, use := argument(callsNamed(f, "checked")[0]), callsNamed(f, "probe")[0]
 		if got := e.LabelledBefore(checked, use); got != want {
-			t.Errorf("%s: labelled=%v", src, got)
+			t.Errorf("%s: labeled=%v", src, got)
 		}
-		if !e.Labelled(use) {
+		if !e.Labeled(use) {
 			t.Errorf("%s: the use reads a parameter", src)
 		}
 	}

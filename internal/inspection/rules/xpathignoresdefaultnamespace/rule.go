@@ -17,6 +17,7 @@ const message = "Register a namespace prefix for the XPath query."
 
 type rule struct{}
 
+// New returns the XPathIgnoresDefaultNamespace inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "XPathIgnoresDefaultNamespace" }
 func (rule) Semantic()                {}

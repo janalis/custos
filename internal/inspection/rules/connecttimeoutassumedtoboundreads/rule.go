@@ -15,6 +15,7 @@ const message = "Set a separate timeout for stream reads."
 
 type rule struct{}
 
+// New returns the ConnectTimeoutAssumedToBoundReads inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ConnectTimeoutAssumedToBoundReads" }
 func (rule) Semantic()                {}
@@ -58,7 +59,7 @@ func timeoutSet(ctx *analysis.Context, read *syntax.FuncCall, handle syntax.Expr
 			return types.Unknown, nil
 		}
 		stream := semanticquery.CallArgument(call.Args, 0, "stream")
-		if !semanticquery.ExpansionCSame(ctx, handle, stream) || semanticquery.NativeValue(ctx, stream) != syntax.Expr(origin) {
+		if !semanticquery.SameStableExpr(ctx, handle, stream) || semanticquery.NativeValue(ctx, stream) != syntax.Expr(origin) {
 			return types.Unknown, nil
 		}
 		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") }

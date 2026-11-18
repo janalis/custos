@@ -1,7 +1,7 @@
 ---
 id: HardcodedCredentialAtKnownSink
 group: Security
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -22,7 +22,7 @@ Literal credentials embedded in connection setup are difficult to rotate and pro
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E1a. Do not report a file whose project-relative path (D1a) matches an `excludedPaths` glob. `**` matches any number of path segments; other segments use shell-style matching, ignoring letter case (`**/tests/**` also excludes `src/Tests/`). Invalid globs and paths or patterns beyond the segment budget match nothing.
+- E1a. Do not report a file whose project-relative path (D1a) matches an `excludedPaths` glob. `**` matches any number of path segments; other segments use shell-style matching, ignoring letter case (`**/tests/**` also excludes `src/Tests/`). Invalid globs and paths or patterns beyond the supported number of segments match nothing.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Report
@@ -40,7 +40,7 @@ None. Choosing a repair requires intent or additional runtime information.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| excludedPaths | list | `["**/testdata/**", "**/tests/**"]` | Project-relative path globs (D1a) for files that are never reported. |
+| excludedPaths | list | `["**/testdata/**", "**/tests/**"]` | Path globs, matched against the file path relative to its project root, for files that are never reported. |
 
 ## PHP versions
 

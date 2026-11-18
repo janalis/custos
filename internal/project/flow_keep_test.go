@@ -20,7 +20,7 @@ import (
 func TestFlowKeepsEnvironmentForNextSummary(t *testing.T) {
 	files := writeChain(t, 4)
 	opt := syntax.Options{Version: phpversion.Default}
-	ix, srcs, trees, _ := buildIndex(files, len(files), opt, infer.Options{}, nil, true)
+	ix, srcs, trees, _ := buildIndex(context.Background(), files, len(files), opt, infer.Options{}, nil, true)
 	parsedOnce := func() *FlowBuild {
 		return buildFlow(context.Background(), files, srcs, opt, ix, flow.Options{}, nil, nil, false, trees)
 	}

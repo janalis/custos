@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Enabled policy requires obtaining HTTP error response bodies. Resolve file_get_contents/fopen over a proven http/https URL with a local stream_context_create HTTP context whose ignore_errors option is absent or false. Report the consuming call. The default option false also violates policy. Named arguments and literal contexts are supported. A read that passes no context uses the default context and is reported too, unless E3 applies.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

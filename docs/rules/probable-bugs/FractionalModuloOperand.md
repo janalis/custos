@@ -23,7 +23,7 @@ unreachable just as it does inside a namespace block.
 - An endless literal-truth loop hides following statements only when no
   break or goto can leave it. A goto to a label outside the loop preserves
   reachability there; PHP string escape decoding determines literal truth.
-  Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+  Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 - A variable operand loses its proven value when the enclosing local scope lets it change outside the tracked assignments: a closure captures any variable by reference, `extract()` or single-argument `parse_str()` writes the local symbol table. In file scope the variable is a global, so a call to a function that is not a resolved builtin, a method or static call, or an object construction also drops the proof. Such code placed entirely after the modulo is ignored unless the modulo sits inside a loop of the same scope. `goto` jumps are followed like loops: a write the operation can be reached from again, through a jump back, drops the proof, a write placed after it that no jump leads back from does not. A scope that contains both `goto` and `try` never yields a proven variable value.
 

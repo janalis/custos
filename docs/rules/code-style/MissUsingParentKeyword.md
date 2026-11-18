@@ -99,11 +99,6 @@ Reported:
 <li>line 17: Call it as &#39;self::registry()&#39; instead of through &#39;parent::&#39;.</li>
 </ul>
 
-## Options
-
-| Option | Type | Default | Effect |
-|---|---|---|---|
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

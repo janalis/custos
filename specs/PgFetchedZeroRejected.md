@@ -1,7 +1,7 @@
 ---
 id: PgFetchedZeroRejected
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -40,7 +40,7 @@ The fix only inserts text before and after the condition, so comments, arguments
 
 ## Options
 
-None. Use normal rule configuration to enable or disable the inspection.
+None.
 
 ## PHP versions
 
@@ -71,4 +71,4 @@ function h() { if ($fetch = pg_fetch_result(...)) { return $fetch; } }
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -15,6 +15,7 @@ const message = "Assign the modified storage value back."
 
 type rule struct{}
 
+// New returns the SplObjectStorageIndirectArrayMutation inspection.
 func New() analysis.Rule { return rule{} }
 func (rule) ID() string  { return "SplObjectStorageIndirectArrayMutation" }
 func (rule) Semantic()   {}

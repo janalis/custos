@@ -133,8 +133,8 @@ expresses the same thing directly and avoids a function call.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| REPORT_INLINES | bool | true | Enables the single-interpolation string check (D8–D9). |
-| REPORT_TO_STRING_METHOD_CALLS | bool | false | Enables the `__toString()` call check (D10–D11). |
+| REPORT_INLINES | bool | true | Enables the single-interpolation string check. |
+| REPORT_TO_STRING_METHOD_CALLS | bool | false | Enables the `__toString()` call check. |
 
 ## PHP versions
 

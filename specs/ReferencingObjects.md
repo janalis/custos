@@ -1,7 +1,7 @@
 ---
 id: ReferencingObjects
 group: Confusing constructs
-kind: syntax
+kind: semantic
 needs: []
 php: { min: "", max: "" }
 ---
@@ -243,5 +243,3 @@ $fn = function (DOMNode &$node) {};
   write on a nullable parameter (`?Node &$a` with `$a[] = 1`) and for
   bodies that write variables by name (D4c: `extract()`, `$$name`,
   `include`, `eval`).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

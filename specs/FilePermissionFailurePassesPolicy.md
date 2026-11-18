@@ -1,7 +1,7 @@
 ---
 id: FilePermissionFailurePassesPolicy
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Identify unchecked fileperms result masked with a nonzero permission bitmask, co
 
 - D1. Report unchecked fileperms result masked with a nonzero permission bitmask, compared equal to zero in a branch returning true or performing the guarded operation. Require direct result provenance.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 
@@ -76,7 +76,7 @@ When several assignments reach a use, each producer is checked on its own: an
 unguarded eligible producer is still reported when other paths use another API
 or are guarded, and an irrelevant variant cannot hide a later eligible call. A
 path whose value does not come from a known call establishes nothing. When the
-producers cannot be tracked within the analysis budget, nothing is reported.
+producers cannot be tracked, nothing is reported.
 
 ## Divergences
 

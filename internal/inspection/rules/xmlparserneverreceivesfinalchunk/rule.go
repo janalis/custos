@@ -12,6 +12,7 @@ const message = "Finish parsing before freeing the XML parser."
 
 type rule struct{}
 
+// New returns the XmlParserNeverReceivesFinalChunk inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "XmlParserNeverReceivesFinalChunk" }
 func (rule) Semantic()                {}
@@ -26,7 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	e := semanticquery.CallArgument(c.Args, 0, "parser")
-	if !semanticquery.ExpansionDUnaliased(ctx, e, n) {
+	if !semanticquery.UnaliasedLocal(ctx, e, n) {
 		return
 	}
 	creation, ok := semanticquery.NativeLocalValue(ctx, e).(*syntax.FuncCall)

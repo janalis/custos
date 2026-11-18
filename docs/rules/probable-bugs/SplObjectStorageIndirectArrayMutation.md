@@ -6,7 +6,7 @@ title: SplObjectStorageIndirectArrayMutation
 
 # SplObjectStorageIndirectArrayMutation
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - D1. Resolve SplObjectStorage offset whose most recent stored value is a proven array. Report nested offset/property-like array writes, increment/decrement or unset applied indirectly to its retrieved array. Highlight the complete mutation expression.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 - D4. The proof in D1 comes from the last `$storage[$key] = <array literal>` assignment that certainly ran before the mutation. It is dropped when, between that assignment and the mutation, the same storage may receive another value: a method call on the storage other than a read-only one (`contains`, `count`, `current`, `getHash`, `getInfo`, `key`, `next`, `offsetExists`, `offsetGet`, `rewind`, `seek`, `valid`), a direct `unset($storage[...])`, an offset assignment of a value that is not a proven array under any key or on a path that may not run, or a closure capturing the storage variable, including an arrow function that mentions it. Later offset assignments of proven arrays keep the proof. Passing the key variable to an unresolved method may rebind the key and drops the correspondence with the earlier offset assignment. A resolved by-value method on another storage keeps that correspondence.
 
 ## Exceptions (no report)

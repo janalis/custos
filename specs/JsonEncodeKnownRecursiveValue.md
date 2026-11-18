@@ -1,7 +1,7 @@
 ---
 id: JsonEncodeKnownRecursiveValue
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Identify json_encode of a local array whose reference assignments prove a cycle 
 
 - D1. Report json_encode of a local array whose reference assignments prove a cycle reachable from encoded root. JSON_PARTIAL_OUTPUT_ON_ERROR explicitly permits replacement and excludes.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 - D4. The reference graph is built only from assignments that execute on every path before the call: `$v = <array literal>` starts an array, and `$v[<constant key>] = &$w` between two such arrays adds an edge. Assigning a plain variable discards its edges; rebinding a slot by reference replaces that edge. An expression that encloses the call (for example the assignment receiving the encoded string) completes after it and does not affect the proof.
 
 ## Exceptions (no report)

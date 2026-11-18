@@ -85,7 +85,7 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 
 	// D1, D2
-	// The occurrence's own type comes first: it honours narrowing by the
+	// The occurrence's own type comes first: it honors narrowing by the
 	// guarding condition (is_array(), !== false, instanceof…). The single
 	// discovered value is only a fallback when the occurrence is untyped.
 	// An unknown discovery result (unstable variable) empties S: no
@@ -173,7 +173,7 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		cls := strings.TrimPrefix(a, `\`)
 		c := ctx.Index().Class(cls, ctx.PHP)
-		if c == nil || ctx.PHP != 0 && !c.Avail.In(ctx.PHP) || !semanticquery.HierarchyResolved(ctx.Index(), cls, ctx.PHP) {
+		if c == nil || !c.Avail.In(ctx.PHP) || !semanticquery.HierarchyResolved(ctx.Index(), cls, ctx.PHP) {
 			return // D1: an unresolvable class (or ancestor, custos) empties S
 		}
 		if offsetNativeAccess(ctx, cls) {

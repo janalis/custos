@@ -12,6 +12,7 @@ const message = "Check XML child existence with isset."
 
 type rule struct{}
 
+// New returns the SimpleXmlMissingNodeCheckedAsNull inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SimpleXmlMissingNodeCheckedAsNull" }
 func (rule) Semantic()                {}
@@ -41,14 +42,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if creation == nil {
 			continue
 		}
-		if methods := semanticquery.ExpansionDMethods(ctx, b, p.Var); methods == nil || len(methods) > 0 || !semanticquery.ExpansionDPristine(ctx, p.Var, b) {
+		if methods := semanticquery.ObjectMethodHistory(ctx, b, p.Var); methods == nil || len(methods) > 0 || !semanticquery.MembersUnwrittenBefore(ctx, p.Var, b) {
 			continue
 		}
 		s, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(creation.Args, 0, "data"))
 		if !known {
 			continue
 		}
-		children, _, _, known := semanticquery.ExpansionDXML(s)
+		children, _, _, known := semanticquery.ParseLiteralXML(s)
 		if !known {
 			continue
 		}

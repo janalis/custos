@@ -1,7 +1,7 @@
 ---
 id: IntlTwelveHourFieldUsedForTwentyFourHourTime
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "5.5", max: "" }
 ---
@@ -16,7 +16,7 @@ Use the 24-hour calendar field.
 
 - D1. Report resolved IntlCalendar::set with direct builtin FIELD_HOUR class constant and proven integer value 12 through 23. FIELD_HOUR_OF_DAY, other fields and unknown values are excluded.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 - D4. A value passed as a local variable is proven only while plain assignments are the sole way that variable changes in its scope. Anywhere in the same scope, an increment or decrement of the variable, a catch clause binding it, or a closure importing it by reference removes proof regardless of position, so the hour is treated as unknown. Closures importing it by value and arrow functions work on a copy and do not count.
 
 ## Exceptions (no report)
@@ -76,4 +76,4 @@ function noon(IntlCalendar $c) { $h = 12; $h--; $c->set(IntlCalendar::FIELD_HOUR
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

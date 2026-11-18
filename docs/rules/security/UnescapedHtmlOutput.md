@@ -348,7 +348,7 @@ by a legal jump.
 Literal variable-variable and global-table spellings of request superglobals
 carry the same request provenance as direct reads. A function binding a global
 can read request data written by another function of that file before its first
-call; propagation follows longer chains within the shared analysis budget. A function of another file that binds the same global makes each call of project code drop what file-level code proved of the variable; the request data such a function writes is not followed across files.
+call; propagation follows longer chains. A function of another file that binds the same global makes each call of project code drop what file-level code proved of the variable; the request data such a function writes is not followed across files.
 
 A locally created closure or arrow function may carry request provenance through
 its return value and unsafe uses when its target, arguments and by-value captures
@@ -402,7 +402,7 @@ control characters before PHP numeric-key normalization is applied.
 - Dynamic parts emitted before the request-derived one are passed over when they cannot hold markup: a value typed integer, float or boolean anywhere in the statement, and a value that derives from tracked inputs and is escaped for HTML on every path when it is emitted into a text node. Such a part adds nothing to the proven bytes. A safely escaped dynamic attribute value ends the context search: provenance escaping alone does not prove that an opaque value contains no trusted delimiters. Any other dynamic part (an unknown value, a call result or a value escaped on some paths only) could open an attribute or a raw-text element: nothing after it is examined.
 - Each request-derived part found this way is reported on its own, highlighting that emitted expression; the text after it is read as if the part were the text intended. A later part with side effects in the same operand cancels the findings of that operand, since it runs before the operand is emitted; an operand of `echo` after a comma runs after the earlier ones were emitted. Arbitrary unescaped bytes end the context proof, so later expressions are not presumed to share its context. Later parts of the same operand must be free of side effects, because the whole operand is evaluated before any of it is emitted; later `echo` operands are not restricted.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 A catch contributes values only when its try body can throw. Bounded inert literal expressions, definite plain reads and proven scalar local writes do not enter a catch. Calls, unknown reads/accesses, output callbacks, discarded objects, aliases, dynamic bindings and tick declarations preserve conservative exception paths. Finally blocks still run along every applicable normal or abrupt exit.
 
@@ -430,10 +430,6 @@ None. Wrapping the value in `htmlspecialchars` is not behavior-preserving in gen
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

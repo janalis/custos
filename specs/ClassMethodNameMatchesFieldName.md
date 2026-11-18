@@ -27,7 +27,7 @@ cannot tell which one is meant.
   - its declared type (typed property),
   - the types of an `@var` tag in the comment immediately preceding the
     declaration — both doc comments `/** … */` **and** plain block comments
-    `/* … */` are honoured,
+    `/* … */` are honored,
   - the type of its default value, if any (e.g. `= 0` → int, `= null` → null,
     `= []` → array).
   Drop unknown/unresolvable entries.

@@ -18,7 +18,7 @@ func (getClassUsage) ID() string               { return "GetClassUsage" }
 func (getClassUsage) Semantic()                {}
 func (getClassUsage) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (getClassUsage) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP71 { // D3
+	if ctx.PHP.Below(phpversion.PHP71) { // D3
 		return
 	}
 	call := n.(*syntax.FuncCall)

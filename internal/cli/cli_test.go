@@ -110,11 +110,11 @@ func TestAnalyseOptions(t *testing.T) {
 		{"php", []string{"--php", "7.4", "--stats", "--rule", "UnnecessarySemicolon", dir}, 0, "PHP 7.4 (flag)"},
 		{"bad php", []string{"--php", "nine", dir}, 2, "invalid version"},
 		{"nonexistent php", []string{"--php", "6.0", dir}, 2, "unsupported version"},
-		{"regular", []string{"--comparison-style", "regular", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analysed"},
-		{"yoda", []string{"--comparison-style", "yoda", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analysed"},
+		{"regular", []string{"--comparison-style", "regular", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analyzed"},
+		{"yoda", []string{"--comparison-style", "yoda", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analyzed"},
 		{"bad style", []string{"--comparison-style", "sideways", dir}, 2, "--comparison-style must be"},
 		{"config dir", []string{"--config", dir, "--rule", "UnnecessarySemicolon", "--format", "github"}, 0, "a.php,line=2"},
-		{"exclude", []string{"--exclude", "sub", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analysed"},
+		{"exclude", []string{"--exclude", "sub", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analyzed"},
 		{"missing path", []string{filepath.Join(dir, "missing")}, 2, "no such file"},
 		{"fail-on never", []string{"--fail-on", "never", "--rule", "UnnecessarySemicolon", dir}, 0, "1 info"},
 		{"fail-on typo", []string{"--fail-on", "warn", dir}, 2, "--fail-on must be"},
@@ -134,7 +134,7 @@ func TestAnalyseOptions(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "sub", "b.php"), []byte("<?php\n;;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, out, _ := runCLI(t, "analyse", "--exclude", "sub", "--rule", "UnnecessarySemicolon", dir); !strings.Contains(out, "1 file(s) analysed") {
+	if _, out, _ := runCLI(t, "analyse", "--exclude", "sub", "--rule", "UnnecessarySemicolon", dir); !strings.Contains(out, "1 file(s) analyzed") {
 		t.Fatalf("--exclude did not exclude: %s", out)
 	}
 

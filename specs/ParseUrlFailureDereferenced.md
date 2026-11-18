@@ -1,7 +1,7 @@
 ---
 id: ParseUrlFailureDereferenced
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -27,7 +27,7 @@ unchecked result.
 
 - D1. Report ordinary unguarded reads of dynamic parse_url results, or literal results with a supported parsing-failure proof. Empty HTTP(S) authorities and ports above 65535 establish such a proof. Restrict to array-returning mode; missing keys are another concern.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 - D3a. When several assignments reach the read (a loop that reassigns the variable, or an assignment made on one path only), the read is reported if one of them is a result of this API that no guard on its own path covers. A guard written before the other assignment does not cover it; a test inside the loop, or after the conditional assignment, covers every assignment. A reaching value that is not a result of this API (a literal, another call, an unknown value) never causes a report by itself. It does not hide one either: an unguarded result of another call reaching the same read leaves a result of this API reported.
 - D3b. A result assigned inside a condition (`if (($parts = parse_url($raw)) === false) { … }`) is tracked like one assigned in its own statement. Only the conditions of D4 guard it: an operator whose outcome does not fix the comparison (`xor`, `^`, a comparison between two conditions) proves nothing, and neither does a branch that does not exit. `|` and `&` between two tests evaluate both: the comparison is fixed where `|` yields false and where `&` yields true, and nowhere else.
 - D4. A read is guarded when a condition on the same variable, written after the producing call and before any reassignment, excludes `false` on every path to the read. Accepted condition shapes:
@@ -113,7 +113,7 @@ When several assignments reach a use, each producer is checked on its own: an
 unguarded eligible producer is still reported when other paths use another API
 or are guarded, and an irrelevant variant cannot hide a later eligible call. A
 path whose value does not come from a known call establishes nothing. When the
-producers cannot be tracked within the analysis budget, nothing is reported.
+producers cannot be tracked, nothing is reported.
 
 ## Divergences
 

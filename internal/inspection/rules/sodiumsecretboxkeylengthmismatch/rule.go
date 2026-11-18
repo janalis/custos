@@ -1,4 +1,5 @@
-// Package sodiumsecretboxkeylengthmismatch implements SodiumSecretboxKeyLengthMismatch.
+// Package sodiumsecretboxkeylengthmismatch implements the native
+// SodiumSecretboxKeyLengthMismatch inspection.
 package sodiumsecretboxkeylengthmismatch
 
 import (
@@ -11,6 +12,7 @@ const message = "Supply a correctly sized secretbox key."
 
 type rule struct{}
 
+// New returns the SodiumSecretboxKeyLengthMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SodiumSecretboxKeyLengthMismatch" }
 func (rule) Semantic()                {}

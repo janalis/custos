@@ -14,6 +14,7 @@ const message = "Use multibyte offsets with multibyte slicing."
 
 type rule struct{}
 
+// New returns the MultibytePositionUsedAsByteOffset inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "MultibytePositionUsedAsByteOffset" }
 func (rule) Semantic()                {}

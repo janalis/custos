@@ -3,7 +3,7 @@ id: SimpleXmlLoadFileUsage
 group: Probable bugs
 kind: semantic
 needs: [names, stubs]
-php: { min: "", max: "" }
+php: { min: "", max: "7.4" }
 ---
 
 # SimpleXmlLoadFileUsage
@@ -139,5 +139,3 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
   off by default, so the call is no longer needed). On an 8.0+ target the
   advice only rewrites working code, at error severity (14 findings on
   Akeneo, Mautic and Shopware); custos reports from 5.3 to 7.4 only.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

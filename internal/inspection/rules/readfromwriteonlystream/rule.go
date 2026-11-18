@@ -13,6 +13,7 @@ const message = "Open the stream with read access."
 
 type rule struct{}
 
+// New returns the ReadFromWriteOnlyStream inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ReadFromWriteOnlyStream" }
 func (rule) Semantic()                {}

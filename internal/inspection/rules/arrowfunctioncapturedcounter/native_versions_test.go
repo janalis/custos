@@ -5,11 +5,11 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
-	v "custos/internal/php/version"
+	phpversion "custos/internal/php/version"
 )
 
 func TestBeforeLanguageFeature(t *testing.T) {
-	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"ArrowFunctionCapturedCounter"}, PHP: v.PHP73})
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"ArrowFunctionCapturedCounter"}, PHP: phpversion.PHP73})
 	if err != nil {
 		t.Fatal(err)
 	}

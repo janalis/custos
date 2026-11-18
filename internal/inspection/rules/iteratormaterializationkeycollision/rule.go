@@ -20,7 +20,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	if !semanticquery.NativeBuiltin(ctx, call, "iterator_to_array") || ctx.PHP < phpversion.PHP55 {
+	if !semanticquery.NativeBuiltin(ctx, call, "iterator_to_array") || ctx.PHP.Below(phpversion.PHP55) {
 		return
 	}
 	if p := semanticquery.CallArgument(call.Args, 1, "preserve_keys"); p != nil {

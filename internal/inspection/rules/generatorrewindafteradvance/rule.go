@@ -1,4 +1,5 @@
-// Package generatorrewindafteradvance implements GeneratorRewindAfterAdvance.
+// Package generatorrewindafteradvance implements the native
+// GeneratorRewindAfterAdvance inspection.
 package generatorrewindafteradvance
 
 import (
@@ -14,13 +15,14 @@ const message = "Create another generator instead of rewinding it."
 
 type rule struct{}
 
+// New returns the GeneratorRewindAfterAdvance inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GeneratorRewindAfterAdvance" }
 func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if len(ctx.File.Errors) > 0 || ctx.PHP < phpversion.PHP55 || !semanticquery.NativeCallbackReachable(ctx, n) {
+	if len(ctx.File.Errors) > 0 || ctx.PHP.Below(phpversion.PHP55) || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)

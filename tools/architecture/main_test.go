@@ -28,7 +28,8 @@ func layout(t *testing.T) string {
 	for path, src := range map[string]string{
 		"internal/inspection/meta/rules.json":        `[{"id":"Example"}]`,
 		"internal/inspection/meta/native-rules.json": `[]`,
-		"internal/inspection/rules/example/rule.go": `package example
+		"internal/inspection/rules/example/rule.go": `// Package example implements the Example inspection. It says more here.
+package example
 import "custos/internal/inspection/analysis"
 type rule struct{}
 func (rule) ID() string { return "Example" }
@@ -39,10 +40,15 @@ import inspection "custos/internal/inspection/rules/example"
 func All() []any { return []any{inspection.New()} }
 `,
 		"cmd/custos/main.go": "package main\nimport \"custos/internal/cli\"\nfunc main(){cli.Run()}",
-		"specs/Example.md":   "# Example\n",
-		"internal/inspection/rules/example/testdata/basic.php": "<?php\n",
-		"internal/ignored_test.go":                             "not Go; test files are excluded",
-		"internal/asset.txt":                                   "asset",
+		"specs/Example.md":   "---\nkind: syntax\n---\n# Example\n\n## Options\n\nNone.\n",
+		"internal/inspection/rules/example/testdata/basic.php":                       "<?php\n",
+		"internal/inspection/rules/example/testdata/old.json":                        `{"php": "7.4", "options": {"STRICT": true}}`,
+		"internal/inspection/rules/example/testdata/old.php":                         "<?php\n",
+		"internal/inspection/rules/example/testdata/manifest/composer.json":          "{}",
+		"internal/inspection/rules/example/testdata/configured/composer.json":        "{}",
+		"internal/inspection/rules/example/testdata/configured/composer.config.json": `{"php": "8.1"}`,
+		"internal/ignored_test.go":                                                   "not Go; test files are excluded",
+		"internal/asset.txt":                                                         "asset",
 	} {
 		write(t, root, path, src)
 	}
@@ -70,9 +76,25 @@ func TestViolations(t *testing.T) {
 		{"duplicate registration", "internal/inspection/catalogue/catalogue.go", "package catalogue\nimport \"custos/internal/inspection/rules/example\"\nfunc All() []any{return []any{example.New(),example.New()}}", "exactly once (got 2)"},
 		{"missing implementation", "internal/inspection/meta/rules.json", `[{"id":"Missing"}]`, "implementation missing"},
 		{"empty ID", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()string{ return \"\" }\nfunc New()any{return rule{}}", "unknown inspection ID"},
+		{"spec budget", "specs/Example.md", "# Example\nStops at the analysis budget.\n", "move \"analysis budget\""},
+		{"spec path", "specs/Example.md", "# Example\nListed in `testdata/ea-divergences.json`.\n", "move \"`testdata/\""},
+		{"spec Go file", "specs/Example.md", "# Example\nSee rule.go.\n", "move \"rule.go\""},
 		{"missing fixture", "internal/inspection/rules/example/testdata/basic.php", "fixture", ""},
 		{"opaque ID", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()string{ if true {return}; return name }\nfunc (rule) OtherID()int{return 1}", "implementation missing"},
 		{"numeric ID", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()int{return 123}", "implementation missing"},
+		{"missing package comment", "internal/inspection/rules/example/rule.go", "package example\nimport \"custos/internal/inspection/analysis\"\ntype rule struct{}\nfunc (rule) ID() string { return \"Example\" }\nfunc New() analysis.Rule { return rule{} }", "package comment missing"},
+		{"free package comment", "internal/inspection/rules/example/doc.go", "// Package example checks things.\npackage example", "package comment must start with \"Package example implements the Example inspection.\""},
+		{"native package comment on EA rule", "internal/inspection/rules/example/doc.go", "// Package example implements the native Example inspection.\npackage example", "package comment must start with"},
+		{"run-on package comment", "internal/inspection/rules/example/doc.go", "// Package example implements the Example inspection.More.\npackage example", "package comment must start with"},
+		{"positive fixture", "internal/inspection/rules/example/testdata/positive.php", "<?php\n", "testdata/positive.php: rename the fixture to basic"},
+		{"negative fixture", "internal/inspection/rules/example/testdata/negative.php", "<?php\n", "testdata/negative.php: rename the fixture to false-positives"},
+		{"valid fixture fix", "internal/inspection/rules/example/testdata/valid.fixed.php", "<?php\n", "testdata/valid.fixed.php: rename the fixture to false-positives"},
+		{"negative sidecar", "internal/inspection/rules/example/testdata/negative.json", `{"php": "8.1"}`, "testdata/negative.json: rename the fixture to false-positives"},
+		{"empty sidecar", "internal/inspection/rules/example/testdata/old.json", "{ }", "testdata/old.json: empty sidecar; delete it"},
+		{"empty options", "internal/inspection/rules/example/testdata/old.json", `{"php": "7.4", "options": {}}`, "testdata/old.json: empty options; remove the key"},
+		{"default PHP", "internal/inspection/rules/example/testdata/old.json", `{"php": "8.4", "options": {"STRICT": true}}`, `testdata/old.json: php "8.4" is the default; remove the key`},
+		{"invalid sidecar", "internal/inspection/rules/example/testdata/old.json", `{"php":`, "testdata/old.json: invalid sidecar"},
+		{"empty manifest settings", "internal/inspection/rules/example/testdata/configured/composer.config.json", "{}", "testdata/configured/composer.config.json: empty sidecar"},
 		{"catalogue expression", "internal/inspection/catalogue/catalogue.go", "package catalogue\nimport \"custos/internal/inspection/rules/example\"\nfunc All() []any { f(); example.Other(); factory.New().New(); return nil }", "exactly once"},
 	}
 	for _, tc := range cases {
@@ -110,8 +132,10 @@ func TestMissingArtifacts(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, "specs/Example.md"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(filepath.Join(root, "internal/inspection/rules/example/testdata/basic.php")); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"basic.php", "old.php"} {
+		if err := os.Remove(filepath.Join(root, "internal/inspection/rules/example/testdata", name)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	write(t, root, "internal/inspection/rules/example/testdata/readme.txt", "empty")
 	if err := os.Mkdir(filepath.Join(root, "internal/inspection/rules/example/testdata/subdir.php"), 0o755); err != nil {
@@ -197,6 +221,11 @@ func TestNativeCatalogue(t *testing.T) {
 	root := layout(t)
 	write(t, root, "internal/inspection/meta/rules.json", `[]`)
 	write(t, root, "internal/inspection/meta/native-rules.json", `[{"id":"Example"}]`)
+	if problems, err := check(root); err != nil || len(problems) != 1 || !strings.Contains(problems[0], "implements the native Example inspection.") {
+		t.Fatalf("native catalogue without native comment: %v, %v", problems, err)
+	}
+	write(t, root, "internal/inspection/rules/example/doc.go", "// Package example implements the native Example inspection.\npackage example\n")
+	write(t, root, "internal/inspection/rules/example/rule.go", "package example\nimport \"custos/internal/inspection/analysis\"\ntype rule struct{}\nfunc (rule) ID() string { return \"Example\" }\nfunc New() analysis.Rule { return rule{} }\n")
 	if problems, err := check(root); err != nil || len(problems) != 0 {
 		t.Fatalf("native catalogue: %v, %v", problems, err)
 	}
@@ -327,5 +356,95 @@ func use() { flowquery.Walk() }
 	}
 	if len(single) != 1 || !strings.HasPrefix(single[0], "internal/inspection/astquery/query.go: Walk is used only by internal/inspection/rules/one") {
 		t.Fatalf("%v", single)
+	}
+}
+
+// A spec's kind follows the marker methods of the type declaring the
+// rule's ID; markers on another type of the package do not count.
+func TestSpecKind(t *testing.T) {
+	const rule = "// Package example implements the Example inspection.\npackage example\nimport \"custos/internal/inspection/analysis\"\ntype rule struct{}\ntype other struct{}\nfunc New() analysis.Rule { return rule{} }\nfunc (other) Flow() {}\n"
+	cases := []struct{ name, methods, kind, want string }{
+		{"syntax", "func (rule) ID() string { return \"Example\" }\n", "syntax", ""},
+		{"semantic", "func (rule) ID() string { return \"Example\" }\nfunc (rule) Semantic() {}\n", "semantic", ""},
+		{"flow on pointer", "func (*rule) ID() string { return \"Example\" }\nfunc (*rule) Semantic() {}\nfunc (*rule) Flow() {}\n", "flow", ""},
+		{"stale syntax", "func (rule) ID() string { return \"Example\" }\nfunc (rule) Semantic() {}\n", "syntax", `Example: specification kind "syntax", code calls for "semantic"`},
+		{"stale semantic", "func (rule) ID() string { return \"Example\" }\nfunc (rule) Semantic() {}\nfunc (rule) Flow() {}\n", "semantic", `Example: specification kind "semantic", code calls for "flow"`},
+		{"missing", "func (rule) ID() string { return \"Example\" }\n", "", `Example: specification kind "", code calls for "syntax"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := layout(t)
+			write(t, root, "internal/inspection/rules/example/rule.go", rule+tc.methods)
+			spec := "# Example\n"
+			if tc.kind != "" {
+				spec = "---\nkind: " + tc.kind + "\n---\n" + spec
+			}
+			write(t, root, "specs/Example.md", spec)
+			problems, err := check(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Join(problems, "\n"); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSpecOptions(t *testing.T) {
+	cases := []struct{ options, want string }{
+		{"None.", ""},
+		{"| Option | Type | Default | Effect |\n|---|---|---|---|\n| A | bool | true | Reports empty bodies. |", ""},
+		{"| Option | Type | Default | Effect |\n| --- | --- | --- | --- |", "empty table"},
+		{"| A | bool | true | Enables D2. |", "refers to D2"},
+		{"Comparison style selects the operand order of F1.", "refers to F1"},
+	}
+	for _, tc := range cases {
+		problems := specProblems("---\nkind: syntax\n---\n# Example\n\n## Options\n\n"+tc.options+"\n\n## PHP versions\n\nNo gating (D1).\n", "syntax")
+		got := strings.Join(problems, "\n")
+		if tc.want == "" && got != "" || !strings.Contains(got, tc.want) || tc.want != "" && len(problems) != 1 {
+			t.Errorf("%q: %v", tc.options, problems)
+		}
+	}
+}
+
+func TestVersionOrdering(t *testing.T) {
+	root := layout(t)
+	write(t, root, "internal/inspection/rules/example/gate.go", `package example
+import phpversion "custos/internal/php/version"
+var v phpversion.Version
+var (
+	_ = v < phpversion.PHP80
+	_ = phpversion.PHP74 <= v
+	_ = v.AtLeast(phpversion.PHP80) && v == phpversion.PHP53 && v+1 > 2
+	_ = other.Limit > v
+)
+`)
+	write(t, root, "internal/semantic/infer/gate.go", "package infer\nimport phpversion \"custos/internal/php/version\"\nvar _ = 1 < phpversion.PHP80\n")
+	problems, err := check(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "internal/inspection/rules/example/gate.go:5: compare PHP versions with AtLeast or Below\ninternal/inspection/rules/example/gate.go:6: compare PHP versions with AtLeast or Below"
+	if got := strings.Join(problems, "\n"); got != want {
+		t.Fatalf("%v", problems)
+	}
+}
+
+func TestReceiver(t *testing.T) {
+	for src, want := range map[string]string{
+		"func f() {}":              "",
+		"func (r rule) f() {}":     "rule",
+		"func (r *rule) f() {}":    "rule",
+		"func (r rule[T]) f() {}":  "",
+		"func (r pkg.Rule) f() {}": "",
+	} {
+		file, err := parser.ParseFile(token.NewFileSet(), "test.go", "package example\n"+src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := receiver(file.Decls[0].(*ast.FuncDecl)); got != want {
+			t.Errorf("%s: %q", src, got)
+		}
 	}
 }

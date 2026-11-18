@@ -36,3 +36,4 @@ function shortCircuitMode(bool $both) {
 $g = new SplPriorityQueue(); $g->insert('task', 5);
 if ($argc > 1) { $g->setExtractFlags(SplPriorityQueue::EXTR_BOTH); }
 echo $argc > 1 ? $g->top()['priority'] : '';
+$q = new SplPriorityQueue(); $q->setExtractFlags(SplPriorityQueue::EXTR_BOTH); $q->insert("task", 5); $q->extract()["priority"];

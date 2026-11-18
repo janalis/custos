@@ -67,9 +67,7 @@ Reported:
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
-| (none) | | | Driven by the global comparison style setting (`comparisonStyle`: `regular` default, or `yoda`). |
+None. Driven by the global comparison style setting (`comparisonStyle`: `regular` default, or `yoda`).
 
 ## Configure
 

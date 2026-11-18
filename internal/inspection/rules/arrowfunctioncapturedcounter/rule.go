@@ -20,7 +20,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KArrowFunction} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	arrow := n.(*syntax.ArrowFunction)
-	if ctx.PHP < phpversion.PHP74 {
+	if ctx.PHP.Below(phpversion.PHP74) {
 		return
 	}
 	inc, ok := syntax.UnwrapParens(arrow.Expr).(*syntax.IncDec)

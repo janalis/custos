@@ -102,3 +102,4 @@ function nestedVariableRewritten(): string
 
     return json_encode(['a' => $tags], JSON_FORCE_OBJECT);
 }
+json_encode(["a","b"],JSON_FORCE_OBJECT); json_encode(["tags"=>[]],JSON_FORCE_OBJECT);

@@ -1,9 +1,9 @@
 ---
 id: RuleID
 group: Code style
-kind: syntax            # syntax | semantic
+kind: syntax            # syntax | semantic (project symbol index) | flow (cross-file callable summaries)
 needs: []               # any of: names, index, hierarchy, types, flow, stubs, composer
-php: { min: "", max: "" }
+php: { min: "", max: "" }   # set only when the whole rule is inactive outside the range
 ---
 
 # RuleID
@@ -38,11 +38,16 @@ whitespace/comments are preserved. "None" if the rule has no fix.
 
 ## Options
 
+`None.` when the rule has no option; otherwise one row per option, its
+effect described in words (no D/E/F labels):
+
 | Option | Type | Default | Effect |
+|---|---|---|---|
+| NAME | bool | true | What turning it off changes. |
 
 ## PHP versions
 
-Gating and version-dependent behavior.
+Gating and version-dependent behavior; `No gating.` when there is none.
 
 ## Examples
 
@@ -61,4 +66,6 @@ in the fixture markup format:
 
 ## Divergences
 
-Intentional differences from upstream behavior, with reason. Empty if none.
+Intentional differences from upstream behavior, with reason. A native rule
+starts with: Native custos inspection, independently specified; no EA
+counterpart or EA conformance requirement.

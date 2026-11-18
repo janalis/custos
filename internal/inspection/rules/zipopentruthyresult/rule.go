@@ -14,6 +14,7 @@ const message = "Accept only true from ZipArchive::open."
 
 type rule struct{}
 
+// New returns the ZipOpenTruthyResult inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ZipOpenTruthyResult" }
 func (rule) Semantic()                {}

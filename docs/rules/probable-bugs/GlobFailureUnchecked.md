@@ -48,7 +48,7 @@ unchecked result.
 - Report glob result directly or through a proven alias consumed by foreach or array-only operations without excluding false.
 - Array-only operations are calls to these builtins with the glob result as their array argument, positionally or by name: `count`, `sizeof`, `array_map`, `array_filter`, `array_values`, `array_keys`, `array_reverse`, `array_slice`, `array_unique`, `array_flip`, `array_sum`, `array_product`, `array_column`, `array_chunk`, `array_key_first`, `array_key_last`, `array_is_list`, `array_rand`, `array_key_exists`, `in_array`, `array_search`, `implode`, `join`, `array_combine`, `array_fill_keys`, and the first array of `array_merge`, `array_diff` and `array_intersect`. They throw a `TypeError` for false since PHP 8.0 and warn with a meaningless result before. Each unguarded use is reported on its own.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -66,10 +66,6 @@ No automatic fix: failure and an empty match set must remain distinguishable unl
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

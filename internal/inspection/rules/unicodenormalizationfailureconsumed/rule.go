@@ -12,6 +12,7 @@ const message = "Check normalization before consuming text."
 
 type rule struct{}
 
+// New returns the UnicodeNormalizationFailureConsumed inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "UnicodeNormalizationFailureConsumed" }
 func (rule) Semantic()                {}
@@ -30,7 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if f, ok := origin.(*syntax.FuncCall); ok {
 		valid = semanticquery.NativeBuiltin(ctx, f, "normalizer_normalize")
 	}
-	valid = valid || semanticquery.ExpansionCStatic(ctx, origin, "Normalizer", "normalize")
+	valid = valid || semanticquery.BuiltinStaticCall(ctx, origin, "Normalizer", "normalize")
 	if valid && !ctx.Flow().Excludes(input, "false") && (semanticquery.NativeFailureFlowOnly(ctx, input) || !semanticquery.NativeNarrowedExcludes(ctx, input, types.Of("string", "false"), "false")) {
 		ctx.ReportNode(c, message)
 	}

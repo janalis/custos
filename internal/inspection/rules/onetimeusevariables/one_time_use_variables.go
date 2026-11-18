@@ -136,7 +136,7 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 
-	if _, isNew := val.(*syntax.New); isNew && ctx.PHP < phpversion.PHP54 { // D9
+	if _, isNew := val.(*syntax.New); isNew && ctx.PHP.Below(phpversion.PHP54) { // D9
 		return
 	}
 

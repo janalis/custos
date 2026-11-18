@@ -1,7 +1,7 @@
 ---
 id: RepeatedHtmlEntityEncoding
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Detect htmlspecialchars or htmlentities directly nesting an equivalent encoding 
 
 - D1. Report htmlspecialchars or htmlentities directly nesting an equivalent encoding call with matching flags/encoding and default or true double_encode.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -36,7 +36,7 @@ No automatic fix: repeated encoding can intentionally display entity syntax.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -51,4 +51,4 @@ echo <warning descr="Encode HTML entities at one intended output boundary.">html
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -18,6 +18,7 @@ const message = "Guard the unmatched optional capture or request null placeholde
 
 type rule struct{}
 
+// New returns the OptionalRegexCaptureReadWithoutNullFlag inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "OptionalRegexCaptureReadWithoutNullFlag" }
 func (rule) Semantic()                {}

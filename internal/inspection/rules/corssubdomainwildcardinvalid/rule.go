@@ -14,6 +14,7 @@ const message = "Send a concrete CORS origin."
 
 type rule struct{}
 
+// New returns the CorsSubdomainWildcardInvalid inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CorsSubdomainWildcardInvalid" }
 func (rule) Semantic()                {}
@@ -24,7 +25,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	key, value, _, known := semanticquery.ExpansionHeader(ctx, c)
+	key, value, _, known := semanticquery.LiteralHeader(ctx, c)
 	if known && key == "access-control-allow-origin" && value != "*" && strings.Contains(value, "*") {
 		ctx.ReportNode(c, message)
 	}

@@ -1,4 +1,5 @@
-// Package invalidargumenttype implements the InvalidArgumentType inspection.
+// Package invalidargumenttype implements the native InvalidArgumentType
+// inspection.
 package invalidargumenttype
 
 import (

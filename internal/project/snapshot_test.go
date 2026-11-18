@@ -102,7 +102,12 @@ func TestSnapshotRejectsHostileInputs(t *testing.T) {
 		})
 	}
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "custos.json"), []byte(`{"baseline":"missing.json"}`), 0o600); err != nil {
+	// A baseline that cannot be read (here a directory) is an error; one
+	// not generated yet is not (TestSnapshotBaselineNotGeneratedYet).
+	if err := os.WriteFile(filepath.Join(dir, "custos.json"), []byte(`{"baseline":"bl"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "bl"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	root, err := os.OpenRoot(dir)
@@ -111,7 +116,7 @@ func TestSnapshotRejectsHostileInputs(t *testing.T) {
 	}
 	defer root.Close()
 	if _, err := BuildSnapshot(context.Background(), root, []analysis.Rule{nestednotoperators.New()}, nil, nil); err == nil {
-		t.Fatal("missing baseline")
+		t.Fatal("unreadable baseline")
 	}
 	file, err := os.Create(filepath.Join(dir, "large.php"))
 	if err != nil {
@@ -436,8 +441,8 @@ func TestSnapshotExcludeRelativeToScannedPath(t *testing.T) {
 	}
 }
 
-// Declaration files below a scanned path are indexed, not analysed; a named
-// one is analysed.
+// Declaration files below a scanned path are indexed, not analyzed; a named
+// one is analyzed.
 func TestSnapshotSkipsDeclarationFiles(t *testing.T) {
 	dir := t.TempDir()
 	for name, text := range map[string]string{
@@ -470,5 +475,32 @@ func TestSnapshotSkipsDeclarationFiles(t *testing.T) {
 	s, err = BuildSnapshot(context.Background(), root, rules, []string{"src/ext.stub.php"}, nil)
 	if err != nil || len(s.Results) != 1 {
 		t.Fatal(s, err)
+	}
+}
+
+// A baseline custos.json names but no run generated yet suppresses
+// nothing, as on the command line; creating it changes the inputs.
+func TestSnapshotBaselineNotGeneratedYet(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "custos.json"), `{"baseline":"bl.json","rules":{"NestedNotOperators":{"enabled":true}}}`)
+	writeFile(t, filepath.Join(dir, "a.php"), "<?php $ok=!!!$x;")
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	s, err := BuildSnapshot(context.Background(), root, []analysis.Rule{nestednotoperators.New()}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Recorded != nil || len(s.Results) != 1 || len(s.Results[0].Findings) != 1 {
+		t.Fatalf("recorded %v, results %+v", s.Recorded, s.Results)
+	}
+	if changed, err := ChangedInputs(context.Background(), s); err != nil || len(changed) != 0 {
+		t.Fatal(changed, err)
+	}
+	writeFile(t, filepath.Join(dir, "bl.json"), `{"version":1,"entries":[]}`)
+	if changed, err := ChangedInputs(context.Background(), s); err != nil || len(changed) != 1 || changed[0] != "bl.json" {
+		t.Fatal(changed, err)
 	}
 }

@@ -179,7 +179,7 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   Overridden methods are still reported, but without a fix and with a message
   that recommends changing the whole hierarchy.
 - **D13a** (custos) A missing or unavailable descendant dependency, duplicate
-  descendant declaration, or exhausted hierarchy budget cannot prove that no
+  descendant declaration, or a hierarchy too large to analyze cannot prove that no
   replacement exists. Keep the suggestion, withhold the one-click fix and use
   the hierarchy-refactoring message. Include composed trait methods and aliases
   when enumerating descendant replacements.
@@ -541,5 +541,3 @@ abstract class Node {
   the trait's own ancestors and offers the fix. custos reports abstract
   trait methods as overridden and withholds the fix from trait methods
   that are neither `final` nor `private` (D13b).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

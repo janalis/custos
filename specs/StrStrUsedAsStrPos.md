@@ -134,9 +134,7 @@ on that path (`C` itself or its outermost wrapping parenthesis).
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
-| (none) | | | Operand order in the fix follows the global comparison style (`regular` default / `yoda`). |
+None. Operand order in the fix follows the global comparison style (`regular` default / `yoda`).
 
 ## PHP versions
 

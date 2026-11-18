@@ -144,5 +144,3 @@ key($s->plain());
   longer resolvable. Returning by reference from the outer method does not
   prevent its writes to reference arguments. Own fixtures also require all
   five warning forms after a fresh receiver assignment restores its class.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

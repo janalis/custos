@@ -1,4 +1,5 @@
-// Package domlivenodelistremovalskipsnodes implements DomLiveNodeListRemovalSkipsNodes.
+// Package domlivenodelistremovalskipsnodes implements the native
+// DomLiveNodeListRemovalSkipsNodes inspection.
 package domlivenodelistremovalskipsnodes
 
 import (
@@ -12,6 +13,7 @@ const message = "Remove live DOM matches without skipping shifted nodes."
 
 type rule struct{}
 
+// New returns the DomLiveNodeListRemovalSkipsNodes inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DomLiveNodeListRemovalSkipsNodes" }
 func (rule) Semantic()                {}
@@ -128,5 +130,5 @@ func compensated(rest []syntax.Stmt, index string) bool {
 }
 
 func same(ctx *analysis.Context, a, b syntax.Expr) bool {
-	return semanticquery.ExpansionSameObject(ctx, a, b)
+	return semanticquery.SameLocalObject(ctx, a, b)
 }

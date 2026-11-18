@@ -1,4 +1,5 @@
-// Package xpathqueryfailuredereferenced implements XPathQueryFailureDereferenced.
+// Package xpathqueryfailuredereferenced implements the native
+// XPathQueryFailureDereferenced inspection.
 package xpathqueryfailuredereferenced
 
 import (
@@ -12,6 +13,7 @@ const message = "Check the XPath query result before accessing its nodes."
 
 type rule struct{}
 
+// New returns the XPathQueryFailureDereferenced inspection.
 func New() analysis.Rule { return rule{} }
 func (rule) ID() string  { return "XPathQueryFailureDereferenced" }
 func (rule) Semantic()   {}

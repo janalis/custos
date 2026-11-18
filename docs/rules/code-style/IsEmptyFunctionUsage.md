@@ -143,7 +143,7 @@ Reported:
 | SUGGEST_NULL_COMPARISON_FOR_SCALARS | bool | true | Extends the null comparison to nullable int, float, bool and resource values; nullable objects only need the previous option. |
 
 Global setting: comparison style (`regular` default / `yoda`) selects the
-operand order of F1/F2.
+operand order of the comparisons the quick-fix writes.
 
 ## Configure
 

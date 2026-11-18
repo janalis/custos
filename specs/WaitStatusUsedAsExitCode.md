@@ -1,9 +1,9 @@
 ---
 id: WaitStatusUsedAsExitCode
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # WaitStatusUsedAsExitCode
@@ -18,7 +18,7 @@ This is an opt-in policy. Truthiness, previous-state checks, raw wait-status com
 
 - D1. Track unchanged output status from preceding local pcntl_wait/pcntl_waitpid. Report direct equality/ordering against a right-hand constant integer 1 through 255. Comparisons to zero, bit masks, decoder functions, swapped operands and unknown provenance are excluded.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 - D4. The status variable counts as unchanged only when nothing between the wait call and the comparison can give it another value. Any of these removes proof: plain or compound assignment, `++`/`--`, a position in an array or `list()` destructuring target, a `foreach` key or value target, `unset()`, a `global` or `static` declaration, a `catch` variable, an element or property write through the variable, binding it to a reference (`$alias = &$status`) and a by-reference closure capture. When the comparison sits in a loop that started after the wait call, a write anywhere in that loop counts too, because a later iteration compares the rewritten value. Reads, copies and by-value captures do not remove proof.
 
 ## Exceptions (no report)
@@ -64,4 +64,4 @@ $pid=pcntl_waitpid($child,$status); if ($pid>0 && pcntl_wifexited($status) && pc
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

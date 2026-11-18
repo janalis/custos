@@ -123,7 +123,7 @@ func TestFlowBuildUpdateMatchesFullBuild(t *testing.T) {
 		path := filepath.Join(root, edit.name)
 		current[path] = edit.src
 		ix.Add(ExtractSymbols(path, []byte(edit.src), opt, infer.Options{}))
-		next, ok := build.Update(map[string][]byte{path: []byte(edit.src)}, ix)
+		next, ok := build.Update(context.Background(), map[string][]byte{path: []byte(edit.src)}, ix)
 		if !ok {
 			t.Fatalf("step %d: update refused", step)
 		}
@@ -139,7 +139,7 @@ func TestFlowBuildUpdateMatchesFullBuild(t *testing.T) {
 		}
 		build = next
 	}
-	if _, ok := build.Update(map[string][]byte{filepath.Join(root, "new.php"): []byte("<?php")}, ix); ok {
+	if _, ok := build.Update(context.Background(), map[string][]byte{filepath.Join(root, "new.php"): []byte("<?php")}, ix); ok {
 		t.Fatal("update accepted a file outside the build")
 	}
 	if len(build.Files()) != len(files) {
@@ -165,7 +165,7 @@ func TestFlowBuildUpdateSelfRecursionAndUnreadable(t *testing.T) {
 		{other, "<?php function shell($c): void { echo $c; }"},
 	} {
 		ix.Add(ExtractSymbols(edit.path, []byte(edit.src), opt, infer.Options{}))
-		next, ok := build.Update(map[string][]byte{edit.path: []byte(edit.src)}, ix)
+		next, ok := build.Update(context.Background(), map[string][]byte{edit.path: []byte(edit.src)}, ix)
 		if !ok {
 			t.Fatal("update refused")
 		}
@@ -214,7 +214,7 @@ func TestFlowBuildStopsWhenCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if s := BuildFlowSnapshot(ctx, []string{path}, nil, opt, ix, flow.Options{}); s == nil || !s.Equal(flow.NewSnapshotWithOptions(flow.Options{})) {
-		t.Fatal("a cancelled build summarized files")
+		t.Fatal("a canceled build summarized files")
 	}
 }
 
@@ -329,7 +329,7 @@ func TestFlowBuildUpdateKeepsOrder(t *testing.T) {
 		build *FlowBuild
 		whole bool
 	}{{plain, false}, {BuildFlowOrdered(context.Background(), files, nil, opt, ix, flow.Options{}, plain.Order()), true}} {
-		next, ok := tc.build.Update(edit, ix)
+		next, ok := tc.build.Update(context.Background(), edit, ix)
 		if !ok || (next.order != nil) != tc.whole || slices.Contains(next.results, nil) || !next.Snapshot.Equal(plain.Snapshot) {
 			t.Fatalf("ordered %v: update ok=%v ordered=%v dropped=%v", tc.whole, ok, next.order != nil, slices.Contains(next.results, nil))
 		}

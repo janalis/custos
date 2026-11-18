@@ -518,7 +518,7 @@ func putInstanceof(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) 
 	var cd string
 	noFix := false
 	if nm, ok := io.Class.(*syntax.Name); ok {
-		if ctx.PHP >= phpversion.PHP55 {
+		if ctx.PHP.AtLeast(phpversion.PHP55) {
 			cd = nm.Value + "::class"
 		} else {
 			fqn := phpunit.PuResolveClassName(ctx, nm)
@@ -578,7 +578,7 @@ func putGetClass(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (p
 	exact := cls != nil && cls.FQN == lit && (cls.Final || cls.Kind == syntax.KindEnum)
 	fq := `\` + strings.TrimPrefix(lit, `\`) // divergence: no double leading backslash
 	var cd string
-	if ctx.PHP >= phpversion.PHP55 {
+	if ctx.PHP.AtLeast(phpversion.PHP55) {
 		cd = fq + "::class"
 	} else {
 		cd = "'" + strings.ReplaceAll(fq, `\`, `\\`) + "'"

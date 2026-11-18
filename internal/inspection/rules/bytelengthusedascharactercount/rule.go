@@ -1,4 +1,5 @@
-// Package bytelengthusedascharactercount implements the ByteLengthUsedAsCharacterCount inspection.
+// Package bytelengthusedascharactercount implements the native
+// ByteLengthUsedAsCharacterCount inspection.
 package bytelengthusedascharactercount
 
 import (
@@ -13,6 +14,7 @@ import (
 
 type rule struct{}
 
+// New returns the ByteLengthUsedAsCharacterCount inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ByteLengthUsedAsCharacterCount" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }

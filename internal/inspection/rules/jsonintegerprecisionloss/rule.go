@@ -70,7 +70,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !large(data) {
 		return
 	}
-	if ctx.PHP < phpversion.PHP54 {
+	if ctx.PHP.Below(phpversion.PHP54) {
 		ctx.ReportNode(call, message)
 		return
 	}

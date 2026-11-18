@@ -131,7 +131,7 @@ func priorCalls(ctx *analysis.Context, at syntax.Node, h syntax.Expr) []*syntax.
 	if !ok || variable.Name == "" {
 		return nil // A variable variable names no single handle.
 	}
-	for _, event := range semanticquery.ExpansionDLocalEvents(ctx, at) {
+	for _, event := range semanticquery.LocalEvents(ctx, at) {
 		if event.Span().Start >= at.Span().Start {
 			break
 		}

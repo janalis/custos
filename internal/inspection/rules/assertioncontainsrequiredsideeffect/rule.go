@@ -1,4 +1,5 @@
-// Package assertioncontainsrequiredsideeffect implements AssertionContainsRequiredSideEffect.
+// Package assertioncontainsrequiredsideeffect implements the native
+// AssertionContainsRequiredSideEffect inspection.
 package assertioncontainsrequiredsideeffect
 
 import (
@@ -14,6 +15,7 @@ const message = "Move required assignments outside assertions."
 
 type rule struct{}
 
+// New returns the AssertionContainsRequiredSideEffect inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "AssertionContainsRequiredSideEffect" }
 func (rule) Semantic()                {}

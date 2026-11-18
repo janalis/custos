@@ -12,7 +12,7 @@ import (
 // TestHostileRepository runs analyse and fix on a repository whose files try
 // to make custos read devices or write outside the project: a .php symlink
 // to /dev/zero and one to a file outside the project, never discovered, a
-// .php symlink inside the project, analysed but never written through, and
+// .php symlink inside the project, analyzed but never written through, and
 // a custos.json baseline escaping the root.
 func TestHostileRepository(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -41,7 +41,7 @@ func TestHostileRepository(t *testing.T) {
 			t.Errorf("fix stderr: %s", stderr)
 		}
 		_, out, _ := runCLI(t, "analyse", "--rule", "NestedNotOperators", dir)
-		if strings.Contains(out, "zero.php") || strings.Contains(out, "link.php") || !strings.Contains(out, "2 file(s) analysed") {
+		if strings.Contains(out, "zero.php") || strings.Contains(out, "link.php") || !strings.Contains(out, "2 file(s) analyzed") {
 			t.Errorf("analyse output: %s", out)
 		}
 	}()

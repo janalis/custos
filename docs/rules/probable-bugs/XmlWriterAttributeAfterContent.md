@@ -16,7 +16,7 @@ Identify writeAttribute or startAttribute on same resolved XMLWriter after text/
 
 - Report writeAttribute or startAttribute on same resolved XMLWriter after text/writeElement in its current element, with no new startElement or endElement. Maintain bounded local element stack; unknown writer calls invalidate state.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

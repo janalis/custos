@@ -5,6 +5,76 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `analyse` keeps each checked file's findings in the cache and reports them
+  again, without checking the file, while nothing they depend on changed.
+  On laravel/framework, a run with nothing changed used about 87% less CPU
+  than a run without the cache (2.3 s against 17–19 s), and a run after an
+  edit inside a function body that keeps what it does for its callers about
+  as little. Findings are the same; `--no-cache` turns it off with the rest
+  of the cache.
+- `--cpuprofile` labels the samples taken while a rule runs with the rule's
+  ID, so `go tool pprof -tags` shows the time each rule takes.
+
+### Changed
+
+- Sixteen rules that trust a local variable's resolved value
+  (ArrayFillNegativeCount, ArrayRandInvalidCount,
+  CollatorSortDiscardsRequiredKeys, CompressionDecoderFormatMismatch,
+  CompressionLevelOutsideSupportedRange, ExplodeEmptySeparator,
+  GdImageDimensionsNotPositive, GmpAutomaticBaseChangesDecimalInput,
+  GmpDivisionByKnownZero, IntlCalendarSecondsPassedAsMilliseconds,
+  ZipEntryIndexPastEnd and the five request-data rules UntrustedHeaderValue,
+  UntrustedNetworkDestination, UntrustedShellCommand,
+  UntrustedSqlConstruction and UnvalidatedRedirectTarget) now share one
+  definition of the bindings that can change it behind its assignments, the
+  union of what each checked before: `++`/`--` on it or an element, `catch`,
+  `foreach`, `global` and `static` bindings, references (assignments,
+  `foreach`, array items, captures, by-reference arguments), writes through
+  variable variables, `extract()`, one-argument `parse_str()`,
+  `include`/`require`, `eval` and `$GLOBALS`, also through the locals
+  assigned into it. A rule no longer trusts the value in such scopes where it
+  did before; a two-argument `parse_str()` into another variable, a
+  namespaced function named `extract()`, or (for ArrayRandInvalidCount) a
+  write inside a nested function, no longer withdraws the proof.
+- The rule reference and `custos explain` state each rule's PHP range as the
+  rule applies it: ArrayColumnMissingField runs from PHP 5.5,
+  UnpackedNamedArgumentCollision from PHP 8.1 and SimpleXmlLoadFileUsage up
+  to PHP 7.4, and rules that run at every supported version no longer show
+  "PHP ≥ 5.3". Rules without options no longer list an empty options
+  section. Findings are the same.
+- Output, messages and docs use US spelling: the text report ends with
+  "file(s) analyzed", and files skipped for size or nesting depth are
+  reported as "not analyzed". The `analyse` command keeps its name.
+- The cache also keeps the declarations of the checked files, trusted while
+  a file's content is the same, so a later run parses only the checked files
+  that changed to index them. On laravel/framework, a run with nothing
+  changed used about a third less CPU (1.6–1.9 s against 2.4–2.8 s), for a
+  cache about 8 MB larger.
+- The language server stops an index or cross-file flow build as soon as a
+  later one replaces it (a configuration change, an edit to declarations),
+  instead of finishing it and discarding the result.
+
+### Fixed
+
+- A file named on the command line both relatively and absolutely (or once
+  more through its directory written another way) is analyzed and fixed
+  once, not twice.
+- The MCP server follows data through dependency functions again when it
+  does not run from the workspace root: it looked for the vendor files
+  relative to its own working directory, found none, and missed findings
+  such as request data reaching a shell command through a library call.
+- `analyse`, `fix` and the language server index the declarations of
+  `*.stub.php` and `*.api.php` files found below a scanned path, as the
+  documentation and the MCP server do: classes and functions declared only
+  there are known to the other files again. These files are still not
+  analyzed.
+- The MCP server no longer fails every analysis when `custos.json` names a
+  baseline that was not generated yet: like `analyse` and the language
+  server, it then suppresses nothing, and picks the file up once it exists.
+  The language server no longer logs an error in that case.
+
 ## [0.1.15] - 2026-11-17
 
 ### Changed

@@ -468,7 +468,7 @@ func tucSafePart(ctx *analysis.Context, p string) bool {
 	case "string", "null", "array":
 		return true
 	case "int", "float":
-		return ctx.PHP >= phpversion.PHP80
+		return ctx.PHP.AtLeast(phpversion.PHP80)
 	}
 	return false
 }
@@ -669,7 +669,7 @@ func tucComputeStable(ctx *analysis.Context, scope syntax.Node, facts *tucScope,
 	return !via || defs <= 1
 }
 
-// tucScopeFacts summarises scope in one walk, cached per scope.
+// tucScopeFacts summarizes scope in one walk, cached per scope.
 func tucScopeFacts(ctx *analysis.Context, scope syntax.Node) *tucScope {
 	return ctx.Memo("scope:"+strconv.FormatUint(uint64(scope.Span().Start), 10), func() any {
 		s := &tucScope{

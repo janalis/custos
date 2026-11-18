@@ -20,7 +20,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KWhile} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	loop := n.(*syntax.While)
-	if ctx.PHP < phpversion.PHP70 || !syntax.StrictTypes(ctx.File) {
+	if ctx.PHP.Below(phpversion.PHP70) || !syntax.StrictTypes(ctx.File) {
 		return
 	}
 	condition, ok := syntax.UnwrapParens(loop.Cond).(*syntax.Unary)

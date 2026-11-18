@@ -12,7 +12,7 @@ import (
 )
 
 // TestHostileConfig checks that malicious custos.json / composer.json files
-// (they come with the analysed repository) give errors or defaults, never
+// (they come with the analyzed repository) give errors or defaults, never
 // crashes, hangs or unbounded reads.
 func TestHostileConfig(t *testing.T) {
 	deep := strings.Repeat("[", 200000) + strings.Repeat("]", 200000)

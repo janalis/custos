@@ -98,10 +98,10 @@ func (e *Env) globals() map[string]bool {
 		}
 	}
 	// The request data those functions write reaches the file-level variable.
-	// The writers are analysed in source order, each once however many names
+	// The writers are analyzed in source order, each once however many names
 	// it binds. One that reads a global after a call saw what the writers
 	// before it leave only: when the request data written to a global
-	// changes, the writers bound to that global are analysed again with it,
+	// changes, the writers bound to that global are analyzed again with it,
 	// the others keeping their result, until nothing more is written. Each
 	// round carries the data one global further, so the rounds are bounded
 	// by the number of globals written, and by the scope transfer budget.
@@ -123,7 +123,7 @@ func (e *Env) globals() map[string]bool {
 }
 
 // forget drops the result of the writers bound to one of the globals named:
-// they are analysed again, in the next round or when they are asked for, and
+// they are analyzed again, in the next round or when they are asked for, and
 // with each the scopes around it, which read what it leaves in the variables
 // it captures. The other writers read none of what changed.
 func (e *Env) forget(writers []globalWriter, changed map[string]bool) {

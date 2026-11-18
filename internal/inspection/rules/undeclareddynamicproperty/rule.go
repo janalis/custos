@@ -1,4 +1,5 @@
-// Package undeclareddynamicproperty implements the UndeclaredDynamicProperty inspection.
+// Package undeclareddynamicproperty implements the native
+// UndeclaredDynamicProperty inspection.
 package undeclareddynamicproperty
 
 import (
@@ -14,6 +15,7 @@ import (
 
 type rule struct{}
 
+// New returns the UndeclaredDynamicProperty inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "UndeclaredDynamicProperty" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign} }
@@ -21,7 +23,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign}
 const message = "Declare this property before assigning it."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP82 {
+	if ctx.PHP.Below(phpversion.PHP82) {
 		return
 	}
 	assign := n.(*syntax.Assign)

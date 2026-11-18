@@ -22,7 +22,7 @@ func (isIterableCanBeUsed) Kinds() []syntax.NodeKind {
 }
 
 func (isIterableCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP71 { // E1
+	if ctx.PHP.Below(phpversion.PHP71) { // E1
 		return
 	}
 	call := n.(*syntax.FuncCall)
@@ -76,7 +76,7 @@ func (isIterableCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // pairFix returns the rewrite of the pair into one is_iterable() call (F1),
-// or nothing when the two halves are not neighbours in the `||` chain, the
+// or nothing when the two halves are not neighbors in the `||` chain, the
 // subject is not a plain variable or a comment sits inside the pair.
 func pairFix(ctx *analysis.Context, call *syntax.FuncCall, parent *syntax.Binary, arg syntax.Expr) []diagnostic.Fix {
 	v, ok := astquery.PlainVariableName(arg)

@@ -1,9 +1,9 @@
 ---
 id: NonblockingWaitZeroTreatedAsReaped
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # NonblockingWaitZeroTreatedAsReaped
@@ -16,7 +16,7 @@ Require a positive PID from nonblocking wait.
 
 - D1. Report direct or unchanged-local pcntl_waitpid result compared !=/!== -1, or >= 0, with an explicit resolved WNOHANG option. Zero indicates no available status. Other three-way handling and compound flags remain outside this literal-flag subset.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
@@ -76,4 +76,4 @@ function poll($pid) {
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -76,7 +76,7 @@ var pureBuiltins = func() map[string]bool {
 
 // unstable reports whether e cannot stand for "the same value" when it is
 // written twice: evaluating it has (or may have) a side effect, so the second
-// evaluation differs and removing one changes behaviour (E5), or it contains
+// evaluation differs and removing one changes behavior (E5), or it contains
 // a float zero literal, which is identical to but distinguishable from a
 // zero of the other sign (E6). Closure bodies are not evaluated in place.
 func unstable(ctx *analysis.Context, e syntax.Expr) bool {

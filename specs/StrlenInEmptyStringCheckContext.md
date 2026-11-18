@@ -143,9 +143,7 @@ an encoding argument is explicit.
 
 ## Options
 
-| Option | Type | Default | Effect |
-|--------|------|---------|--------|
-| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |
+None. Operand order follows the global comparison style (`regular` default / `yoda`).
 
 ## PHP versions
 
@@ -230,5 +228,3 @@ class Form
   `strlen()` counts as empty and `=== ''` does not (October CMS
   `Table::init()`, `!strlen($this->getConfig('dataSource'))`). Same policy
   as UnnecessaryCasting's PHPDoc-only types.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

@@ -1,7 +1,7 @@
 ---
 id: AmbiguousMethodsCallsInArrayMapping
 group: Performance
-kind: syntax
+kind: semantic
 needs: []
 php: { min: "", max: "" }
 ---

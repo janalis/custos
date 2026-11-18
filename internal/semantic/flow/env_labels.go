@@ -6,7 +6,7 @@ import (
 	"custos/internal/php/syntax"
 )
 
-// Labelled reports that a jump to a `goto` label can land between what a
+// Labeled reports that a jump to a `goto` label can land between what a
 // node reads and the node: what is written before the node need not have run
 // when it does, and only the facts of the paths that reach it say anything
 // about it. A label counts when it is written before the node and after the
@@ -20,16 +20,16 @@ import (
 // The node is the expression whose check is in question, not the statement
 // around it: the variables of a loop body or of an element key say nothing
 // about where the checked value was tested.
-func (e *Env) Labelled(at syntax.Node) bool {
+func (e *Env) Labeled(at syntax.Node) bool {
 	return e.LabelledBefore(at, at)
 }
 
-// LabelledBefore is Labelled for a value checked in one place and used in
+// LabelledBefore is Labeled for a value checked in one place and used in
 // another: the labels count up to use, the variables are the ones of checked.
 func (e *Env) LabelledBefore(checked, use syntax.Node) bool {
 	scope := syntax.EnclosingVariableScope(use)
 	r := e.scope(scope)
-	if r.labelled == 0 || r.labelled > use.Span().Start {
+	if r.labeled == 0 || r.labeled > use.Span().Start {
 		return false
 	}
 	if scope == nil {

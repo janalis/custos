@@ -181,7 +181,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ArgumentCountMismatch](./probable-bugs/ArgumentCountMismatch) | native | error | off |  | any |
 | [ArrayChunkInvalidSize](./probable-bugs/ArrayChunkInvalidSize) | native | error | on |  | any |
 | [ArrayColumnDuplicateIndexLoss](./probable-bugs/ArrayColumnDuplicateIndexLoss) | native | warning | on |  | any |
-| [ArrayColumnMissingField](./probable-bugs/ArrayColumnMissingField) | native | warning | off |  | any |
+| [ArrayColumnMissingField](./probable-bugs/ArrayColumnMissingField) | native | warning | off |  | PHP ≥ 5.5 |
 | [ArrayCombineLengthMismatch](./probable-bugs/ArrayCombineLengthMismatch) | native | error | on |  | any |
 | [ArrayCopyRetainsReferences](./probable-bugs/ArrayCopyRetainsReferences) | native | warning | off |  | any |
 | [ArrayDiffOnNestedArrays](./probable-bugs/ArrayDiffOnNestedArrays) | native | warning | on |  | any |
@@ -221,13 +221,13 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ClassMockingCorrectness](./probable-bugs/ClassMockingCorrectness) | EA | error | on |  | any |
 | [ClosureCapturedValueWrite](./probable-bugs/ClosureCapturedValueWrite) | native | warning | off |  | any |
 | [CodePointSliceSplitsGrapheme](./probable-bugs/CodePointSliceSplitsGrapheme) | native | warning | off |  | PHP ≥ 7.0 |
-| [CollatorComparisonTruthinessReversed](./probable-bugs/CollatorComparisonTruthinessReversed) | native | warning | off |  | PHP ≥ 5.3 |
-| [CollatorSortDiscardsRequiredKeys](./probable-bugs/CollatorSortDiscardsRequiredKeys) | native | warning | off | ✓ | PHP ≥ 5.3 |
+| [CollatorComparisonTruthinessReversed](./probable-bugs/CollatorComparisonTruthinessReversed) | native | warning | off |  | any |
+| [CollatorSortDiscardsRequiredKeys](./probable-bugs/CollatorSortDiscardsRequiredKeys) | native | warning | off | ✓ | any |
 | [CompactArguments](./probable-bugs/CompactArguments) | EA | error | on |  | any |
-| [CompressionDecoderFormatMismatch](./probable-bugs/CompressionDecoderFormatMismatch) | native | warning | on | ✓ | PHP ≥ 5.3 |
-| [CompressionLevelOutsideSupportedRange](./probable-bugs/CompressionLevelOutsideSupportedRange) | native | error | on |  | PHP ≥ 5.3 |
+| [CompressionDecoderFormatMismatch](./probable-bugs/CompressionDecoderFormatMismatch) | native | warning | on | ✓ | any |
+| [CompressionLevelOutsideSupportedRange](./probable-bugs/CompressionLevelOutsideSupportedRange) | native | error | on |  | any |
 | [ConflictingContentLengthHeaders](./probable-bugs/ConflictingContentLengthHeaders) | native | warning | on |  | any |
-| [ConnectTimeoutAssumedToBoundReads](./probable-bugs/ConnectTimeoutAssumedToBoundReads) | native | warning | off |  | PHP ≥ 5.3 |
+| [ConnectTimeoutAssumedToBoundReads](./probable-bugs/ConnectTimeoutAssumedToBoundReads) | native | warning | off |  | any |
 | [ContentDispositionFilenameNeedsQuoting](./probable-bugs/ContentDispositionFilenameNeedsQuoting) | native | warning | on | ✓ | any |
 | [ContentEncodingBodyMismatch](./probable-bugs/ContentEncodingBodyMismatch) | native | warning | on |  | any |
 | [ContentLengthKnownBodyMismatch](./probable-bugs/ContentLengthKnownBodyMismatch) | native | warning | on |  | any |
@@ -266,7 +266,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [DateParseNormalizationUnchecked](./probable-bugs/DateParseNormalizationUnchecked) | native | warning | off |  | any |
 | [DateTimeConstantsUsage](./probable-bugs/DateTimeConstantsUsage) | EA | error | on | ✓ | any |
 | [DateTimeSetTimeUsage](./probable-bugs/DateTimeSetTimeUsage) | EA | error | on |  | PHP ≤ 7.0 |
-| [DecompressionFailureConsumed](./probable-bugs/DecompressionFailureConsumed) | native | warning | on |  | PHP ≥ 5.3 |
+| [DecompressionFailureConsumed](./probable-bugs/DecompressionFailureConsumed) | native | warning | on |  | any |
 | [DeflateStreamNeverFinished](./probable-bugs/DeflateStreamNeverFinished) | native | warning | off |  | PHP ≥ 7.0 |
 | [DirectoryIteratorDotEntries](./probable-bugs/DirectoryIteratorDotEntries) | native | warning | on |  | any |
 | [DocumentedArgumentType](./probable-bugs/DocumentedArgumentType) | native | warning | off |  | any |
@@ -283,14 +283,14 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [DuplicateArrayKeys](./probable-bugs/DuplicateArrayKeys) | EA | warning | on |  | any |
 | [DuplicateMatchCondition](./probable-bugs/DuplicateMatchCondition) | native | warning | on | ✓ | PHP ≥ 8.0 |
 | [DynamicCorsOriginWithoutVary](./probable-bugs/DynamicCorsOriginWithoutVary) | native | warning | off |  | any |
-| [EmptySplCollectionExtraction](./probable-bugs/EmptySplCollectionExtraction) | native | error | on |  | PHP ≥ 5.3 |
+| [EmptySplCollectionExtraction](./probable-bugs/EmptySplCollectionExtraction) | native | error | on |  | any |
 | [EncodingConversionArgumentsReversed](./probable-bugs/EncodingConversionArgumentsReversed) | native | warning | off |  | any |
 | [EnumFromUncheckedExternalValue](./probable-bugs/EnumFromUncheckedExternalValue) | native | warning | off |  | PHP ≥ 8.1 |
 | [EnumInstantiation](./probable-bugs/EnumInstantiation) | native | error | on |  | PHP ≥ 8.1 |
 | [ExceptionConstructedNotThrown](./probable-bugs/ExceptionConstructedNotThrown) | native | warning | on |  | any |
 | [ExecOutputArrayAccumulates](./probable-bugs/ExecOutputArrayAccumulates) | native | warning | off |  | any |
 | [ExhaustedGeneratorReused](./probable-bugs/ExhaustedGeneratorReused) | native | error | on |  | PHP ≥ 5.5 |
-| [ExitStatusReadWithoutNormalExitCheck](./probable-bugs/ExitStatusReadWithoutNormalExitCheck) | native | warning | on |  | PHP ≥ 5.3 |
+| [ExitStatusReadWithoutNormalExitCheck](./probable-bugs/ExitStatusReadWithoutNormalExitCheck) | native | warning | on |  | any |
 | [ExplodeEmptySeparator](./probable-bugs/ExplodeEmptySeparator) | native | error | on |  | any |
 | [FailedClosureBindingInvoked](./probable-bugs/FailedClosureBindingInvoked) | native | error | on |  | PHP ≥ 5.4 |
 | [FiberResumeBeforeStart](./probable-bugs/FiberResumeBeforeStart) | native | warning | on |  | PHP ≥ 8.1 |
@@ -301,15 +301,15 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [FileLockFailureUnchecked](./probable-bugs/FileLockFailureUnchecked) | native | warning | on |  | any |
 | [FilePermissionFailurePassesPolicy](./probable-bugs/FilePermissionFailurePassesPolicy) | native | warning | on |  | any |
 | [FileReadFailureUnchecked](./probable-bugs/FileReadFailureUnchecked) | native | warning | on |  | any |
-| [FileStatCacheAfterExternalMutation](./probable-bugs/FileStatCacheAfterExternalMutation) | native | warning | off |  | PHP 5.3–8.2 |
+| [FileStatCacheAfterExternalMutation](./probable-bugs/FileStatCacheAfterExternalMutation) | native | warning | off |  | PHP ≤ 8.2 |
 | [FileTruncatedBeforeLock](./probable-bugs/FileTruncatedBeforeLock) | native | warning | on |  | any |
 | [FileWriteResultUnchecked](./probable-bugs/FileWriteResultUnchecked) | native | warning | on |  | any |
 | [FilteredListJsonShape](./probable-bugs/FilteredListJsonShape) | native | warning | off | ✓ | any |
 | [FinallyThrowMasksException](./probable-bugs/FinallyThrowMasksException) | native | warning | off |  | PHP ≥ 5.5 |
 | [ForeachReferenceSurvivesLoop](./probable-bugs/ForeachReferenceSurvivesLoop) | native | warning | on |  | any |
 | [ForgottenDebugOutput](./probable-bugs/ForgottenDebugOutput) | EA | error | on |  | any |
-| [ForkChildFallsIntoParentWork](./probable-bugs/ForkChildFallsIntoParentWork) | native | warning | off |  | PHP ≥ 5.3 |
-| [ForkFailureTreatedAsParent](./probable-bugs/ForkFailureTreatedAsParent) | native | warning | on |  | PHP ≥ 5.3 |
+| [ForkChildFallsIntoParentWork](./probable-bugs/ForkChildFallsIntoParentWork) | native | warning | off |  | any |
+| [ForkFailureTreatedAsParent](./probable-bugs/ForkFailureTreatedAsParent) | native | warning | on |  | any |
 | [FormEncodingUsedForRfc3986Signature](./probable-bugs/FormEncodingUsedForRfc3986Signature) | native | warning | off |  | PHP ≥ 5.4 |
 | [FractionalArrayKeyTruncation](./probable-bugs/FractionalArrayKeyTruncation) | native | warning | on |  | any |
 | [FractionalModuloOperand](./probable-bugs/FractionalModuloOperand) | native | error | on |  | any |
@@ -330,7 +330,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [GmpDivisionByKnownZero](./probable-bugs/GmpDivisionByKnownZero) | native | error | on |  | any |
 | [GmpDivisionPairUsedAsNumber](./probable-bugs/GmpDivisionPairUsedAsNumber) | native | error | on |  | any |
 | [HeadersAfterCommittedOutput](./probable-bugs/HeadersAfterCommittedOutput) | native | warning | on |  | any |
-| [HeapIterationConsumesCollection](./probable-bugs/HeapIterationConsumesCollection) | native | warning | off |  | PHP ≥ 5.3 |
+| [HeapIterationConsumesCollection](./probable-bugs/HeapIterationConsumesCollection) | native | warning | off |  | any |
 | [HexDecodeOddLengthLiteral](./probable-bugs/HexDecodeOddLengthLiteral) | native | warning | on |  | PHP ≥ 5.4 |
 | [HttpErrorBodyReadWithoutIgnoreErrors](./probable-bugs/HttpErrorBodyReadWithoutIgnoreErrors) | native | warning | off |  | any |
 | [ImageDecodeFailureUnchecked](./probable-bugs/ImageDecodeFailureUnchecked) | native | warning | on |  | any |
@@ -371,8 +371,8 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [JsonNumericCheckChangesIdentifiers](./probable-bugs/JsonNumericCheckChangesIdentifiers) | native | warning | off |  | any |
 | [JsonPartialOutputOverridesThrow](./probable-bugs/JsonPartialOutputOverridesThrow) | native | warning | on |  | PHP ≥ 7.3 |
 | [LibxmlErrorBufferNeverCleared](./probable-bugs/LibxmlErrorBufferNeverCleared) | native | warning | off |  | any |
-| [LinkedListDeleteIterationUnexpected](./probable-bugs/LinkedListDeleteIterationUnexpected) | native | warning | off |  | PHP ≥ 5.3 |
-| [LocalizedNumberTrailingInputAccepted](./probable-bugs/LocalizedNumberTrailingInputAccepted) | native | warning | off |  | PHP ≥ 5.3 |
+| [LinkedListDeleteIterationUnexpected](./probable-bugs/LinkedListDeleteIterationUnexpected) | native | warning | off |  | any |
+| [LocalizedNumberTrailingInputAccepted](./probable-bugs/LocalizedNumberTrailingInputAccepted) | native | warning | off |  | any |
 | [LogarithmInvalidRealDomain](./probable-bugs/LogarithmInvalidRealDomain) | native | warning | on |  | any |
 | [LoopClosureCapturesReference](./probable-bugs/LoopClosureCapturesReference) | native | warning | off |  | any |
 | [MagicMethodsValidity](./probable-bugs/MagicMethodsValidity) | EA | error | on |  | any |
@@ -400,9 +400,9 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [NonRepeatableAttributeRepeated](./probable-bugs/NonRepeatableAttributeRepeated) | native | error | on |  | PHP ≥ 8.0 |
 | [NonVoidFunctionFallsThrough](./probable-bugs/NonVoidFunctionFallsThrough) | native | error | on |  | PHP ≥ 7.0 |
 | [NonblockingSocketConnectPendingRejected](./probable-bugs/NonblockingSocketConnectPendingRejected) | native | warning | on |  | any |
-| [NonblockingWaitZeroTreatedAsReaped](./probable-bugs/NonblockingWaitZeroTreatedAsReaped) | native | warning | on |  | PHP ≥ 5.3 |
+| [NonblockingWaitZeroTreatedAsReaped](./probable-bugs/NonblockingWaitZeroTreatedAsReaped) | native | warning | on |  | any |
 | [NullPointerException](./probable-bugs/NullPointerException) | EA | warning | off, experimental |  | any |
-| [NumberParseUsesCurrencyType](./probable-bugs/NumberParseUsesCurrencyType) | native | error | on |  | PHP ≥ 5.3 |
+| [NumberParseUsesCurrencyType](./probable-bugs/NumberParseUsesCurrencyType) | native | error | on |  | any |
 | [OffsetOperations](./probable-bugs/OffsetOperations) | EA | error | off |  | any |
 | [OptionalRegexCaptureReadWithoutNullFlag](./probable-bugs/OptionalRegexCaptureReadWithoutNullFlag) | native | warning | on |  | any |
 | [OverrideAttributeWithoutTarget](./probable-bugs/OverrideAttributeWithoutTarget) | native | error | on |  | PHP ≥ 8.3 |
@@ -447,8 +447,8 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [PregSplitCaptureFlagWithoutGroups](./probable-bugs/PregSplitCaptureFlagWithoutGroups) | native | info | on | ✓ | any |
 | [PreloadingUsageCorrectness](./probable-bugs/PreloadingUsageCorrectness) | EA | warning | on | ✓ | any |
 | [PrintfScanfArguments](./probable-bugs/PrintfScanfArguments) | EA | error | on |  | any |
-| [PriorityQueueExtractionShapeMismatch](./probable-bugs/PriorityQueueExtractionShapeMismatch) | native | warning | on |  | PHP ≥ 5.3 |
-| [PriorityQueueMinOrderAssumption](./probable-bugs/PriorityQueueMinOrderAssumption) | native | warning | off |  | PHP ≥ 5.3 |
+| [PriorityQueueExtractionShapeMismatch](./probable-bugs/PriorityQueueExtractionShapeMismatch) | native | warning | on |  | any |
+| [PriorityQueueMinOrderAssumption](./probable-bugs/PriorityQueueMinOrderAssumption) | native | warning | off |  | any |
 | [ProcessClosedBeforeOwnedPipes](./probable-bugs/ProcessClosedBeforeOwnedPipes) | native | warning | on |  | any |
 | [ProcessExecFailureReportedAsSuccess](./probable-bugs/ProcessExecFailureReportedAsSuccess) | native | warning | on |  | any |
 | [ProcessExitCodeLostByRepeatedStatusRead](./probable-bugs/ProcessExitCodeLostByRepeatedStatusRead) | native | warning | on |  | PHP ≤ 8.2 |
@@ -463,7 +463,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [RealpathFailureUsedAsPath](./probable-bugs/RealpathFailureUsedAsPath) | native | warning | on |  | any |
 | [RealpathInStreamContext](./probable-bugs/RealpathInStreamContext) | EA | warning | on | ✓ | any |
 | [RecursiveReplaceRetainsListTail](./probable-bugs/RecursiveReplaceRetainsListTail) | native | warning | off |  | any |
-| [RecursiveTraversalOmitsDirectories](./probable-bugs/RecursiveTraversalOmitsDirectories) | native | warning | off |  | PHP ≥ 5.3 |
+| [RecursiveTraversalOmitsDirectories](./probable-bugs/RecursiveTraversalOmitsDirectories) | native | warning | off |  | any |
 | [RedirectContinuesProtectedExecution](./probable-bugs/RedirectContinuesProtectedExecution) | native | warning | on |  | any |
 | [RedundantTypeCheck](./probable-bugs/RedundantTypeCheck) | native | warning | off |  | any |
 | [ReflectionCompositeTypeAssumedNamed](./probable-bugs/ReflectionCompositeTypeAssumedNamed) | native | error | on |  | PHP ≥ 8.0 |
@@ -480,8 +480,8 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [SameSiteNoneWithoutSecure](./probable-bugs/SameSiteNoneWithoutSecure) | native | warning | on |  | PHP ≥ 7.3 |
 | [ScandirFailureIterated](./probable-bugs/ScandirFailureIterated) | native | warning | on |  | any |
 | [SeekSuccessCheckedAsTruthy](./probable-bugs/SeekSuccessCheckedAsTruthy) | native | warning | off |  | any |
-| [SelectFailureTreatedAsReadiness](./probable-bugs/SelectFailureTreatedAsReadiness) | native | warning | on |  | PHP ≥ 5.3 |
-| [SelectWatchArraysNotRestored](./probable-bugs/SelectWatchArraysNotRestored) | native | warning | off |  | PHP ≥ 5.3 |
+| [SelectFailureTreatedAsReadiness](./probable-bugs/SelectFailureTreatedAsReadiness) | native | warning | on |  | any |
+| [SelectWatchArraysNotRestored](./probable-bugs/SelectWatchArraysNotRestored) | native | warning | off |  | any |
 | [SemaphoreFailureEntersCriticalSection](./probable-bugs/SemaphoreFailureEntersCriticalSection) | native | warning | on |  | any |
 | [SessionCookieOptionsSetAfterStart](./probable-bugs/SessionCookieOptionsSetAfterStart) | native | warning | on |  | any |
 | [SessionDestroyLeavesLocalAuthentication](./probable-bugs/SessionDestroyLeavesLocalAuthentication) | native | warning | on |  | any |
@@ -496,7 +496,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [SignalRegistrationFailureReportedAsSuccess](./probable-bugs/SignalRegistrationFailureReportedAsSuccess) | native | warning | on |  | any |
 | [SignalWaitFailureAcceptedAsSignal](./probable-bugs/SignalWaitFailureAcceptedAsSignal) | native | warning | on |  | any |
 | [SimpleXmlChildValueContainsBareAmpersand](./probable-bugs/SimpleXmlChildValueContainsBareAmpersand) | native | warning | on |  | any |
-| [SimpleXmlLoadFileUsage](./probable-bugs/SimpleXmlLoadFileUsage) | EA | error | on | ✓ | any |
+| [SimpleXmlLoadFileUsage](./probable-bugs/SimpleXmlLoadFileUsage) | EA | error | on | ✓ | PHP ≤ 7.4 |
 | [SimpleXmlMissingNodeCheckedAsNull](./probable-bugs/SimpleXmlMissingNodeCheckedAsNull) | native | warning | on |  | any |
 | [SimpleXmlTextCastAsBoolean](./probable-bugs/SimpleXmlTextCastAsBoolean) | native | warning | off |  | any |
 | [SoapLastRequestWithoutTracing](./probable-bugs/SoapLastRequestWithoutTracing) | native | warning | on |  | any |
@@ -506,12 +506,12 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [SortComparatorReturnsBoolean](./probable-bugs/SortComparatorReturnsBoolean) | native | warning | on | ✓ | any |
 | [SortComparatorReturnsFloat](./probable-bugs/SortComparatorReturnsFloat) | native | warning | on | ✓ | any |
 | [SortResultUsedAsArray](./probable-bugs/SortResultUsedAsArray) | native | warning | on |  | any |
-| [SplFixedArrayIndexOutOfBounds](./probable-bugs/SplFixedArrayIndexOutOfBounds) | native | error | on |  | PHP ≥ 5.3 |
-| [SplFixedArrayShrinkDiscardsValues](./probable-bugs/SplFixedArrayShrinkDiscardsValues) | native | warning | off |  | PHP ≥ 5.3 |
-| [SplObjectStorageIndirectArrayMutation](./probable-bugs/SplObjectStorageIndirectArrayMutation) | native | warning | on |  | PHP ≥ 5.3 |
+| [SplFixedArrayIndexOutOfBounds](./probable-bugs/SplFixedArrayIndexOutOfBounds) | native | error | on |  | any |
+| [SplFixedArrayShrinkDiscardsValues](./probable-bugs/SplFixedArrayShrinkDiscardsValues) | native | warning | off |  | any |
+| [SplObjectStorageIndirectArrayMutation](./probable-bugs/SplObjectStorageIndirectArrayMutation) | native | warning | on |  | any |
 | [SqlNullComparedWithEquality](./probable-bugs/SqlNullComparedWithEquality) | native | warning | on |  | any |
 | [SqliteBindingIndexZero](./probable-bugs/SqliteBindingIndexZero) | native | error | on |  | any |
-| [SqliteClearWithoutRequiredReset](./probable-bugs/SqliteClearWithoutRequiredReset) | native | warning | on |  | PHP 5.3–7.1 |
+| [SqliteClearWithoutRequiredReset](./probable-bugs/SqliteClearWithoutRequiredReset) | native | warning | on |  | PHP ≤ 7.1 |
 | [SqliteFetchBothLeaksDuplicateColumns](./probable-bugs/SqliteFetchBothLeaksDuplicateColumns) | native | warning | off | ✓ | any |
 | [SqliteForeignKeySettingInsideTransaction](./probable-bugs/SqliteForeignKeySettingInsideTransaction) | native | warning | on |  | any |
 | [SqliteNondeterministicFunctionDeclaredDeterministic](./probable-bugs/SqliteNondeterministicFunctionDeclaredDeterministic) | native | warning | on |  | PHP ≥ 7.1 |
@@ -551,13 +551,13 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [UndefinedFunction](./probable-bugs/UndefinedFunction) | native | error | off |  | any |
 | [UndefinedMethod](./probable-bugs/UndefinedMethod) | native | error | off |  | any |
 | [UndefinedProperty](./probable-bugs/UndefinedProperty) | native | error | off |  | any |
-| [UnicodeNormalizationFailureConsumed](./probable-bugs/UnicodeNormalizationFailureConsumed) | native | warning | on |  | PHP ≥ 5.3 |
+| [UnicodeNormalizationFailureConsumed](./probable-bugs/UnicodeNormalizationFailureConsumed) | native | warning | on |  | any |
 | [UninitializedTypedPropertyRead](./probable-bugs/UninitializedTypedPropertyRead) | native | error | on |  | PHP ≥ 7.4 |
 | [UnitEnumJsonEncoding](./probable-bugs/UnitEnumJsonEncoding) | native | error | on |  | PHP ≥ 8.1 |
 | [UnknownNamedArgument](./probable-bugs/UnknownNamedArgument) | native | error | on |  | PHP ≥ 8.0 |
 | [UnlinkFailureReportedAsSuccess](./probable-bugs/UnlinkFailureReportedAsSuccess) | native | warning | on |  | any |
 | [UnpackBufferTooShort](./probable-bugs/UnpackBufferTooShort) | native | warning | on |  | any |
-| [UnpackedNamedArgumentCollision](./probable-bugs/UnpackedNamedArgumentCollision) | native | error | on |  | PHP ≥ 8.0 |
+| [UnpackedNamedArgumentCollision](./probable-bugs/UnpackedNamedArgumentCollision) | native | error | on |  | PHP ≥ 8.1 |
 | [UnreachableCatchClause](./probable-bugs/UnreachableCatchClause) | native | warning | on |  | any |
 | [UnserializeFalseAmbiguity](./probable-bugs/UnserializeFalseAmbiguity) | native | warning | on |  | any |
 | [UntrustedForwardedClientAddress](./probable-bugs/UntrustedForwardedClientAddress) | native | warning | off |  | any |
@@ -567,7 +567,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ValidatedBooleanFalseRejectedAsInvalid](./probable-bugs/ValidatedBooleanFalseRejectedAsInvalid) | native | warning | off |  | any |
 | [ValidatedIntegerZeroRejected](./probable-bugs/ValidatedIntegerZeroRejected) | native | warning | on | ✓ | any |
 | [VaryHeaderOverwritesEarlierDimensions](./probable-bugs/VaryHeaderOverwritesEarlierDimensions) | native | warning | off |  | any |
-| [WaitStatusUsedAsExitCode](./probable-bugs/WaitStatusUsedAsExitCode) | native | warning | off |  | PHP ≥ 5.3 |
+| [WaitStatusUsedAsExitCode](./probable-bugs/WaitStatusUsedAsExitCode) | native | warning | off |  | any |
 | [WeakMapValueRetainsKey](./probable-bugs/WeakMapValueRetainsKey) | native | warning | off |  | PHP ≥ 8.0 |
 | [WriteToReadOnlyStream](./probable-bugs/WriteToReadOnlyStream) | native | error | on |  | any |
 | [XPathIgnoresDefaultNamespace](./probable-bugs/XPathIgnoresDefaultNamespace) | native | warning | on |  | any |
@@ -579,13 +579,13 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [XmlWriterMemoryOutputInUriMode](./probable-bugs/XmlWriterMemoryOutputInUriMode) | native | warning | on |  | any |
 | [XslTransformationFailureConsumed](./probable-bugs/XslTransformationFailureConsumed) | native | warning | on |  | any |
 | [ZipCloseFailureUnchecked](./probable-bugs/ZipCloseFailureUnchecked) | native | warning | off |  | any |
-| [ZipEntryIndexPastEnd](./probable-bugs/ZipEntryIndexPastEnd) | native | warning | on |  | PHP ≥ 5.3 |
-| [ZipEntryNameCollision](./probable-bugs/ZipEntryNameCollision) | native | warning | off |  | PHP ≥ 5.3 |
+| [ZipEntryIndexPastEnd](./probable-bugs/ZipEntryIndexPastEnd) | native | warning | on |  | any |
+| [ZipEntryNameCollision](./probable-bugs/ZipEntryNameCollision) | native | warning | off |  | any |
 | [ZipEntryStreamUsedAfterArchiveClose](./probable-bugs/ZipEntryStreamUsedAfterArchiveClose) | native | warning | on |  | any |
-| [ZipExtractionExceedsConfiguredBudget](./probable-bugs/ZipExtractionExceedsConfiguredBudget) | native | warning | off |  | PHP ≥ 5.3 |
-| [ZipFirstEntryTreatedAsMissing](./probable-bugs/ZipFirstEntryTreatedAsMissing) | native | warning | on | ✓ | PHP ≥ 5.3 |
-| [ZipOpenTruthyResult](./probable-bugs/ZipOpenTruthyResult) | native | warning | on | ✓ | PHP ≥ 5.3 |
-| [ZipSourceRemovedBeforeArchiveClose](./probable-bugs/ZipSourceRemovedBeforeArchiveClose) | native | warning | on |  | PHP ≥ 5.3 |
+| [ZipExtractionExceedsConfiguredBudget](./probable-bugs/ZipExtractionExceedsConfiguredBudget) | native | warning | off |  | any |
+| [ZipFirstEntryTreatedAsMissing](./probable-bugs/ZipFirstEntryTreatedAsMissing) | native | warning | on | ✓ | any |
+| [ZipOpenTruthyResult](./probable-bugs/ZipOpenTruthyResult) | native | warning | on | ✓ | any |
+| [ZipSourceRemovedBeforeArchiveClose](./probable-bugs/ZipSourceRemovedBeforeArchiveClose) | native | warning | on |  | any |
 
 ## Security
 

@@ -17,7 +17,7 @@ Inspect the composite reflection type members.
 - D1. Resolve getType on a ReflectionParameter, ReflectionProperty or getReturnType on a ReflectionFunctionAbstract for a known union type (PHP 8.0+) or intersection type (PHP 8.1+). Report getName invoked on that result, because only ReflectionNamedType provides it. Follow local assignments and indexed parameter selection.
 - D1a. A declared type is composite when it has an intersection (`&`, including a parenthesised group inside a union) or when at least two union members remain after discarding a leading `?` and any `null` member. `?T`, `T|null` and `null|T` are a single nullable named type and are never reported; `int|string|null` is.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
@@ -47,7 +47,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -85,4 +85,4 @@ setting assumes assertions execute and failed assertions terminate.
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

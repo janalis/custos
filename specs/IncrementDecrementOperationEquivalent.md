@@ -120,11 +120,11 @@ F4. When the prefix operator would directly follow the same sign
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |
-| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` when `PREFER_PREFIX_STYLE` is false and the value is discarded (F2). |
+| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` when `PREFER_PREFIX_STYLE` is false and the value is discarded. |
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 

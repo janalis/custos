@@ -151,3 +151,4 @@ class Owner {
     function grow() { $this->items->setSize(10); }
     static function growAll() {}
 }
+$a = new SplFixedArray(3); $a[2] = "inside";

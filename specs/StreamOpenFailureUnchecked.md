@@ -1,7 +1,7 @@
 ---
 id: StreamOpenFailureUnchecked
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -22,7 +22,7 @@ unchecked result.
 
 - D1. Report fopen result passed to a stream-only operation without excluding false.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -47,7 +47,7 @@ No automatic fix: choosing fallback versus failure belongs to the caller.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -83,8 +83,8 @@ When several assignments reach a use, each producer is checked on its own: an
 unguarded eligible producer is still reported when other paths use another API
 or are guarded, and an irrelevant variant cannot hide a later eligible call. A
 path whose value does not come from a known call establishes nothing. When the
-producers cannot be tracked within the analysis budget, nothing is reported.
+producers cannot be tracked, nothing is reported.
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

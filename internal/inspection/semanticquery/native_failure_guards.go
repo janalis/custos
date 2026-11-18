@@ -30,7 +30,7 @@ func NativeFailureExcludedSingle(ctx *analysis.Context, input syntax.Expr, seed 
 func NativeCurlDefault(ctx *analysis.Context, at syntax.Node, handle syntax.Expr, option string) bool {
 	value := ctx.Flow().Value(handle)
 	id := value.Identity
-	if id == 0 || value.Invalidated == ^uint32(0) || !NativeHandleUnescaped(ctx, handle, at) {
+	if id == 0 || value.Invalidated == ^uint32(0) || !handleUnescaped(ctx, handle, at) {
 		return false
 	}
 	origin := NativeValue(ctx, handle)
@@ -90,7 +90,7 @@ func NativeCurlDefault(ctx *analysis.Context, at syntax.Node, handle syntax.Expr
 // proves nothing by where it is written, and only the facts the flow
 // analysis established on the paths that reach the node count.
 func NativeLabelled(ctx *analysis.Context, at syntax.Node) bool {
-	return ctx.Flow().Labelled(at)
+	return ctx.Flow().Labeled(at)
 }
 
 // nativeStaticReplaced reports what a static local held, read twice, with a

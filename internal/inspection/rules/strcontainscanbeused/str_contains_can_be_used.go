@@ -22,7 +22,7 @@ func (strContainsCanBeUsed) Kinds() []syntax.NodeKind {
 }
 
 func (strContainsCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP80 { // E1
+	if ctx.PHP.Below(phpversion.PHP80) { // E1
 		return
 	}
 	call := n.(*syntax.FuncCall)

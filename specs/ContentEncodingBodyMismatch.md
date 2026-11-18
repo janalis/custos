@@ -1,7 +1,7 @@
 ---
 id: ContentEncodingBodyMismatch
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -39,7 +39,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -63,4 +63,4 @@ header("Content-Encoding: gzip"); echo gzencode("payload"); exit;
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

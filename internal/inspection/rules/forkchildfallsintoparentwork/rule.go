@@ -16,6 +16,7 @@ const message = "Terminate or separate the fork child branch."
 
 type rule struct{}
 
+// New returns the ForkChildFallsIntoParentWork inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ForkChildFallsIntoParentWork" }
 func (rule) Semantic()                {}
@@ -93,7 +94,7 @@ func jumpLevels(operand syntax.Expr) int64 {
 }
 
 // unknownTail reports whether the last effective statement of body is a call
-// whose termination cannot be summarised (no resolvable declaration or body) or
+// whose termination cannot be summarized (no resolvable declaration or body) or
 // whose declaration never returns. Such a child may well end inside the callee.
 func unknownTail(ctx *analysis.Context, body *syntax.Block) bool {
 	var tail *syntax.ExprStmt
@@ -138,7 +139,7 @@ func unknownTail(ctx *analysis.Context, body *syntax.Block) bool {
 	return false
 }
 
-// unknownMethod reports whether a resolved method has no body to summarise
+// unknownMethod reports whether a resolved method has no body to summarize
 // (abstract or interface method) or never returns to its caller.
 func unknownMethod(ctx *analysis.Context, m *index.Method) bool {
 	if m.Abstract || never(m.Return, m.DocReturn, m.Inferred) {

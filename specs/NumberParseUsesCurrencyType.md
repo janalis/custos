@@ -1,9 +1,9 @@
 ---
 id: NumberParseUsesCurrencyType
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # NumberParseUsesCurrencyType
@@ -16,7 +16,7 @@ Parse currency with parseCurrency. Enabled by default; require positive semantic
 
 - D1. Report resolved NumberFormatter::parse with its type argument proven NumberFormatter::TYPE_CURRENCY. Do not infer misuse merely from a CURRENCY formatter style.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
@@ -60,4 +60,4 @@ $f = new NumberFormatter("en_US", NumberFormatter::CURRENCY); $f->parseCurrency(
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

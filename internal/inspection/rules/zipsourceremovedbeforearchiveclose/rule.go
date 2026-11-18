@@ -14,6 +14,7 @@ const message = "Keep ZIP source files until the archive closes."
 
 type rule struct{}
 
+// New returns the ZipSourceRemovedBeforeArchiveClose inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ZipSourceRemovedBeforeArchiveClose" }
 func (rule) Semantic()                {}
@@ -71,7 +72,7 @@ func closedBefore(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr) b
 		if value.Identity != target.Identity {
 			continue
 		}
-		if spelled && semanticquery.ExpansionCSame(ctx, call.Receiver, receiver) && !rebound(ctx, receiver, call.Node) {
+		if spelled && semanticquery.SameStableExpr(ctx, call.Receiver, receiver) && !rebound(ctx, receiver, call.Node) {
 			return true
 		}
 		if !spelled && known && value.Complete && value.Invalidated == target.Invalidated {
@@ -102,7 +103,7 @@ func rebound(ctx *analysis.Context, receiver syntax.Expr, later syntax.Node) boo
 		assign, ok := n.(*syntax.Assign)
 		if ok && assign.Span().Start > receiver.Span().End && assign.Span().End < later.Span().Start {
 			for _, e := range chain {
-				written = written || semanticquery.ExpansionCSame(ctx, assign.Var, e)
+				written = written || semanticquery.SameStableExpr(ctx, assign.Var, e)
 			}
 		}
 		return !written

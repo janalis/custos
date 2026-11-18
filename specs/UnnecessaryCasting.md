@@ -469,5 +469,3 @@ After fix (changed lines):
   instead of the union of its known definitions: the partial set made the
   cast look redundant and the fix changed behavior (Magento config
   element and fixtures).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

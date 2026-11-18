@@ -126,7 +126,7 @@ func (s *Server) reflowPending() {
 // reflow updates the flow summaries of the buffers of uris (see
 // reindexDoc), one update at a time: a document changed while one runs is
 // queued, and its latest text summarized once that update ends. Open
-// documents are analysed again when a summary changed.
+// documents are analyzed again when a summary changed.
 func (s *Server) reflow(uris ...string) {
 	s.mu.Lock()
 	if s.reflowQueue == nil {

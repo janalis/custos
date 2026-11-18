@@ -64,7 +64,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| SUGGEST_USING_VALUE_BY_REF | bool | false | Enables part C. Parts A and B are always active. |
+| SUGGEST_USING_VALUE_BY_REF | bool | false | Also reports writes back into the iterated array through the loop key, which a by-reference value would replace. The by-reference checks are always active. |
 
 ## Configure
 

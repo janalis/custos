@@ -253,7 +253,7 @@ After fix (only changed lines shown):
 ## Divergences
 
 - **Escaping variables — custos diverges from upstream** (D6b). When the
-  variable holding the closure is used in an unrecognised way (returned,
+  variable holding the closure is used in an unrecognized way (returned,
   stored, re-assigned, captured), upstream throws away every collected usage
   site and ends up reporting the closure; adding `static` can then break code
   that binds the closure elsewhere. custos treats such a use as unsafe and
@@ -328,5 +328,3 @@ After fix (only changed lines shown):
   method (Laravel/October facades: `Cache::extend('x', fn …)` binds the
   closure to the cache manager) counts as an unknown target (E6).
   Unknown classes stay reported, without a fix (F2).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

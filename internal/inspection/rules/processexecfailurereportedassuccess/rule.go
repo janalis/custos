@@ -13,6 +13,7 @@ const message = "Report failure when process replacement returns."
 
 type rule struct{}
 
+// New returns the ProcessExecFailureReportedAsSuccess inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ProcessExecFailureReportedAsSuccess" }
 func (rule) Semantic()                {}

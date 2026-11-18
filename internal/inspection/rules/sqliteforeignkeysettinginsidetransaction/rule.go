@@ -1,4 +1,5 @@
-// Package sqliteforeignkeysettinginsidetransaction implements SqliteForeignKeySettingInsideTransaction.
+// Package sqliteforeignkeysettinginsidetransaction implements the native
+// SqliteForeignKeySettingInsideTransaction inspection.
 package sqliteforeignkeysettinginsidetransaction
 
 import (
@@ -13,6 +14,7 @@ const message = "Change foreign-key enforcement before the transaction."
 
 type rule struct{}
 
+// New returns the SqliteForeignKeySettingInsideTransaction inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SqliteForeignKeySettingInsideTransaction" }
 func (rule) Semantic()                {}

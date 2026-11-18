@@ -11,6 +11,7 @@ const message = "Use an overwrite-capable stream mode."
 
 type rule struct{}
 
+// New returns the AppendModeSeekUsedForOverwrite inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "AppendModeSeekUsedForOverwrite" }
 func (rule) Semantic()                {}

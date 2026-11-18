@@ -22,7 +22,7 @@ Identify transformToXML result on a resolved XSLTProcessor passed directly or un
   - a loose comparison with `false` (`!= false` branch, terminating `== false` guard);
   - a resolved builtin `is_string()` test.
   The test may be the condition of an enclosing `if`/`elseif`/`else` branch or ternary arm, the left operand of a short-circuit `&&`/`||`/`and`/`or` whose right operand holds the use, or an earlier sibling `if` without `else`/`elseif` whose body always terminates. Negation and parentheses are followed. A conjunction that held, or a disjunction that failed, proves what either operand proves; a conjunction that failed, or a disjunction that held, proves only what both operands prove (`if ($out || is_string($out))`, `if ($out === false && !is_string($out)) { return; }`). An assignment of the call inside the condition is the tested value.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

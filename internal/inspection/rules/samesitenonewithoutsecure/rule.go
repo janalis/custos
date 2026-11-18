@@ -23,7 +23,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	if name != "setcookie" || ctx.PHP < phpversion.PHP73 {
+	if name != "setcookie" || ctx.PHP.Below(phpversion.PHP73) {
 		return
 	}
 	entries, known := semanticquery.NativeArrayEntries(ctx, semanticquery.CallArgument(c.Args, 2, "expires_or_options"))

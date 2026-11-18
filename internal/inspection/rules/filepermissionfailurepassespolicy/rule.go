@@ -35,7 +35,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known || bits == 0 {
 		return
 	}
-	if !semanticquery.ExpansionDUnaliased(ctx, mask.Left, n) {
+	if !semanticquery.UnaliasedLocal(ctx, mask.Left, n) {
 		return
 	}
 	c, ck := semanticquery.NativeLocalBuiltinResult(ctx, mask.Left, "false", "fileperms").(*syntax.FuncCall)
@@ -43,7 +43,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	branch, ok := b.Parent().(*syntax.If)
-	if ok && semanticquery.ExpansionDFinalOutcome(ctx, branch.Body, true) {
+	if ok && semanticquery.TerminalOutcome(ctx, branch.Body, true) {
 		ctx.ReportNode(b, message)
 	}
 }

@@ -80,7 +80,7 @@ func (e *Env) sealed(call syntax.Node, name string, list *syntax.ArgList, r *sco
 }
 
 // declared returns the static variables of a scope, each with what the code
-// of the scope does to it, read once however often the scope is analysed.
+// of the scope does to it, read once however often the scope is analyzed.
 //
 // state is staticLoose for a variable the scope may write, itself or one of
 // its elements: it is the target of an assignment or a step, an argument (a

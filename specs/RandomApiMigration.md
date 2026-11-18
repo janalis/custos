@@ -211,5 +211,3 @@ function throwDice($sides)
   `mt_srand($seed)` to get the same layout from the same seed; following
   that advice breaks the reproducibility the seeding asks for. custos
   suggests nothing for `mt_rand` there and `mt_rand` for `rand`.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

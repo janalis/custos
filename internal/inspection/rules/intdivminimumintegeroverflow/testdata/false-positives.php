@@ -161,3 +161,4 @@ function unknown_reference_after_division($keepGoing, $service) {
         $service->replace($number);
     }
 }
+intdiv(PHP_INT_MIN, 1);

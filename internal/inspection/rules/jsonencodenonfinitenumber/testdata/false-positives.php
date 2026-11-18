@@ -56,3 +56,4 @@ foreach ($top as &$entry) {
 }
 unset($entry);
 json_encode($top);
+json_encode(['amount' => 12], JSON_THROW_ON_ERROR);

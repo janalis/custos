@@ -1,4 +1,5 @@
-// Package sodiumsecretboxnoncereused implements SodiumSecretboxNonceReused.
+// Package sodiumsecretboxnoncereused implements the native
+// SodiumSecretboxNonceReused inspection.
 package sodiumsecretboxnoncereused
 
 import (
@@ -17,6 +18,7 @@ const (
 
 type rule struct{}
 
+// New returns the SodiumSecretboxNonceReused inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SodiumSecretboxNonceReused" }
 func (rule) Semantic()                {}

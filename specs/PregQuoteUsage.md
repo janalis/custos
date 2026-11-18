@@ -50,7 +50,7 @@ None.
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 
@@ -111,5 +111,3 @@ $re4 = $quoter->preg_quote($needle);
   exemption also applies to a class or global constant whose discovered
   values are all such literals (`preg_quote(Packer::PREFIX)` with a
   letters-and-spaces prefix, Moodle).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

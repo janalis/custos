@@ -1,7 +1,7 @@
 ---
 id: GdImageDimensionsNotPositive
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,14 +16,14 @@ Identify imagecreate or imagecreatetruecolor whose width or height is a known in
 
 - D1. Report imagecreate or imagecreatetruecolor whose width or height is a known integer at most zero.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. A dimension read from a local variable is not proven when that variable, or any variable it was assigned from, is changed by `++` or `--`, bound by a `catch` clause or imported by reference into a closure anywhere in the enclosing scope. A counter initialized to zero and incremented in a loop is the typical case.
-- E3. No variable dimension is proven in a scope that writes variables by run-time name: `extract()`, `parse_str()`, `$$name++` or a compound assignment to `$$name`.
-- E4. A variable shared with other code (top-level code, `global`, `static`, a by-reference parameter or a by-reference closure import of the enclosing closure) is not proven when the scope also runs code that could rewrite it: a call to a user-defined or unresolved function, a method or static call, `new`, `include`/`require`, `eval`, or a closure or arrow function definition.
+- E2. A dimension read from a local variable, or from any variable whose value an assignment stored into it (directly or through further assignments), is not proven when, anywhere in the enclosing scope, one of these reaches it: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument a resolved callee binds by reference, other than the inspected argument itself); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A counter initialized to zero and incremented in a loop is the typical case. In top-level code a `$GLOBALS` access anywhere in the file counts too. A read inside an arrow function also checks the scopes the arrow function captures from.
+- E3. Variable variables, `extract()`, one-argument `parse_str()`, `include`/`require` and `eval` write variables by run-time name: no variable dimension is proven in a scope holding one.
+- E4. A variable shared with other code (top-level code, `global`, `static`, a by-reference parameter, a by-reference capture by the closure that is the scope) is proven only when the scope holds no code able to run application logic: a call that is not a resolved builtin function, a method or static call, `new`, `include`/`require`, `eval`, or a closure or arrow function expression.
 - E5. Both `@custos-ignore GdImageDimensionsNotPositive` and `@noinspection GdImageDimensionsNotPositive` suppress this native rule.
 
 ## Report

@@ -1,10 +1,8 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -46,17 +44,17 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 		s.project.Engine = s.project.Engine.WithRecorded(func(string, []byte) func(diagnostic.Finding, []diagnostic.Finding) bool {
 			return func(diagnostic.Finding, []diagnostic.Finding) bool { return true }
 		})
+		s.project.Options.RecordedKey = "every finding"
 	case *baselinePath != "":
-		b, err = baseline.Load(*baselinePath)
-		if err != nil && fromConfig && errors.Is(err, os.ErrNotExist) {
-			// A baseline named in custos.json that was not generated yet
-			// suppresses nothing (first run); an explicit --baseline must exist.
-			b, err = baseline.Empty(), nil
+		load := baseline.Load // an explicit --baseline must exist
+		if fromConfig {
+			load = baseline.LoadConfigured
 		}
-		if err != nil {
+		if b, err = load(*baselinePath); err != nil {
 			return 2, err
 		}
 		s.project.Engine = s.project.Engine.WithRecorded(b.Recorder)
+		s.project.Options.RecordedKey = b.Key()
 	}
 	stop, err := c.startProfile()
 	if err != nil {

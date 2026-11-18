@@ -24,9 +24,10 @@ missing/unexpected ranges and fix diffs. Process:
    `New() analysis.Rule`. Put the private implementation type there or, for
    larger rules, in `<rule_snake>.go`. Implement `ID()`, `Kinds()` and
    `Check` following the spec's D/E/F items.
-3. Add exactly one constructor to `internal/inspection/catalogue/catalogue.go`,
-   preserving group execution order and ID sorting within each group. There
-   is no `init()` registration.
+3. Regenerate the catalogue with `go generate ./internal/inspection/catalogue`
+   (also run by `make rules-doc`); never edit
+   `internal/inspection/catalogue/catalogue.go` by hand. There is no `init()`
+   registration.
 4. Keep rule-specific helpers local. Reuse `astquery`, `flowquery` or
    `semanticquery` (lexical, local flow, resolved behavior); new shared
    helpers need focused tests. Run `make architecture`.

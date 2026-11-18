@@ -40,7 +40,7 @@ func (implodeArgumentsOrder) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	span := call.Span()
-	if ctx.PHP < phpversion.PHP73 && (hasHeredoc(first.Value) || hasHeredoc(second.Value)) { // F2
+	if ctx.PHP.Below(phpversion.PHP73) && (hasHeredoc(first.Value) || hasHeredoc(second.Value)) { // F2
 		ctx.Report(span, message)
 		return
 	}

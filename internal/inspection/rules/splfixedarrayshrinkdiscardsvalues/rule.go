@@ -28,6 +28,7 @@ var inspectors = map[string]bool{
 
 type rule struct{}
 
+// New returns the SplFixedArrayShrinkDiscardsValues inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SplFixedArrayShrinkDiscardsValues" }
 func (rule) Semantic()                {}

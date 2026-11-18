@@ -29,7 +29,7 @@ Reported:
 
 - Report a named argument absent from every resolved target parameter list where no target has a variadic parameter. Parameter names are compared case-sensitively.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 - D4. The resolved targets of a call are every declaration PHP may bind it to:
   - a function call: the builtin of that name, otherwise every project declaration of the function (a function declared several times and loaded conditionally accepts the names of whichever declaration runs);
   - an instance method call: the method as each class of the receiver's type resolves it, plus the method as every indexed subtype of those classes resolves it (own declaration, trait import or inherited), because the runtime object may be any subtype and PHP binds names against the method that actually runs;
@@ -54,10 +54,6 @@ No automatic fix: spelling similarity does not prove the intended parameter.
 ## PHP versions
 
 Available from PHP 8.0. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

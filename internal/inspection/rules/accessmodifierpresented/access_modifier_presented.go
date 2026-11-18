@@ -24,7 +24,7 @@ func (r accessModifierPresented) Check(ctx *analysis.Context, n syntax.Node) {
 	if cls.ClassKind == syntax.KindInterface && !ctx.Bool("ANALYZE_INTERFACES") { // D4
 		return
 	}
-	consts := ctx.Bool("ANALYZE_CONSTANTS") && ctx.PHP >= phpversion.PHP71
+	consts := ctx.Bool("ANALYZE_CONSTANTS") && ctx.PHP.AtLeast(phpversion.PHP71)
 	for _, m := range cls.Members {
 		switch m := m.(type) {
 		case *syntax.Method: // D1

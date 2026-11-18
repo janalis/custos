@@ -1,4 +1,5 @@
-// Package secretstreampushafterfinaltag implements SecretstreamPushAfterFinalTag.
+// Package secretstreampushafterfinaltag implements the native
+// SecretstreamPushAfterFinalTag inspection.
 package secretstreampushafterfinaltag
 
 import (
@@ -12,6 +13,7 @@ const message = "Start a new stream after the final tag."
 
 type rule struct{}
 
+// New returns the SecretstreamPushAfterFinalTag inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SecretstreamPushAfterFinalTag" }
 func (rule) Semantic()                {}
@@ -23,7 +25,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	c := n.(*syntax.FuncCall)
 	const name = "sodium_crypto_secretstream_xchacha20poly1305_push"
-	if ctx.PHP < phpversion.PHP72 || !semanticquery.NativeBuiltin(ctx, c, name) {
+	if ctx.PHP.Below(phpversion.PHP72) || !semanticquery.NativeBuiltin(ctx, c, name) {
 		return
 	}
 	for _, event := range semanticquery.ScopeCallEvents(ctx, c) {

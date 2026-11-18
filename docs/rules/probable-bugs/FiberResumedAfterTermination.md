@@ -16,7 +16,7 @@ Identify resume on a locally allocated Fiber whose inline arrow or closure callb
 
 - Report resume on a locally allocated Fiber whose inline arrow or closure callback completes with a literal return, without calls, branches, loops, nested callbacks or suspension, and whose start completed on the same unconditional path. Unknown or more complex callbacks do not establish termination.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 - Only an executed call counts. A first-class callable such as `$fiber->resume(...)` or `$fiber->start(...)` creates a closure and runs nothing: the former is never reported and the latter does not establish that the fiber started.
 
 ## Exceptions (no report)

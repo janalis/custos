@@ -1,7 +1,7 @@
 ---
 id: ShortStreamReadUnchecked
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -18,7 +18,7 @@ A sentinel or length guard applies only to the same reaching value. Reassignment
 
 - D1. Report fread with a fixed positive byte count whose result reaches unpack requiring that exact length without a length check.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 - D4. A length check is a condition known to hold on every path to the unpack call and applied to the same reaching read result. Because fread never returns more than the requested count N, each of these proves a complete read:
   - `strlen($d)` compared with a known integer so that the length is N: `=== N`, `== N`, `>= N`, `> N-1`, or the negation of `!== N`, `!= N`, `< N`, `<= N-1`; operands may be written in either order. `mb_strlen($d, '8bit')` counts bytes and is treated like strlen; mb_strlen with any other or no encoding is not.
   - `isset($d[N-1])`, alone or beside other operands (isset holds only when every operand is set).
@@ -43,7 +43,7 @@ No automatic fix: EOF, timeouts and retry behavior require explicit handling.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -69,4 +69,4 @@ unpack('Nsize', $header);
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

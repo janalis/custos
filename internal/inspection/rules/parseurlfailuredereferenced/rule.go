@@ -35,7 +35,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !astquery.ArrayFetchRequiresRead(a) {
 		return
 	}
-	if !semanticquery.ExpansionDPristine(ctx, a.Var, n) && !semanticquery.NativeFailureFlowOnly(ctx, a.Var) {
+	if !semanticquery.MembersUnwrittenBefore(ctx, a.Var, n) && !semanticquery.NativeFailureFlowOnly(ctx, a.Var) {
 		return
 	}
 	// Among several reaching assignments only a parse_url result counts:

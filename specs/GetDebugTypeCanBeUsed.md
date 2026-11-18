@@ -120,8 +120,7 @@ $t = is_object($v) ? get_class($v) : gettype($v);
   for integers, floats, booleans, null, resources and anonymous classes
   (e.g. `integer` becomes `int`), so a later comparison such as
   `$t === 'integer'` or a stored/logged value changes. custos keeps the
-  report as advice and offers no fix. The EA case whose expected output
-  applies the rewrite is listed in `testdata/ea-divergences.json`.
+  report as advice and offers no fix.
 - **Function-name case (custos diverges):** upstream matches `is_object`,
   `get_class` and `gettype` case-sensitively, missing
   `Is_Object($x) ? GET_CLASS($x) : GetType($x)`. custos matches any case

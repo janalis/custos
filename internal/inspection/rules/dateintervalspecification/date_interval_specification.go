@@ -49,7 +49,7 @@ func (dateIntervalSpecification) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	msg := "Malformed DateInterval specification."
 	if validDateIntervalSpec(content) { // D5
-		if ctx.PHP >= phpversion.PHP80 || !weeksWithDays(content) { // D7
+		if ctx.PHP.AtLeast(phpversion.PHP80) || !weeksWithDays(content) { // D7
 			return
 		}
 		msg = "Weeks and days cannot be combined in a DateInterval specification before PHP 8.0."

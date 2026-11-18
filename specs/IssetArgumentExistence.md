@@ -1,7 +1,7 @@
 ---
 id: IssetArgumentExistence
 group: Probable bugs
-kind: semantic
+kind: syntax
 needs: [flow]
 php: { min: "", max: "" }
 ---

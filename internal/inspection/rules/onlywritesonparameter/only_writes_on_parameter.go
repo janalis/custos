@@ -459,7 +459,7 @@ func (s *owpScope) dynamicReads() map[string]bool {
 			case s.ctx.IsGlobalFunctionCall(c, "func_get_args"), s.ctx.IsGlobalFunctionCall(c, "func_get_arg"):
 				// Since PHP 7.0 these return the current parameter values;
 				// in an arrow function they see its own arguments.
-				if s.ctx.PHP >= phpversion.PHP70 && !owpInArrow(c, s.scope) {
+				if s.ctx.PHP.AtLeast(phpversion.PHP70) && !owpInArrow(c, s.scope) {
 					for _, p := range syntax.FuncLikeParams(s.scope) {
 						if p.Var != nil {
 							s.dynamic[p.Var.Name] = true

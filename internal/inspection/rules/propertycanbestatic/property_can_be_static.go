@@ -72,7 +72,7 @@ func (propertyCanBeStatic) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		msg := "Large array default on an instance property; consider a static property."
-		if ctx.PHP >= phpversion.PHP56 {
+		if ctx.PHP.AtLeast(phpversion.PHP56) {
 			msg = "Large array default on an instance property; consider a static property or a class constant."
 		}
 		ctx.ReportNode(item.Var, msg)

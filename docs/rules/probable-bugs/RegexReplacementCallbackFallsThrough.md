@@ -17,7 +17,7 @@ Identify preg_replace_callback with an inline callback having a reachable fallth
 - Report preg_replace_callback with an inline callback having a reachable fallthrough path and no generator semantics. An explicit return on every path excludes.
 - A path ends, without falling through, at `return`, `throw`, `exit`/`die`, or a statement whose expression has the resolved type `never` (a call to a function, static method or instance method declared `never`). An `if` with a literal condition contributes only its selected branch; any other `if` falls through when it has no `else` or when at least one of its branches does.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

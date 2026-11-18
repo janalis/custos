@@ -252,7 +252,7 @@ namespace {
 
 ## Divergences
 
-- **Part B honours D4 (custos diverges).** Upstream reports callback
+- **Part B honors D4 (custos diverges).** Upstream reports callback
   strings even in files without a namespace, where qualifying makes no
   difference (WordPress-style procedural code: `array_map('intval', $ids)`).
   custos applies D4 to Part B too: no report when the file declares no

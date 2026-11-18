@@ -20,7 +20,7 @@ import (
 )
 
 // The flow steps cache keeps, between runs, every summary the last flow
-// build made of each analysed file with the contracts it read (the steps
+// build made of each analyzed file with the contracts it read (the steps
 // BuildFlowRecorded records), so that a run after an edit summarizes again
 // only what the edit reaches: a file whose source is unchanged takes, as an
 // update in the language server does, a recorded summary whose contracts
@@ -35,9 +35,9 @@ import (
 //     directory (summaries hold paths as the run names them) and the vendor
 //     directory are part of the key;
 //   - so is the size and modification time of every file indexed but not
-//     analysed, the trust the symbol cache gives its entries: a run in which
+//     analyzed, the trust the symbol cache gives its entries: a run in which
 //     one was modified within racyWindow neither takes nor saves steps;
-//   - the analysed files must be the same, each declaring what it declared
+//   - the analyzed files must be the same, each declaring what it declared
 //     (index.Fingerprint, which ignores positions as an update does).
 //
 // Otherwise the build starts from none and saves its own steps.
@@ -48,7 +48,7 @@ const flowCacheMagic = "custos flow steps 1\n"
 // maxFlowCacheBytes bounds the flow steps file read back.
 const maxFlowCacheBytes = 1 << 30
 
-// flowSteps is what the flow steps cache holds for the analysed files of a
+// flowSteps is what the flow steps cache holds for the analyzed files of a
 // run, and what the run needs to save its own.
 type flowSteps struct {
 	path, key string
@@ -70,7 +70,7 @@ func (c *SymbolCache) flowStepsPath() string {
 }
 
 // flowKey is the key of the flow steps for options; ok is false when a
-// file indexed but not analysed was modified within racyWindow: its stat
+// file indexed but not analyzed was modified within racyWindow: its stat
 // does not tell whether it changes again.
 func (c *SymbolCache) flowKey(root string, options flow.Options) (key string, ok bool) {
 	if c.racy {
@@ -87,14 +87,14 @@ func (c *SymbolCache) flowKey(root string, options flow.Options) (key string, ok
 }
 
 // fingerprint makes the index record the fingerprint of the declarations of
-// the first n files it indexes (the analysed ones), for the flow steps.
+// the first n files it indexes (the analyzed ones), for the flow steps.
 func (c *SymbolCache) fingerprint(n int) {
 	if c != nil {
 		c.prints = make([][sha256.Size]byte, n)
 	}
 }
 
-// declared records the declarations of the analysed file i (see
+// declared records the declarations of the analyzed file i (see
 // fingerprint), before DropStaleInferred rewrites them.
 func (c *SymbolCache) declared(i int, fs *index.FileSymbols) {
 	if c != nil && c.prints != nil {

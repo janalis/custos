@@ -55,3 +55,4 @@ function dynamicVariable(string $name): string
     $$name = [1];
     return json_encode($a);
 }
+$a = ['loop' => []]; json_encode($a, JSON_THROW_ON_ERROR);

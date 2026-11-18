@@ -183,7 +183,7 @@ var caseFolders = map[string]bool{
 }
 
 func (constantCanBeUsed) checkOS(ctx *analysis.Context, c *syntax.ConstFetch) {
-	if ctx.PHP < phpversion.PHP72 || semanticquery.GlobalConstName(ctx, c) != "PHP_OS" {
+	if ctx.PHP.Below(phpversion.PHP72) || semanticquery.GlobalConstName(ctx, c) != "PHP_OS" {
 		return
 	}
 	f := astquery.ParentFuncCall(c) // D5

@@ -13,6 +13,7 @@ const message = "Compare XML parsing failure with integer zero."
 
 type rule struct{}
 
+// New returns the XmlParseZeroComparedWithFalse inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "XmlParseZeroComparedWithFalse" }
 func (rule) Semantic()                {}

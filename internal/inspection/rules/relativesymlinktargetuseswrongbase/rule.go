@@ -24,7 +24,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	if !semanticquery.ExpansionDPathCall(ctx, c) {
+	if !semanticquery.PathArgumentCall(ctx, c) {
 		return
 	}
 	read, ok := syntax.UnwrapParens(semanticquery.CallArgument(c.Args, 0, "filename")).(*syntax.FuncCall)
@@ -36,7 +36,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	cwd, target := "", ""
-	for _, event := range semanticquery.ExpansionDLocalEvents(ctx, c) {
+	for _, event := range semanticquery.LocalEvents(ctx, c) {
 		if event.Span().Start >= read.Span().Start {
 			break
 		}

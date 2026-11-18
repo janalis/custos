@@ -1,4 +1,5 @@
-// Package curluploaddeclaredsizemismatch implements CurlUploadDeclaredSizeMismatch.
+// Package curluploaddeclaredsizemismatch implements the native
+// CurlUploadDeclaredSizeMismatch inspection.
 package curluploaddeclaredsizemismatch
 
 import (
@@ -14,6 +15,7 @@ const message = "Match the declared upload size to remaining bytes."
 
 type rule struct{}
 
+// New returns the CurlUploadDeclaredSizeMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CurlUploadDeclaredSizeMismatch" }
 func (rule) Semantic()                {}

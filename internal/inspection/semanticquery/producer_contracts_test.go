@@ -49,7 +49,7 @@ func TestFiniteProducerContractQueries(t *testing.T) {
 			if NativeLocalBuiltinResult(ctx, x, "false", "file_get_contents") != nil {
 				t.Fatal("false/null contracts or guard states conflated")
 			}
-			if NativeLocalResultOf(ctx, x, "null", func(syntax.Expr) bool { return true }) != nil || NativeLocalResult(ctx, x, "null") != nil || NativeLocalValue(ctx, x) != nil {
+			if nativeLocalValue(ctx, x, "null", func(syntax.Expr) bool { return true }) != nil || nativeLocalValue(ctx, x, "null", nil) != nil || NativeLocalValue(ctx, x) != nil {
 				t.Fatal("generic query accepted compressed identity")
 			}
 			if !NativeFailureFlowOnly(ctx, x) {
@@ -59,7 +59,7 @@ func TestFiniteProducerContractQueries(t *testing.T) {
 	}
 	probeNative(t, contractSwitch(70, func(i int) string { return fmt.Sprintf("project%d($input)", i) }, nil), func(ctx *analysis.Context, at *syntax.FuncCall) {
 		x := CallArgument(at.Args, 0, "")
-		result := NativeLocalResultOf(ctx, x, "false", func(e syntax.Expr) bool {
+		result := nativeLocalValue(ctx, x, "false", func(e syntax.Expr) bool {
 			call, ok := e.(*syntax.FuncCall)
 			return ok && call.Name.(*syntax.Name).Value == "project69"
 		})

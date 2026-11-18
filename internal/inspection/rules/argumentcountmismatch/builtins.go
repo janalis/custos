@@ -55,5 +55,5 @@ var driftedStubs = map[string]bool{
 // hand and the stubs model them only roughly.
 func trustedBuiltin(file, callee string, ver phpversion.Version) bool {
 	callee = strings.ToLower(strings.TrimPrefix(callee, `\`))
-	return ver >= phpversion.PHP80 && semanticquery.BundledStub(file) && !driftedStubs[callee]
+	return ver.AtLeast(phpversion.PHP80) && semanticquery.BundledStub(file) && !driftedStubs[callee]
 }

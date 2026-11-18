@@ -97,7 +97,7 @@ func NativeAttributeFlags(ctx *analysis.Context, a *syntax.Attribute) (string, i
 			}
 			arg := CallArgument(mark.Args, 0, "flags")
 			if arg == nil {
-				if ctx.PHP >= phpversion.PHP85 {
+				if ctx.PHP.AtLeast(phpversion.PHP85) {
 					return fqn, 127, true
 				}
 				return fqn, 63, true
@@ -194,7 +194,7 @@ func NativeFixedArraySize(ctx *analysis.Context, e syntax.Expr, at syntax.Node) 
 	if !known || size < 0 {
 		return 0, false
 	}
-	for _, c := range NativeMethodStateCalls(ctx, at, e, "setSize") {
+	for _, c := range nativeMethodStateCalls(ctx, at, e, "setSize") {
 		size, known = NativeInt(ctx, CallArgument(c.Args, 0, "size"))
 		if !known || size < 0 {
 			return 0, false
@@ -324,7 +324,7 @@ func NativeContractInt(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
 			decl := ctx.Index().FindConst(ctx.Names().Class(cl.Value, cl.Span().Start), name.Value, ctx.PHP)
 			if decl != nil {
 				owner := ctx.Index().Class(ctx.Names().Class(cl.Value, cl.Span().Start), ctx.PHP)
-				if owner != nil && strings.EqualFold(owner.FQN, "Attribute") && strings.HasPrefix(owner.File, "stubs/") && ctx.PHP < phpversion.PHP85 {
+				if owner != nil && strings.EqualFold(owner.FQN, "Attribute") && strings.HasPrefix(owner.File, "stubs/") && ctx.PHP.Below(phpversion.PHP85) {
 					switch name.Value {
 					case "IS_REPEATABLE":
 						return 64, true
@@ -347,25 +347,6 @@ func NativeContractInt(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
 // by-reference aliases and calls that may replace the tracked variable.
 func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 	return nativeLocalValue(ctx, e, "", nil)
-}
-
-// NativeLocalResult is NativeLocalValue for an inspection about results that
-// fail with one value, "false" or "null": when several assignments reach the
-// read, a call result counts as guarded only if that value is excluded on
-// its path, whatever the declared return type of the callee says.
-func NativeLocalResult(ctx *analysis.Context, e syntax.Expr, failure string) syntax.Expr {
-	return nativeLocalValue(ctx, e, failure, nil)
-}
-
-// NativeLocalResultOf is NativeLocalResult for an inspection about the
-// results of some calls only: when several assignments reach the read, the
-// result of a call it does not ask about is passed over, so that an unguarded
-// result of another API reaching the same read does not hide one it reports.
-func NativeLocalResultOf(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
-	if ctx.Flow().CompressedOrigins(e) {
-		return nil
-	}
-	return nativeLocalValue(ctx, e, failure, produced)
 }
 
 func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
@@ -563,9 +544,9 @@ func nativeContractScope(ctx *analysis.Context, scope syntax.Node) *nativeContra
 	}).(*nativeContractFacts)
 }
 
-// NativeMethodStateCalls returns direct local method effects on the same
+// nativeMethodStateCalls returns direct local method effects on the same
 // proven allocation, including factory allocations without graph identities.
-func NativeMethodStateCalls(ctx *analysis.Context, at syntax.Node, e syntax.Expr, names ...string) []*syntax.MethodCall {
+func nativeMethodStateCalls(ctx *analysis.Context, at syntax.Node, e syntax.Expr, names ...string) []*syntax.MethodCall {
 	var out []*syntax.MethodCall
 	for _, n := range ContractEvents(ctx, syntax.EnclosingVariableScope(at)) {
 		if n.Span().Start >= at.Span().Start {

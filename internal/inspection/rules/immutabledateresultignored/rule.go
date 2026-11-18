@@ -1,4 +1,5 @@
-// Package immutabledateresultignored implements the ImmutableDateResultIgnored inspection.
+// Package immutabledateresultignored implements the native
+// ImmutableDateResultIgnored inspection.
 package immutabledateresultignored
 
 import (
@@ -14,6 +15,7 @@ import (
 
 type rule struct{}
 
+// New returns the ImmutableDateResultIgnored inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ImmutableDateResultIgnored" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
@@ -21,7 +23,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodC
 const message = "Assign the returned immutable date."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP55 {
+	if ctx.PHP.Below(phpversion.PHP55) {
 		return
 	}
 	call := n.(*syntax.MethodCall)

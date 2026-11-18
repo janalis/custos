@@ -79,7 +79,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. |
+| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax of the arrays in the call the quick-fix rebuilds: `[...]` when true, `array(...)` when false. Detection unaffected. |
 
 ## Configure
 

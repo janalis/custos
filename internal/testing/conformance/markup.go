@@ -121,7 +121,7 @@ func matchClose(b []byte) (string, int, bool) {
 	return "", 0, false
 }
 
-// matchOpen recognises `<name>` and `<name descr="...">` (attributes other
+// matchOpen recognizes `<name>` and `<name descr="...">` (attributes other
 // than descr, such as textAttributesKey, are ignored).
 func matchOpen(b []byte) (name, descr string, n int, ok bool) {
 	for tag := range tagSeverity {

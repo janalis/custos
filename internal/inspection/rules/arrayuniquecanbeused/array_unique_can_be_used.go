@@ -22,7 +22,7 @@ func (arrayUniqueCanBeUsed) Kinds() []syntax.NodeKind {
 }
 
 func (arrayUniqueCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP72 { // D1
+	if ctx.PHP.Below(phpversion.PHP72) { // D1
 		return
 	}
 	inner, ok := astquery.IsFuncNamedFold(n, "array_count_values") // D2

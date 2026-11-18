@@ -1,5 +1,5 @@
-// Package invalidpropertyassignment implements the InvalidPropertyAssignment
-// inspection.
+// Package invalidpropertyassignment implements the native
+// InvalidPropertyAssignment inspection.
 package invalidpropertyassignment
 
 import (

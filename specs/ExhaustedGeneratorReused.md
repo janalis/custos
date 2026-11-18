@@ -1,7 +1,7 @@
 ---
 id: ExhaustedGeneratorReused
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "5.5", max: "" }
 ---
@@ -38,7 +38,7 @@ No automatic fix: recreation and materialization have different side effects and
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -53,4 +53,4 @@ function values() { yield 1; } $g = values(); iterator_to_array($g); <error desc
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

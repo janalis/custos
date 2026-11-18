@@ -1,7 +1,7 @@
 ---
 id: ValidatedBooleanFalseRejectedAsInvalid
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -18,7 +18,7 @@ Identify FILTER_VALIDATE_BOOLEAN result compared strictly with false in a branch
 - D1a. A valid false spelling is the known string that, once the bytes space, tab, line feed, carriage return and vertical tab are stripped from both ends, is empty or equals `0`, `false`, `off` or `no` ignoring ASCII case. No other byte counts as padding: a form feed or a multi-byte space such as U+00A0 or U+2003 makes the input invalid for the filter.
 - D1b. The third argument, when present, must be a known integer flag set without FILTER_NULL_ON_FAILURE, FILTER_REQUIRE_ARRAY and FILTER_FORCE_ARRAY.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

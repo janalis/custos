@@ -31,7 +31,7 @@ Reported:
 
 - Resolve getType on a ReflectionParameter, ReflectionProperty or getReturnType on a ReflectionFunctionAbstract for a known union type (PHP 8.0+) or intersection type (PHP 8.1+). Report getName invoked on that result, because only ReflectionNamedType provides it. Follow local assignments and indexed parameter selection.
 - D1a. A declared type is composite when it has an intersection (`&`, including a parenthesised group inside a union) or when at least two union members remain after discarding a leading `?` and any `null` member. `?T`, `T|null` and `null|T` are a single nullable named type and are never reported; `int|string|null` is.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

@@ -1,4 +1,5 @@
-// Package dstunsafecalendardayarithmetic implements the DstUnsafeCalendarDayArithmetic inspection.
+// Package dstunsafecalendardayarithmetic implements the native
+// DstUnsafeCalendarDayArithmetic inspection.
 package dstunsafecalendardayarithmetic
 
 import (
@@ -12,6 +13,7 @@ import (
 
 type rule struct{}
 
+// New returns the DstUnsafeCalendarDayArithmetic inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DstUnsafeCalendarDayArithmetic" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KBinary} }
@@ -64,7 +66,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	zoneName, ok := semanticquery.NativeString(ctx, semanticquery.CallArgument(zone.Args, 0, "timezone"))
 	// Only Region/City identifiers name a DST-observing zone in PHP: bare
 	// abbreviations (CET, EST) are fixed offsets there, and names such as
-	// "Local" would resolve to the zone of the analysing machine.
+	// "Local" would resolve to the zone of the analyzing machine.
 	if !ok || !strings.Contains(zoneName, "/") {
 		return
 	}

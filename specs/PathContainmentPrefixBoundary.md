@@ -1,7 +1,7 @@
 ---
 id: PathContainmentPrefixBoundary
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -22,7 +22,7 @@ Detect canonical-path containment accepted through str_starts_with or equivalent
 
   N must be proven equal to the byte length of PREFIX: a known integer of that value, or `strlen()` of a known string identical to PREFIX. A negated comparison is reported as well, because it expresses the same boundary-less test on the rejection path.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -42,7 +42,7 @@ No automatic fix: root equality and platform/symlink policy must be accounted fo
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -59,4 +59,4 @@ function fine($path) { $resolved = realpath($path); return $resolved === '/srv/f
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

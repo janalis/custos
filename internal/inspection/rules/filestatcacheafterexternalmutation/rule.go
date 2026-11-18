@@ -23,7 +23,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	// exec and system drop the whole stat cache themselves from PHP 8.3 on.
-	if ctx.PHP >= phpversion.PHP83 {
+	if ctx.PHP.AtLeast(phpversion.PHP83) {
 		return
 	}
 	c := n.(*syntax.FuncCall)

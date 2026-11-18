@@ -25,7 +25,8 @@ reproduce the behavior **without** ever opening EA. Process:
 1. Read the inspection class and every helper it relies on (strategy classes,
    `utils/*`, `fixers/*`) until you understand every branch. Note which ones
    need semantic data (reference resolution, types, class hierarchy, index,
-   control flow, stubs) → `kind` / `needs` in frontmatter.
+   control flow, stubs) → `kind` / `needs` in frontmatter (`kind` values:
+   see docs/contributing/adding-a-rule.md).
 2. Read all its fixtures (and `.fixed` files). For each highlight, work out
    **exactly which node/token range** is highlighted and under which
    severity — conformance compares ranges and severities exactly. Note

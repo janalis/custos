@@ -1,4 +1,5 @@
-// Package pdoboundvalueassumedlive implements PdoBoundValueAssumedLive.
+// Package pdoboundvalueassumedlive implements the native
+// PdoBoundValueAssumedLive inspection.
 package pdoboundvalueassumedlive
 
 import (
@@ -13,6 +14,7 @@ const message = "Rebind the changed value before execution."
 
 type rule struct{}
 
+// New returns the PdoBoundValueAssumedLive inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PdoBoundValueAssumedLive" }
 func (rule) Semantic()                {}

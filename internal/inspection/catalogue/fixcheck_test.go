@@ -55,7 +55,7 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 	ix := project.BuildIndex(files, opt, infer.Options{})
 	snapshot := project.BuildFlowSnapshot(context.Background(), files, nil, opt, ix, flow.Options{})
 	e = e.WithIndex(ix).WithFlow(snapshot)
-	// Each fix's result is analysed again with its rule alone.
+	// Each fix's result is analyzed again with its rule alone.
 	alone := map[string]*analysis.Engine{}
 	for _, r := range All() {
 		one, err := analysis.NewEngine([]analysis.Rule{r}, analysis.Config{PHP: phpversion.PHP85, EnableAll: true})

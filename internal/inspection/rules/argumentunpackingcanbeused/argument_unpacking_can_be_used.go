@@ -22,7 +22,7 @@ func (argumentUnpackingCanBeUsed) Kinds() []syntax.NodeKind {
 }
 
 func (argumentUnpackingCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP56 { // D1
+	if ctx.PHP.Below(phpversion.PHP56) { // D1
 		return
 	}
 	call := n.(*syntax.FuncCall)
@@ -110,7 +110,7 @@ const (
 // unpacking a string-keyed array throws, so only array literals whose keys
 // are all absent or integer literals are known to be safe.
 func keysListSafe(ctx *analysis.Context, arg syntax.Expr) unpackKeys {
-	if ctx.PHP >= phpversion.PHP80 {
+	if ctx.PHP.AtLeast(phpversion.PHP80) {
 		return keysSafe
 	}
 	arr, ok := arg.(*syntax.Array)

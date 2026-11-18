@@ -21,3 +21,4 @@ function assignedArmTest($b, $x) { if ($x) { return 0; } elseif (($s = gzdecode(
 function afterFailedArm($b, $x) { if ($x) { return 0; } elseif (($s = (gzdecode($b))) === false) { return 2; } elseif ($b) { return strtoupper($s); } else { return strlen($s); } }
 function exitThenWork($b) { if (($s = gzdecode($b)) === false) { return 0; } $n = 1; return strlen($s) + $n; }
 function exitThenNested($b, $x) { $s = gzdecode($b); if (false === $s) { throw new RuntimeException('bad'); } $n = 1; if ($x) return strlen($s) + $n; return 0; }
+$s=gzdecode($bytes); if ($s !== false) { echo strlen($s); }

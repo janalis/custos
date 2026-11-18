@@ -1,4 +1,5 @@
-// Package curlheaderoptionrequiresarray implements CurlHeaderOptionRequiresArray.
+// Package curlheaderoptionrequiresarray implements the native
+// CurlHeaderOptionRequiresArray inspection.
 package curlheaderoptionrequiresarray
 
 import (
@@ -11,6 +12,7 @@ const message = "Supply headers as an array."
 
 type rule struct{}
 
+// New returns the CurlHeaderOptionRequiresArray inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CurlHeaderOptionRequiresArray" }
 func (rule) Semantic()                {}

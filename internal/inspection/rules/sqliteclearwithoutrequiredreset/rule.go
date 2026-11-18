@@ -1,4 +1,5 @@
-// Package sqliteclearwithoutrequiredreset implements SqliteClearWithoutRequiredReset.
+// Package sqliteclearwithoutrequiredreset implements the native
+// SqliteClearWithoutRequiredReset inspection.
 package sqliteclearwithoutrequiredreset
 
 import (
@@ -12,13 +13,14 @@ const message = "Reset the SQLite statement before rebinding cleared parameters.
 
 type rule struct{}
 
+// New returns the SqliteClearWithoutRequiredReset inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SqliteClearWithoutRequiredReset" }
 func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP >= phpversion.PHP72 {
+	if ctx.PHP.AtLeast(phpversion.PHP72) {
 		return
 	}
 	c := n.(*syntax.MethodCall)

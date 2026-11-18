@@ -1,4 +1,5 @@
-// Package pgidentifierescapedasliteral implements PgIdentifierEscapedAsLiteral.
+// Package pgidentifierescapedasliteral implements the native
+// PgIdentifierEscapedAsLiteral inspection.
 package pgidentifierescapedasliteral
 
 import (
@@ -15,6 +16,7 @@ const message = "Escape PostgreSQL identifiers with the identifier API."
 
 type rule struct{}
 
+// New returns the PgIdentifierEscapedAsLiteral inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PgIdentifierEscapedAsLiteral" }
 func (rule) Semantic()                {}
@@ -36,7 +38,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if sql == nil {
 			sql = semanticquery.CallArgument(query.Args, 0, "query")
 		}
-		parts, values, known := semanticquery.ExpansionSQLParts(ctx, sql)
+		parts, values, known := semanticquery.SQLSkeletonParts(ctx, sql)
 		if !known {
 			continue
 		}
@@ -200,7 +202,7 @@ func safeUses(ctx *analysis.Context, c *syntax.FuncCall) bool {
 					if sql == nil {
 						sql = semanticquery.CallArgument(call.Args, 0, "query")
 					}
-					parts, values, known := semanticquery.ExpansionSQLParts(ctx, sql)
+					parts, values, known := semanticquery.SQLSkeletonParts(ctx, sql)
 					if known {
 						for i, val := range values {
 							if val == v && identifierPosition(parts[i], parts[i+1]) {

@@ -1,7 +1,7 @@
 ---
 id: CallbackRequiredArgumentMismatch
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -37,7 +37,7 @@ No automatic fix: an additional input array cannot be invented.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -63,4 +63,4 @@ array_map('label', $items);
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

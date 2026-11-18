@@ -16,7 +16,7 @@ Check closure binding before invoking it.
 
 - D1. Track an explicitly static closure bound using Closure::bindTo or builtin Closure::bind with a proven non-null object. Report invocation of the failed binding result on the same reachable local path, including an immediately invoked result. The object is proven only when every alternative of its inferred type is a class instance: a nullable, untyped, mixed or otherwise partly non-class type proves nothing, because binding null to a static closure succeeds.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
@@ -43,7 +43,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -85,8 +85,8 @@ When several assignments reach a use, each producer is checked on its own: an
 unguarded eligible producer is still reported when other paths use another API
 or are guarded, and an irrelevant variant cannot hide a later eligible call. A
 path whose value does not come from a known call establishes nothing. When the
-producers cannot be tracked within the analysis budget, nothing is reported.
+producers cannot be tracked, nothing is reported.
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

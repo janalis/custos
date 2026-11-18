@@ -31,7 +31,7 @@ Reported:
 - D1a. Anything else that runs code in the condition or body removes the proof, not only pcntl_signal_dispatch: any other function call (builtin, application or dynamic), a method or nullsafe method call, a static call, an object construction, an include/require, eval, and yield or yield from (the generator's consumer may dispatch).
 - D1b. An active ticks directive removes the proof, because pending signals are then delivered between statements. It is active when the loop sits inside a block-form declare naming ticks, or when a statement-form declare naming ticks appears earlier in the same file, at any nesting depth. The directive name is matched case-insensitively; the latest applicable directive wins; a literal zero switches ticks off; a block-form declare that ends before the loop has no effect on it. Other directives such as strict_types never count.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 

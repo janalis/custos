@@ -1,7 +1,7 @@
 ---
 id: DetachedSignaturePassedToCombinedVerifier
 group: Security
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "7.2", max: "" }
 ---

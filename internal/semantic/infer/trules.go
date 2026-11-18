@@ -610,27 +610,27 @@ func (r *TRules) unmodelled(scope syntax.Node, v *syntax.Variable, reach map[uin
 	if reach == nil {
 		return false
 	}
-	modelled := make(map[uint32]bool, len(as)+4)
+	modeled := make(map[uint32]bool, len(as)+4)
 	for _, p := range syntax.VariableScopeParams(scope) {
-		modelled[p.Span().Start] = true
+		modeled[p.Span().Start] = true
 	}
 	for _, d := range as {
-		modelled[d.Span().Start] = true
+		modeled[d.Span().Start] = true
 	}
 	for _, d := range r.Env.scopeVars(scope).defs[v.Name] {
 		if d.doc {
-			modelled[d.pos] = true
+			modeled[d.pos] = true
 		}
 	}
 	for p := v.Parent(); p != nil && p != scope; p = p.Parent() {
 		if fe, ok := p.(*syntax.Foreach); ok && fe.Body != nil && containsPos(fe.Body, v.Span().Start) {
 			if b := foreachBinding(fe, v.Name); b != nil {
-				modelled[b.Span().Start] = true
+				modeled[b.Span().Start] = true
 			}
 		}
 	}
 	for p := range reach {
-		if !modelled[p] {
+		if !modeled[p] {
 			return true
 		}
 	}

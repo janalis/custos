@@ -12,6 +12,7 @@ const message = "Use a one-byte CSV separator."
 
 type rule struct{}
 
+// New returns the CsvDelimiterInvalidByteLength inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CsvDelimiterInvalidByteLength" }
 func (rule) Semantic()                {}

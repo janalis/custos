@@ -1,7 +1,7 @@
 ---
 id: UntrustedSqlConstruction
 group: Security
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,9 +16,9 @@ Detect request-derived data reaching a resolved SQL execution sink as SQL syntax
 
 - D1. Report request-derived data reaching a resolved SQL execution sink as SQL syntax without parameter binding or proven context-appropriate validation.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 - D4. The sinks are the builtin `PDO::query`, `PDO::exec` and `PDO::prepare` (first argument), called on a receiver whose single resolved class is `PDO` or a subclass that does not override the method, plus project wrappers whose summary forwards an argument to one of them. The three methods exist on every supported PHP version, so they are sinks on every target version even when the stub signature in use was introduced later.
-- D5. The statement text is injectable only when a part that contributes characters to it is. Concatenation, interpolation, `??`, both ternary branches (the condition for `?:`), every `match` arm result, array literal items, a variable with a single reaching definition, the separator and pieces of `implode`/`join`, the fill value of `array_fill` and the repeated text of `str_repeat` are followed part by part. A `match` subject and a ternary condition only select a result and contribute nothing themselves. Any other shape keeps the flow verdict. A variable is followed to its reaching assignment only when its scope cannot rebind it behind that assignment; a reference alias, a by-reference closure capture, `foreach` or argument, a `catch` binding or `static` declaration of the same name, `extract()`, an assignment through a variable variable, a `global` declaration of it or a `$GLOBALS` access that is not a different literal entry keeps the report.
+- D5. The statement text is injectable only when a part that contributes characters to it is. Concatenation, interpolation, `??`, both ternary branches (the condition for `?:`), every `match` arm result, array literal items, a variable with a single reaching definition, the separator and pieces of `implode`/`join`, the fill value of `array_fill` and the repeated text of `str_repeat` are followed part by part. A `match` subject and a ternary condition only select a result and contribute nothing themselves. Any other shape keeps the flow verdict. A variable is followed to its reaching assignment only when nothing in its scope can change it behind its plain assignments, anywhere and in any statement order: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument a resolved callee binds by reference, other than the inspected argument itself); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A `global` or `static` declaration of it, or a by-reference capture by the closure that is the scope, removes the proof too. In top-level code, where locals are globals, a `global` declaration naming it in any function of the file, or a `$GLOBALS` access anywhere in the file, does as well. The same holds for every local whose value an assignment stores into it, whatever the assigned expression computes, directly or through further assignments. Otherwise the report is kept.
 
 Project method wrappers are followed only when a single visible declaration is fixed by a final receiver class, a final method, or a private method accessible at the call. Open overridable methods, ambiguous declarations, conditional class bodies and trait bodies do not establish a wrapper sink. Static calls must name a static method. These contracts compose through nested project wrappers and refresh when class or method dispatch metadata changes.
 
@@ -46,7 +46,7 @@ No automatic fix: prepared-query rewriting requires preserving all binding and s
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -73,4 +73,4 @@ function good(PDO $pdo) {
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

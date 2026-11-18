@@ -38,7 +38,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -69,4 +69,4 @@ fputcsv($fp, ["north", "south"], ",", '"', "\\");
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

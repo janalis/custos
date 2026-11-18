@@ -61,3 +61,4 @@ function rejectAnyBody($url)
         throw new RuntimeException('body received');
     }
 }
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); if (curl_exec($ch) === false) { throw new RuntimeException(); }

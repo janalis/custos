@@ -12,6 +12,7 @@ const message = "Check decompression before consuming data."
 
 type rule struct{}
 
+// New returns the DecompressionFailureConsumed inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DecompressionFailureConsumed" }
 func (rule) Semantic()                {}

@@ -60,3 +60,20 @@ func TestDecodeCatalogues(t *testing.T) {
 		}
 	}
 }
+
+// A native rule's facts are custos's own: hasFix must say whether its spec
+// describes a quick-fix. (EA facts keep the upstream catalogue's value.)
+func TestNativeFixFact(t *testing.T) {
+	all, err := All()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range all {
+		if !r.Native {
+			continue
+		}
+		if d, _ := Describe(r.ID); d.Fix != r.HasFix {
+			t.Errorf("%s: hasFix is %v in native-rules.json, but its spec says %v", r.ID, r.HasFix, d.Fix)
+		}
+	}
+}

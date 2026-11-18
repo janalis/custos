@@ -1,4 +1,5 @@
-// Package pregsplitcaptureflagwithoutgroups implements the PregSplitCaptureFlagWithoutGroups inspection.
+// Package pregsplitcaptureflagwithoutgroups implements the native
+// PregSplitCaptureFlagWithoutGroups inspection.
 package pregsplitcaptureflagwithoutgroups
 
 import (
@@ -13,6 +14,7 @@ import (
 
 type rule struct{}
 
+// New returns the PregSplitCaptureFlagWithoutGroups inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PregSplitCaptureFlagWithoutGroups" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }

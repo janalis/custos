@@ -11,7 +11,6 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
-	"custos/internal/semantic/stubs"
 )
 
 // longInheritanceChain reports classes with too many ancestor classes.
@@ -86,5 +85,5 @@ func (longInheritanceChain) Check(ctx *analysis.Context, n syntax.Node) {
 // sources: a builtin stub, or a file in the project's vendor directory
 // (see index.World.Dependency).
 func licThirdParty(ix *index.Index, c *index.Class, ver phpversion.Version) bool {
-	return stubs.Index().Class(c.FQN, ver) == c || ix.World().Dependency(c.File)
+	return semanticquery.IsBuiltinClass(c, ver) || ix.World().Dependency(c.File)
 }

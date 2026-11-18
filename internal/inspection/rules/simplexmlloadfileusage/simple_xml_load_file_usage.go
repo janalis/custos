@@ -29,7 +29,7 @@ func (simpleXMLLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	// custos: the bug needs the entity loader disabled with
 	// libxml_disable_entity_loader(), deprecated from PHP 8.0 (libxml 2.9
 	// disables external entities by default).
-	if ctx.PHP >= phpversion.PHP80 {
+	if ctx.PHP.AtLeast(phpversion.PHP80) {
 		return
 	}
 	call := n.(*syntax.FuncCall)

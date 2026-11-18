@@ -1,7 +1,7 @@
 ---
 id: CurlResponseBodyWithoutReturnTransfer
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -36,7 +36,7 @@ No automatic fix: enabling return transfer changes output behavior and failure h
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -51,4 +51,4 @@ $ch = curl_init('https://example.invalid/'); $body = curl_exec($ch); <warning de
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

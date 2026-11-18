@@ -119,7 +119,7 @@ func constructorMethod(env *infer.Env, class string) (*index.Method, bool) {
 		if modern != nil && (strings.EqualFold(modern.Class, class) || strings.EqualFold(modern.TypeClass, class)) {
 			return modern, env.Index.ClassCount(modern.Class) == 1
 		}
-		if env.PHP < phpversion.PHP80 {
+		if env.PHP.Below(phpversion.PHP80) {
 			short := class[strings.LastIndexByte(class, '\\')+1:]
 			if legacy := declared.Methods[strings.ToLower(short)]; legacy != nil && !legacy.Magic && legacy.Avail.In(env.PHP) {
 				if !strings.Contains(class, `\`) {

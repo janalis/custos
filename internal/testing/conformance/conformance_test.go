@@ -188,51 +188,8 @@ func TestOwnFixtures(t *testing.T) {
 				if engine == nil || !engine.Supports([]string{rule}) {
 					t.Fatalf("fixtures exist for %s but the rule is not registered", rule)
 				}
-				marked, err := os.ReadFile(f)
-				if err != nil {
-					t.Fatal(err)
-				}
-				base := strings.TrimSuffix(f, ext)
-				var cfg fixtureConfig
-				if b, err := os.ReadFile(base + cfgSuffix); err == nil {
-					if err := json.Unmarshal(b, &cfg); err != nil {
-						t.Fatal(err)
-					}
-				}
-				opts := map[string]string{}
-				for k, v := range cfg.Options {
-					key := k
-					if !strings.Contains(k, ".") { // `Rule.OPTION` sets an option of a `with` rule
-						key = rule + "." + k
-					}
-					if list, ok := v.([]any); ok { // list option: passed as JSON
-						b, _ := json.Marshal(list)
-						opts[key] = string(b)
-						continue
-					}
-					opts[key] = fmt.Sprint(v)
-				}
-				var calls []string
-				for _, c := range cfg.Calls {
-					calls = append(calls, rule+"."+c)
-				}
-				fixed, _ := os.ReadFile(base + ".fixed" + ext)
-				req := Request{
-					Path: f, Rules: append([]string{rule}, cfg.With...), PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls, CompleteWorld: cfg.CompleteWorld,
-					Vendor: filepath.Join(dir, cmp.Or(cfg.VendorDir, "vendor")), Assertions: cfg.Assertions,
-				}
-				for _, comp := range cfg.Companions {
-					p := filepath.Join(dir, comp)
-					src, err := os.ReadFile(p)
-					if err != nil {
-						t.Fatal(err)
-					}
-					if req.Companions == nil {
-						req.Companions = map[string][]byte{}
-					}
-					req.Companions[p] = src
-				}
-				res, err := Check(engine, req, marked, fixed, CompareOptions{Messages: true})
+				req, marked, fixed := ownCase(t, rule, dir, f, cfgSuffix)
+				res, err := Check(engine, req, marked, fixed, CompareOptions{Messages: true, NoFixWithoutFixed: !unshownFixes[rule+"/"+name]})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -240,6 +197,70 @@ func TestOwnFixtures(t *testing.T) {
 			})
 		}
 	}
+}
+
+// unshownFixes are own fixtures whose fixes produce text the upstream
+// project ships verbatim (a thrown message, a package requirement): the
+// clean-room scan forbids recording it in a .fixed file, so they are not
+// required to come without fixes either.
+var unshownFixes = map[string]bool{
+	"MkdirRaceCondition/review-temp-variable.php": true,
+	"MkdirRaceCondition/statement.php":            true,
+	"SecurityAdvisories/bad-escape/composer.json": true,
+	"SecurityAdvisories/dev-skips/composer.json":  true,
+}
+
+// ownCase reads the own fixture f of rule (in dir) with its expected fix
+// output (nil when absent) and builds its request from the sidecar whose
+// name ends in cfgSuffix.
+func ownCase(t *testing.T, rule, dir, f, cfgSuffix string) (req Request, marked, fixed []byte) {
+	t.Helper()
+	marked, err := os.ReadFile(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ext := filepath.Ext(f)
+	base := strings.TrimSuffix(f, ext)
+	var cfg fixtureConfig
+	if b, err := os.ReadFile(base + cfgSuffix); err == nil {
+		if err := json.Unmarshal(b, &cfg); err != nil {
+			t.Fatal(err)
+		}
+	}
+	opts := map[string]string{}
+	for k, v := range cfg.Options {
+		key := k
+		if !strings.Contains(k, ".") { // `Rule.OPTION` sets an option of a `with` rule
+			key = rule + "." + k
+		}
+		if list, ok := v.([]any); ok { // list option: passed as JSON
+			b, _ := json.Marshal(list)
+			opts[key] = string(b)
+			continue
+		}
+		opts[key] = fmt.Sprint(v)
+	}
+	var calls []string
+	for _, c := range cfg.Calls {
+		calls = append(calls, rule+"."+c)
+	}
+	fixed, _ = os.ReadFile(base + ".fixed" + ext)
+	req = Request{
+		Path: f, Rules: append([]string{rule}, cfg.With...), PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls, CompleteWorld: cfg.CompleteWorld,
+		Vendor: filepath.Join(dir, cmp.Or(cfg.VendorDir, "vendor")), Assertions: cfg.Assertions,
+	}
+	for _, comp := range cfg.Companions {
+		p := filepath.Join(dir, comp)
+		src, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if req.Companions == nil {
+			req.Companions = map[string][]byte{}
+		}
+		req.Companions[p] = src
+	}
+	return req, marked, fixed
 }
 
 func reportResult(t *testing.T, res Result) {

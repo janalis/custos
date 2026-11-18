@@ -40,7 +40,7 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -60,7 +60,7 @@ $v=match($input) {4=>'first',default=>'other'};
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: variable conditions are accepted only under the single-assignment proof of D4/E3, because a value that changed after its literal assignment makes the arm reachable and its removal a behavior change.
 

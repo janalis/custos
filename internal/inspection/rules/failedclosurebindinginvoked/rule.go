@@ -12,6 +12,7 @@ const message = "Check closure binding before invoking it."
 
 type rule struct{}
 
+// New returns the FailedClosureBindingInvoked inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "FailedClosureBindingInvoked" }
 func (rule) Semantic()                {}

@@ -27,6 +27,7 @@ var passiveMethods = map[string]bool{
 
 type rule struct{}
 
+// New returns the LocalizedNumberTrailingInputAccepted inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "LocalizedNumberTrailingInputAccepted" }
 func (rule) Semantic()                {}

@@ -14,6 +14,7 @@ const message = "Check normal termination before decoding the exit code."
 
 type rule struct{}
 
+// New returns the ExitStatusReadWithoutNormalExitCheck inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ExitStatusReadWithoutNormalExitCheck" }
 func (rule) Semantic()                {}
@@ -25,9 +26,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	input := semanticquery.CallArgument(c.Args, 0, "status")
-	wait, flags := semanticquery.ExpansionCOutputCall(ctx, c, input, []string{"pcntl_waitpid"}, 1, "status"), 2
+	wait, flags := semanticquery.OutputParameterCall(ctx, c, input, []string{"pcntl_waitpid"}, 1, "status"), 2
 	if wait == nil {
-		wait, flags = semanticquery.ExpansionCOutputCall(ctx, c, input, []string{"pcntl_wait"}, 0, "status"), 1
+		wait, flags = semanticquery.OutputParameterCall(ctx, c, input, []string{"pcntl_wait"}, 0, "status"), 1
 	}
 	if wait == nil {
 		return
@@ -54,7 +55,7 @@ func waited(ctx *analysis.Context, wait, read *syntax.FuncCall, blocking bool) b
 func exited(ctx *analysis.Context, wait *syntax.FuncCall, status syntax.Expr, read *syntax.FuncCall) bool {
 	return semanticquery.NativeEarlierCallProves(ctx, read, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
 		call, ok := x.(*syntax.FuncCall)
-		if !ok || call.Span().Start <= wait.Span().End || !semanticquery.NativeBuiltin(ctx, call, "pcntl_wifexited") || !semanticquery.ExpansionCSame(ctx, status, semanticquery.CallArgument(call.Args, 0, "status")) {
+		if !ok || call.Span().Start <= wait.Span().End || !semanticquery.NativeBuiltin(ctx, call, "pcntl_wifexited") || !semanticquery.SameStableExpr(ctx, status, semanticquery.CallArgument(call.Args, 0, "status")) {
 			return types.Unknown, nil
 		}
 		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") }

@@ -16,7 +16,7 @@ Output the stream without printing its byte count.
 
 - D1. Report a direct readfile or fpassthru return used as the sole operand of echo or print. These functions already output stream bytes; their numeric successful return is output again. Grouping parentheses around the call, as in `echo(readfile($f));` or `print (fpassthru($h));`, are looked through: they are not call syntax and the operand is still the stream call alone.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
@@ -40,7 +40,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -71,4 +71,4 @@ readfile("ledger.txt");
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

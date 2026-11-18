@@ -21,7 +21,7 @@ func (strEndsWithCanBeUsed) Kinds() []syntax.NodeKind {
 }
 
 func (strEndsWithCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP80 { // E1
+	if ctx.PHP.Below(phpversion.PHP80) { // E1
 		return
 	}
 	m, ok := semanticquery.MatchStrCallCompare(ctx, n.(*syntax.FuncCall), 2, "substr") // D1-D3

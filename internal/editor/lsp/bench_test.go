@@ -3,17 +3,21 @@ package lsp
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/catalogue"
+	"custos/internal/inspection/rules/untrustedshellcommand"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/testing/testbudget"
@@ -122,7 +126,7 @@ func TestEditLatency(t *testing.T) {
 // TestWorkspaceEditLatency measures what an edit costs the server in a
 // project (CUSTOS_BENCH_ROOT, holding CUSTOS_BENCH_FILE): every rule, the
 // project index and flow snapshot, and a body-only change to the open
-// file analysed as the debounce timer would (without the delay). It logs
+// file analyzed as the debounce timer would (without the delay). It logs
 // the wall-clock time until the file's diagnostics are published and until
 // its flow summaries are updated too, and the CPU time of both; no budget is
 // enforced.
@@ -172,23 +176,23 @@ func TestWorkspaceEditLatency(t *testing.T) {
 	t.Logf("edit in %s: diagnostics p50 %v, p95 %v; with the flow update p50 %v, p95 %v, CPU p50 %v, p95 %v (flow %v)", filepath.Base(path), d50, d95, p50, p95, c50, c95, s.flowEnabled())
 }
 
-// labelled runs a rule under a pprof goroutine label naming it, so that a
+// labeled runs a rule under a pprof goroutine label naming it, so that a
 // CPU profile of TestRuleCost splits the analysis by rule
 // (`go tool pprof -tags`). The time a rule spends building semantic state
 // it is the first to ask for (types, flow) is charged to it.
-type labelled struct {
+type labeled struct {
 	analysis.Rule
 	ctx context.Context
 }
 
-func (l labelled) Check(ctx *analysis.Context, n syntax.Node) {
+func (l labeled) Check(ctx *analysis.Context, n syntax.Node) {
 	pprof.SetGoroutineLabels(l.ctx)
 	l.Rule.Check(ctx, n)
 	pprof.SetGoroutineLabels(context.Background())
 }
 
-// labelledFile is labelled for a rule that also checks whole files.
-type labelledFile struct{ labelled }
+// labelledFile is labeled for a rule that also checks whole files.
+type labelledFile struct{ labeled }
 
 func (l labelledFile) CheckFile(ctx *analysis.Context) {
 	pprof.SetGoroutineLabels(l.ctx)
@@ -197,7 +201,7 @@ func (l labelledFile) CheckFile(ctx *analysis.Context) {
 }
 
 // TestRuleCost analyses CUSTOS_BENCH_FILE repeatedly with every rule
-// labelled, for a CPU profile (-cpuprofile) to attribute by rule:
+// labeled, for a CPU profile (-cpuprofile) to attribute by rule:
 //
 //	go test -run TestRuleCost -cpuprofile cpu.out ./internal/editor/lsp
 //	go tool pprof -tags cpu.out
@@ -213,7 +217,7 @@ func TestRuleCost(t *testing.T) {
 	}
 	var rules []analysis.Rule
 	for _, r := range catalogue.All() {
-		l := labelled{r, pprof.WithLabels(context.Background(), pprof.Labels("rule", r.ID()))}
+		l := labeled{r, pprof.WithLabels(context.Background(), pprof.Labels("rule", r.ID()))}
 		if _, ok := r.(analysis.FileRule); ok {
 			rules = append(rules, labelledFile{l})
 		} else {
@@ -248,5 +252,38 @@ func BenchmarkEditAnalysis(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		e.Analyze(syntax.ParseBest(path, src, syntax.Options{Version: phpversion.PHP84}))
+	}
+}
+
+// BenchmarkSignatureEditFlow edits the signature of a function other files
+// call, in an open buffer, and brings the flow summaries up to date: the
+// full rebuild an edit to declarations takes.
+func BenchmarkSignatureEditFlow(b *testing.B) {
+	root := b.TempDir()
+	for i := range 100 {
+		src := fmt.Sprintf("<?php function f%d($x) { return f%d($x) . trim($x); }\n", i, (i+1)%100)
+		if i == 0 {
+			src = "<?php function f0($x) { system($x); }\n"
+		}
+		if err := os.WriteFile(filepath.Join(root, fmt.Sprintf("f%d.php", i)), []byte(src), 0o644); err != nil {
+			b.Fatal(err)
+		}
+	}
+	s := whiteBox(b, root, io.Discard, untrustedshellcommand.New())
+	if !s.beginIndexing() {
+		b.Fatal("index not requested")
+	}
+	s.buildIndex()
+	path := filepath.Join(root, "f0.php")
+	uri := "file://" + path
+	s.docs[uri] = &document{path: path}
+	b.ReportAllocs()
+	n := 0
+	for b.Loop() {
+		n++
+		s.mu.Lock()
+		s.docs[uri].text = []byte(strings.Repeat(" ", n%2) + fmt.Sprintf("<?php function f0($x, $y%d = null) { system($x); }\n", n))
+		s.mu.Unlock()
+		s.reindexDoc(uri)
 	}
 }
