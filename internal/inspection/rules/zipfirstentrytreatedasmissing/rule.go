@@ -15,6 +15,7 @@ const message = "Distinguish a missing ZIP entry from index zero."
 
 type rule struct{}
 
+// New returns the ZipFirstEntryTreatedAsMissing inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ZipFirstEntryTreatedAsMissing" }
 func (rule) Semantic()                {}

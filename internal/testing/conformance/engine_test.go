@@ -136,7 +136,7 @@ func convertOption(m *meta.Rule, name, raw string) any {
 }
 
 func parseOpts() syntax.Options {
-	// PhpStorm parses every construct at any language level, recognising `<?`.
+	// PhpStorm parses every construct at any language level, recognizing `<?`.
 	return syntax.Options{Version: phpversion.Max, Permissive: true, ShortOpenTag: true}
 }
 

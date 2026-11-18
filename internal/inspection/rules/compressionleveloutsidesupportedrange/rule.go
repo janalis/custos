@@ -12,6 +12,7 @@ const message = "Use a supported compression level."
 
 type rule struct{}
 
+// New returns the CompressionLevelOutsideSupportedRange inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CompressionLevelOutsideSupportedRange" }
 func (rule) Semantic()                {}
@@ -32,11 +33,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || level >= -1 && level <= 9 {
 		return
 	}
-	if v, ok := syntax.UnwrapParens(arg).(*syntax.Variable); ok {
-		scope := syntax.EnclosingFuncLike(n)
-		if !stableLocal(ctx, scope, v.Name, factsOf(ctx, scope), map[string]bool{}) {
-			return
-		}
+	if !semanticquery.StableLocalValue(ctx, arg, semanticquery.LocalStability{SharedOpaque: true}) {
+		return
 	}
 	ctx.ReportNode(c, message)
 }

@@ -3,7 +3,7 @@ id: PriorityQueueMinOrderAssumption
 group: Probable bugs
 kind: semantic
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # PriorityQueueMinOrderAssumption
@@ -16,7 +16,7 @@ Reverse priorities for smallest-first extraction. This opt-in inspection applies
 
 - D1. Enabled policy requires smallest numeric priority first. Report first extraction from an exact builtin SplPriorityQueue with at least two distinct proven literal numeric priorities since construction, using unmodified inherited comparator. Highlight extract/top/current call. The queue inherently returns the largest priority first.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
@@ -62,4 +62,4 @@ $q = new SplPriorityQueue(); $q->insert("first", -2); $q->insert("second", -8); 
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

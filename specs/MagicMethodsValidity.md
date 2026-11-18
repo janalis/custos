@@ -439,12 +439,10 @@ interface Printable { public function __toString(); }
   method of its class or of a trait it uses that no subclass can replace
   (private, final, or declared in a final class), whose own body calls
   `parent::<method>()`, calls the parent method: not reported (Symfony's
-  cache adapters initialise through a private trait method).
+  cache adapters initialize through a private trait method).
 - **Parent call through a callable (custos).** A constructor (or other
   magic method) that calls `call_user_func()` / `call_user_func_array()`
   with a callable whose string part ends in `::<method>`
   (`'Base::__construct'`, `[$this, 'parent::__construct']`,
   `parent::class . '::__construct'`) calls the parent method: not
   reported (Swiftmailer, bundled by Kanboard, 10 findings).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

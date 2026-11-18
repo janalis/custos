@@ -14,6 +14,7 @@ const fileAppend = 8
 
 type rule struct{}
 
+// New returns the DeflateStreamNeverFinished inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DeflateStreamNeverFinished" }
 func (rule) Semantic()                {}

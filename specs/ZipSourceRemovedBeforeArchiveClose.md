@@ -1,9 +1,9 @@
 ---
 id: ZipSourceRemovedBeforeArchiveClose
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # ZipSourceRemovedBeforeArchiveClose
@@ -18,7 +18,7 @@ Keep ZIP source files until the archive closes.
 - D1a. A close on the same archive object counts as preceding when it is written before the unlink in the same function scope and is evaluated on every ordinary path that reaches the unlink. Besides a plain statement this covers a close used as an `if` or `elseif` condition (the code in either branch of that condition, or after an `if` guard that leaves), the left operand of a short-circuit operator, a ternary condition, a close in a `try` block whose `finally` block or following code holds the unlink, and a close in a `finally` block. When the unlink sits in the `finally` block, or after a `try` that has catch blocks, the close must belong to the first statement of the `try` block: an earlier protected statement could throw and skip it. A close that may be skipped does not count: one inside a branch body, loop body, ternary or match arm, the right operand of a short-circuit operator or of `??=`, a catch block or a callback; nor does a `try`-block close when the unlink sits in a catch block of that `try`.
 - D1b. The same archive object means the same proven flow identity. An archive without one, such as a property or the result of a factory call, is matched by its receiver spelling (a variable, or a property chain rooted in a variable or a static property), provided neither the receiver nor an object it is read from is assigned between the addFile guard and the close.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
@@ -72,4 +72,4 @@ $z=new ZipArchive(); $z->open("bundle.zip",ZipArchive::CREATE); if ($z->addFile(
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

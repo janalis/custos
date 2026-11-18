@@ -29,6 +29,10 @@ func (s *Server) beginIndexing() bool {
 	}
 	s.indexing = true
 	s.indexGeneration++
+	if s.indexCancel != nil {
+		s.indexCancel() // superseded: stop indexing for it
+	}
+	s.indexCtx, s.indexCancel = context.WithCancel(s.lifetime())
 	return true
 }
 
@@ -46,7 +50,9 @@ func (s *Server) abandonIndex(e *analysis.Engine, generation uint64) {
 // re-analyses open documents.
 func (s *Server) buildIndex() {
 	s.mu.Lock()
-	e, cfg, generation := s.engine, s.cfg, s.indexGeneration
+	// beginIndexing set indexCtx: it ends when a later build replaces this
+	// one, or when the server stops.
+	e, cfg, generation, ctx := s.engine, s.cfg, s.indexGeneration, s.indexCtx
 	s.mu.Unlock()
 	// It runs on its own goroutine, outside the request guards.
 	defer s.guard("index", func() { s.abandonIndex(e, generation) })
@@ -63,7 +69,7 @@ func (s *Server) buildIndex() {
 		return
 	}
 	indexed, skipped := project.IndexSourcesSkipping(cfg.Root, files, paths, cfg.Exclude)
-	ix, unread := buildIndexSymbols(cfg.Root, indexed, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	ix, unread := buildIndexSymbols(ctx, cfg.Root, indexed, cfg.Parse(), cfg.Infer())
 	skipped.Files = append(skipped.Files, unread...)
 	ix.SetWorld(project.ComposerWorld(cfg.Root, paths, indexed, skipped))
 	// The disk holds no unsaved edit: index the open buffers again, parsed
@@ -79,7 +85,8 @@ func (s *Server) buildIndex() {
 		parsed[d] = extractSource(cfg, d.path, text)
 	}
 	s.mu.Lock()
-	if s.engine != e || s.indexGeneration != generation {
+	if ctx.Err() != nil || s.engine != e || s.indexGeneration != generation {
+		// Replaced (its index may be incomplete) or the server stops.
 		s.mu.Unlock()
 		return
 	}
@@ -223,7 +230,7 @@ func (s *Server) indexDoc(uri string) {
 
 // extractSource returns the declarations of path read from src.
 func extractSource(cfg *config.Config, path string, src []byte) *index.FileSymbols {
-	return project.ExtractSymbols(path, src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	return project.ExtractSymbols(path, src, cfg.Parse(), cfg.Infer())
 }
 
 // addSource indexes the declarations of path read from src in place of
@@ -237,13 +244,17 @@ func addSource(ix *index.Index, cfg *config.Config, path string, src []byte) *in
 
 // reindexDoc refreshes the index entry of an open document from its buffer
 // and the flow summaries; it reports whether other documents may need
-// analysing again (false when only the document's own findings can have
+// analyzing again (false when only the document's own findings can have
 // changed).
 func (s *Server) reindexDoc(uri string) bool {
 	s.mu.Lock()
 	d, ok := s.docs[uri]
 	ix, cfg, build := s.index, s.cfg, s.flowBuild
 	updater := s.flowUpdater
+	ctx := s.flowCtx
+	if ctx == nil {
+		ctx = s.lifetime()
+	}
 	var text []byte
 	var path string
 	var prev *index.FileSymbols
@@ -276,9 +287,16 @@ func (s *Server) reindexDoc(uri string) bool {
 		// No other file sees a change: summarize again only what the
 		// buffer's summaries reach.
 		if updater == nil {
-			updater = (*project.FlowBuild).Update
+			updater = func(ctx context.Context, b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+				return b.Update(ctx, changed, ix)
+			}
 		}
-		if next, ok := updater(build, map[string][]byte{path: text}, ix); ok {
+		next, ok := updater(ctx, build, map[string][]byte{path: text}, ix)
+		if ctx.Err() != nil {
+			// A full build started since: it reads this buffer too.
+			return false
+		}
+		if ok {
 			s.mu.Lock()
 			if s.flowBuild == build {
 				changed := !next.Snapshot.Equal(build.Snapshot)
@@ -308,6 +326,13 @@ func (s *Server) refreshFlow() {
 		s.mu.Unlock()
 		return
 	}
+	// This build reads every buffer as it is now: the build or update in
+	// progress, which read older ones, is superseded.
+	if s.flowCancel != nil {
+		s.flowCancel()
+	}
+	ctx, cancel := context.WithCancel(s.lifetime())
+	s.flowCtx, s.flowCancel = ctx, cancel
 	type buffer struct {
 		path string
 		src  []byte
@@ -330,7 +355,7 @@ func (s *Server) refreshFlow() {
 	if err != nil {
 		return
 	}
-	opt := syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}
+	opt := cfg.Parse()
 	contents := make(map[string][]byte, len(buffers))
 	present := make(map[string]bool, len(files))
 	for _, path := range files {
@@ -353,7 +378,7 @@ func (s *Server) refreshFlow() {
 	var order map[string]int
 	if cfg.FlowOrder {
 		if dir := project.CacheDir(); dir != "" {
-			cache = project.FlowOrderCache(dir, cfg.Root, opt, infer.Options{Assertions: cfg.Flow.Assertions})
+			cache = project.FlowOrderCache(dir, cfg.Root, opt, cfg.Infer())
 		}
 		order = cache.FlowOrder(files, cfg.Flow)
 	}
@@ -362,7 +387,10 @@ func (s *Server) refreshFlow() {
 		builder = project.BuildFlowRecorded
 	}
 	// Dependency contracts are summarized on demand against this index.
-	build := builder(context.Background(), files, sources, opt, ix, project.WithVendorFlow(cfg.Root, ix, opt, cfg.Flow), order)
+	build := builder(ctx, files, sources, opt, ix, project.WithVendorFlow(cfg.Root, ix, opt, cfg.Flow), order)
+	if ctx.Err() != nil {
+		return // superseded: what it summarized is incomplete
+	}
 	if cfg.FlowOrder {
 		_ = cache.SaveFlowOrder(build.Order(), cfg.Flow)
 	}
@@ -377,12 +405,12 @@ func (s *Server) refreshFlow() {
 // indexWorkspace indexes files, taking the declarations of unchanged ones
 // from the cache the command line shares (see project.SymbolCache), and
 // returns the files whose declarations it could not read.
-func indexWorkspace(root string, files []string, opt syntax.Options, options infer.Options) (*index.Index, []string) {
+func indexWorkspace(ctx context.Context, root string, files []string, opt syntax.Options, options infer.Options) (*index.Index, []string) {
 	var cache *project.SymbolCache
 	if dir := project.CacheDir(); dir != "" {
 		cache = project.OpenSymbolCache(dir, root, opt, options)
 	}
-	return project.BuildIndexUnread(files, opt, options, cache)
+	return project.BuildIndexUnread(ctx, files, opt, options, cache)
 }
 
 // Test seams also keep each build's filesystem/index operations explicit.
@@ -395,5 +423,5 @@ var (
 // A deferred update from another server cannot observe a test's replacements.
 type (
 	flowBuilder func(context.Context, []string, [][]byte, syntax.Options, *index.Index, flow.Options, map[string]int) *project.FlowBuild
-	flowUpdater func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool)
+	flowUpdater func(context.Context, *project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool)
 )

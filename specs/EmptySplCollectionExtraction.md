@@ -3,7 +3,7 @@ id: EmptySplCollectionExtraction
 group: Probable bugs
 kind: semantic
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # EmptySplCollectionExtraction
@@ -44,7 +44,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -83,4 +83,4 @@ $next = $jobs->isEmpty() ? null : $jobs->dequeue();
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

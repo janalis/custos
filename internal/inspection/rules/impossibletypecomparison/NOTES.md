@@ -32,8 +32,8 @@ an unknown type, which step 2 rejects, so no separate gap check exists.
 
 ## Class relations
 
-`typeChecks.classVerdict` wraps `types.Accepts` with `IndexRelations`
-(strict mode) and answers Maybe for traits, unresolved hierarchies and
+`typeChecks.classVerdict` wraps `types.Accepts` with the index-backed
+class relations of `semanticquery` (strict mode) and answers Maybe for traits, unresolved hierarchies and
 `dependencyHierarchy`: a class or ancestor whose file lies in the vendor
 directory the project layer records (`index.World.Vendor`, from
 composer.json's `config.vendor-dir`; fixtures set it with the `vendorDir`

@@ -24,7 +24,7 @@ func writeFile(t *testing.T, p, body string) {
 }
 
 // TestIndexVendor: vendor sources are indexed (tests directories excluded)
-// on top of the analysed files, and their symbols resolve.
+// on top of the analyzed files, and their symbols resolve.
 func TestIndexVendor(t *testing.T) {
 	root := t.TempDir()
 	app := filepath.Join(root, "src", "app.php")
@@ -46,7 +46,7 @@ func TestIndexVendor(t *testing.T) {
 	}
 }
 
-// TestIndexVendorDir: composer.json's config.vendor-dir is honoured when it
+// TestIndexVendorDir: composer.json's config.vendor-dir is honored when it
 // stays inside the project; anything else falls back to "vendor".
 func TestIndexVendorDir(t *testing.T) {
 	root := t.TempDir()

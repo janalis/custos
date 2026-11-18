@@ -62,7 +62,7 @@ func (passingByReferenceCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 		case *syntax.Variable:
 			continue
 		case *syntax.New:
-			if ctx.PHP < phpversion.PHP70 {
+			if ctx.PHP.Below(phpversion.PHP70) {
 				continue
 			}
 		}

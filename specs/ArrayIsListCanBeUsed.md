@@ -160,8 +160,7 @@ function wrapped(array $cfg): bool
   `array_values([1 => 'a', 0 => 'a']) == [1 => 'a', 0 => 'a']` is true
   although the array is not a list, and a key such as `'01'` loosely equals
   `1` in the `range` form. The rewrite would change the result, so custos
-  reports only the strict `===`/`!==` forms. The affected EA case is listed
-  in `testdata/ea-divergences.json`.
+  reports only the strict `===`/`!==` forms.
 - **Function names (custos diverges):** upstream matches `array_values`,
   `array_keys`, `range` and `count` on the written last segment,
   case-sensitively: it misses `Array_Values($a) === $a` and reports user

@@ -33,7 +33,7 @@ var callbackIndex = map[string]int{
 }
 
 func (dynamicCallsToScopeIntrospection) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP71 { // E1
+	if ctx.PHP.Below(phpversion.PHP71) { // E1
 		return
 	}
 	call := n.(*syntax.FuncCall)

@@ -1,7 +1,7 @@
 ---
 id: UntrustedShellCommand
 group: Security
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,9 +16,9 @@ Detect request-derived data reaching a shell-command sink in syntax-capable posi
 
 - D1. Report request-derived data reaching a shell-command sink in syntax-capable position without proven appropriate argument escaping or strict validation.
 - D1a. Shell-command sinks are the first (`command`) argument of resolved builtin `system`, `exec`, `shell_exec`, `passthru`, `popen` and `proc_open`, and the text of a backtick command expression, which PHP runs exactly like `shell_exec`. A call to a project function is a sink when its summary forwards an argument, or request data it reads itself, to one of these sinks: `proc_open` and a backtick command count there like the other four, except a `proc_open` the function gives an argument vector (E1).
-- D1b. Decide per operand whether request data can become command text. Concatenation, interpolation and `??` carry any of their operands; a conditional or `match` expression carries only its result operands, never its condition or subject; a variable with a single reaching assignment carries what that assignment carries. Every other request-derived operand carries its data unless E1 or E3 applies. A variable is followed to its reaching assignment only when its scope cannot rebind it behind that assignment; a reference alias, a by-reference closure capture, `foreach` or argument, a `catch` binding or `static` declaration of the same name, `extract()`, an assignment through a variable variable, a `global` declaration of it or a `$GLOBALS` access that is not a different literal entry keeps the report.
+- D1b. Decide per operand whether request data can become command text. Concatenation, interpolation and `??` carry any of their operands; a conditional or `match` expression carries only its result operands, never its condition or subject; a variable with a single reaching assignment carries what that assignment carries. Every other request-derived operand carries its data unless E1 or E3 applies. A variable is followed to its reaching assignment only when nothing in its scope can change it behind its plain assignments, anywhere and in any statement order: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument, other than the inspected argument itself, that a resolved callee binds by reference or that a callee custos cannot resolve receives); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A `global` or `static` declaration of it, or a by-reference capture by the closure that is the scope, removes the proof too. In top-level code, where locals are globals, a `global` declaration naming it in any function of the file, or a `$GLOBALS` access anywhere in the file, does as well. The same holds for every local whose value an assignment stores into it, whatever the assigned expression computes, directly or through further assignments. Otherwise the report is kept.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 Project method wrappers are followed only when a single visible declaration is fixed by a final receiver class, a final method, or a private method accessible at the call. Open overridable methods, ambiguous declarations, conditional class bodies and trait bodies do not establish a wrapper sink. Static calls must name a static method. These contracts compose through nested project wrappers and refresh when class or method dispatch metadata changes.
 
@@ -46,7 +46,7 @@ No automatic fix: executable, option boundaries and allowed arguments require ex
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -69,4 +69,4 @@ proc_open(['convert', $_GET['file']], [], $pipes);
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

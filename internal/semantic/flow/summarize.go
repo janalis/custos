@@ -35,7 +35,7 @@ func ExtractWith(file *syntax.File, types *infer.Env, snapshot *Snapshot, option
 
 // Summarize computes the summaries of a file and returns them with the
 // environment that computed them, which answers for the file under the same
-// snapshot without analysing its scopes again.
+// snapshot without analyzing its scopes again.
 //
 // A callable of the file that the snapshot, with these summaries in place of
 // the file's, would answer for gets its summary from the file: one declared

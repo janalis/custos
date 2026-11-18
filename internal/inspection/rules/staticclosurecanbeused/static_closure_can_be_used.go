@@ -22,7 +22,7 @@ func (staticClosureCanBeUsed) Kinds() []syntax.NodeKind {
 }
 
 func (staticClosureCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP54 || n.Span().Len() == 0 { // D1
+	if ctx.PHP.Below(phpversion.PHP54) || n.Span().Len() == 0 { // D1
 		return
 	}
 	var region syntax.Node
@@ -149,7 +149,7 @@ func closureCapturesThis(region syntax.Node) bool {
 // closureUsageSites collects the nodes through which the closure is used
 // (D6): argument lists, receiver method calls, array pairs or literals.
 // unsafe is true when the closure escapes in a way that may bind it later
-// (returned, stored, or its variable used in an unrecognised context).
+// (returned, stored, or its variable used in an unrecognized context).
 func closureUsageSites(ctx *analysis.Context, n syntax.Node) (sites []syntax.Node, unsafe bool) {
 	// D6: the closure's value is also the value of the parentheses, `??`,
 	// `?:` branch or `match` arm around it.
@@ -233,7 +233,7 @@ forward:
 					continue // direct invocation `$v(...)` cannot rebind it
 				}
 			}
-			return nil, true // unrecognised use: the closure may be bound later
+			return nil, true // unrecognized use: the closure may be bound later
 		}
 		return sites, false
 	case *syntax.ArrayItem: // D6c

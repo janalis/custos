@@ -21,7 +21,7 @@ import (
 )
 
 // SymbolCache keeps, between runs, the declarations of the files a run
-// indexes without analysing them (vendor and the rest of the project
+// indexes without analyzing them (vendor and the rest of the project
 // paths), so a run over a few files does not parse every dependency again.
 //
 // An entry is trusted while its file keeps its size and modification time;
@@ -32,19 +32,35 @@ import (
 // index drops inferred returns that depend on project functions (see
 // DropStaleInferred). A nil *SymbolCache caches nothing.
 type SymbolCache struct {
-	path, key string
-	started   time.Time
-	old       map[string]cachedSymbols
-	mu        sync.Mutex
-	fresh     map[string]cachedSymbols
-	missed    bool
+	// cwd resolves the relative paths of a run, read once.
+	path, key, cwd string
+	started        time.Time
+	old            map[string]cachedSymbols
+	mu             sync.Mutex
+	fresh          map[string]cachedSymbols
+	missed         bool
 	// order is the flow order FlowOrder read.
 	order map[string]int
 	// racy is set when a file modified within racyWindow was not stored;
-	// prints holds the fingerprints of the analysed files' declarations
+	// prints holds the fingerprints of the analyzed files' declarations
 	// (see flowSteps).
 	racy   bool
 	prints [][sha256.Size]byte
+	// oldSources and sources hold the declarations of analyzed files, read
+	// back and of this run, by absolute path and SHA-256 of their source
+	// (see source); sourcesMissed is set when one was extracted.
+	oldSources, sources map[string]cachedSource
+	sourcesMissed       bool
+}
+
+// cachedSource is the declarations extracted from an analyzed file whose
+// source has the SHA-256 Sum, and their fingerprint as extracted (a decoded
+// copy may hold nil where the extraction held empty, which the fingerprint
+// tells apart).
+type cachedSource struct {
+	Sum     [sha256.Size]byte
+	Print   [sha256.Size]byte
+	Symbols *index.FileSymbols
 }
 
 type cachedSymbols struct {
@@ -55,6 +71,8 @@ type cachedSymbols struct {
 type symbolCacheFile struct {
 	Key   string
 	Files map[string]cachedSymbols
+	// Sources holds the declarations of analyzed files (see source).
+	Sources map[string]cachedSource
 }
 
 // maxSymbolCacheBytes bounds the cache file read back.
@@ -92,7 +110,7 @@ func OpenSymbolCache(dir, root string, opt syntax.Options, options infer.Options
 	if b, err := safeio.ReadFile(c.path, maxSymbolCacheBytes); err == nil {
 		var f symbolCacheFile
 		if gob.NewDecoder(bytes.NewReader(b)).Decode(&f) == nil && f.Key == c.key {
-			c.old = f.Files
+			c.old, c.oldSources = f.Files, f.Sources
 		}
 	}
 	return c
@@ -114,11 +132,14 @@ func FlowOrderCache(dir, root string, opt syntax.Options, options infer.Options)
 	// The file is named by project and options only, so a new custos build
 	// replaces its cache instead of adding one beside it.
 	sum := sha256.Sum256([]byte(absolute(root) + "\x00" + settings))
+	cwd, _ := os.Getwd()
 	return &SymbolCache{
 		path:    filepath.Join(dir, "symbols-"+hex.EncodeToString(sum[:8])+".gob"),
 		key:     key,
 		started: time.Now(),
+		cwd:     cwd,
 		fresh:   map[string]cachedSymbols{},
+		sources: map[string]cachedSource{},
 	}
 }
 
@@ -127,7 +148,7 @@ func (c *SymbolCache) lookup(path string, info os.FileInfo) *index.FileSymbols {
 	if c == nil {
 		return nil
 	}
-	abs := absolute(path)
+	abs := absoluteFrom(c.cwd, path)
 	e, ok := c.old[abs]
 	if !ok || e.Size != info.Size() || e.ModTime != info.ModTime().UnixNano() {
 		return nil
@@ -150,7 +171,7 @@ func (c *SymbolCache) store(path string, info os.FileInfo, fs *index.FileSymbols
 	switch {
 	case fs == nil:
 	case info.ModTime().Before(c.started.Add(-racyWindow)):
-		c.fresh[absolute(path)] = cachedSymbols{Size: info.Size(), ModTime: info.ModTime().UnixNano(), Symbols: fs}
+		c.fresh[absoluteFrom(c.cwd, path)] = cachedSymbols{Size: info.Size(), ModTime: info.ModTime().UnixNano(), Symbols: fs}
 	default:
 		// It may change again without its stat changing.
 		c.racy = true
@@ -159,11 +180,54 @@ func (c *SymbolCache) store(path string, info os.FileInfo, fs *index.FileSymbols
 
 // Save writes the entries this run used, unless they are the ones it read.
 // Files no longer indexed drop out.
+// The declarations of analyzed files this run did not read are carried
+// over: a run over a few files, or the language server's, which analyzes
+// none, must not drop the entries of a run over the whole project.
 func (c *SymbolCache) Save() error {
-	if c == nil || !c.missed && len(c.fresh) == len(c.old) {
+	if c == nil || !c.missed && !c.sourcesMissed && len(c.fresh) == len(c.old) {
 		return nil
 	}
-	return writeCache(c.path, symbolCacheFile{Key: c.key, Files: c.fresh})
+	sources := maps.Clone(c.oldSources)
+	if sources == nil {
+		sources = map[string]cachedSource{}
+	}
+	maps.Copy(sources, c.sources)
+	return writeCache(c.path, symbolCacheFile{Key: c.key, Files: c.fresh, Sources: sources})
+}
+
+// source returns the declarations of the analyzed file i at path, whose
+// source is src, kept from an earlier run that read the same source;
+// extract computes them otherwise, and they are kept for the next run.
+// Unlike the entries of files indexed without being analyzed, they are
+// trusted by content: the run reads every analyzed source anyway. It
+// records their fingerprint as declared does.
+func (c *SymbolCache) source(i int, path string, src []byte, extract func() *index.FileSymbols) *index.FileSymbols {
+	if c == nil {
+		return extract()
+	}
+	abs := absoluteFrom(c.cwd, path)
+	sum := sha256.Sum256(src)
+	c.mu.Lock()
+	e, ok := c.oldSources[abs]
+	c.mu.Unlock()
+	if ok && e.Sum == sum {
+		relocate(e.Symbols, path)
+	} else {
+		e = cachedSource{Sum: sum, Symbols: extract()}
+		e.Print = index.Fingerprint(e.Symbols)
+	}
+	if c.prints != nil {
+		c.prints[i] = e.Print
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !ok || e.Symbols == nil || e.Sum != c.oldSources[abs].Sum {
+		c.sourcesMissed = true
+	}
+	if e.Symbols != nil {
+		c.sources[abs] = e
+	}
+	return e.Symbols
 }
 
 // writeCache writes v to path as gob.

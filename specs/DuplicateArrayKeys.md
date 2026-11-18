@@ -129,5 +129,3 @@ $settings = [
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

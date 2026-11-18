@@ -70,3 +70,4 @@ function viaAlias() {
     $b->enqueue(1);
     return $a->dequeue();
 }
+$q = new SplQueue(); $q->enqueue("one"); $q->dequeue();

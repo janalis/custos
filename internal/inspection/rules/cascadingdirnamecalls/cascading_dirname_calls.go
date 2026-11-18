@@ -36,7 +36,7 @@ func dirnameArgs(ctx *analysis.Context, e syntax.Node) ([]syntax.Expr, bool) {
 }
 
 func (cascadingDirnameCalls) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP70 { // E1
+	if ctx.PHP.Below(phpversion.PHP70) { // E1
 		return
 	}
 	top := n.(*syntax.FuncCall)

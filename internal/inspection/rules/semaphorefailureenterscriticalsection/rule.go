@@ -12,6 +12,7 @@ const message = "Check semaphore acquisition before shared-state mutation."
 
 type rule struct{}
 
+// New returns the SemaphoreFailureEntersCriticalSection inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SemaphoreFailureEntersCriticalSection" }
 func (rule) Semantic()                {}
@@ -42,7 +43,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		sem := semanticquery.CallArgument(acquire.Args, 0, "semaphore")
-		if !semanticquery.ExpansionDUnaliased(ctx, sem, n) {
+		if !semanticquery.UnaliasedLocal(ctx, sem, n) {
 			continue
 		}
 		for _, later := range calls {

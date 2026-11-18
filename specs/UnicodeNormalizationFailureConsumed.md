@@ -1,9 +1,9 @@
 ---
 id: UnicodeNormalizationFailureConsumed
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # UnicodeNormalizationFailureConsumed
@@ -22,7 +22,7 @@ unchecked result.
 
 - D1. Report a result of resolved Normalizer::normalize or normalizer_normalize reaching strlen or strtoupper without a dominating strict false guard. Follow direct expressions and unchanged local assignments; storage and testing alone are excluded.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 - D4. A strict false guard is a condition that, on the path reaching the consumption, proves the value is not false. Accepted atoms: the value compared with `false` by `===` or `!==` (either operand order), and builtin `is_string()` applied to the value, alone or compared strictly with a boolean literal. The compared operand may be a plain assignment of the normalization result to the consumed variable written inside the condition. Atoms combine through `!`, through `&&`/`and` when the condition holds and through `||`/`or` when it fails.
 - D5. A guard dominates the consumption when the consumption is in: the guarded branch of an `if`/`elseif`/`else` chain (a later branch sees every earlier condition failed); the matching operand of a ternary; the right operand of a short-circuit `&&`, `and`, `||` or `or`; an arm of `match (true)` whose single condition proves the value, or any arm after a condition that fails only when the value is not false; an arm of a `match` on the value itself placed after a literal `false` condition; or any statement after an earlier sibling `if` without alternatives whose body always leaves the path, or after an expression statement that short-circuits into `exit` or `throw` when the value is false. The guard must test the same reaching normalization result, after it was produced, with no rebinding or invalidation in between.
 
@@ -85,8 +85,8 @@ When several assignments reach a use, each producer is checked on its own: an
 unguarded eligible producer is still reported when other paths use another API
 or are guarded, and an irrelevant variant cannot hide a later eligible call. A
 path whose value does not come from a known call establishes nothing. When the
-producers cannot be tracked within the analysis budget, nothing is reported.
+producers cannot be tracked, nothing is reported.
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

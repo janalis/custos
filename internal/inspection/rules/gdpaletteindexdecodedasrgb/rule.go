@@ -12,6 +12,7 @@ const message = "Look up palette components instead of shifting the index."
 
 type rule struct{}
 
+// New returns the GdPaletteIndexDecodedAsRgb inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GdPaletteIndexDecodedAsRgb" }
 func (rule) Semantic()                {}
@@ -39,14 +40,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		// Both the index and its image must be the one value every path
-		// agrees on: a packed colour or a truecolor image on another path
+		// agrees on: a packed color or a truecolor image on another path
 		// makes the shift valid there.
 		c, ok := localOnly(ctx, s.Left).(*syntax.FuncCall)
 		if !ok || !semanticquery.NativeBuiltin(ctx, c, "imagecolorallocate") {
 			continue
 		}
 		e := semanticquery.CallArgument(c.Args, 0, "image")
-		if !semanticquery.ExpansionDUnaliased(ctx, e, n) {
+		if !semanticquery.UnaliasedLocal(ctx, e, n) {
 			return
 		}
 		creation, ok := localOnly(ctx, e).(*syntax.FuncCall)

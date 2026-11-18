@@ -71,8 +71,8 @@ root:
 { "baseline": "custos-baseline.json" }
 ```
 
-`analyse` then hides the recorded findings, and so does the
-[language server](./editors#settings). A baseline named in `custos.json`
+`analyse` then hides the recorded findings, and so do the
+[language server](./editors#settings) and the [MCP server](./mcp). A baseline named in `custos.json`
 that does not exist yet suppresses nothing. You can also pass
 `--baseline FILE` (relative to the current directory), which must exist.
 `--generate-baseline` writes its file relative to the current directory too.

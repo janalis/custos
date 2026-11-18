@@ -1,4 +1,5 @@
-// Package mysqlimultiqueryresultsnotdrained implements MysqliMultiQueryResultsNotDrained.
+// Package mysqlimultiqueryresultsnotdrained implements the native
+// MysqliMultiQueryResultsNotDrained inspection.
 package mysqlimultiqueryresultsnotdrained
 
 import (
@@ -11,6 +12,7 @@ const message = "Drain all multi-query results before another query."
 
 type rule struct{}
 
+// New returns the MysqliMultiQueryResultsNotDrained inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "MysqliMultiQueryResultsNotDrained" }
 func (rule) Semantic()                {}

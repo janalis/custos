@@ -317,7 +317,7 @@ func TestNativeCallResultQueries(t *testing.T) {
 	})
 	probeNative(t, "function f($h){a: if(flock($h,LOCK_EX)){probe($h);} goto a;}", func(ctx *analysis.Context, c *syntax.FuncCall) {
 		if NativeCallSucceeded(ctx, firstCall(ctx, "flock"), c) {
-			t.Fatal("a labelled scope proves nothing")
+			t.Fatal("a labeled scope proves nothing")
 		}
 	})
 }

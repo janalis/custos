@@ -1,4 +1,5 @@
-// Package unitenumjsonencoding implements the UnitEnumJsonEncoding inspection.
+// Package unitenumjsonencoding implements the native UnitEnumJsonEncoding
+// inspection.
 package unitenumjsonencoding
 
 import (
@@ -12,6 +13,7 @@ import (
 
 type rule struct{}
 
+// New returns the UnitEnumJsonEncoding inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "UnitEnumJsonEncoding" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
@@ -19,7 +21,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 const message = "Serialize this unit enum through an explicit representation."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP81 {
+	if ctx.PHP.Below(phpversion.PHP81) {
 		return
 	}
 	call, _ := semanticquery.GlobalCall(ctx, n, "json_encode")

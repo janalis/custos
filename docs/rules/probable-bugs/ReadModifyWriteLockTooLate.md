@@ -32,7 +32,7 @@ Reported:
 - A release is `flock` with a known non-exclusive operation (`LOCK_UN`, or a downgrade to `LOCK_SH`) or `fclose` on the same handle expression. It ends the lock only when it is a statement completed before the write in a statement list enclosing the write, or when it sits in the statement list that also contains the acquisition. A release inside a branch that leaves (the failed-lock cleanup, a `finally` block) does not end it.
 - D1c. An application (non-builtin) function, method or static call completed before the earliest read may take the lock itself: no report when its callee text contains `lock` without containing `unlock`, or when one of its arguments is the same proven path. Other unknown calls do not silence the report.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -47,10 +47,6 @@ No automatic fix: the complete locked read-modify-write protocol must handle par
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

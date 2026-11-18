@@ -6,7 +6,7 @@ title: ForkChildFallsIntoParentWork
 
 # ForkChildFallsIntoParentWork
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -32,7 +32,7 @@ Reported:
 - A break, continue or goto that leaves the child block is not a termination: the child then runs loop iterations or later code the parent also runs, so the block is still reported. Jumps confined to a loop or switch opened inside the block, or to a nested closure, do not count; a jump with a literal level leaves when the level exceeds the number of loops and switches opened inside the block around it (`continue 2` in a `switch` inside a loop of the block stays inside), and one with any other level expression is assumed to leave.
 - Unknown termination summaries are excluded. When the last effective statement of the block is a function, method or static call, report only when the callee resolves to a declaration that can return. No report when the callee cannot be resolved (undeclared or dynamic function, unresolved receiver or class, dynamic method name), when it resolves to an abstract or interface method, when its declared, documented or body-derived return type is `never`, or when its declaration lives in the analyzed file and its body ends abruptly on every path without any return statement of its own. Builtins that normally return, including `pcntl_exec` (which returns on failure), are reported.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 

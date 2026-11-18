@@ -82,11 +82,11 @@ None.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| ALLOW_WRITE_FROM_SOURCE_CLASS | bool | true | true: only writes from outside the declaring class are reported (D3). false: every static property assignment is reported (D2). |
+| ALLOW_WRITE_FROM_SOURCE_CLASS | bool | true | true: only writes from outside the declaring class are reported. false: every static property assignment is reported. |
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 
@@ -182,8 +182,7 @@ class Counter
   method of the declaring class (`static::$factory = null` in a callback of
   Laravel's `Str`), while it accepts `self::$p = …` in the same closure.
   Closures have the class scope of the method that defines them, so custos
-  checks them like the method. One upstream case expects the old reports
-  (listed in `testdata/ea-divergences.json`).
+  checks them like the method.
 - **custos diverges — property hooks (D3d).** A hook body is not a method,
   so treating it as "outside any class" would report `static::$count = 1`
   written in a `set` hook of the very class that declares `$count`, while

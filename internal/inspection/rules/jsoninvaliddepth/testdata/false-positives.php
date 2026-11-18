@@ -50,3 +50,4 @@ function reassignedDepth(string $json)
     $depth += 16;
     return json_decode($json, true, $depth);
 }
+json_decode('{}', true, 512);

@@ -1021,5 +1021,3 @@ class InvoiceChecks {
   `assertRegExp()` (removed in 10).
 - Conformance note: the harness passes `PHP_UNIT_VERSION` as
   `PhpUnitVersion.PHPUNIT75` style values; strip the prefix.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

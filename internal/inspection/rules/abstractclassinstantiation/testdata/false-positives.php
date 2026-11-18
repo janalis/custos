@@ -80,3 +80,4 @@ $outside = static function () {
     return new self();
 };
 new self();
+abstract class Work {} class ConcreteWork extends Work {} new ConcreteWork();

@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Enabled policy requires preserving declared cache variation dimensions. Track literal Vary field-name tokens; report a replacement Vary call whose token set omits at least one prior effective dimension. Compare case-insensitively. A replacement with star retains all dimensions.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

@@ -1,7 +1,7 @@
 ---
 id: UsortDiscardsRequiredKeys
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Detect usort on a statically keyed array followed by access through an original 
 
 - D1. Report usort on a statically keyed array followed by access through an original nonsequential integer or string key that cannot exist after reindexing.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -40,7 +40,7 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -60,4 +60,4 @@ $users = [31 => 'Mia', 52 => 'Noor']; \uasort($users, fn($a, $b) => $a <=> $b); 
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -1,4 +1,5 @@
-// Package dateonlyparseretainscurrenttime implements the DateOnlyParseRetainsCurrentTime inspection.
+// Package dateonlyparseretainscurrenttime implements the native
+// DateOnlyParseRetainsCurrentTime inspection.
 package dateonlyparseretainscurrenttime
 
 import (
@@ -12,6 +13,7 @@ import (
 
 type rule struct{}
 
+// New returns the DateOnlyParseRetainsCurrentTime inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DateOnlyParseRetainsCurrentTime" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KStaticCall} }

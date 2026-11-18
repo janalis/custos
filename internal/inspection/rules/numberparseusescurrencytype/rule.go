@@ -12,6 +12,7 @@ const message = "Parse currency with parseCurrency."
 
 type rule struct{}
 
+// New returns the NumberParseUsesCurrencyType inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "NumberParseUsesCurrencyType" }
 func (rule) Semantic()                {}
@@ -22,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
-	if semanticquery.NativeMethod(ctx, c, "NumberFormatter", "parse") && semanticquery.ExpansionCConstant(ctx, semanticquery.CallArgument(c.Args, 1, "type"), "NumberFormatter", "TYPE_CURRENCY") {
+	if semanticquery.NativeMethod(ctx, c, "NumberFormatter", "parse") && semanticquery.BuiltinClassConstant(ctx, semanticquery.CallArgument(c.Args, 1, "type"), "NumberFormatter", "TYPE_CURRENCY") {
 		ctx.ReportNode(c, message)
 	}
 }

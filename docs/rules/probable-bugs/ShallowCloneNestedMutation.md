@@ -30,7 +30,7 @@ Reported:
 - Report cloning an object followed by mutation of a nested object member where the nested identity is proven shared with the original.
 - The cloned object's runtime class must be exact: either its inferred class is declared `final`, or the cloned expression is a plain variable whose creation is visible in the same straight-line statement list: a plain assignment of a `new` expression naming the class statically (`new static` and computed class names do not qualify), separated from the nested store only by assignments of literals to properties of that same variable. A merely declared type, such as a parameter, property or return type naming a non-final class, admits subclasses and proves nothing.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -45,10 +45,6 @@ No automatic fix: recursive cloning and sharing policies are application-specifi
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

@@ -26,7 +26,7 @@ func frame(body string) string {
 }
 
 // useRules makes startServer serve rs.
-func useRules(t *testing.T, rs ...analysis.Rule) {
+func useRules(t testing.TB, rs ...analysis.Rule) {
 	t.Helper()
 	registryOverride = func() []analysis.Rule { return rs }
 	registry = registryOverride
@@ -59,6 +59,16 @@ func (cl *client) diagsN(uri string, n int) {
 		var p publishDiagnosticsParams
 		_ = json.Unmarshal(m.Params, &p)
 		return m.Method == "textDocument/publishDiagnostics" && p.URI == uri && len(p.Diagnostics) == n
+	})
+}
+
+// diagsAt waits for n diagnostics of uri published for its version.
+func (cl *client) diagsAt(uri string, version, n int) {
+	cl.t.Helper()
+	cl.waitFor(fmt.Sprintf("%d diagnostics of %s at version %d", n, uri, version), func(m *message) bool {
+		var p publishDiagnosticsParams
+		_ = json.Unmarshal(m.Params, &p)
+		return m.Method == "textDocument/publishDiagnostics" && p.URI == uri && p.Version != nil && *p.Version == version && len(p.Diagnostics) == n
 	})
 }
 
@@ -138,7 +148,7 @@ func TestRPCErrorString(t *testing.T) {
 }
 
 // TestServeEndings: exit, client responses, a failing output and a
-// cancelled context end (or not) the loop as documented.
+// canceled context end (or not) the loop as documented.
 func TestServeEndings(t *testing.T) {
 	registry = func() []analysis.Rule { return []analysis.Rule{testRule{}} }
 	initReq := frame(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}`)
@@ -156,14 +166,14 @@ func TestServeEndings(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if err := Serve(ctx, strings.NewReader(frame(`{"jsonrpc":"2.0","method":"$/setTrace"}`)+initReq), io.Discard); !errors.Is(err, context.Canceled) {
-		t.Fatalf("cancelled: %v", err)
+		t.Fatalf("canceled: %v", err)
 	}
 }
 
 func TestDocumentLifecycle(t *testing.T) {
 	cl := startServer(t)
 	uri := "file:///tmp/life.php"
-	// opened before initialize: kept, analysed once an engine exists
+	// opened before initialize: kept, analyzed once an engine exists
 	cl.open(uri, "<?php\n;\n")
 	_ = cl.c.notify("initialized", map[string]any{}) // before initialize: no engine, no index
 	cl.initialize(map[string]any{"workspaceFolders": []any{map[string]any{"uri": "file://" + t.TempDir()}}})
@@ -398,7 +408,7 @@ func TestMergeOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := mergeOverrides(base, config.File{Rules: map[string]config.RuleSettings{
+	m, err := config.Overlay(base, config.File{Rules: map[string]config.RuleSettings{
 		"UnnecessarySemicolon": {Severity: "error"},
 		"NestedNotOperators":   {Options: map[string]any{"b": 2}},
 	}})
@@ -418,7 +428,7 @@ func TestMergeOverrides(t *testing.T) {
 		t.Fatalf("field merge without project options: %+v", u)
 	}
 	yes := true
-	m, err = mergeOverrides(base, config.File{PHP: "7.4", ComparisonStyle: "regular", ShortOpenTag: &yes})
+	m, err = config.Overlay(base, config.File{PHP: "7.4", ComparisonStyle: "regular", ShortOpenTag: &yes})
 	if err != nil || m.PHP != phpversion.PHP74 || m.ComparisonStyle != analysis.StyleRegular || !m.ShortOpenTag {
 		t.Fatalf("overrides: %+v %v", m, err)
 	}
@@ -469,7 +479,7 @@ func TestIndexDiscoveryError(t *testing.T) {
 }
 
 // whiteBox returns a server writing to w, configured on dir with rs.
-func whiteBox(t *testing.T, dir string, w io.Writer, rs ...analysis.Rule) *Server {
+func whiteBox(t testing.TB, dir string, w io.Writer, rs ...analysis.Rule) *Server {
 	t.Helper()
 	useRules(t, rs...)
 	s := &Server{c: newConn(strings.NewReader(""), w), docs: map[string]*document{}, sem: make(chan struct{}, 2), root: dir}
@@ -593,7 +603,7 @@ func TestStaleAnalysisDropped(t *testing.T) {
 	gate.armed, gate.started, gate.release = true, make(chan struct{}), make(chan struct{})
 	gate.Unlock()
 	cl.change(uri, 2, "<?php\n;;\n")
-	<-gate.started // version 2 is being analysed
+	<-gate.started // version 2 is being analyzed
 	cl.change(uri, 3, "<?php\n;;;\n")
 	cl.call(9, "shutdown", nil) // the change to version 3 was handled
 	close(gate.release)

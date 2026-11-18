@@ -1,4 +1,5 @@
-// Package curlwholeurlescapedascomponent implements CurlWholeUrlEscapedAsComponent.
+// Package curlwholeurlescapedascomponent implements the native
+// CurlWholeUrlEscapedAsComponent inspection.
 package curlwholeurlescapedascomponent
 
 import (
@@ -14,6 +15,7 @@ const message = "Escape URL components before assembling the URL."
 
 type rule struct{}
 
+// New returns the CurlWholeUrlEscapedAsComponent inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CurlWholeUrlEscapedAsComponent" }
 func (rule) Semantic()                {}

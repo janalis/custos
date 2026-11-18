@@ -1,7 +1,7 @@
 ---
 id: MultiAssignmentUsage
 group: Control flow
-kind: syntax
+kind: semantic
 needs: []
 php: { min: "", max: "" }
 ---
@@ -212,7 +212,7 @@ foreach ($records as $record) <weak_warning descr="Destructure directly in the f
 
 ```php
 <?php
-function summarise(iterable $map, array $rows, array $totals) {
+function summarize(iterable $map, array $rows, array $totals) {
     foreach ($map as $compound => $amount) {
         [$kind, $ref] = $compound;        // the key cannot be a list
     }
@@ -270,8 +270,7 @@ function summarise(iterable $map, array $rows, array $totals) {
   it, by name (`compact()`, variable-variables, …) or from outside the
   function (`global`, `static`, by-reference parameter or binding) would
   break. custos only reports when the destructuring is the variable's sole
-  use. One report of the upstream fixture falls under these guards
-  and is listed in `testdata/ea-divergences.json`.
+  use.
 - **Key variable, by-reference value, header-dependent targets (D4/D4b) —
   custos diverges.** Upstream also matches the loop's key variable, but
   `foreach ($m as [$a, $b] => $x)` is a compile error. A by-reference value

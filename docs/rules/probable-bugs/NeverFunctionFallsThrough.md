@@ -30,11 +30,11 @@ Reported:
 ## Detection
 
 - For a function, method or closure with resolved builtin never return type, report its return type when a reachable path reaches the closing brace. Use bounded control-flow proof, recognizing throw, exit/die, unconditional infinite loops and calls with a resolved never return type. An explicit return is already illegal and is not this fall-through finding.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- Exclude unreachable closing braces, unknown control-flow summaries and budget exhaustion. A conditional throw proves termination only on its throwing branch.
+- Exclude unreachable closing braces, unknown control-flow summaries and code too complex to analyze. A conditional throw proves termination only on its throwing branch.
 - Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 - A `while`, `do`-`while` or `for` loop is not proven to end when its condition (the last one of a `for`) is a known truthy value such as `1`, or is built only from literals, constants and operators, such as `!false` or `1 === 1`, whose value the rule does not evaluate. The function is then not reported. A loop whose condition is known falsy, or reads a variable or the result of a call, can still end and does not prevent the report.
 

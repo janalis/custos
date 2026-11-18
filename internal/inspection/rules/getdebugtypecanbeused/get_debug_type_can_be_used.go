@@ -31,7 +31,7 @@ func gdtSingleArgCall(ctx *analysis.Context, e syntax.Expr, name string) (*synta
 
 func (getDebugTypeCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	t := n.(*syntax.Ternary)
-	if t.Then == nil || ctx.PHP < phpversion.PHP80 { // D1, D3
+	if t.Then == nil || ctx.PHP.Below(phpversion.PHP80) { // D1, D3
 		return
 	}
 	cond, x, ok := gdtSingleArgCall(ctx, t.Cond, "is_object") // D2

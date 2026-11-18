@@ -118,11 +118,6 @@ Reported:
 <li>line 40: Call &#39;honk&#39; on an instance with &#39;-&gt;&#39; instead of &#39;::&#39;.</li>
 </ul>
 
-## Options
-
-| Option | Type | Default | Effect |
-|---|---|---|---|
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

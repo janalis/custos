@@ -15,6 +15,7 @@ const message = "Inspect the composite reflection type members."
 
 type rule struct{}
 
+// New returns the ReflectionCompositeTypeAssumedNamed inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ReflectionCompositeTypeAssumedNamed" }
 func (rule) Semantic()                {}
@@ -22,7 +23,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodC
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.MethodCall)
 	name, ok := call.Name.(*syntax.Identifier)
-	if !ok || !strings.EqualFold(name.Value, "getName") || ctx.PHP < phpversion.PHP80 {
+	if !ok || !strings.EqualFold(name.Value, "getName") || ctx.PHP.Below(phpversion.PHP80) {
 		return
 	}
 	source, ok := semanticquery.NativeValue(ctx, call.Var).(*syntax.MethodCall)
@@ -75,7 +76,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // named type nullable, which still reflects as ReflectionNamedType.
 func composite(typ string, php phpversion.Version) bool {
 	if strings.Contains(typ, "&") {
-		return php >= phpversion.PHP81
+		return php.AtLeast(phpversion.PHP81)
 	}
 	members := 0
 	for m := range strings.SplitSeq(strings.TrimPrefix(typ, "?"), "|") {
@@ -95,7 +96,7 @@ func guarded(ctx *analysis.Context, call *syntax.MethodCall, typ string) bool {
 	if !strings.Contains(typ, "|") {
 		class = `\ReflectionIntersectionType`
 	}
-	if semanticquery.NativeLabelled(ctx, call.Var) {
+	if semanticquery.NativeLabeled(ctx, call.Var) {
 		return false // a jump may land between a guard and the call
 	}
 	t := ctx.Types().Native().NarrowedFrom(call.Var, types.Of(class, `\ReflectionType`))

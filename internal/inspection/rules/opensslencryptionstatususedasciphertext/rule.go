@@ -1,4 +1,5 @@
-// Package opensslencryptionstatususedasciphertext implements OpenSslEncryptionStatusUsedAsCiphertext.
+// Package opensslencryptionstatususedasciphertext implements the native
+// OpenSslEncryptionStatusUsedAsCiphertext inspection.
 package opensslencryptionstatususedasciphertext
 
 import (
@@ -11,6 +12,7 @@ const message = "Use the encryption output as ciphertext."
 
 type rule struct{}
 
+// New returns the OpenSslEncryptionStatusUsedAsCiphertext inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "OpenSslEncryptionStatusUsedAsCiphertext" }
 func (rule) Semantic()                {}

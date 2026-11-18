@@ -126,7 +126,7 @@ None.
 
 ## PHP versions
 
-None. Upstream fixture runs at the PhpStorm test default level (5.6–7.0).
+No gating. Upstream fixture runs at the PhpStorm test default level (5.6–7.0).
 
 ## Examples
 
@@ -231,5 +231,3 @@ function pick($code, array $allowed) {
   equivalent (same type on both sides) are already exempt (E2), so the
   rule reports without a fix. EA case affected: `strict-array-search.php`
   (listed divergence).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

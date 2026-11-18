@@ -1,7 +1,7 @@
 ---
 id: AsyncSignalSetterReturnMisread
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "7.1", max: "" }
 ---
@@ -72,4 +72,4 @@ pcntl_async_signals(true); if (!pcntl_async_signals()) { throw new RuntimeExcept
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

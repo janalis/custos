@@ -44,7 +44,7 @@ func (classReImplementsParentInterface) Check(ctx *analysis.Context, n syntax.No
 			continue
 		}
 		iface := ix.Class(ctx.Names().Class(entry.Value, entry.Span().Start), ctx.PHP) // D2
-		if iface == nil || iface.Kind != syntax.KindInterface || ctx.PHP != 0 && !iface.Avail.In(ctx.PHP) {
+		if iface == nil || iface.Kind != syntax.KindInterface || !iface.Avail.In(ctx.PHP) {
 			continue
 		}
 		k := criKey(iface.FQN)

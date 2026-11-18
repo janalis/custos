@@ -14,6 +14,7 @@ const message = "Compare the seek result with zero."
 
 type rule struct{}
 
+// New returns the SeekSuccessCheckedAsTruthy inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SeekSuccessCheckedAsTruthy" }
 func (rule) Semantic()                {}

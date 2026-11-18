@@ -6,7 +6,7 @@ title: SelectWatchArraysNotRestored
 
 # SelectWatchArraysNotRestored
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,11 +29,11 @@ Reported:
 
 - Enabled policy requires preserving the initial watch set. Report stream_select inside a while loop when a nonempty literal read/write/except array assignment in the same scope precedes the loop and nothing in the loop restores that watch variable between two selections. Null/empty watch sets and restored arrays are excluded.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
-Find the latest dominating assignment in the selection operation’s own variable scope. A later null, unknown or conditional assignment discards the initial-array proof. When that search exceeds the analysis budget, nothing is reported.
+Find the latest dominating assignment in the selection operation’s own variable scope. A later null, unknown or conditional assignment discards the initial-array proof. When that search is too large to complete, nothing is reported.
 
 - Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.

@@ -13,6 +13,7 @@ const message = "Clear collected XML errors during repeated parsing."
 
 type rule struct{}
 
+// New returns the LibxmlErrorBufferNeverCleared inspection.
 func New() analysis.Rule { return rule{} }
 func (rule) ID() string  { return "LibxmlErrorBufferNeverCleared" }
 func (rule) Semantic()   {}

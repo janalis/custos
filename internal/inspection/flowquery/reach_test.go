@@ -292,11 +292,11 @@ func TestReachableThroughJumpsInAnyOrder(t *testing.T) {
 }
 
 // deadTail is a function whose n statement pairs follow a `return`, with a
-// label a live jump names at the head of them when labelled.
-func deadTail(n int, labelled bool) string {
+// label a live jump names at the head of them when labeled.
+func deadTail(n int, labeled bool) string {
 	var b strings.Builder
 	b.WriteString("<?php function f(int $n) { ")
-	if labelled {
+	if labeled {
 		b.WriteString("if ($n) { goto L; } return 0; L: ")
 	} else {
 		b.WriteString("return 0; ")
@@ -334,22 +334,22 @@ func reachableCount(calls []*syntax.FuncCall) (count int) {
 // with and without a label among them (it walked back to the `return` for
 // each node: 46 s for 8,000 statements).
 func TestReachableLongDeadTailLinear(t *testing.T) {
-	for labelled, want := range map[bool]int{false: 0, true: 20000} {
-		f := Parse(t, deadTail(20000, labelled))
+	for labeled, want := range map[bool]int{false: 0, true: 20000} {
+		f := Parse(t, deadTail(20000, labeled))
 		calls := probesOf(f)
 		start := testbudget.CPU()
 		got := reachableCount(calls)
 		elapsed := testbudget.CPU() - start
 		if got != want {
-			t.Errorf("labelled=%v: %d reachable calls, want %d", labelled, got, want)
+			t.Errorf("labeled=%v: %d reachable calls, want %d", labeled, got, want)
 		}
 		if limit := testbudget.Of(2 * time.Second); elapsed > limit {
-			t.Errorf("labelled=%v: %v for 20,000 dead statements (limit %v)", labelled, elapsed, limit)
+			t.Errorf("labeled=%v: %v for 20,000 dead statements (limit %v)", labeled, elapsed, limit)
 		}
 	}
 }
 
-// stateMachine is a function of n labelled states that jump to each other,
+// stateMachine is a function of n labeled states that jump to each other,
 // as a generated lexer is written, in an endless loop when looped: every
 // state is reached from the first when entered, none when a `return` is
 // written before them all.
@@ -372,9 +372,9 @@ func stateMachine(n int, entered, looped bool) string {
 	return b.String()
 }
 
-// labelledTail is a function of n jumps to a label that returns, then n
-// labelled statements no jump names.
-func labelledTail(n int) string {
+// labeledTail is a function of n jumps to a label that returns, then n
+// labeled statements no jump names.
+func labeledTail(n int) string {
 	var b strings.Builder
 	b.WriteString("<?php function f(int $n) { ")
 	for i := 0; i < n; i++ {
@@ -388,10 +388,10 @@ func labelledTail(n int) string {
 	return b.String()
 }
 
-// labelledBlocks is a function of depth blocks, one in the other, each
+// labeledBlocks is a function of depth blocks, one in the other, each
 // entered by a jump to a label written after a `return`, with n statements
 // in the innermost.
-func labelledBlocks(depth, n int) string {
+func labeledBlocks(depth, n int) string {
 	var b strings.Builder
 	b.WriteString("<?php function f(int $n) { ")
 	for i := 0; i < depth; i++ {
@@ -404,7 +404,7 @@ func labelledBlocks(depth, n int) string {
 	return b.String()
 }
 
-// deadRing is a function of n labelled statements after a `return`, each
+// deadRing is a function of n labeled statements after a `return`, each
 // reached only by a jump written in the one before, in a block or not.
 func deadRing(n int, block bool) string {
 	var b strings.Builder
@@ -426,8 +426,8 @@ func deadRing(n int, block bool) string {
 // asking Reachable of every node of a function with thousands of labels and
 // jumps must stay in proportion to their number (each question looked at
 // every jump to every label around it: 19 s for a state machine of 1,000
-// states, 62 s for 1,000 labelled statements after 1,000 jumps, 40 s for 50
-// labelled blocks one in the other).
+// states, 62 s for 1,000 labeled statements after 1,000 jumps, 40 s for 50
+// labeled blocks one in the other).
 func TestReachableManyLabelsAndJumpsLinear(t *testing.T) {
 	for _, tc := range []struct {
 		name, src string
@@ -437,8 +437,8 @@ func TestReachableManyLabelsAndJumpsLinear(t *testing.T) {
 		{"state machine nothing enters", stateMachine(4000, false, false), 0},
 		{"state machine in an endless loop", stateMachine(4000, true, true), 4000},
 		{"state machine in an endless loop nothing enters", stateMachine(4000, false, true), 0},
-		{"labels no jump names", labelledTail(4000), 0},
-		{"labelled blocks", labelledBlocks(100, 2000), 2000},
+		{"labels no jump names", labeledTail(4000), 0},
+		{"labeled blocks", labeledBlocks(100, 2000), 2000},
 		{"ring nothing enters", deadRing(4000, false), 0},
 		{"ring nothing enters, in a block", deadRing(4000, true), 0},
 	} {
@@ -459,7 +459,7 @@ func TestReachableManyLabelsAndJumpsLinear(t *testing.T) {
 // of statements after a `return`, without and with a label that brings them
 // back.
 func BenchmarkReachableDeadTail(b *testing.B) {
-	benchmarkReachable(b, map[string]string{"plain": deadTail(2000, false), "labelled": deadTail(2000, true)})
+	benchmarkReachable(b, map[string]string{"plain": deadTail(2000, false), "labeled": deadTail(2000, true)})
 }
 
 // BenchmarkReachableJumps measures Reachable on every node of functions
@@ -467,7 +467,7 @@ func BenchmarkReachableDeadTail(b *testing.B) {
 // each time.
 func BenchmarkReachableJumps(b *testing.B) {
 	benchmarkReachable(b, map[string]string{
-		"states": stateMachine(1000, true, false), "looped": stateMachine(1000, true, true), "labels": labelledTail(1000), "blocks": labelledBlocks(50, 500), "ring": deadRing(1000, true),
+		"states": stateMachine(1000, true, false), "looped": stateMachine(1000, true, true), "labels": labeledTail(1000), "blocks": labeledBlocks(50, 500), "ring": deadRing(1000, true),
 	})
 }
 

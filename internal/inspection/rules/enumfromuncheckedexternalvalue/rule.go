@@ -1,4 +1,5 @@
-// Package enumfromuncheckedexternalvalue implements the EnumFromUncheckedExternalValue inspection.
+// Package enumfromuncheckedexternalvalue implements the native
+// EnumFromUncheckedExternalValue inspection.
 package enumfromuncheckedexternalvalue
 
 import (
@@ -14,6 +15,7 @@ import (
 
 type rule struct{}
 
+// New returns the EnumFromUncheckedExternalValue inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "EnumFromUncheckedExternalValue" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KStaticCall} }
@@ -21,7 +23,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KStaticC
 const message = "Handle unknown enum backing values explicitly."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP81 {
+	if ctx.PHP.Below(phpversion.PHP81) {
 		return
 	}
 	call := n.(*syntax.StaticCall)

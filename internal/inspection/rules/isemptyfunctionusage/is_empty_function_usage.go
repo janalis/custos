@@ -113,7 +113,7 @@ func (r isEmptyFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 				cnt++
 				// custos: SimpleXMLElement, GMP and BcMath\Number objects
 				// can be empty (`empty(gmp_init(0))`), so `=== null` would
-				// differ; so would it for an interface one of them fulfils.
+				// differ; so would it for an interface one of them fulfills.
 				if !strings.HasPrefix(t, `\`) || isEmptyFalsyObject(ctx, t) {
 					all = false
 				}

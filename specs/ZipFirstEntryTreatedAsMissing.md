@@ -1,9 +1,9 @@
 ---
 id: ZipFirstEntryTreatedAsMissing
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # ZipFirstEntryTreatedAsMissing
@@ -16,7 +16,7 @@ Distinguish a missing ZIP entry from index zero.
 
 - D1. Report a resolved ZipArchive::locateName call whose result is the whole condition of an `if`, `elseif`, `while` or `do`/`while`, either directly, negated once with `!`, or through a plain `=` assignment in that condition. Zero is a valid index. Highlight the negation when there is one, otherwise the condition expression (including the assignment).
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 - D4. Report a loose comparison (`==`, `!=`, `<>`) of that call, or of a plain `=` assignment of it, with the `false` constant on either side, wherever the comparison appears. Highlight the whole comparison. Strict false comparisons, comparisons with other values and later separate comparisons are excluded.
 
 ## Exceptions (no report)
@@ -77,4 +77,4 @@ $z=new ZipArchive(); if ($z->locateName("settings.json") === false) { echo "miss
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

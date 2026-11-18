@@ -1,4 +1,5 @@
-// Package bytepaddingusedforunicodewidth implements the BytePaddingUsedForUnicodeWidth inspection.
+// Package bytepaddingusedforunicodewidth implements the native
+// BytePaddingUsedForUnicodeWidth inspection.
 package bytepaddingusedforunicodewidth
 
 import (
@@ -11,6 +12,7 @@ import (
 
 type rule struct{}
 
+// New returns the BytePaddingUsedForUnicodeWidth inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "BytePaddingUsedForUnicodeWidth" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }

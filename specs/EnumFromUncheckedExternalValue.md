@@ -37,7 +37,7 @@ No automatic fix: choosing null fallback versus throwing is a caller contract.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -52,6 +52,6 @@ enum Phase:string {case Ready='ready';} $p=<warning descr="Handle unknown enum b
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: an immediate first use in the positive body of a resolved strict in_array check is accepted when its literal allowed values match declared backing values. String literals are compared by decoded value, so the quote style of the list entries and of the case declarations does not matter; other literals are compared by their source text. The check may be the whole condition or the last operand of an `&&`/`and` chain, because the earlier operands are evaluated before it. Unknown sets, non-strict comparison, unrelated inputs, a check followed by further operands, a check inside `||`, and intervening evaluation do not prove membership.

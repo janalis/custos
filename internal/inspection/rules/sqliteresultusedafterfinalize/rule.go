@@ -1,4 +1,5 @@
-// Package sqliteresultusedafterfinalize implements SqliteResultUsedAfterFinalize.
+// Package sqliteresultusedafterfinalize implements the native
+// SqliteResultUsedAfterFinalize inspection.
 package sqliteresultusedafterfinalize
 
 import (
@@ -13,6 +14,7 @@ const message = "Read the SQLite result before finalizing it."
 
 type rule struct{}
 
+// New returns the SqliteResultUsedAfterFinalize inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SqliteResultUsedAfterFinalize" }
 func (rule) Semantic()                {}

@@ -1,9 +1,9 @@
 ---
 id: SqliteClearWithoutRequiredReset
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "7.1" }
+php: { min: "", max: "7.1" }
 ---
 
 # SqliteClearWithoutRequiredReset
@@ -36,7 +36,7 @@ None. A safe repair requires choosing values, error handling, or application beh
 
 ## Options
 
-None. Use normal rule configuration to enable or disable the inspection.
+None.
 
 ## PHP versions
 
@@ -64,4 +64,4 @@ function f(SQLite3Stmt $s) { $s->execute(); $s->reset(); $s->clear(); $s->bindVa
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -23,7 +23,7 @@ func (powerOperatorCanBeUsed) Kinds() []syntax.NodeKind {
 }
 
 func (powerOperatorCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP56 { // E1
+	if ctx.PHP.Below(phpversion.PHP56) { // E1
 		return
 	}
 	call := n.(*syntax.FuncCall)
@@ -62,7 +62,7 @@ func (powerOperatorCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 
 // powNeedsOuterParens reports whether the whole `b ** e` must be wrapped
 // where the call stood: as an operand of a binary operator (upstream
-// behaviour), as the subject of `instanceof` or of a postfix access/call
+// behavior), as the subject of `instanceof` or of a postfix access/call
 // (`pow(2, 3)[0]`, `pow($g, 2)->x`), which would otherwise bind to the
 // exponent alone, and as the operand of the `clone` keyword.
 func powNeedsOuterParens(call *syntax.FuncCall) bool {
@@ -78,7 +78,7 @@ func powNeedsOuterParens(call *syntax.FuncCall) bool {
 }
 
 // powOperand renders a pow() argument as an operand of `**`. Binary and
-// ternary expressions are parenthesised (upstream behaviour); assignments,
+// ternary expressions are parenthesised (upstream behavior); assignments,
 // the low-precedence keyword expressions (yield, print, include, throw,
 // arrow functions), and unary expressions in base position, are also
 // wrapped so the result keeps its meaning (`pow(-2, 2)` -> `(-2) ** 2`).

@@ -6,7 +6,7 @@ title: CompressionDecoderFormatMismatch
 
 # CompressionDecoderFormatMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -33,7 +33,7 @@ Reported:
 
 ## Exceptions (no report)
 
-An explicit encoding argument stays unknown whether positional or named. An encoder called with unpacked arguments (`gzencode(...$args)`) is unknown too, because the spread may carry the encoding. A local captured by reference by a closure of the same scope (`use (&$bytes)`), or by the closure the decoder itself sits in, is unknown: calling the closure may replace the bytes. The same holds for a local assigned from such a variable (`$copy = $bytes;`). The replacement decoder must exist in the target version; gzdecode is unavailable on PHP 5.3, so that finding has no automatic fix.
+An explicit encoding argument stays unknown whether positional or named. An encoder called with unpacked arguments (`gzencode(...$args)`) is unknown too, because the spread may carry the encoding. A decoded local is known only while nothing in its scope can change it behind its plain assignments, anywhere and in any statement order: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument, other than the inspected argument itself, that a resolved callee binds by reference or that a callee custos cannot resolve receives); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A `global` or `static` declaration of it, or a by-reference capture by the closure that is the scope, removes the proof too. In top-level code, where locals are globals, a `global` declaration naming it in any function of the file, or a `$GLOBALS` access anywhere in the file, does as well. The same holds for a local copied into it by a plain assignment (`$copy = $bytes;`), directly or through further copies; the operands of a computed value do not count, since the proof is about where the bytes come from. A read inside an arrow function also checks the scopes the arrow function captures from. The replacement decoder must exist in the target version; gzdecode is unavailable on PHP 5.3, so that finding has no automatic fix.
 
 - Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.

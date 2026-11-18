@@ -78,7 +78,7 @@ func intRange(args string) (IntRange, bool) {
 	return IntRange{l, h}, true
 }
 
-// Limits on PHPDoc type parsing. Doc comments come from analysed (possibly
+// Limits on PHPDoc type parsing. Doc comments come from analyzed (possibly
 // hostile) code: parsing is linear in the input (each sub-expression is
 // parsed once), and these caps bound the work on pathological input.
 const (

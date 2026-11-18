@@ -1,4 +1,5 @@
-// Package pdorepeatednamedmarkerwithoutemulation implements PdoRepeatedNamedMarkerWithoutEmulation.
+// Package pdorepeatednamedmarkerwithoutemulation implements the native
+// PdoRepeatedNamedMarkerWithoutEmulation inspection.
 package pdorepeatednamedmarkerwithoutemulation
 
 import (
@@ -13,6 +14,7 @@ const message = "Use a distinct marker for each native parameter."
 
 type rule struct{}
 
+// New returns the PdoRepeatedNamedMarkerWithoutEmulation inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PdoRepeatedNamedMarkerWithoutEmulation" }
 func (rule) Semantic()                {}
@@ -31,13 +33,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	proven := construct.Span().End
 	if a := semanticquery.NativeArray(ctx, semanticquery.CallArgument(construct.Args, 3, "options")); a != nil {
 		for _, item := range a.Items {
-			if cc, ok := item.Key.(*syntax.ClassConstFetch); ok && semanticquery.ExpansionCConstant(ctx, cc, "PDO", "ATTR_EMULATE_PREPARES") {
+			if cc, ok := item.Key.(*syntax.ClassConstFetch); ok && semanticquery.BuiltinClassConstant(ctx, cc, "PDO", "ATTR_EMULATE_PREPARES") {
 				emulation = item.Value
 			}
 		}
 	}
 	for _, prior := range semanticquery.EarlierMethodCalls(ctx, c, c.Var, "PDO", "setAttribute") {
-		if cc, ok := semanticquery.CallArgument(prior.Args, 0, "attribute").(*syntax.ClassConstFetch); ok && semanticquery.ExpansionCConstant(ctx, cc, "PDO", "ATTR_EMULATE_PREPARES") {
+		if cc, ok := semanticquery.CallArgument(prior.Args, 0, "attribute").(*syntax.ClassConstFetch); ok && semanticquery.BuiltinClassConstant(ctx, cc, "PDO", "ATTR_EMULATE_PREPARES") {
 			emulation, proven = semanticquery.CallArgument(prior.Args, 1, "value"), prior.Span().End
 		}
 	}

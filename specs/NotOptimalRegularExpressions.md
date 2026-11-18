@@ -729,8 +729,7 @@ preg_match($recordPattern, $line);
   set, so `^T$` accepts `"T\n"`: D22a (identity comparison) is offered only
   with `D`, and D22e trims of a character other than `\s` anchored with `$`
   (rtrim/trim) need `D` too (`c+$` stops before the newline; `\s+$`
-  consumes it). Two upstream fixtures expect the rewrites; listed in
-  `testdata/ea-divergences.json`.
+  consumes it).
 - **`\s` is not trim()'s default set (custos diverges from upstream).**
   PCRE's `\s` is space, `\t`, `\n`, `\v`, `\f`, `\r`; trim()'s default
   list has `\0` instead of `\f`. D22e with `\s` writes the set

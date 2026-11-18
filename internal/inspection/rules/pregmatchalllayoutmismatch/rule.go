@@ -17,6 +17,7 @@ const message = "Use indices matching the selected regex result layout."
 
 type rule struct{}
 
+// New returns the PregMatchAllLayoutMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PregMatchAllLayoutMismatch" }
 func (rule) Semantic()                {}

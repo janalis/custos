@@ -388,8 +388,7 @@ abstract class CartTest
   type PHPUnit knows (the assertion then errors out), the assertion is not
   redundant and "the declared return type already guarantees this" is
   wrong. custos reports only when the declared type always satisfies the
-  named type (D6 table). The upstream fixture's assertInternalType cases are
-  no longer reported; listed in `testdata/ea-divergences.json`.
+  named type (D6 table).
 - Upstream compares the class FQN case-sensitively; custos compares
   case-insensitively (PHP class names are case-insensitive). Identical
   results on all upstream fixtures.

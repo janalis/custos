@@ -130,7 +130,7 @@ func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 		c.noArgs()
 		c.public()
 		c.returns("array", "null")
-		if ctx.PHP < phpversion.PHP56 {
+		if ctx.PHP.Below(phpversion.PHP56) {
 			c.report(c.name + " only exists from PHP 5.6; it is never called here.")
 		}
 	case "__set_state": // D9
@@ -184,7 +184,7 @@ func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 
 // inherited reports whether a parent, interface or trait of the class
 // declares the method too: the name is then imposed by the hierarchy (a
-// `_get()` hook of an abstract cache class), not a misspelt magic method.
+// `_get()` hook of an abstract cache class), not a misspelled magic method.
 func (c *magicCheck) inherited() bool {
 	return c.declaredAbove(c.name, false)
 }
@@ -247,7 +247,7 @@ func (c *magicCheck) supertypes(interfaces bool) []string {
 }
 
 // deliberateHook reports whether a single-underscore name is an explicit
-// hook rather than a misspelt magic method (custos): the class hierarchy
+// hook rather than a misspelled magic method (custos): the class hierarchy
 // also declares the real magic method (`__construct()` calling
 // `$this->_construct()`), or the file calls the method by name.
 func (c *magicCheck) deliberateHook() bool {
@@ -446,7 +446,7 @@ func (c *magicCheck) callsParent() {
 // wrapsParent reports whether the method takes an instance of the parent
 // class (`__construct(private parent $inner)`), or the class holds one in a
 // property and forwards at least three of its methods: a decorator that
-// forwards to the wrapped object instead of initialising its own parent
+// forwards to the wrapped object instead of initializing its own parent
 // part.
 func (c *magicCheck) wrapsParent(parent string) bool {
 	names := func(t syntax.Expr) bool {

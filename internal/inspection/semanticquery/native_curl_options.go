@@ -11,7 +11,7 @@ import (
 // NativeCurlOption returns a proven, explicitly configured cURL option value.
 // Unknown updates, conditional setters and escapes invalidate the proof.
 func NativeCurlOption(ctx *analysis.Context, at syntax.Node, handle syntax.Expr, option string) (syntax.Expr, bool) {
-	if !NativeHandleUnescaped(ctx, handle, at) {
+	if !handleUnescaped(ctx, handle, at) {
 		return nil, false
 	}
 	value := ctx.Flow().Value(handle)
@@ -67,4 +67,28 @@ func NativeCurlOption(ctx *analysis.Context, at syntax.Node, handle syntax.Expr,
 		}
 	}
 	return result, result != nil
+}
+
+// CurlSetting returns the value c sets for the cURL option constant option,
+// through curl_setopt() or a literal curl_setopt_array(); nil otherwise.
+func CurlSetting(ctx *analysis.Context, c *syntax.FuncCall, option string) syntax.Expr {
+	args, known := ctx.Types().Native().BuiltinArguments(c)
+	if !known {
+		return nil
+	}
+	if NativeBuiltin(ctx, c, "curl_setopt") && len(args) == 3 && IsBuiltinConst(ctx, args[1], option) {
+		return args[2]
+	}
+	if NativeBuiltin(ctx, c, "curl_setopt_array") {
+		a := NativeArray(ctx, args[1])
+		if a == nil {
+			return nil
+		}
+		for _, item := range a.Items {
+			if IsBuiltinConst(ctx, item.Key, option) {
+				return item.Value
+			}
+		}
+	}
+	return nil
 }

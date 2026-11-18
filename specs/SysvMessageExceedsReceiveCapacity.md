@@ -1,7 +1,7 @@
 ---
 id: SysvMessageExceedsReceiveCapacity
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Identify msg_receive whose positive maxsize is smaller than byte length of prove
 
 - D1. Report msg_receive whose positive maxsize is smaller than byte length of proven same-queue same-type successfully sent nonserialized constant string, without MSG_NOERROR. Serialized or competing messages exclude.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 - D4. A variable read for the capacity, the receive flags, either message type, the sent payload or the serialize flag is proven only while its assigned literal still holds. An increment or decrement of that variable, or a closure capturing it by reference, placed before the read or anywhere in a loop that repeats the read, makes the value unknown: `$size = 9; $size++;` gives a capacity of 10, not 9.
 
 ## Exceptions (no report)

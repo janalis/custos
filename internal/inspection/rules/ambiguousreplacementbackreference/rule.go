@@ -1,4 +1,5 @@
-// Package ambiguousreplacementbackreference implements the AmbiguousReplacementBackreference inspection.
+// Package ambiguousreplacementbackreference implements the native
+// AmbiguousReplacementBackreference inspection.
 package ambiguousreplacementbackreference
 
 import (
@@ -12,6 +13,7 @@ import (
 
 type rule struct{}
 
+// New returns the AmbiguousReplacementBackreference inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "AmbiguousReplacementBackreference" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }

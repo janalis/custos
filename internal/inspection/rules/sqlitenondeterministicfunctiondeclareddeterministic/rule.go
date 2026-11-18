@@ -1,4 +1,5 @@
-// Package sqlitenondeterministicfunctiondeclareddeterministic implements SqliteNondeterministicFunctionDeclaredDeterministic.
+// Package sqlitenondeterministicfunctiondeclareddeterministic implements the
+// native SqliteNondeterministicFunctionDeclaredDeterministic inspection.
 package sqlitenondeterministicfunctiondeclareddeterministic
 
 import (
@@ -12,7 +13,9 @@ const message = "Remove the deterministic flag from this callback."
 
 type rule struct{}
 
-func New() analysis.Rule              { return rule{} }
+// New returns the SqliteNondeterministicFunctionDeclaredDeterministic inspection.
+func New() analysis.Rule { return rule{} }
+
 func (rule) ID() string               { return "SqliteNondeterministicFunctionDeclaredDeterministic" }
 func (rule) Semantic()                {}
 func (rule) Flow()                    {}
@@ -22,7 +25,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
-	if ctx.PHP < phpversion.PHP71 || !semanticquery.NativeMethod(ctx, c, "SQLite3", "createFunction") {
+	if ctx.PHP.Below(phpversion.PHP71) || !semanticquery.NativeMethod(ctx, c, "SQLite3", "createFunction") {
 		return
 	}
 	flag, known := semanticquery.NativeContractInt(ctx, semanticquery.CallArgument(c.Args, 3, "flags"))

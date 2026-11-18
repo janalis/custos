@@ -267,7 +267,7 @@ func (e *Env) CallResultAt(c, at syntax.Expr) types.Type {
 }
 
 // CallResultAsAt is CallResultAt narrowing seed, a type the caller assumes
-// for the result (one modelling values the declared type cannot tell
+// for the result (one modeling values the declared type cannot tell
 // apart), instead of the call's type.
 func (e *Env) CallResultAsAt(c, at syntax.Expr, seed types.Type) types.Type {
 	scope := syntax.EnclosingVariableScope(c)

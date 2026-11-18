@@ -21,7 +21,7 @@ import (
 )
 
 // An edit that keeps a buffer's declarations updates the flow build: other
-// documents are analysed again only when a contract changed, and the
+// documents are analyzed again only when a contract changed, and the
 // summaries match a full build. Any other edit rebuilds them.
 func TestIncrementalFlowRefresh(t *testing.T) {
 	root := t.TempDir()
@@ -84,15 +84,15 @@ func TestIncrementalFlowRefresh(t *testing.T) {
 	// Another refresh published meanwhile: the update is dropped and the
 	// summaries rebuilt.
 	defer s.setFlowUpdater(nil)
-	s.setFlowUpdater(func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
-		next, ok := b.Update(changed, ix)
+	s.setFlowUpdater(func(ctx context.Context, b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+		next, ok := b.Update(ctx, changed, ix)
 		s.flowBuild = nil
 		return next, ok
 	})
 	if !edit("<?php function invoke($arg, $more = null) { system($arg); // concurrent\n}") || s.flowBuild == nil {
 		t.Fatal("superseded update not rebuilt")
 	}
-	s.setFlowUpdater(func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
+	s.setFlowUpdater(func(context.Context, *project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
 		return nil, false
 	})
 	if !edit("<?php function invoke($arg, $more = null) { system($arg); // refused\n}") {
@@ -100,7 +100,7 @@ func TestIncrementalFlowRefresh(t *testing.T) {
 	}
 }
 
-// A document changed while its analysis waited for a slot is not analysed
+// A document changed while its analysis waited for a slot is not analyzed
 // for the superseded text.
 func TestAnalysisSkippedWhenSupersededWhileWaiting(t *testing.T) {
 	var out bytes.Buffer
@@ -108,7 +108,7 @@ func TestAnalysisSkippedWhenSupersededWhileWaiting(t *testing.T) {
 	uri := "file:///w/a.php"
 	s.docs[uri] = &document{path: "/w/a.php", text: []byte("<?php system($_GET['c']);"), lines: syntax.NewLineIndex([]byte("<?php system($_GET['c']);")), analyzed: -1}
 	defer func(f func(*Server)) { acquireSlot = f }(acquireSlot)
-	analysed := false
+	analyzed := false
 	acquireSlot = func(s *Server) {
 		s.docs[uri].revision++
 		s.sem <- struct{}{}
@@ -117,14 +117,14 @@ func TestAnalysisSkippedWhenSupersededWhileWaiting(t *testing.T) {
 	if s.docs[uri].analyzed != -1 || strings.Contains(out.String(), "publishDiagnostics") {
 		t.Fatal("superseded analysis published")
 	}
-	acquireSlot = func(s *Server) { analysed = true; s.sem <- struct{}{} }
+	acquireSlot = func(s *Server) { analyzed = true; s.sem <- struct{}{} }
 	s.analyzeNow(uri)
-	if !analysed || !strings.Contains(out.String(), "publishDiagnostics") || len(s.sem) != 0 {
+	if !analyzed || !strings.Contains(out.String(), "publishDiagnostics") || len(s.sem) != 0 {
 		t.Fatal("current analysis not published or slot kept")
 	}
 }
 
-// An edited document is analysed before its summaries are updated, and the
+// An edited document is analyzed before its summaries are updated, and the
 // updates run one at a time: an edit arriving meanwhile is summarized once
 // the running update ends, and a failed update does not stop the next.
 func TestFlowUpdateAfterAnalysis(t *testing.T) {
@@ -151,9 +151,9 @@ func TestFlowUpdateAfterAnalysis(t *testing.T) {
 	defer s.setFlowUpdater(nil)
 	var updates []string
 	running := false
-	s.setFlowUpdater(func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+	s.setFlowUpdater(func(ctx context.Context, b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
 		if !strings.Contains(out.String(), "publishDiagnostics") {
-			t.Error("summaries updated before the document was analysed")
+			t.Error("summaries updated before the document was analyzed")
 		}
 		if running {
 			t.Error("two updates ran at once")
@@ -165,7 +165,7 @@ func TestFlowUpdateAfterAnalysis(t *testing.T) {
 			edit("<?php function invoke($arg) { system($arg); /* later */ }")
 			s.reflow(uri) // queued behind the running update
 		}
-		return b.Update(changed, ix)
+		return b.Update(ctx, changed, ix)
 	})
 	edit("<?php function invoke($arg) { system($arg); /* typing */ }")
 	out.Reset()
@@ -179,7 +179,7 @@ func TestFlowUpdateAfterAnalysis(t *testing.T) {
 	if len(updates) != 2 || !strings.Contains(updates[1], "later") || s.reflowing {
 		t.Fatalf("updates: %q reflowing=%v", updates, s.reflowing)
 	}
-	s.setFlowUpdater(func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
+	s.setFlowUpdater(func(context.Context, *project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
 		panic("update")
 	})
 	s.reflow(uri)
@@ -255,7 +255,7 @@ func TestFlowUpdateAfterPause(t *testing.T) {
 	s.buildIndex()
 	defer s.setFlowUpdater(nil)
 	updated := make(chan string, 4)
-	s.setFlowUpdater(func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+	s.setFlowUpdater(func(ctx context.Context, b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
 		for path := range changed {
 			// Other white-box servers can still have a deferred update. Only
 			// this workspace belongs to the pause being measured here.
@@ -263,7 +263,7 @@ func TestFlowUpdateAfterPause(t *testing.T) {
 				updated <- filepath.Base(path)
 			}
 		}
-		return b.Update(changed, ix)
+		return b.Update(ctx, changed, ix)
 	})
 	defer func(d time.Duration) { FlowDelay = d }(FlowDelay)
 	FlowDelay = 20 * time.Millisecond

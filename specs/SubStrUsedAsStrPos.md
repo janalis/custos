@@ -140,9 +140,7 @@ nothing is reported.
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
-| (none) | | | Operand order of the fix follows the global comparison style (`regular` default / `yoda`). |
+None. Operand order of the fix follows the global comparison style (`regular` default / `yoda`).
 
 ## PHP versions
 
@@ -264,5 +262,3 @@ becomes `0 === strpos($uri, '/api')`.
 - **Hexadecimal strings before PHP 7.0 (custos diverges).** PHP 5 compares
   `'0x1a' == '0x1A'` numerically, so such literals join the numeric ones
   that block the fix of a loose comparison (F2).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

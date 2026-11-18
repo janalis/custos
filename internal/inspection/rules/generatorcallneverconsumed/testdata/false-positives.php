@@ -11,3 +11,4 @@ tally([]);
 // A by-value parameter is a local copy.
 function scaled($factor) { $factor *= 2; yield $factor; }
 scaled(2);
+function deliver() { yield sendPacket(); } foreach (deliver() as $v) {}

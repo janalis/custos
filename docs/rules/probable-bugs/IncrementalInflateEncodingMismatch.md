@@ -29,7 +29,7 @@ Reported:
 
 - Track a local/direct inflate_init context into inflate_add, comparing a direct/unchanged-local gzencode, gzcompress or gzdeflate output against its resolved encoding constant. Report proven mismatched gzip, zlib or raw formats. Explicit alternative encoder formats and transformed data remain unknown.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 

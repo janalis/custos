@@ -12,7 +12,7 @@ import (
 // A complete world (set by the project layer from Composer's metadata, see
 // project.ComposerWorld) holds every class-like and function that the
 // installed packages and the project's own autoload configuration can
-// declare. Code the index never saw (files outside the analysed paths,
+// declare. Code the index never saw (files outside the analyzed paths,
 // generated or downloaded at run time, PHP extensions the stubs lack) is
 // still possible, which Blind narrows down.
 type World struct {

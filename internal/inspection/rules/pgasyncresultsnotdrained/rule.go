@@ -1,4 +1,5 @@
-// Package pgasyncresultsnotdrained implements PgAsyncResultsNotDrained.
+// Package pgasyncresultsnotdrained implements the native
+// PgAsyncResultsNotDrained inspection.
 package pgasyncresultsnotdrained
 
 import (
@@ -13,6 +14,7 @@ const message = "Drain all pending PostgreSQL results before another asynchronou
 
 type rule struct{}
 
+// New returns the PgAsyncResultsNotDrained inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PgAsyncResultsNotDrained" }
 func (rule) Semantic()                {}
@@ -70,7 +72,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 func same(ctx *analysis.Context, a, b syntax.Expr) bool {
-	return semanticquery.ExpansionSameObject(ctx, a, b)
+	return semanticquery.SameLocalObject(ctx, a, b)
 }
 
 func statementCount(sql string) int {

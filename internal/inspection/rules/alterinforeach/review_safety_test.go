@@ -21,7 +21,7 @@ func TestReviewSafety(t *testing.T) {
 		{"empty statement then use", "<?php function f($a) { foreach ($a as &$v) { g(); }; echo 1; }", 1},
 		{"switch break", "<?php function f($a) { switch ($a) { case 1: foreach ($a as &$v) {} break; } unset($v); }", 0},
 		{"loop break", "<?php function f($a) { while (1) { foreach ($a as &$v) {} break; } unset($v); }", 0},
-		{"levelled break", "<?php function f($a) { while (1) { while (1) { foreach ($a as &$v) {} break 2; } } unset($v); }", 0},
+		{"leveled break", "<?php function f($a) { while (1) { while (1) { foreach ($a as &$v) {} break 2; } } unset($v); }", 0},
 		{"continue", "<?php function f($a) { while (1) { foreach ($a as &$v) {} continue; } unset($v); }", 0},
 		{"outer loop writes", "<?php function f($a) { while (1) { $v = 0; foreach ($a as &$v) {} continue; } unset($v); }", 1},
 		{"stray break", "<?php function f($a) { foreach ($a as &$v) { g(); } break; }", 1},

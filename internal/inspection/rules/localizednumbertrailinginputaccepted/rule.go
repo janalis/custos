@@ -27,6 +27,7 @@ var passiveMethods = map[string]bool{
 
 type rule struct{}
 
+// New returns the LocalizedNumberTrailingInputAccepted inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "LocalizedNumberTrailingInputAccepted" }
 func (rule) Semantic()                {}
@@ -110,7 +111,7 @@ func plainDecimal(ctx *analysis.Context, parse *syntax.MethodCall) bool {
 // The offset never passes the end of the input.
 func consumedWhole(ctx *analysis.Context, offset, value syntax.Expr, size int) bool {
 	v, ok := syntax.UnwrapParens(offset).(*syntax.Variable)
-	if !ok || v.NameExpr != nil || semanticquery.NativeLabelled(ctx, value) {
+	if !ok || v.NameExpr != nil || semanticquery.NativeLabeled(ctx, value) {
 		return false
 	}
 	t := ctx.Types().Native().NarrowedVarAt(v.Name, value, types.Ints(types.IntRange{Lo: 0, Hi: int64(size)}))

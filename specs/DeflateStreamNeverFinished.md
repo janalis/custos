@@ -1,7 +1,7 @@
 ---
 id: DeflateStreamNeverFinished
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "7.0", max: "" }
 ---
@@ -68,4 +68,4 @@ file_put_contents($path, deflate_add($c, "", ZLIB_FINISH), FILE_APPEND);
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

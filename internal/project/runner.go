@@ -44,7 +44,9 @@ func loadable(name string) bool {
 }
 
 // discoverSkipping is DiscoverWith recording into skipped, unless nil,
-// what it leaves out.
+// what it leaves out. A walk with skipped is a walk for the index: it lists
+// declaration files (see declarationOnly) too, as their declarations stay
+// known to the other files.
 func discoverSkipping(paths, exclude, patterns []string, skipped *Skipped) ([]string, error) {
 	var out []string
 	for _, root := range paths {
@@ -79,7 +81,7 @@ func discoverSkipping(paths, exclude, patterns []string, skipped *Skipped) ([]st
 					return nil
 				}
 			}
-			if (strings.HasSuffix(p, ".php") && !declarationOnly(d.Name()) || matchesAny(d.Name(), patterns)) && (d.Type()&fs.ModeSymlink == 0 || linkInside(root, p)) {
+			if (strings.HasSuffix(p, ".php") && (skipped != nil || !declarationOnly(d.Name())) || matchesAny(d.Name(), patterns)) && (d.Type()&fs.ModeSymlink == 0 || linkInside(root, p)) {
 				out = append(out, p)
 			} else if skipped != nil && loadable(d.Name()) {
 				skipped.Files = append(skipped.Files, p)
@@ -90,12 +92,15 @@ func discoverSkipping(paths, exclude, patterns []string, skipped *Skipped) ([]st
 			return nil, err
 		}
 	}
-	// A file named on its own and again inside a named directory is listed
-	// once: fixing it twice would report its edits twice.
+	// A file named on its own and again inside a named directory, or named
+	// both relatively and absolutely, is listed once: fixing it twice would
+	// report its edits twice, and its two analyses would share one entry
+	// of the declaration cache.
+	cwd, _ := os.Getwd()
 	seen := make(map[string]bool, len(out))
 	uniq := out[:0]
 	for _, p := range out {
-		if c := filepath.Clean(p); !seen[c] {
+		if c := absoluteFrom(cwd, p); !seen[c] {
 			seen[c] = true
 			uniq = append(uniq, p)
 		}
@@ -155,7 +160,7 @@ func Run(e *analysis.Engine, files []string, opt syntax.Options) []diagnostic.Fi
 // RunSources is Run with sources already read (srcs[i] for files[i]; a nil
 // or missing entry is read from disk), e.g. by BuildIndexKeep.
 func RunSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options) []diagnostic.FileResult {
-	return runSources(e, files, srcs, nil, opt, false)
+	return runSources(e, files, srcs, nil, opt, false, nil)
 }
 
 // RunReport is RunSources for reporting only: each finding keeps its fix
@@ -163,12 +168,13 @@ func RunSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Op
 // hold the file's syntax tree and semantic data alive until the end of
 // the run (gigabytes on large legacy trees with many findings).
 func RunReport(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options) []diagnostic.FileResult {
-	return runSources(e, files, srcs, nil, opt, true)
+	return runSources(e, files, srcs, nil, opt, true, nil)
 }
 
-// runSources analyses files from their trees where given (each released
-// once analysed), else from srcs or disk.
-func runSources(e *analysis.Engine, files []string, srcs [][]byte, trees []*syntax.File, opt syntax.Options, report bool) []diagnostic.FileResult {
+// runSources analyzes files from their trees where given (each released
+// once analyzed), else from srcs or disk, taking from found (nil without a
+// findings cache) the results of the files it keeps and keeping the others.
+func runSources(e *analysis.Engine, files []string, srcs [][]byte, trees []*syntax.File, opt syntax.Options, report bool, found *findingsCache) []diagnostic.FileResult {
 	results := make([]diagnostic.FileResult, len(files))
 	// AnalyzeBuffer isolates crashes of its own; nothing else here can fail.
 	_ = parallel(context.Background(), len(files), 0, func(i int) {
@@ -176,15 +182,30 @@ func runSources(e *analysis.Engine, files []string, srcs [][]byte, trees []*synt
 		if i < len(srcs) {
 			src = srcs[i]
 		}
-		if i < len(trees) && trees[i] != nil {
-			results[i] = analyzeSource(e, files[i], src, opt, trees[i])
-			trees[i] = nil
+		var tree *syntax.File
+		if i < len(trees) {
+			tree, trees[i] = trees[i], nil
+		}
+		if found != nil && src == nil {
+			var err error
+			if src, err = ReadSource(files[i]); err != nil {
+				results[i] = diagnostic.FileResult{Path: files[i], Err: err}
+				return
+			}
+		}
+		if kept, ok := found.take(i, src); ok {
+			results[i] = kept
+			return
+		}
+		if tree != nil {
+			results[i] = analyzeSource(e, files[i], src, opt, tree)
 		} else {
 			results[i] = analyzeFile(e, files[i], src, opt)
 		}
 		if report {
 			dropEdits(results[i].Findings)
 		}
+		found.store(i, results[i])
 	}, nil)
 	return results
 }

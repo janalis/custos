@@ -1,7 +1,7 @@
 ---
 id: SessionLockHeldDuringBlockingCall
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -18,7 +18,7 @@ Detect a known blocking sleep/usleep or network operation while an active sessio
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
 - D4. The session is active when the last session operation reaching the blocking call is a `session_start` that keeps the session open: it has no options, or its options are a literal array with constant string keys whose `read_and_close` entry is absent or known to be falsy.
 - D5. The handler is known to lock only when the last handler selection written before that `session_start` is an unconditional `ini_set`/`ini_alter` of `session.save_handler` to the literal `'files'`. Only writes in the same scope are considered.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -40,7 +40,7 @@ No automatic fix: early close may discard later writes or break atomic session b
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -55,4 +55,4 @@ ini_set('session.save_handler', 'files'); session_start(); <warning descr="Relea
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

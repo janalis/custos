@@ -6,7 +6,7 @@ title: FileStatCacheAfterExternalMutation
 
 # FileStatCacheAfterExternalMutation
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP 5.3–8.2" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≤ 8.2" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 

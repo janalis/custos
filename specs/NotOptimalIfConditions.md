@@ -426,7 +426,7 @@ function scan(Folder $f, Lazy $l, $any, string $p) {
     if (strlen($p) > 3 && !$f->isEmpty) {}      // get hook: computed, impure
     if (is_dir($p) && $l->cached) {}            // __get(): computed, impure
     if (strlen($p) > 3 && $any->flag) {}        // untyped receiver: unknown
-    if ($f->isEmpty || $f->open) {}             // computed neighbour: impure
+    if ($f->isEmpty || $f->open) {}             // computed neighbor: impure
 }
 
 // keyword operators
@@ -568,5 +568,3 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   names (Detection, "Name case").
 - Conformance note: upstream tests set one option to `true` without disabling
   the others, so each fixture is effectively evaluated with all checks on.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

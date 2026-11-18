@@ -1,4 +1,5 @@
-// Package interfaceinstantiation implements InterfaceInstantiation.
+// Package interfaceinstantiation implements the native
+// InterfaceInstantiation inspection.
 package interfaceinstantiation
 
 import (
@@ -11,6 +12,7 @@ const message = "Instantiate an implementing class."
 
 type rule struct{}
 
+// New returns the InterfaceInstantiation inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "InterfaceInstantiation" }
 func (rule) Semantic()                {}

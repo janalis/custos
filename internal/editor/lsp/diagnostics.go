@@ -24,7 +24,7 @@ func (s *Server) reanalyzeAll() {
 // acquireSlot waits for one of the concurrent analysis slots (a test seam).
 var acquireSlot = func(s *Server) { s.sem <- struct{}{} }
 
-// analyzeNow analyses the current text of uri and publishes diagnostics if
+// analyzeNow analyzes the current text of uri and publishes diagnostics if
 // the document did not change meanwhile.
 func (s *Server) analyzeNow(uri string) {
 	s.mu.Lock()
@@ -54,7 +54,7 @@ func (s *Server) analyzeNow(uri string) {
 	}
 	analyzer := withBaseline(e, bl)
 	result := s.guardedAnalysis(path, func() diagnostic.FileResult {
-		return project.AnalyzeBuffer(analyzer, path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+		return project.AnalyzeBuffer(analyzer, path, text, cfg.Parse())
 	})
 	<-s.sem
 

@@ -1,7 +1,7 @@
 ---
 id: IntervalDayComponentAsTotal
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Detect a DateInterval produced by diff whose format consists solely of %d when t
 
 - D1. Report a DateInterval produced by diff whose format consists solely of %d when the opt-in contract requires total elapsed days.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -37,7 +37,7 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -57,6 +57,6 @@ $start=new DateTimeImmutable(); $end=new DateTimeImmutable(); $days=$start->diff
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: require a direct diff-to-format chain. A stored mutable DateInterval can have component writes or aliases that invalidate the original difference proof.

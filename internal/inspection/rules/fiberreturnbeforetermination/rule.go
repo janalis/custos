@@ -1,4 +1,5 @@
-// Package fiberreturnbeforetermination implements FiberReturnBeforeTermination.
+// Package fiberreturnbeforetermination implements the native
+// FiberReturnBeforeTermination inspection.
 package fiberreturnbeforetermination
 
 import (
@@ -15,6 +16,7 @@ const message = "Read the fiber return after termination."
 
 type rule struct{}
 
+// New returns the FiberReturnBeforeTermination inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "FiberReturnBeforeTermination" }
 func (rule) Semantic()                {}
@@ -106,12 +108,12 @@ func fiberStarted(ctx *analysis.Context, c *syntax.MethodCall) bool {
 
 func suspends(ctx *analysis.Context, body syntax.Node) bool {
 	if e, ok := body.(syntax.Expr); ok {
-		return semanticquery.ExpansionCStatic(ctx, syntax.UnwrapParens(e), "Fiber", "suspend")
+		return semanticquery.BuiltinStaticCall(ctx, syntax.UnwrapParens(e), "Fiber", "suspend")
 	}
 	block, ok := body.(*syntax.Block)
 	if !ok || len(block.Stmts) == 0 {
 		return false
 	}
 	stmt, ok := block.Stmts[0].(*syntax.ExprStmt)
-	return ok && semanticquery.ExpansionCStatic(ctx, syntax.UnwrapParens(stmt.Expr), "Fiber", "suspend")
+	return ok && semanticquery.BuiltinStaticCall(ctx, syntax.UnwrapParens(stmt.Expr), "Fiber", "suspend")
 }

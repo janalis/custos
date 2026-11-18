@@ -55,3 +55,4 @@ function imported(array $row): GMP
     extract($row);
     return gmp_div_q(10, $n);
 }
+$n = gmp_div_q('23', '4');

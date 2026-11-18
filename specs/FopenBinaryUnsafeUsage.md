@@ -117,7 +117,7 @@ not the argument:
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 

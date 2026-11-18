@@ -1,7 +1,7 @@
 ---
 id: TernaryOperatorSimplify
 group: Control flow
-kind: syntax
+kind: semantic
 needs: [types]
 php: { min: "", max: "" }
 ---

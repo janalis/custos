@@ -1,4 +1,5 @@
-// Package impossibletypecomparison implements the ImpossibleTypeComparison inspection.
+// Package impossibletypecomparison implements the native
+// ImpossibleTypeComparison inspection.
 package impossibletypecomparison
 
 import (

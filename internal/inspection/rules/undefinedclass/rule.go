@@ -1,4 +1,4 @@
-// Package undefinedclass implements the UndefinedClass inspection.
+// Package undefinedclass implements the native UndefinedClass inspection.
 package undefinedclass
 
 import (

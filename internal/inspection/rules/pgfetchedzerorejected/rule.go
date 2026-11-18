@@ -1,4 +1,5 @@
-// Package pgfetchedzerorejected implements PgFetchedZeroRejected.
+// Package pgfetchedzerorejected implements the native PgFetchedZeroRejected
+// inspection.
 package pgfetchedzerorejected
 
 import (
@@ -16,6 +17,7 @@ const (
 
 type rule struct{}
 
+// New returns the PgFetchedZeroRejected inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PgFetchedZeroRejected" }
 func (rule) Semantic()                {}

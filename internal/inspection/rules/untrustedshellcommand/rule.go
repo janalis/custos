@@ -129,7 +129,7 @@ func injectable(ctx *analysis.Context, x syntax.Expr, depth int) bool {
 		return any(n.Expr)
 	case *syntax.Variable:
 		// A single reaching assignment stands for the variable.
-		if value, ok := ctx.Flow().Resolve(n); ok && value != syntax.Expr(n) && !semanticquery.RebindableVariable(ctx, n) {
+		if value, ok := ctx.Flow().Resolve(n); ok && value != syntax.Expr(n) && semanticquery.StableLocalValue(ctx, n, semanticquery.LocalStability{}) {
 			return any(value)
 		}
 	case *syntax.InterpolatedString:

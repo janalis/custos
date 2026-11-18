@@ -17,6 +17,7 @@ const message = "Specify decimal base for zero-prefixed GMP input."
 
 type rule struct{}
 
+// New returns the GmpAutomaticBaseChangesDecimalInput inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GmpAutomaticBaseChangesDecimalInput" }
 func (rule) Semantic()                {}
@@ -37,7 +38,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	octal, _ := new(big.Int).SetString(s, 8)
 	decimal, _ := new(big.Int).SetString(s, 10)
-	if octal.Cmp(decimal) == 0 || stale(ctx, c, arg) {
+	if octal.Cmp(decimal) == 0 || !semanticquery.StableLocalValue(ctx, arg, semanticquery.LocalStability{}) {
 		return
 	}
 	base := semanticquery.CallArgument(c.Args, 1, "base")
@@ -95,100 +96,4 @@ func proven(arg syntax.Expr) bool {
 		return ok
 	})
 	return ok
-}
-
-// stale reports whether a string read from a variable may no longer be the
-// assigned literal: the variable, or one whose value was copied into it, is
-// changed by `++`/`--`, bound by a catch clause, bound by reference in a closure `use` or an array
-// item, or the scope imports variables with extract() or one-argument
-// parse_str(). File-level variables are also globals, so a `global`
-// declaration or any `$GLOBALS` access in the file counts too.
-func stale(ctx *analysis.Context, call *syntax.FuncCall, arg syntax.Expr) bool {
-	variable, ok := syntax.UnwrapParens(arg).(*syntax.Variable)
-	if !ok {
-		return false
-	}
-	scope := syntax.EnclosingVariableScope(call)
-	hidden := map[string]bool{}    // names written outside plain assignments
-	feeds := map[string][]string{} // assigned name -> variables read by the values
-	visit := func(n syntax.Node) bool {
-		switch n := n.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.ClassLike, *syntax.ArrowFunction:
-			return n == scope
-		case *syntax.Closure:
-			for _, use := range n.Uses {
-				if use.ByRef && use.Var != nil {
-					hidden[use.Var.Name] = true
-				}
-			}
-			return n == scope
-		case *syntax.IncDec:
-			if target, ok := syntax.UnwrapParens(n.Var).(*syntax.Variable); ok {
-				hidden[target.Name] = true
-			}
-		case *syntax.Catch:
-			if n.Var != nil {
-				hidden[n.Var.Name] = true
-			}
-		case *syntax.ArrayItem:
-			if target, ok := n.Value.(*syntax.Variable); ok && n.ByRef {
-				hidden[target.Name] = true
-			}
-		case *syntax.FuncCall:
-			switch ctx.GlobalFunctionName(n) {
-			case "extract":
-				hidden[variable.Name] = true
-			case "parse_str":
-				if n.Args != nil && len(n.Args.Args) == 1 {
-					hidden[variable.Name] = true
-				}
-			}
-		case *syntax.Assign:
-			if target, ok := n.Var.(*syntax.Variable); ok {
-				syntax.Inspect(n.Value, func(x syntax.Node) bool {
-					if read, ok := x.(*syntax.Variable); ok {
-						feeds[target.Name] = append(feeds[target.Name], read.Name)
-					}
-					return true
-				})
-			}
-		}
-		return true
-	}
-	if scope != nil {
-		syntax.Inspect(scope, visit)
-	} else {
-		syntax.InspectFile(ctx.File, visit)
-		syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
-			switch n := n.(type) {
-			case *syntax.Global:
-				for _, x := range n.Vars {
-					syntax.Inspect(x, func(v syntax.Node) bool {
-						if global, ok := v.(*syntax.Variable); ok {
-							hidden[global.Name] = true
-						}
-						return true
-					})
-				}
-			case *syntax.Variable:
-				if n.Name == "GLOBALS" {
-					hidden[variable.Name] = true
-				}
-			}
-			return true
-		})
-	}
-	seen := map[string]bool{variable.Name: true}
-	for queue := []string{variable.Name}; len(queue) > 0; queue = queue[1:] {
-		if hidden[queue[0]] {
-			return true
-		}
-		for _, name := range feeds[queue[0]] {
-			if !seen[name] {
-				seen[name] = true
-				queue = append(queue, name)
-			}
-		}
-	}
-	return false
 }

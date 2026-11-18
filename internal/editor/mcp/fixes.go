@@ -45,7 +45,7 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 		return s.planPage(ctx, s.plans[in.PlanID], in)
 	}
 	selected := map[string][]diagnostic.TextEdit{}
-	parse := syntax.Options{Version: snap.Config.PHP, ShortOpenTag: snap.Config.ShortOpenTag}
+	parse := snap.Config.Parse()
 	analyzer := snap.Engine
 	if snap.Recorded != nil {
 		analyzer = analyzer.WithRecorded(snap.Recorded.Recorder)

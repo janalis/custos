@@ -17,7 +17,7 @@ func (arrayIsListCanBeUsed) ID() string               { return "ArrayIsListCanBe
 func (arrayIsListCanBeUsed) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (arrayIsListCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	// D1: array_is_list() exists from 8.1 (spec Divergences: upstream gates at 8.0).
-	if ctx.PHP < phpversion.PHP81 {
+	if ctx.PHP.Below(phpversion.PHP81) {
 		return
 	}
 	call := n.(*syntax.FuncCall)

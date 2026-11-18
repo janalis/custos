@@ -16,6 +16,7 @@ const message = "Handle fork failure separately."
 
 type rule struct{}
 
+// New returns the ForkFailureTreatedAsParent inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ForkFailureTreatedAsParent" }
 func (rule) Semantic()                {}
@@ -44,7 +45,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // failureExcluded reports whether the tests on the fork result guarding the
 // condition have already ruled out the failed fork (-1).
 func failureExcluded(ctx *analysis.Context, input syntax.Expr, fork *syntax.FuncCall) bool {
-	if semanticquery.NativeLabelled(ctx, input) {
+	if semanticquery.NativeLabeled(ctx, input) {
 		return false
 	}
 	t := ctx.Types().Native().CallResultAsAt(fork, input, types.Ints(types.IntRange{Lo: -1, Hi: math.MaxInt64}))

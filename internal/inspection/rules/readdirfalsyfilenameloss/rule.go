@@ -16,6 +16,7 @@ const message = "Compare the directory entry with false."
 
 type rule struct{}
 
+// New returns the ReaddirFalsyFilenameLoss inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ReaddirFalsyFilenameLoss" }
 func (rule) Semantic()                {}

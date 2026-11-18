@@ -168,7 +168,7 @@ Visit every method `M` (in a class `C`).
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 

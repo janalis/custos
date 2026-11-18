@@ -70,12 +70,11 @@ F1. Replace the whole call with:
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
+None.
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 

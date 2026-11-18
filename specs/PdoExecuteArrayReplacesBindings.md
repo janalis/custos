@@ -1,7 +1,7 @@
 ---
 id: PdoExecuteArrayReplacesBindings
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Detect execute with a literal empty parameter array on a statement with previous
 
 - D1. Report execute with a literal empty parameter array on a statement with previously established required bindValue/bindParam bindings. A binding is required when the prepared SQL is a known string containing at least one placeholder and the binding names one of them: a named placeholder (with or without the leading colon) or a 1-based position within the positional placeholders. Every earlier binding on the statement must be required in that sense.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -38,7 +38,7 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -64,4 +64,4 @@ function ok(PDO $pdo) { $s = $pdo->prepare('SELECT 1 AS v'); $s->bindValue(':id'
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -1,7 +1,7 @@
 ---
 id: JsonPartialOutputOverridesThrow
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "7.3", max: "" }
 ---

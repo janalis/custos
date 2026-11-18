@@ -1,7 +1,7 @@
 ---
 id: SqliteNullBindingDiscardsValue
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -37,7 +37,7 @@ None. A safe repair requires choosing values, error handling, or application beh
 
 ## Options
 
-None. Use normal rule configuration to enable or disable the inspection.
+None.
 
 ## PHP versions
 
@@ -71,4 +71,4 @@ function f(SQLite3Stmt $s) {
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -1,4 +1,5 @@
-// Package fiberstartedtwice implements FiberStartedTwice.
+// Package fiberstartedtwice implements the native FiberStartedTwice
+// inspection.
 package fiberstartedtwice
 
 import (
@@ -12,6 +13,7 @@ const message = "Start each fiber only once."
 
 type rule struct{}
 
+// New returns the FiberStartedTwice inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "FiberStartedTwice" }
 func (rule) Semantic()                {}

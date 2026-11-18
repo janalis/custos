@@ -14,13 +14,14 @@ const message = "Use a declared reflection parameter name."
 
 type rule struct{}
 
+// New returns the ReflectionNamedArgumentMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ReflectionNamedArgumentMismatch" }
 func (rule) Semantic()                {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.MethodCall)
-	if ctx.PHP < phpversion.PHP80 || (!semanticquery.NativeMethod(ctx, call, "ReflectionFunction", "invokeArgs") && !semanticquery.NativeMethod(ctx, call, "ReflectionMethod", "invokeArgs")) {
+	if ctx.PHP.Below(phpversion.PHP80) || (!semanticquery.NativeMethod(ctx, call, "ReflectionFunction", "invokeArgs") && !semanticquery.NativeMethod(ctx, call, "ReflectionMethod", "invokeArgs")) {
 		return
 	}
 	params, _, known := semanticquery.NativeReflectionTarget(ctx, call.Var)

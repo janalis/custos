@@ -1,4 +1,5 @@
-// Package dommissingattributecheckedasnull implements DomMissingAttributeCheckedAsNull.
+// Package dommissingattributecheckedasnull implements the native
+// DomMissingAttributeCheckedAsNull inspection.
 package dommissingattributecheckedasnull
 
 import (
@@ -14,6 +15,7 @@ const message = "Use hasAttribute to test whether an attribute exists."
 
 type rule struct{}
 
+// New returns the DomMissingAttributeCheckedAsNull inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DomMissingAttributeCheckedAsNull" }
 func (rule) Semantic()                {}

@@ -29,7 +29,7 @@ Reported:
 
 - Enabled policy states that literal month arguments use conventional month numbering. Report a literal integer 1 through 12 in the month position of a resolved IntlGregorianCalendar constructor or its set(year, month, day) form. Skip computed month values, field/value set forms, and unresolved constructors.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 

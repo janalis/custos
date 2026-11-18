@@ -23,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	loop := n.(*syntax.Foreach)
-	if !semanticquery.ExpansionDUnaliased(ctx, loop.Expr, n) && !semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) {
+	if !semanticquery.UnaliasedLocal(ctx, loop.Expr, n) && !semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) {
 		return
 	}
 	c, ok := semanticquery.NativeLocalBuiltinResult(ctx, loop.Expr, "false", "scandir").(*syntax.FuncCall)

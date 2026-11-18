@@ -39,7 +39,7 @@ code compiles.
 | Target | What it does |
 |---|---|
 | `make verify` | **Definition of done**, run by CI: `architecture`, `lint`, `test`, `fixtures`, `coverage` and `cleanroom`. |
-| `make architecture` | Check production dependencies and inspection catalogue completeness. |
+| `make architecture` | Check production dependencies, inspection catalogue completeness, rule package comments and fixture names. |
 | `make build` | Build `bin/custos`. |
 | `make test` | `go test ./...` |
 | `make lint` | golangci-lint, actionlint, editorconfig-checker and markdownlint (see [Code style](#code-style)). |
@@ -51,7 +51,7 @@ code compiles.
 | `make extract` | Regenerate the EA-modeled rule facts and the local upstream case index from `EA_PATH`, then `make rules-doc`. |
 | `make coverage` | 100% statement coverage gates (see [Ground rules](#ground-rules)). |
 | `make clean` | Remove `bin/`, `dist/` and the docs build output. |
-| `make rules-doc` | Regenerate the rule catalogue docs: `docs/rules/`, `docs/internals/rules.md`, `custos explain` texts. |
+| `make rules-doc` | Regenerate the inspection catalogue (`internal/inspection/catalogue/catalogue.go`) and the rule catalogue docs: `docs/rules/`, `docs/internals/rules.md`, `custos explain` texts. |
 | `make docs` / `make docs-dev` | Build or serve this site. |
 | `make bench` / `make fuzz` | Benchmarks (`-benchmem`), with the language server's edit-latency budget enforced, and a short fuzz run of every fuzz target. |
 | `make compare` / `make compare-doc` | Compare custos with other PHP tools on the projects of `bench/competitors.json` (needs PHP with `ast` and `pcntl`, Composer and git; `TOOL=` / `CORPUS=` filter), or only regenerate `docs/guide/benchmark.md` and the README comparison from `bench/results.json` and `bench/features.json`. The weekly `benchmark` workflow bumps versions, reruns it and opens a pull request. |

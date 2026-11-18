@@ -19,7 +19,7 @@ func (rule) Semantic()                {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	if !semanticquery.NativeBuiltin(ctx, call, "array_column") || ctx.PHP < phpversion.PHP55 {
+	if !semanticquery.NativeBuiltin(ctx, call, "array_column") || ctx.PHP.Below(phpversion.PHP55) {
 		return
 	}
 	rows, known := semanticquery.NativeArrayEntries(ctx, semanticquery.CallArgument(call.Args, 0, "array"))

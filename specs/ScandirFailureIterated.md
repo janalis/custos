@@ -1,7 +1,7 @@
 ---
 id: ScandirFailureIterated
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -25,7 +25,7 @@ unchecked result.
 - D1b. A guard dominates the loop in two positions. Inside a branch: the loop sits in an `if`/`elseif` body whose condition proves non-false when true, or in a later `elseif`/`else` branch after a condition that proves non-false when false. After an early exit: an earlier statement of the same or an enclosing statement list is an `if` whose body always leaves the path (return, throw, exit, break, continue) and whose condition proves non-false when false, or an `if`/`else` without `elseif` whose `else` body always leaves and whose condition proves non-false when true.
 - D1c. Composition is directional. A condition known to hold proves non-false through any `&&`/`and` operand but only through every `||`/`or` operand; a condition known to fail proves it through any `||`/`or` operand but only through every `&&`/`and` operand. So `if (!$entries || $skip) { return; }` guards the loop while `if (!$entries && $skip) { return; }` does not.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 A resolved same-file reference parameter, reference capture or global writer
 can replace a checked directory result. Retain the replacement's producer;
@@ -96,7 +96,7 @@ When several assignments reach a use, each producer is checked on its own: an
 unguarded eligible producer is still reported when other paths use another API
 or are guarded, and an irrelevant variant cannot hide a later eligible call. A
 path whose value does not come from a known call establishes nothing. When the
-producers cannot be tracked within the analysis budget, nothing is reported.
+producers cannot be tracked, nothing is reported.
 
 ## Divergences
 

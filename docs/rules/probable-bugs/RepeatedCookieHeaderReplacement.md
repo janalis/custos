@@ -39,7 +39,7 @@ Reported:
 - Report a second header call with a Set-Cookie literal and default/true replace flag on a path with an earlier Set-Cookie header, when both literals name a cookie and the two names differ.
 - The cookie name is the trimmed text between the field name's colon and the first `=` of the leading `name=value` pair (the part before the first `;`). Names are compared byte for byte; the `Set-Cookie` field name itself is matched case-insensitively.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -58,10 +58,6 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

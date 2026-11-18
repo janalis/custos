@@ -12,6 +12,7 @@ const message = "Supply JPEG quality between zero and 100."
 
 type rule struct{}
 
+// New returns the GdJpegQualityOutsideSupportedRange inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GdJpegQualityOutsideSupportedRange" }
 func (rule) Semantic()                {}

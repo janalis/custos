@@ -43,7 +43,7 @@ type nativeLocalWrites struct {
 	released    map[string][]nativeLocalRelease
 	jumps       []uint32
 	exceptional bool
-	labelled    bool
+	labeled     bool
 	calls       []uint32
 	// statics names the locals declared `static`: an invocation the function
 	// makes of itself, through whatever it calls, assigns them too.
@@ -216,7 +216,7 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.Try:
 		w.exceptional = true
 	case *syntax.Label:
-		w.labelled = true
+		w.labeled = true
 	case *syntax.ArrayItem:
 		if x.ByRef {
 			w.target(x.Value, nativeLocalWrite{at: x.Span().End})
@@ -403,7 +403,7 @@ func (w *nativeLocalWrites) sharedAt(name string, at uint32, budget *int) bool {
 			continue
 		}
 		released := false
-		if !w.labelled {
+		if !w.labeled {
 			for _, release := range w.released[name] {
 				(*budget)--
 				if *budget < 0 {

@@ -3,7 +3,7 @@ id: HeapIterationConsumesCollection
 group: Probable bugs
 kind: semantic
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # HeapIterationConsumesCollection
@@ -16,7 +16,7 @@ Iterate a clone to preserve the heap. This opt-in inspection applies the policy 
 
 - D1. Enabled policy requires heap preservation. Report foreach directly over a resolved builtin SplHeap subtype or SplPriorityQueue object; each iterator step extracts from the heap. Highlight the foreach iterable expression. A clone expression satisfies preservation, written inline or bound to a local as described in E3.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
@@ -73,4 +73,4 @@ function show(SplMinHeap $heap): void {
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

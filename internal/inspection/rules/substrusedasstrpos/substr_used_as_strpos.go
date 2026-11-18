@@ -122,11 +122,11 @@ func fixPreservesResult(ctx *analysis.Context, loose bool, other syntax.Expr) bo
 		return false
 	}
 	val, literal := astquery.QuotedStringValue(other)
-	if ctx.PHP < phpversion.PHP80 && (!literal || val == "") {
+	if ctx.PHP.Below(phpversion.PHP80) && (!literal || val == "") {
 		return false
 	}
 	if loose {
-		return literal && !isNumericString(val) && (ctx.PHP >= phpversion.PHP70 || !isHexString(val))
+		return literal && !isNumericString(val) && (ctx.PHP.AtLeast(phpversion.PHP70) || !isHexString(val))
 	}
 	return astquery.IsStringLiteral(other) || ctx.Types().Native().TypeOf(other).OnlyOf("string")
 }

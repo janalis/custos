@@ -354,10 +354,10 @@ F4 and F5 edit the call in place instead of replacing it.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T (D1). Also affects `<assoc>` in F2. |
+| HARDEN_DECODING_RESULT_TYPE | bool | true | Reports `json_decode()` calls that leave the decoded type (objects or arrays) implicit. Also decides the `associative` argument the error-handling quick-fix writes. |
 | DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |
 | DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |
-| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E (D2–D5). |
+| HARDEN_ERRORS_HANDLING | bool | true | Reports JSON calls whose flags do not make errors throw (PHP 7.3 and later). |
 
 ## PHP versions
 
@@ -365,7 +365,7 @@ F4 and F5 edit the call in place instead of replacing it.
 - Kind E: project level ≥ 7.3 (`JSON_THROW_ON_ERROR` introduced in 7.3). Test
   cases without an explicit level run below 7.3, so kind E never appears
   there.
-- Named arguments (PHP 8.0 syntax) are parsed at any level and honoured in
+- Named arguments (PHP 8.0 syntax) are parsed at any level and honored in
   argument lookup.
 
 ## Examples
@@ -533,5 +533,3 @@ class Exporter {
   HARDEN_DECODING_RESULT_TYPE on, DECODE_AS_ARRAY on, HARDEN_ERRORS_HANDLING
   off, default PHP level; (b) E only — HARDEN_DECODING_RESULT_TYPE off,
   HARDEN_ERRORS_HANDLING on, PHP 7.3.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

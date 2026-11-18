@@ -1,7 +1,7 @@
 ---
 id: SocketReadZeroRejected
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -17,10 +17,10 @@ Identify socket_read in PHP_BINARY_READ mode tested by negation or loose false e
 - D1. Report socket_read in PHP_BINARY_READ mode tested by negation or loose false equality in a branch throwing or returning false. Strict false and explicit empty string checks exclude.
 - D1a. The mode is PHP_BINARY_READ when the builtin constant is passed as the third or `mode` argument, and also when no mode argument is passed at all, because that is the parameter default. Any other mode expression is unknown.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 - D6. A failure test must select a falsy result: count negation and loose equality with literal false, on either side, by parity. Parentheses, error suppression and the right-hand value of a plain non-reference assignment preserve the test. Compound assignments and assignment targets do not.
-- D7. Require every supported path through the failure body to throw or return literal false. A conditional rejection alone is insufficient. Structured blocks and conditional branches are bounded; suspension, jumps, unsupported control flow and budget exhaustion establish no rejection proof.
+- D7. Require every supported path through the failure body to throw or return literal false. A conditional rejection alone is insufficient. Structured blocks and conditional branches are bounded; suspension, jumps, unsupported control flow and code too complex to analyze establish no rejection proof.
 
 ## Exceptions (no report)
 

@@ -3,7 +3,7 @@ id: SplObjectStorageIndirectArrayMutation
 group: Probable bugs
 kind: semantic
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # SplObjectStorageIndirectArrayMutation
@@ -16,7 +16,7 @@ Assign the modified storage value back.
 
 - D1. Resolve SplObjectStorage offset whose most recent stored value is a proven array. Report nested offset/property-like array writes, increment/decrement or unset applied indirectly to its retrieved array. Highlight the complete mutation expression.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 - D4. The proof in D1 comes from the last `$storage[$key] = <array literal>` assignment that certainly ran before the mutation. It is dropped when, between that assignment and the mutation, the same storage may receive another value: a method call on the storage other than a read-only one (`contains`, `count`, `current`, `getHash`, `getInfo`, `key`, `next`, `offsetExists`, `offsetGet`, `rewind`, `seek`, `valid`), a direct `unset($storage[...])`, an offset assignment of a value that is not a proven array under any key or on a path that may not run, or a closure capturing the storage variable, including an arrow function that mentions it. Later offset assignments of proven arrays keep the proof. Passing the key variable to an unresolved method may rebind the key and drops the correspondence with the earlier offset assignment. A resolved by-value method on another storage keeps that correspondence.
 
 ## Exceptions (no report)
@@ -39,7 +39,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -63,4 +63,4 @@ $s = new SplObjectStorage(); $o = new stdClass(); $s[$o] = ["count" => 1]; $v = 
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

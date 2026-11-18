@@ -12,6 +12,7 @@ const message = "Handle selection failure before processing ready streams."
 
 type rule struct{}
 
+// New returns the SelectFailureTreatedAsReadiness inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SelectFailureTreatedAsReadiness" }
 func (rule) Semantic()                {}

@@ -14,6 +14,7 @@ const message = "Terminate every path in the never function."
 
 type rule struct{}
 
+// New returns the NeverFunctionFallsThrough inspection.
 func New() analysis.Rule { return rule{} }
 func (rule) ID() string  { return "NeverFunctionFallsThrough" }
 func (rule) Semantic()   {}
@@ -22,7 +23,7 @@ func (rule) Kinds() []syntax.NodeKind {
 }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP81 {
+	if ctx.PHP.Below(phpversion.PHP81) {
 		return
 	}
 	var ret syntax.Expr

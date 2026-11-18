@@ -136,7 +136,7 @@ func iamKeyLookupSafe(ctx *analysis.Context, needle syntax.Expr, strict bool) bo
 		return !t.IsUnknown() && t.OnlyOf("int")
 	}
 	v, ok := astquery.QuotedStringValue(syntax.UnwrapParens(needle))
-	return ok && ctx.PHP >= phpversion.PHP80 && !iamNumeric.MatchString(v)
+	return ok && ctx.PHP.AtLeast(phpversion.PHP80) && !iamNumeric.MatchString(v)
 }
 
 // lowerThanEquality reports whether e binds looser than (or as tight as) a

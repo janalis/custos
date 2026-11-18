@@ -107,11 +107,11 @@ func TestClassesBelowAreVisitedOnce(t *testing.T) {
 // A label written before a node lets a jump land before it; one written
 // after it does not. A scope too large to follow is still read for its
 // labels.
-func TestLabelledScopes(t *testing.T) {
+func TestLabeledScopes(t *testing.T) {
 	many := strings.Repeat("if ($c) { other(); } ", MaxBlocks)
 	for _, tc := range []struct {
 		name, src string
-		labelled  bool
+		labeled   bool
 	}{
 		{"no label", `function f($c) { probe($c); }`, false},
 		{"label before", `function f($c) { again: probe($c); if ($c) { goto again; } }`, true},
@@ -167,8 +167,8 @@ func TestLabelledScopes(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)
-			if got := e.Labelled(callsNamed(f, "probe")[0]); got != tc.labelled {
-				t.Fatalf("labelled=%v", got)
+			if got := e.Labeled(callsNamed(f, "probe")[0]); got != tc.labeled {
+				t.Fatalf("labeled=%v", got)
 			}
 		})
 	}
@@ -176,17 +176,17 @@ func TestLabelledScopes(t *testing.T) {
 
 // A value checked in one place and used in another is asked about with the
 // variables of the first and the labels up to the second.
-func TestLabelledBeforeAUse(t *testing.T) {
+func TestLabeledBeforeAUse(t *testing.T) {
 	for src, want := range map[string]bool{
 		`function f($a, $pfx, $c) { $r = realpath($a); if ($c) { goto at; } checked($r); at: probe($r . $pfx); }`:             true,
 		`function f($a, $pfx, $t) { again: $r = realpath($a); checked($r); probe($r . $pfx); if (++$t < 3) { goto again; } }`: false,
 	} {
 		e, f := environment(t, src, nil)
 		checked, use := argument(callsNamed(f, "checked")[0]), callsNamed(f, "probe")[0]
-		if got := e.LabelledBefore(checked, use); got != want {
-			t.Errorf("%s: labelled=%v", src, got)
+		if got := e.LabeledBefore(checked, use); got != want {
+			t.Errorf("%s: labeled=%v", src, got)
 		}
-		if !e.Labelled(use) {
+		if !e.Labeled(use) {
 			t.Errorf("%s: the use reads a parameter", src)
 		}
 	}

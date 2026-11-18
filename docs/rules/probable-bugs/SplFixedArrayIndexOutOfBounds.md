@@ -6,7 +6,7 @@ title: SplFixedArrayIndexOutOfBounds
 
 # SplFixedArrayIndexOutOfBounds
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Track literal nonnegative size from new SplFixedArray, fromArray and setSize. Report read/write/unset of a proven integer index below zero or greater than/equal to size. For fromArray, preserved indices determine size; with preserveKeys=false use element count.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 - The size stays proven only while every earlier mention of the receiver is inert: an offset access, a named builtin method call, its own plain assignment, by-value `foreach`, `isset`/`empty`, `clone`, or a direct argument of a read-only builtin such as `count` or `var_dump`. A `setSize` call counts only when it runs on every path to the access; a conditional one, or one later in a loop that also contains the access, removes proof. When the access is inside a loop, every mention anywhere in the outermost enclosing loop is treated as earlier.
 - A receiver that is not a plain local variable (a property, for instance) additionally loses proof when any method call on another receiver, user function call, static call or instantiation of a non-builtin class, or `include`/`require` appears before the access.
 - An element `unset` does not discard a `fromArray` allocation: the unset itself and later accesses are still checked, provided no `setSize` follows the allocation.

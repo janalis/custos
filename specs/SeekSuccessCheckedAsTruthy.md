@@ -18,7 +18,7 @@ This is an opt-in policy. Truthiness, previous-state checks, raw wait-status com
 
 - D1. Report a resolved `fseek` call whose result is tested for truthiness as the condition of `if`, `elseif`, `else if`, `while`, `do … while` or `for` (only the last expression of a `for` condition list decides the loop). The result may reach the condition directly, through parentheses, through logical negation, through a loose or strict comparison with `true`/`false`, or through a plain `=` assignment whose assigned value is the call. These tests treat nonzero as success although fseek returns zero on success and minus one on failure. No claim is made about other positions such as ternary conditions, `&&`/`||` operands or branch bodies.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
@@ -42,7 +42,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -66,4 +66,4 @@ if (fseek($fp, 0) === 0) { echo "seeked"; }
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

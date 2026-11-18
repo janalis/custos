@@ -65,7 +65,7 @@ func streamCapturedByReference(ctx *analysis.Context, scope syntax.Node, handle 
 // closed returned false, through the tests on that call's result guarding
 // use. A refused close leaves the stream open.
 func streamCloseFailed(ctx *analysis.Context, closed syntax.Span, use *syntax.FuncCall, scope syntax.Node) bool {
-	if semanticquery.NativeLabelled(ctx, use) {
+	if semanticquery.NativeLabeled(ctx, use) {
 		return false
 	}
 	for _, reached := range ctx.Flow().Calls(scope) {

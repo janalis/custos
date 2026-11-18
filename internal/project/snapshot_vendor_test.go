@@ -177,7 +177,7 @@ func TestVendorBudgetAndFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := AnalyzeSnapshot(&stepContext{Context: ctx, stop: 1}, captured); err == nil {
-		t.Fatal("cancelled vendor extraction")
+		t.Fatal("canceled vendor extraction")
 	}
 	writeFile(t, filepath.Join(dir, "vendor/pkg/a.php"), "<?php function vendor_changed() {}")
 	if _, err := AnalyzeSnapshot(ctx, captured); err == nil || !strings.Contains(err.Error(), "changed during analysis") {
@@ -306,7 +306,7 @@ func TestChangedInputs(t *testing.T) {
 
 	s = build()
 	if _, err := ChangedInputs(&stepContext{Context: ctx, stop: 1}, s); err == nil {
-		t.Fatal("cancelled walk")
+		t.Fatal("canceled walk")
 	}
 	for _, name := range []string{"a.php", "vendor/pkg/b.php"} {
 		p := filepath.Join(dir, name)

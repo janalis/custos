@@ -380,7 +380,7 @@ final class Job
   reports a default as always replaced even when the constructor can
   `return` before assigning it (`if (!$data) { return; } $this->data =
   $data;`), where the default is the value kept on that path; removing it
-  leaves the property uninitialised (an error for a typed property). custos
+  leaves the property uninitialized (an error for a typed property). custos
   skips pattern **O** after any earlier statement containing a `return`.
 - A property assigned several times directly in the constructor yields one
   O finding per assignment on the same default upstream. custos reports the
@@ -402,14 +402,14 @@ final class Job
 - **Typed properties keep their default (custos diverges).** Upstream
   reports (and its fix removes) the default of a typed private property the
   constructor overwrites (`private array $items = [];`). Without a default
-  a typed property is *uninitialised*, so objects created without the
+  a typed property is *uninitialized*, so objects created without the
   constructor (unserialize of older objects, `newInstanceWithoutConstructor`,
   ORM hydration, proxies) throw "must not be accessed before
   initialization" where they used to see `[]`. custos skips pattern O for
   typed properties.
 - **Pattern S message (custos).** Removing only the default of a
   re-declared property does not inherit the parent's default: the property
-  becomes null (untyped) or uninitialised (typed). The message therefore
+  becomes null (untyped) or uninitialized (typed). The message therefore
   advises dropping the whole re-declaration.
 - **Static re-declarations (custos diverges).** Upstream reports a static
   property re-declared with the parent's default. Re-declaring a static

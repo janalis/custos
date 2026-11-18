@@ -50,11 +50,6 @@ Reported:
 <li>line 4: Pass the separator as the first argument of implode().</li>
 </ul>
 
-## Options
-
-| Option | Type | Default | Effect |
-|---|---|---|---|
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

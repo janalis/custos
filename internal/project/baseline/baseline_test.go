@@ -56,6 +56,14 @@ func TestLoadErrors(t *testing.T) {
 	if _, err := Load(bad); err == nil || !strings.Contains(err.Error(), "bad.json") {
 		t.Fatalf("invalid JSON: %v", err)
 	}
+	// A configured baseline not generated yet suppresses nothing; a
+	// broken one is still an error.
+	if bl, err := LoadConfigured(filepath.Join(dir, "missing.json")); err != nil || bl == nil || len(bl.counts) != 0 {
+		t.Fatalf("missing configured baseline: %v, %v", bl, err)
+	}
+	if _, err := LoadConfigured(bad); err == nil {
+		t.Fatal("invalid configured baseline accepted")
+	}
 }
 
 // TestWriteSortsAndSkips: tool findings (syntax/internal/io) are never

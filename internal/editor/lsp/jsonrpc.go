@@ -107,7 +107,7 @@ func (c *conn) read() (*message, error) {
 func (c *conn) write(m *message) error {
 	m.JSONRPC = "2.0"
 	// Every raw field is valid JSON (decoded from the client or produced
-	// by mustJSON), so marshalling cannot fail.
+	// by mustJSON), so marshaling cannot fail.
 	body := mustJSON(m)
 	frame := append(fmt.Appendf(nil, "Content-Length: %d\r\n\r\n", len(body)), body...)
 	c.wmu.Lock()

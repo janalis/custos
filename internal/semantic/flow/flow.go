@@ -227,14 +227,14 @@ type scopeResult struct {
 	statics map[string]static
 	// broken names the static variables the analysis assumed never to be
 	// false where the function can be entered again, and found that they may
-	// be. The scope is then analysed again without the assumption for the
+	// be. The scope is then analyzed again without the assumption for the
 	// names in distrust, or for every name (distrustAll).
 	broken, distrust map[string]bool
 	distrustAll      bool
 	// runs marks a scope that may run code of the project other than its
 	// own: a call that is not known to make none, a constructor, a callback.
 	runs bool
-	// modern marks a scope analysed for PHP 8 or later, where writing a
+	// modern marks a scope analyzed for PHP 8 or later, where writing a
 	// property of a value that is no object is an error.
 	modern bool
 	// receivers tells, for each method call on a variable, what the variable
@@ -243,10 +243,10 @@ type scopeResult struct {
 	// escaped memoizes what each evaluated call let escape (see
 	// invalidateEscaped), so a fluent chain is not walked again per link.
 	escaped map[syntax.Node]escapeSet
-	// labelled is where the first `goto` label of the scope is written, plus
+	// labeled is where the first `goto` label of the scope is written, plus
 	// one: a statement after it can be reached without running the ones
 	// written before it.
-	labelled uint32
+	labeled uint32
 	// landings is read when a rule first asks about a label of the scope.
 	landings *landings
 }

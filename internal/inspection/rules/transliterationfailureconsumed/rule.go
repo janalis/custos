@@ -12,6 +12,7 @@ const message = "Check transliteration before consuming text."
 
 type rule struct{}
 
+// New returns the TransliterationFailureConsumed inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "TransliterationFailureConsumed" }
 func (rule) Semantic()                {}
@@ -36,7 +37,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !valid || ctx.Flow().Excludes(input, "false") {
 		return
 	}
-	if v, ok := syntax.UnwrapParens(input).(*syntax.Variable); ok && !semanticquery.NativeLabelled(ctx, v) && semanticquery.NativeNarrowedExcludes(ctx, v, types.Of("string", "false"), "false") {
+	if v, ok := syntax.UnwrapParens(input).(*syntax.Variable); ok && !semanticquery.NativeLabeled(ctx, v) && semanticquery.NativeNarrowedExcludes(ctx, v, types.Of("string", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(c, message)

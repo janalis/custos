@@ -116,7 +116,7 @@ author's choice.
 
 ## PHP versions
 
-All versions.
+No gating.
 
 ## Configure
 

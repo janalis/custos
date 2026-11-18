@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -25,19 +26,19 @@ func TestAssertionOverrideFalse(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, over := range []config.File{{}, {Flow: &config.FlowSettings{}}, {Flow: &config.FlowSettings{Assertions: new(bool)}}} {
-		merged, err := mergeOverrides(base, over)
+		merged, err := config.Overlay(base, over)
 		want := over.Flow == nil || over.Flow.Assertions == nil
 		if err != nil || merged.Flow.Assertions != want {
 			t.Fatalf("override=%+v merged=%+v err=%v", over, merged, err)
 		}
 	}
 	empty := config.File{Flow: &config.FlowSettings{}}
-	first, err := mergeOverrides(base, empty)
+	first, err := config.Overlay(base, empty)
 	if err != nil || !first.Flow.Assertions {
 		t.Fatal("first inherited mode")
 	}
 	base.Flow.Assertions = false
-	second, err := mergeOverrides(base, empty)
+	second, err := config.Overlay(base, empty)
 	if err != nil || second.Flow.Assertions || empty.Flow.Assertions != nil {
 		t.Fatal("empty override retained or mutated prior base")
 	}
@@ -50,7 +51,7 @@ func TestFlowOrderOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, over := range []config.File{{}, {Flow: &config.FlowSettings{}}, {Flow: &config.FlowSettings{Order: new(bool)}}} {
-		merged, err := mergeOverrides(base, over)
+		merged, err := config.Overlay(base, over)
 		want := over.Flow == nil || over.Flow.Order == nil
 		if err != nil || merged.FlowOrder != want {
 			t.Fatalf("override=%+v merged=%+v err=%v", over, merged, err)
@@ -83,7 +84,7 @@ func TestAssertionModeOwnsIndexBuild(t *testing.T) {
 				}
 				return oldDiscover(paths, exclude)
 			}
-			buildIndexSymbols = func(root string, files []string, opt syntax.Options, options infer.Options) (*index.Index, []string) {
+			buildIndexSymbols = func(_ context.Context, root string, files []string, opt syntax.Options, options infer.Options) (*index.Index, []string) {
 				if options.Assertions {
 					close(oldStarted)
 					<-releaseOld
@@ -91,7 +92,7 @@ func TestAssertionModeOwnsIndexBuild(t *testing.T) {
 					latestStarted <- struct{}{}
 					<-releaseLatest
 				}
-				return oldBuild(root, files, opt, options)
+				return oldBuild(context.Background(), root, files, opt, options)
 			}
 			wait := func(ch <-chan struct{}) {
 				t.Helper()
@@ -190,7 +191,7 @@ func TestAssertionReconfigureCancelsPendingWithoutIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	if s.indexing || len(s.pending) != 0 {
-		t.Fatal("cancelled indexing retained obsolete watch events")
+		t.Fatal("canceled indexing retained obsolete watch events")
 	}
 }
 
@@ -222,7 +223,9 @@ func TestIndexBuildCrashLeavesTheServerServing(t *testing.T) {
 	s := whiteBox(t, root, io.Discard, unescapedhtmloutput.New())
 	oldBuild := buildIndexSymbols
 	defer func() { buildIndexSymbols = oldBuild }()
-	buildIndexSymbols = func(string, []string, syntax.Options, infer.Options) (*index.Index, []string) { panic("index bug") }
+	buildIndexSymbols = func(context.Context, string, []string, syntax.Options, infer.Options) (*index.Index, []string) {
+		panic("index bug")
+	}
 	if !s.beginIndexing() {
 		t.Fatal("index not requested")
 	}

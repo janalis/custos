@@ -1,4 +1,5 @@
-// Package dateminutesmonthtokenconfusion implements the DateMinutesMonthTokenConfusion inspection.
+// Package dateminutesmonthtokenconfusion implements the native
+// DateMinutesMonthTokenConfusion inspection.
 package dateminutesmonthtokenconfusion
 
 import (
@@ -12,6 +13,7 @@ import (
 
 type rule struct{}
 
+// New returns the DateMinutesMonthTokenConfusion inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DateMinutesMonthTokenConfusion" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall, syntax.KMethodCall} }

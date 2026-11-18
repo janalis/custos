@@ -1,7 +1,7 @@
 ---
 id: InArrayMissUse
 group: Performance
-kind: syntax
+kind: semantic
 needs: []
 php: { min: "", max: "" }
 ---
@@ -218,5 +218,3 @@ function checks($role, $list, $map, $a, $b)
   `in-array-misuse.php` (listed divergence).
 - Conformance note: the upstream fixture runs with `FORCE_STRICT_COMPARISON`
   off.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

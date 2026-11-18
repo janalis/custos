@@ -1,9 +1,9 @@
 ---
 id: DecompressionFailureConsumed
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # DecompressionFailureConsumed
@@ -21,7 +21,7 @@ Ignore producers belonging to other result contracts when selecting an
 unchecked result. When several assignments reach a use, each producer is
 checked on its own: an unguarded decompression result is reported even when
 the other paths use another API or are guarded. When the producers cannot be
-tracked within the analysis budget, nothing is reported.
+tracked, nothing is reported.
 
 - D1. Report results of gzdecode, gzuncompress, gzinflate or inflate_add reaching strlen/strtoupper without a dominating strict false guard. Follow direct expressions and unchanged locals. Exclude matching encoder/decoder roundtrips with default encoding and omitted or valid literal compression level.
 - D1a. Error suppression does not change the result: a decompression call wrapped in `@` (directly or through the assigned local) is followed like the bare call.
@@ -94,4 +94,4 @@ $s = @gzuncompress($bytes); <warning descr="Check decompression before consuming
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

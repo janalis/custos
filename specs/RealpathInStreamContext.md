@@ -97,7 +97,7 @@ None.
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 
@@ -203,5 +203,3 @@ $two  = realpath('/tmp', 'x');
   reported without a fix. A bare `__FILE__` is one of them: it is not a
   directory, so `realpath(__FILE__ . '/..')` fails where
   `dirname(__FILE__)` succeeds.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

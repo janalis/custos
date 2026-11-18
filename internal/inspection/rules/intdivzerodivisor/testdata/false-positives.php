@@ -114,3 +114,4 @@ $inline = function (array $values): int {
 
     return intdiv(6, $n);
 };
+intdiv(14, 2);

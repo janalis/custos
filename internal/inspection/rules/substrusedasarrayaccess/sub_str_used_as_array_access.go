@@ -58,7 +58,7 @@ func (subStrUsedAsArrayAccess) Check(ctx *analysis.Context, n syntax.Node) {
 	span := call.Span()
 	// R3: before PHP 8, out-of-range substr can return false. Nor fix
 	// another scalar: an int's offset is null rather than a digit.
-	if ctx.PHP < phpversion.PHP80 || !ctx.TypeOf(args[0]).OnlyOf("string", "null") {
+	if ctx.PHP.Below(phpversion.PHP80) || !ctx.TypeOf(args[0]).OnlyOf("string", "null") {
 		ctx.Report(span, "Use '"+access+"' (string offset access) instead.")
 		return
 	}

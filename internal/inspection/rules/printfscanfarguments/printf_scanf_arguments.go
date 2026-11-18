@@ -57,7 +57,7 @@ func (printfScanfArguments) Check(ctx *analysis.Context, n syntax.Node) {
 		if lit == nil {
 			return
 		}
-		bad, exp, ok := printfVerdict(lit, pos, scanf, ctx.PHP >= phpversion.PHP80)
+		bad, exp, ok := printfVerdict(lit, pos, scanf, ctx.PHP.AtLeast(phpversion.PHP80))
 		if !ok || (i > 0 && (bad != malformed || exp != expected)) {
 			return
 		}

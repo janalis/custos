@@ -7,7 +7,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
-	"custos/internal/semantic/stubs"
 )
 
 const message = "Choose an explicit comparison for object deduplication."
@@ -78,7 +77,7 @@ func nonStringable(ctx *analysis.Context, fqn string) bool {
 		if c.Kind == syntax.KindInterface {
 			continue
 		}
-		if stubs.Index().Class(c.FQN, ctx.PHP) == c && !throwingBuiltins[strings.ToLower(c.FQN)] {
+		if semanticquery.IsBuiltinClass(c, ctx.PHP) && !throwingBuiltins[strings.ToLower(c.FQN)] {
 			return false
 		}
 		if c.Parent != "" && ix.Class(c.Parent, ctx.PHP) == nil {

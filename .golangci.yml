@@ -32,6 +32,7 @@ linters:
     - errorlint
     - gocritic
     - govet
+    - importas
     - ineffassign
     - misspell
     - nolintlint
@@ -62,6 +63,13 @@ linters:
         - initClause
         - boolExprSimplify # `len(args) < pos+1` states the arity being checked
         - builtinShadow # local min/max/close/any are clear in context
+    importas:
+      # One name for the PHP version package, which otherwise reads as a
+      # local `version` or a one-letter alias.
+      no-unaliased: true
+      alias:
+        - pkg: custos/internal/php/version
+          alias: phpversion
     staticcheck:
       checks:
         - all
@@ -69,12 +77,15 @@ linters:
         - -ST1003 # naming: revive's var-naming covers it
         - -QF1001 # De Morgan rewrites: the original form often mirrors the spec
     misspell:
-      # No locale: prose is US English (docs/contributing), but older Go
-      # comments still use British spellings, and the `analyse` command
-      # keeps its own.
+      # Prose is US English (docs/contributing).
+      locale: US
       ignore-rules:
         - ther # `\other` in PHP names
         - alse # `\false`
+        - analyse # the `analyse` command keeps its name
+        - catalogue # the `catalogue` package and the rule catalogue
+        - catalogues
+        - flavour # FLAVOUR, an upstream Java constant in extractor tests
     nolintlint:
       require-explanation: true
       require-specific: true

@@ -1,7 +1,7 @@
 ---
 id: RegexByteOffsetAsCharacterOffset
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Detect a PREG_OFFSET_CAPTURE byte offset flowing into the start argument of mb_s
 
 - D1. Report a PREG_OFFSET_CAPTURE byte offset flowing into the start argument of mb_substr or grapheme_substr for the same proven string value.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -35,7 +35,7 @@ No automatic fix: the caller must choose character offset conversion or byte sli
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -50,6 +50,6 @@ preg_match('/x/u','ñx',$m,PREG_OFFSET_CAPTURE); echo <warning descr="Convert by
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: an explicit mb_substr encoding must be known UTF-8. Byte-oriented and unknown encodings do not establish character-based slicing of the proven UTF-8 subject.

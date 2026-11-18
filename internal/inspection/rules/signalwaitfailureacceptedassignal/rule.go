@@ -16,6 +16,7 @@ const message = "Reject signal-wait failure before handling the result."
 
 type rule struct{}
 
+// New returns the SignalWaitFailureAcceptedAsSignal inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SignalWaitFailureAcceptedAsSignal" }
 func (rule) Semantic()                {}
@@ -130,7 +131,7 @@ func aliased(v *syntax.Variable) bool {
 // failureRejected reports whether the tests on the wait result guarding
 // value, a use of it, have ruled out the failure value -1.
 func failureRejected(ctx *analysis.Context, c *syntax.FuncCall, value syntax.Expr) bool {
-	if semanticquery.NativeLabelled(ctx, value) {
+	if semanticquery.NativeLabeled(ctx, value) {
 		return false
 	}
 	t := ctx.Types().Native().CallResultAsAt(c, value, types.Ints(types.IntRange{Lo: -1, Hi: math.MaxInt64}))

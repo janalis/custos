@@ -288,7 +288,7 @@ Worked results (short syntax on):
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. |
+| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax of the arrays in the call the quick-fix rebuilds: `[...]` when true, `array(...)` when false. Detection unaffected. |
 
 ## PHP versions
 
@@ -422,8 +422,7 @@ before converting `$token` would instead return `'initial'`.
   throw), and from 8.1 two spread arrays sharing a string key keep only the
   later entry, so search and replace lists lose items or fall out of step.
   custos emits `...array_values($x)`, which is valid from 7.4 whatever the
-  keys and gives the same `str_replace()` result. The affected EA 7.4 case
-  is listed in `testdata/ea-divergences.json`.
+  keys and gives the same `str_replace()` result.
 - **Compound assignments** (`$s .= str_replace(...)`): whether upstream visits
   them as assignments is unverified; custos considers only plain `=`.
 - **Non-statement assignments** (`if ($s = str_replace(…, $s))`): upstream
@@ -482,8 +481,7 @@ before converting `$token` would instead return `'initial'`.
   array `$search` as a single element: PHP warns about an array to string
   conversion and the first replacements are lost. custos reports such
   calls without a fix unless the argument is known to be a string or known
-  to be an array (F0); the affected upstream fixture is listed in
-  `testdata/ea-divergences.json`.
+  to be an array (F0).
 - **Lists of different lengths (custos).** `str_replace(['a', 'b'], ['1'],
   $s)` replaces `b` with `''`, and extra replacements are ignored. Joining
   such lists with another call's shifts every following pair, so custos

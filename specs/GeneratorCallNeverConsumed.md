@@ -1,7 +1,7 @@
 ---
 id: GeneratorCallNeverConsumed
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "5.5", max: "" }
 ---
@@ -18,7 +18,7 @@ Detect a standalone discarded call to a resolved project callable containing yie
 - D1a. Deferred side-effect operations are those owned by the generator body itself (nested functions, closures and classes are skipped): function, method and static calls, object creation, `echo`, `print`, inline HTML, `include`/`require`, `eval`, `exit`/`die`, `throw`, and assignments or increments whose target is not a plain local variable (property, static property, `$GLOBALS`, dynamic variable or destructuring targets).
 - D1b. A write to a named local variable (`$x = ...`, `$x[...] = ...`, `$x++`) is not observable outside the generator and does not count on its own. It counts only when the body may alias a local to outer state: a by-reference parameter, a `global` or `static` declaration, a reference assignment, or a by-reference `foreach`.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -38,7 +38,7 @@ No automatic fix: consuming a generator can be unbounded and removing yield chan
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -63,4 +63,4 @@ announce(...);  // builds a Closure, calls nothing
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

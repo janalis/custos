@@ -68,8 +68,7 @@ F2. No fix (the report is kept) when the target PHP version is below 7.3 and
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
+None.
 
 ## PHP versions
 

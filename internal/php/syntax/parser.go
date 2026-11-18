@@ -64,7 +64,7 @@ func Parse(path string, src []byte, opt Options) *File {
 		// large constant (peak RSS up to ~250x the file size on garbage
 		// input), and offsets are uint32. Report once, analyse nothing.
 		f := &File{Path: path, Src: src, Version: opt.Version}
-		f.Errors = []Error{{Span: Span{0, 0}, Msg: fmt.Sprintf("file larger than %d MB; not analysed", MaxFileSize>>20)}}
+		f.Errors = []Error{{Span: Span{0, 0}, Msg: fmt.Sprintf("file larger than %d MB; not analyzed", MaxFileSize>>20)}}
 		return f
 	}
 	toks, lexErrs := Lex(src, LexOptions{Version: opt.Version, ShortOpenTag: opt.ShortOpenTag})
@@ -94,13 +94,13 @@ func Parse(path string, src []byte, opt Options) *File {
 		// tokens, drop the tree, report once.
 		f.Stmts = nil
 		SetParents(f)
-		p.errs = append(p.errs, Error{Span: Span{0, 0}, Msg: fmt.Sprintf("nesting deeper than %d levels; file not analysed", MaxDepth)})
+		p.errs = append(p.errs, Error{Span: Span{0, 0}, Msg: fmt.Sprintf("nesting deeper than %d levels; file not analyzed", MaxDepth)})
 	}
 	f.Errors = p.errs
 	return f
 }
 
-// MaxFileSize is the largest source analysed (bytes); larger files get one
+// MaxFileSize is the largest source analyzed (bytes); larger files get one
 // error and an empty tree.
 const MaxFileSize = 10 << 20
 
@@ -288,7 +288,7 @@ func (p *parser) endStmt() {
 }
 
 // MaxDepth bounds syntax nesting (parser recursion and AST depth). Real code
-// stays far below it; deeper input is reported and not analysed, so that no
+// stays far below it; deeper input is reported and not analyzed, so that no
 // recursive consumer can overflow the stack.
 const MaxDepth = 4000
 

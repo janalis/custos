@@ -15,6 +15,7 @@ const message = "Retain fractional digits in decimal arithmetic."
 
 type rule struct{}
 
+// New returns the BcMathScaleDiscardsRequiredFraction inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "BcMathScaleDiscardsRequiredFraction" }
 func (rule) Semantic()                {}
@@ -33,7 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || scale < 0 || scale > 1024 {
 		return
 	}
-	operands := semanticquery.ExpansionBcOperands(ctx, c)
+	operands := semanticquery.BCMathOperands(ctx, c)
 	a, ok := decimal(ctx, operands[0])
 	if !ok {
 		return

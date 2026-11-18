@@ -1,4 +1,6 @@
-// Package asyncsignalsetterreturnmisread checks the previous-state return of the signal setter.
+// Package asyncsignalsetterreturnmisread implements the native
+// AsyncSignalSetterReturnMisread inspection. It checks the previous-state
+// return of the signal setter.
 package asyncsignalsetterreturnmisread
 
 import (
@@ -16,6 +18,7 @@ const message = "Query the signal state after changing it."
 
 type rule struct{}
 
+// New returns the AsyncSignalSetterReturnMisread inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "AsyncSignalSetterReturnMisread" }
 func (rule) Semantic()                {}
@@ -40,7 +43,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, known := semanticquery.NativeTruth(ctx, arg); !known {
 		return
 	}
-	if !semanticquery.ExpansionCTruthy(c) {
+	if !semanticquery.DirectCondition(c) {
 		return
 	}
 	parent, child := astquery.ParentSkipParens(c)

@@ -1,4 +1,5 @@
-// Package mysqliescapedvaluesurvivescharsetchange implements MysqliEscapedValueSurvivesCharsetChange.
+// Package mysqliescapedvaluesurvivescharsetchange implements the native
+// MysqliEscapedValueSurvivesCharsetChange inspection.
 package mysqliescapedvaluesurvivescharsetchange
 
 import (
@@ -13,6 +14,7 @@ const message = "Escape values after selecting the connection charset."
 
 type rule struct{}
 
+// New returns the MysqliEscapedValueSurvivesCharsetChange inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "MysqliEscapedValueSurvivesCharsetChange" }
 func (rule) Semantic()                {}

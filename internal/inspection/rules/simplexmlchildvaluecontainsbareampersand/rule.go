@@ -14,6 +14,7 @@ const message = "Escape bare ampersands in XML child values."
 
 type rule struct{}
 
+// New returns the SimpleXmlChildValueContainsBareAmpersand inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SimpleXmlChildValueContainsBareAmpersand" }
 func (rule) Semantic()                {}
@@ -48,7 +49,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			s = s[end+1:]
 			continue
 		}
-		_, _, _, valid := semanticquery.ExpansionDXML("<r>" + s[:end+1] + "</r>")
+		_, _, _, valid := semanticquery.ParseLiteralXML("<r>" + s[:end+1] + "</r>")
 		if !valid {
 			ctx.ReportNode(n, message)
 			return

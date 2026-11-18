@@ -106,5 +106,4 @@ keep('x');
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies.
-These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

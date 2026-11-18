@@ -13,13 +13,14 @@ const message = "Store a value that does not retain the WeakMap key."
 
 type rule struct{}
 
+// New returns the WeakMapValueRetainsKey inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "WeakMapValueRetainsKey" }
 func (rule) Semantic()                {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	// WeakMap exists from PHP 8.0; older targets cannot run this code.
-	if ctx.PHP < phpversion.PHP80 || !flowquery.Reachable(n, syntax.EnclosingFuncLike(n)) {
+	if ctx.PHP.Below(phpversion.PHP80) || !flowquery.Reachable(n, syntax.EnclosingFuncLike(n)) {
 		return
 	}
 	a := n.(*syntax.Assign)

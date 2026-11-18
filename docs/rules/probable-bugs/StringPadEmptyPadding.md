@@ -16,7 +16,7 @@ Identify str_pad with a proven empty pad string only when requested length excee
 
 - Report str_pad with a proven empty pad string only when requested length exceeds known byte length of input.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 - Each of the three arguments may be a literal or a local variable holding one proven literal. A variable argument counts only while that literal is still its value at the call (see E3).
 
 ## Exceptions (no report)

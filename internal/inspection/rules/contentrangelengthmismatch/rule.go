@@ -14,6 +14,7 @@ const message = "Match the body to the inclusive byte range."
 
 type rule struct{}
 
+// New returns the ContentRangeLengthMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ContentRangeLengthMismatch" }
 func (rule) Semantic()                {}
@@ -24,7 +25,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	key, value, _, known := semanticquery.ExpansionHeader(ctx, c)
+	key, value, _, known := semanticquery.LiteralHeader(ctx, c)
 	if !known || key != "content-range" {
 		return
 	}
@@ -32,13 +33,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(m) == 0 {
 		return
 	}
-	a, ak := semanticquery.ExpansionDecimalLength(m[1])
-	b, bk := semanticquery.ExpansionDecimalLength(m[2])
-	total, tk := semanticquery.ExpansionDecimalLength(m[3])
+	a, ak := semanticquery.ParseDecimalLength(m[1])
+	b, bk := semanticquery.ParseDecimalLength(m[2])
+	total, tk := semanticquery.ParseDecimalLength(m[3])
 	if !ak || !bk || !tk || a > b || b >= total {
 		return
 	}
-	response := semanticquery.ExpansionResponseAt(ctx, c)
+	response := semanticquery.ResponseStateAt(ctx, c)
 	if response.Final && response.Status == 206 && response.BodyKnown && response.BodyLength != b-a+1 {
 		ctx.ReportNode(c, message)
 	}

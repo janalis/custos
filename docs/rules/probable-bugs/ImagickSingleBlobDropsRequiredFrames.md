@@ -16,7 +16,7 @@ Identify Imagick::getImageBlob only with preserveFrames true and local provenanc
 
 - Report Imagick::getImageBlob only with preserveFrames true and local provenance proving at least two image frames, such as two successful newImage/addImage operations. Filename extensions and comments cannot establish frame count. getImagesBlob and known single-frame images exclude.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

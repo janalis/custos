@@ -35,7 +35,7 @@ Reported:
 ## Exceptions (no report)
 
 - Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- Do not report a file whose project-relative path (D1a) matches an `excludedPaths` glob. `**` matches any number of path segments; other segments use shell-style matching, ignoring letter case (`**/tests/**` also excludes `src/Tests/`). Invalid globs and paths or patterns beyond the segment budget match nothing.
+- Do not report a file whose project-relative path (D1a) matches an `excludedPaths` glob. `**` matches any number of path segments; other segments use shell-style matching, ignoring letter case (`**/tests/**` also excludes `src/Tests/`). Invalid globs and paths or patterns beyond the supported number of segments match nothing.
 - Both standard suppression forms suppress this native ID.
 
 ## Fix
@@ -50,7 +50,7 @@ Available throughout supported PHP 5.3–8.5 where the referenced builtin/extens
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| excludedPaths | list | `["**/testdata/**", "**/tests/**"]` | Project-relative path globs for files that are never reported. |
+| excludedPaths | list | `["**/testdata/**", "**/tests/**"]` | Path globs, matched against the file path relative to its project root, for files that are never reported. |
 
 ## Configure
 

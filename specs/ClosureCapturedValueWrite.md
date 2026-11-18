@@ -1,7 +1,7 @@
 ---
 id: ClosureCapturedValueWrite
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -43,7 +43,7 @@ No automatic fix: changing capture semantics can affect lifetime and subsequent 
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -64,4 +64,4 @@ $left = 3; $tick = function () use ($left) { while ($left-- > 0) { echo '.'; } }
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

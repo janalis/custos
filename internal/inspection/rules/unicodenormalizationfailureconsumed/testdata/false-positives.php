@@ -27,3 +27,4 @@ function withElse(string $i): int { $s = normalizer_normalize($i); if ($s === fa
 function typedElse(string $i): int { $s = normalizer_normalize($i); if (!is_string($s)) { $n = 0; } else { $n = strlen($s); } return $n; }
 function typedElseIf(string $i): int { $s = normalizer_normalize($i); if ($i === '') { return 0; } elseif (is_string($s)) { return strlen($s); } return 1; }
 function typedLastElse(string $i): int { $s = normalizer_normalize($i); if ($i === '') { $n = 0; } elseif (!is_string($s)) { $n = 1; } else { $n = strlen($s); } return $n; }
+$s = Normalizer::normalize($input); if ($s !== false) { echo strlen($s); }

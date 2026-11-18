@@ -14,6 +14,7 @@ const message = "Include parent nodes when traversing directories."
 
 type rule struct{}
 
+// New returns the RecursiveTraversalOmitsDirectories inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "RecursiveTraversalOmitsDirectories" }
 func (rule) Semantic()                {}

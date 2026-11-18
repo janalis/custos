@@ -1,7 +1,7 @@
 ---
 id: RepeatedCookieHeaderReplacement
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -17,7 +17,7 @@ Detect a second header call with a Set-Cookie literal and default/true replace f
 - D1. Report a second header call with a Set-Cookie literal and default/true replace flag on a path with an earlier Set-Cookie header, when both literals name a cookie and the two names differ.
 - D1a. The cookie name is the trimmed text between the field name's colon and the first `=` of the leading `name=value` pair (the part before the first `;`). Names are compared byte for byte; the `Set-Cookie` field name itself is matched case-insensitively.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -41,7 +41,7 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -76,4 +76,4 @@ header('Set-Cookie: b=2');
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

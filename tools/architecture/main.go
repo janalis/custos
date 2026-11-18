@@ -12,9 +12,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	phpversion "custos/internal/php/version"
+	"custos/tools/internal/specmd"
 )
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -43,6 +47,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 func check(root string) ([]string, error) {
 	expected := map[string]bool{}
+	native := map[string]bool{}
 	for _, name := range []string{"rules.json", "native-rules.json"} {
 		raw, err := os.ReadFile(filepath.Join(root, "internal/inspection/meta", name))
 		if err != nil {
@@ -59,6 +64,7 @@ func check(root string) ([]string, error) {
 				return nil, fmt.Errorf("duplicate catalogue ID %s", fact.ID)
 			}
 			expected[fact.ID] = true
+			native[fact.ID] = name == "native-rules.json"
 		}
 	}
 	var problems []string
@@ -67,6 +73,11 @@ func check(root string) ([]string, error) {
 	constructors := map[string]bool{}
 	ruleDirs := map[string]bool{}
 	listed := map[string]int{}
+	packageDocs := map[string][]string{}
+	// Marker methods (Semantic, Flow) by "dir.receiver", and the receiver
+	// that declares each rule directory's ID.
+	markers := map[string]map[string]bool{}
+	idRecv := map[string]string{}
 	// Exported semanticquery declarations and the packages that use them.
 	shared := map[string]string{}
 	users := map[string]map[string]bool{}
@@ -87,7 +98,8 @@ func check(root string) ([]string, error) {
 			rel, _ := filepath.Rel(root, path)
 			rel = filepath.ToSlash(rel)
 			from := filepath.ToSlash(filepath.Dir(rel))
-			file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 			if err != nil {
 				return err
 			}
@@ -147,11 +159,17 @@ func check(root string) ([]string, error) {
 						use(strings.TrimPrefix(imports[x.Name], "custos/")+"."+sel.Sel.Name, from)
 					}
 				}
+				if strings.HasPrefix(from, "internal/inspection/") && versionOrdering(node, imports) {
+					report("%s:%d: compare PHP versions with AtLeast or Below", rel, fset.Position(node.Pos()).Line)
+				}
 				return true
 			})
 			isRule := strings.HasPrefix(from, "internal/inspection/rules/")
 			if isRule {
 				ruleDirs[from] = true
+				if file.Doc != nil {
+					packageDocs[from] = append(packageDocs[from], strings.Join(strings.Fields(file.Doc.Text()), " "))
+				}
 			}
 			for _, decl := range file.Decls {
 				fn, ok := decl.(*ast.FuncDecl)
@@ -164,6 +182,12 @@ func check(root string) ([]string, error) {
 					}
 					if constructor(fn, imports) {
 						constructors[from] = true
+					}
+					if recv := receiver(fn); recv != "" && (fn.Name.Name == "Semantic" || fn.Name.Name == "Flow") {
+						if markers[from+"."+recv] == nil {
+							markers[from+"."+recv] = map[string]bool{}
+						}
+						markers[from+"."+recv][fn.Name.Name] = true
 					}
 					if fn.Name.Name == "ID" && fn.Recv != nil && fn.Body != nil {
 						ast.Inspect(fn.Body, func(node ast.Node) bool {
@@ -180,6 +204,7 @@ func check(root string) ([]string, error) {
 								report("%s: duplicate inspection ID %s (also %s)", rel, id, previous)
 							}
 							ids[id] = from
+							idRecv[from] = receiver(fn)
 							if filepath.Base(from) != strings.ToLower(id) {
 								report("%s: directory must be lowercase ID %s", rel, id)
 							}
@@ -230,15 +255,30 @@ func check(root string) ([]string, error) {
 		if listed[owner] != 1 {
 			report("%s: catalogue must construct inspection exactly once (got %d)", id, listed[owner])
 		}
-		spec, err := os.Stat(filepath.Join(root, "specs", id+".md"))
-		if err != nil || spec.IsDir() {
+		spec, err := os.ReadFile(filepath.Join(root, "specs", id+".md"))
+		if err != nil {
 			report("%s: specification missing", id)
+		} else {
+			for _, problem := range specProblems(string(spec), ruleKind(markers[owner+"."+idRecv[owner]])) {
+				report("%s: %s", id, problem)
+			}
 		}
+		if m := specMechanics.Find(spec); m != nil {
+			report("%s: specification describes behavior only; move %q to the rule's NOTES.md", id, m)
+		}
+		checkPackageDoc(report, id, owner, native[id], packageDocs[owner])
 		fixtures, err := os.ReadDir(filepath.Join(root, owner, "testdata"))
 		hasPHP := false
 		for _, fixture := range fixtures {
-			if !fixture.IsDir() && strings.HasSuffix(fixture.Name(), ".php") {
+			name := fixture.Name()
+			if fixture.IsDir() {
+				name += "/composer.config.json"
+			} else if strings.HasSuffix(name, ".php") {
 				hasPHP = true
+			}
+			checkFixtureName(report, owner, name)
+			if strings.HasSuffix(name, ".json") {
+				checkSidecar(report, filepath.Join(root, owner, "testdata"), owner, name)
 			}
 		}
 		if err != nil || !hasPHP {
@@ -279,6 +319,170 @@ func check(root string) ([]string, error) {
 	return problems, nil
 }
 
+// checkPackageDoc requires every package comment of a rule package to
+// open with the sentence naming its inspection, and at least one to exist.
+func checkPackageDoc(report func(string, ...any), id, owner string, native bool, docs []string) {
+	kind := ""
+	if native {
+		kind = "native "
+	}
+	want := fmt.Sprintf("Package %s implements the %s%s inspection.", filepath.Base(owner), kind, id)
+	if len(docs) == 0 {
+		report("%s: package comment missing; start it with %q", owner, want)
+	}
+	for _, doc := range docs {
+		if doc != want && !strings.HasPrefix(doc, want+" ") {
+			report("%s: package comment must start with %q", owner, want)
+		}
+	}
+}
+
+// retiredFixtureNames are fixture names replaced by the documented scheme:
+// findings in basic.php, code that must not be reported in
+// false-positives*.php.
+var retiredFixtureNames = map[string]string{
+	"positive": "basic",
+	"negative": "false-positives",
+	"valid":    "false-positives",
+}
+
+func checkFixtureName(report func(string, ...any), owner, name string) {
+	base := name
+	for _, suffix := range []string{".fixed.php", ".php", ".json"} {
+		if strings.HasSuffix(base, suffix) {
+			base = strings.TrimSuffix(base, suffix)
+			break
+		}
+	}
+	if use, ok := retiredFixtureNames[base]; ok {
+		report("%s/testdata/%s: rename the fixture to %s", owner, name, use)
+	}
+}
+
+// checkSidecar rejects fixture settings that only restate the defaults: an
+// empty sidecar, empty options or the default PHP version.
+func checkSidecar(report func(string, ...any), dir, owner, name string) {
+	raw, err := os.ReadFile(filepath.Join(dir, name))
+	if err != nil {
+		return // a manifest case without settings
+	}
+	var cfg map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		report("%s/testdata/%s: invalid sidecar: %v", owner, name, err)
+		return
+	}
+	if len(cfg) == 0 {
+		report("%s/testdata/%s: empty sidecar; delete it", owner, name)
+	}
+	if options, ok := cfg["options"]; ok {
+		var set map[string]any
+		if json.Unmarshal(options, &set) == nil && len(set) == 0 {
+			report("%s/testdata/%s: empty options; remove the key", owner, name)
+		}
+	}
+	if php, ok := cfg["php"]; ok {
+		var version string
+		if json.Unmarshal(php, &version) == nil {
+			if v, err := phpversion.Parse(version); err == nil && v == phpversion.Default {
+				report("%s/testdata/%s: php %q is the default; remove the key", owner, name, version)
+			}
+		}
+	}
+}
+
+// ruleKind is the spec front matter kind a rule's marker methods call for:
+// flow when it needs project-local callable summaries, semantic when it
+// needs the project symbol index, syntax otherwise.
+func ruleKind(marker map[string]bool) string {
+	switch {
+	case marker["Flow"]:
+		return "flow"
+	case marker["Semantic"]:
+		return "semantic"
+	}
+	return "syntax"
+}
+
+var (
+	specKind = regexp.MustCompile(`(?m)^kind:[ \t]*(\S*)`)
+	// optionLabel is a Detection, Exceptions or Fix item label: rule pages
+	// and `custos explain` show options without them.
+	optionLabel = regexp.MustCompile(`\b[DEF]\d+[a-z]?\b`)
+	tableRule   = regexp.MustCompile(`^\|[\s:|-]*\|$`)
+)
+
+// specProblems checks a spec against its rule's code and the authoring
+// guide (docs/contributing/adding-a-rule.md): its kind matches the rule's
+// marker methods, and its Options section, which users read, neither
+// refers to D/E/F labels nor leaves a table without rows.
+func specProblems(spec, kind string) []string {
+	var problems []string
+	got := ""
+	if m := specKind.FindStringSubmatch(spec); m != nil {
+		got = m[1]
+	}
+	if got != kind {
+		problems = append(problems, fmt.Sprintf("specification kind %q, code calls for %q", got, kind))
+	}
+	options := specmd.Section(spec, "Options")
+	if label := optionLabel.FindString(options); label != "" {
+		problems = append(problems, fmt.Sprintf("specification Options refers to %s; describe the behavior in words", label))
+	}
+	table, rows := false, 0
+	for _, line := range strings.Split(options, "\n") {
+		line = strings.TrimSpace(line)
+		switch {
+		case tableRule.MatchString(line):
+			table = true
+		case table && strings.HasPrefix(line, "|"):
+			rows++
+		}
+	}
+	if table && rows == 0 {
+		problems = append(problems, "specification Options has an empty table; write None.")
+	}
+	return problems
+}
+
+// versionOrdering reports an ordering comparison (<, <=, >, >=) with a
+// constant of the PHP version package: inspections write
+// v.AtLeast(phpversion.PHP80) or v.Below(phpversion.PHP80) instead, one
+// spelling for every version gate.
+func versionOrdering(node ast.Node, imports map[string]string) bool {
+	bin, ok := node.(*ast.BinaryExpr)
+	if !ok {
+		return false
+	}
+	switch bin.Op {
+	case token.LSS, token.LEQ, token.GTR, token.GEQ:
+	default:
+		return false
+	}
+	for _, side := range []ast.Expr{bin.X, bin.Y} {
+		if sel, ok := side.(*ast.SelectorExpr); ok {
+			if x, ok := sel.X.(*ast.Ident); ok && imports[x.Name] == "custos/internal/php/version" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// receiver returns the type name of a method's receiver, or "".
+func receiver(fn *ast.FuncDecl) string {
+	if fn.Recv == nil || len(fn.Recv.List) != 1 {
+		return ""
+	}
+	typ := fn.Recv.List[0].Type
+	if star, ok := typ.(*ast.StarExpr); ok {
+		typ = star.X
+	}
+	if id, ok := typ.(*ast.Ident); ok {
+		return id.Name
+	}
+	return ""
+}
+
 // sharedPackages hold the queries several rules share (syntax, flow and
 // semantic); a query only one rule uses belongs in that rule.
 var sharedPackages = map[string]bool{
@@ -286,6 +490,13 @@ var sharedPackages = map[string]bool{
 	"internal/inspection/flowquery":     true,
 	"internal/inspection/semanticquery": true,
 }
+
+// specMechanics matches implementation detail a spec must not carry
+// (docs/contributing/adding-a-rule.md): analysis budgets, repository paths
+// (a glob such as **/testdata/** in an option default is not one) and Go
+// source files. A rule about a budget of its own (a configured limit)
+// names it otherwise.
+var specMechanics = regexp.MustCompile(`(?i)\banalysis[- ]budgets?\b|\bbudget exhaustion\b|\b(?:internal|cmd|tools)/[a-z]|(?:^|[\s\x60(])testdata/|\b[a-z_]+\.go\b`)
 
 func allowed(from, to string) bool {
 	within := func(prefix string) bool { return to == prefix || strings.HasPrefix(to, prefix+"/") }

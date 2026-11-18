@@ -12,6 +12,7 @@ const message = "Require a positive PID from nonblocking wait."
 
 type rule struct{}
 
+// New returns the NonblockingWaitZeroTreatedAsReaped inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "NonblockingWaitZeroTreatedAsReaped" }
 func (rule) Semantic()                {}

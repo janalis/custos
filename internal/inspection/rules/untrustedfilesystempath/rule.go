@@ -152,7 +152,7 @@ func bindsByRef(ctx *analysis.Context, list *syntax.ArgList, i int) bool {
 // the conditions guarding use prove passed: str_starts_with() true, or
 // strpos()/strncmp() returning 0.
 func contained(ctx *analysis.Context, use *syntax.Variable, origin syntax.Expr) bool {
-	if semanticquery.NativeLabelled(ctx, use) {
+	if semanticquery.NativeLabeled(ctx, use) {
 		return false // a jump may land between the test and the use
 	}
 	return semanticquery.NativeEarlierCallProves(ctx, use, func(x syntax.Expr) (types.Type, func(types.Type) bool) {

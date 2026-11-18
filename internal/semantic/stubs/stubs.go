@@ -69,7 +69,7 @@ func decode(b []byte) (*index.Index, map[string]bool, error) {
 	return out, extensions, nil
 }
 
-// must panics on a decode error: the embedded data is a build artefact, so a
+// must panics on a decode error: the embedded data is a build artifact, so a
 // failure is a broken build, not a runtime condition.
 func must(x *index.Index, exts map[string]bool, err error) (*index.Index, map[string]bool) {
 	if err != nil {

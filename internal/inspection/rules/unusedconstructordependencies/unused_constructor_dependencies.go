@@ -161,7 +161,7 @@ func ucdScanMembers(ctx *analysis.Context, decl *syntax.ClassLike, ctor *syntax.
 }
 
 // ucdSleepNames marks the candidates named by a string literal in the body
-// of `__sleep()`: the properties it lists are serialised (custos). A private
+// of `__sleep()`: the properties it lists are serialized (custos). A private
 // property may be spelled `"\0Class\0name"`.
 func ucdSleepNames(body syntax.Node, candidates, used map[string]bool) {
 	syntax.Inspect(body, func(x syntax.Node) bool {

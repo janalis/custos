@@ -21,3 +21,4 @@ function elseBranch(Target $o) { $c = static fn() => 1; $b = $c->bindTo($o); if 
 function elseIfBranch(Target $o, $flag) { $c = static fn() => 1; $b = $c->bindTo($o); if ($flag) { return 0; } elseif ($b) { return $b(); } return 0; }
 function afterFailedBranch(Target $o, $flag) { $c = static fn() => 1; $b = $c->bindTo($o); if (!$b) { return 0; } elseif ($flag) { return $b(); } elseif ($b()) { return 1; } return 0; }
 function assigned(Target $o) { $c = static fn() => 1; if ($b = $c->bindTo($o)) { return $b(); } return 0; }
+$f = static function () {}; $bound = $f->bindTo(null); if ($bound !== null) { $bound(); }

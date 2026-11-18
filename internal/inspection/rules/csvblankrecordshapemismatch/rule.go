@@ -11,6 +11,7 @@ const message = "Recognize a blank CSV record as a null field."
 
 type rule struct{}
 
+// New returns the CsvBlankRecordShapeMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CsvBlankRecordShapeMismatch" }
 func (rule) Semantic()                {}

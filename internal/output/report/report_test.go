@@ -82,7 +82,7 @@ func TestFormatDetails(t *testing.T) {
 	if s := out("checkstyle"); strings.Count(s, "<file ") != 2 || !strings.Contains(s, `severity="info"`) || !strings.Contains(s, `severity="error"`) || !strings.Contains(s, `source="custos.Custom"`) {
 		t.Errorf("checkstyle:\n%s", s)
 	}
-	if s := out("text"); !strings.HasSuffix(s, "2 file(s) analysed: 1 error(s), 1 warning(s), 0 info\n") {
+	if s := out("text"); !strings.HasSuffix(s, "2 file(s) analyzed: 1 error(s), 1 warning(s), 0 info\n") {
 		t.Errorf("text:\n%s", s)
 	}
 	var sarif struct {

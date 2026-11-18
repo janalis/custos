@@ -67,7 +67,7 @@ func uploadEntry(ctx *analysis.Context, expr syntax.Expr, field string) (string,
 // conditions guarding it narrow `$_FILES[key]['type']` to a list of such
 // strings.
 func trustsClientType(ctx *analysis.Context, call *syntax.FuncCall, upload string) bool {
-	if semanticquery.NativeLabelled(ctx, call) {
+	if semanticquery.NativeLabeled(ctx, call) {
 		return false // a jump may land between the test and the call
 	}
 	var label syntax.Expr

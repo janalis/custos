@@ -42,7 +42,7 @@ namespace B { use function A\time; time(); nope(); }
 
 func TestResolvedFunctionFQNDynamic(t *testing.T) {
 	f := Parse(t, `<?php $f();`)
-	if _, ok := ResolvedFunctionFQN(names.New(f), index.New(stubs.Index()), phpversion.Max, FirstExpr(t, f).(*syntax.FuncCall)); ok {
+	if _, ok := resolvedFunctionFQN(names.New(f), index.New(stubs.Index()), phpversion.Max, FirstExpr(t, f).(*syntax.FuncCall)); ok {
 		t.Fatal("dynamic call")
 	}
 }

@@ -1,4 +1,5 @@
-// Package duplicatematchcondition implements the DuplicateMatchCondition inspection.
+// Package duplicatematchcondition implements the native
+// DuplicateMatchCondition inspection.
 package duplicatematchcondition
 
 import (
@@ -16,6 +17,7 @@ import (
 
 type rule struct{}
 
+// New returns the DuplicateMatchCondition inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DuplicateMatchCondition" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMatch} }
@@ -23,7 +25,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMatch} 
 const message = "Remove the repeated match condition."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP80 {
+	if ctx.PHP.Below(phpversion.PHP80) {
 		return
 	}
 	seen := map[string]bool{}

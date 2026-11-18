@@ -17,7 +17,7 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 	}
 	// What the functions of the file write to global variables is computed
 	// before the scope has a result of its own: one that is such a function
-	// is analysed there, and has no result to read while it is.
+	// is analyzed there, and has no result to read while it is.
 	if !e.globalsKnown {
 		e.globals()
 		return e.scope(scope)
@@ -26,7 +26,7 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 	// false where another invocation can read it: at its calls and where it
 	// ends. Then a guard on it holds across a call that enters the function
 	// again. When some path breaks the assumption for a variable the scope
-	// is analysed again without it for that one, a bounded number of times,
+	// is analyzed again without it for that one, a bounded number of times,
 	// then without it for any.
 	r := e.follow(scope, nil, false)
 	var distrust map[string]bool
@@ -195,9 +195,9 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 		budget = MaxCopied / jumpShare
 	}
 	once := g.once(sweep, exit, done)
-	if r.labelled = g.first; g.full {
+	if r.labeled = g.first; g.full {
 		// The statements before the one that filled the graph were not read.
-		r.labelled = e.firstLabel(scope)
+		r.labeled = e.firstLabel(scope)
 	}
 	// A block input is retained until the scope is done: only its growth is
 	// charged to the memory budget. owned marks a frame nothing else uses.
@@ -231,7 +231,7 @@ func (e *Env) followSeeded(scope syntax.Node, distrust map[string]bool, distrust
 		}
 	}
 	// A broken assumption about a static variable ends the first analysis:
-	// the scope is analysed again without it.
+	// the scope is analyzed again without it.
 	for queued > 0 && steps < MaxTransfers && !r.spent && len(r.broken) == 0 && r.operations <= MaxTransfers && r.copies <= budget {
 		for top >= 0 && !waiting[top] {
 			top--

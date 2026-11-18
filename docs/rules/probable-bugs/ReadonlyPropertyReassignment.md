@@ -30,7 +30,7 @@ Reported:
 - Report assignment to a resolved readonly instance property already initialized on every reachable incoming path.
 - Every writing assignment operator counts as a repeated write: plain `=` and the compound operators (`+=`, `-=`, `.=`, ...) all fail on an initialized readonly property. The null-coalescing assignment `??=` is the exception, see E3.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -46,10 +46,6 @@ No automatic fix: removing an assignment may conceal a missing design change.
 ## PHP versions
 
 Available from PHP 8.1. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

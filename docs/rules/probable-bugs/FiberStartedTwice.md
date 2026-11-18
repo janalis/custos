@@ -17,7 +17,7 @@ Identify a second start on the same locally allocated Fiber after a successful f
 - Report a second start on the same locally allocated Fiber after a successful first start on an unconditional straight-line path; no reset or reassignment may intervene.
   Only a real invocation counts as a start, for the earlier call and for the reported one: the first-class callable form `$fiber->start(...)` merely builds a closure.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

@@ -17,7 +17,7 @@ Identify query SQL containing unchanged real_escape_string output after set_char
 - Report query SQL containing unchanged real_escape_string output after set_charset on same mysqli connection to a proven different charset. Require known charset before escaping and successful charset change; unknown changes exclude.
 - Only the last `set_charset` call written on that connection decides each side. Before escaping, it must be the last call ahead of the `real_escape_string` call, execute on every path (or be checked for success) and name a constant charset. Before the query, the last call written between the escape and the query must be checked for success on the path to the query and name a constant charset that differs, ignoring letter case, from the escaping charset. `set_charset` calls on other connections are ignored.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

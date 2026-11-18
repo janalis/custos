@@ -120,5 +120,3 @@ function scan(string $line, string $tag) {
 - **Function-name case (custos diverges):** upstream compares `strpos` /
   `mb_strpos` case-sensitively, missing `StrPos(...)` or `MB_STRPOS(...)`,
   which call the same built-ins. custos matches any case (D1).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

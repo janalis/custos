@@ -1,4 +1,5 @@
-// Package catchcannothandleknownthrowable implements CatchCannotHandleKnownThrowable.
+// Package catchcannothandleknownthrowable implements the native
+// CatchCannotHandleKnownThrowable inspection.
 package catchcannothandleknownthrowable
 
 import (
@@ -11,6 +12,7 @@ const message = "Catch a type that handles the thrown value."
 
 type rule struct{}
 
+// New returns the CatchCannotHandleKnownThrowable inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CatchCannotHandleKnownThrowable" }
 func (rule) Semantic()                {}

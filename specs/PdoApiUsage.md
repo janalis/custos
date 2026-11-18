@@ -90,7 +90,7 @@ None.
 
 ## PHP versions
 
-None. The upstream fixture runs at the IDE test default level (below 7.1).
+No gating. The upstream fixture runs at the IDE test default level (below 7.1).
 
 ## Examples
 

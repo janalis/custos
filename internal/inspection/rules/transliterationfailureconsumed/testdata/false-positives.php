@@ -8,3 +8,4 @@ function typeBranch(Transliterator $tr, string $text): string { $s = $tr->transl
 function matchArm(string $rules, string $text): int { $s = transliterator_transliterate($rules, $text); return match (true) { $s === false => 0, default => strlen($s) }; }
 function elseBranch(Transliterator $tr, string $text): string { $s = $tr->transliterate($text); if ($s === false) { return ''; } else { return strtoupper($s); } }
 function emptyOrFailed(string $rules, string $text): int { $s = transliterator_transliterate($rules, $text); if ($s === false || $s === '') { return 0; } return strlen($s); }
+$s=transliterator_transliterate($transform,$input); if ($s !== false) { echo strlen($s); }

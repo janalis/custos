@@ -3,7 +3,7 @@ id: SplFixedArrayIndexOutOfBounds
 group: Probable bugs
 kind: semantic
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # SplFixedArrayIndexOutOfBounds
@@ -16,7 +16,7 @@ Use an index within the fixed array size.
 
 - D1. Track literal nonnegative size from new SplFixedArray, fromArray and setSize. Report read/write/unset of a proven integer index below zero or greater than/equal to size. For fromArray, preserved indices determine size; with preserveKeys=false use element count.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 - D4. The size stays proven only while every earlier mention of the receiver is inert: an offset access, a named builtin method call, its own plain assignment, by-value `foreach`, `isset`/`empty`, `clone`, or a direct argument of a read-only builtin such as `count` or `var_dump`. A `setSize` call counts only when it runs on every path to the access; a conditional one, or one later in a loop that also contains the access, removes proof. When the access is inside a loop, every mention anywhere in the outermost enclosing loop is treated as earlier.
 - D5. A receiver that is not a plain local variable (a property, for instance) additionally loses proof when any method call on another receiver, user function call, static call or instantiation of a non-builtin class, or `include`/`require` appears before the access.
 - D6. An element `unset` does not discard a `fromArray` allocation: the unset itself and later accesses are still checked, provided no `setSize` follows the allocation.
@@ -44,7 +44,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## Options
 
-None. Use ordinary rule configuration to enable or disable this inspection.
+None.
 
 ## PHP versions
 
@@ -77,4 +77,4 @@ $a[5] = "inside after the resize";
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

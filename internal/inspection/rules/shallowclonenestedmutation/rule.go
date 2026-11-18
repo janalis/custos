@@ -1,4 +1,5 @@
-// Package shallowclonenestedmutation implements the ShallowCloneNestedMutation inspection.
+// Package shallowclonenestedmutation implements the native
+// ShallowCloneNestedMutation inspection.
 package shallowclonenestedmutation
 
 import (
@@ -13,6 +14,7 @@ import (
 
 type rule struct{}
 
+// New returns the ShallowCloneNestedMutation inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ShallowCloneNestedMutation" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign} }

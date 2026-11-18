@@ -1,4 +1,5 @@
-// Package untrustedxmlwriterrawcontent implements UntrustedXmlWriterRawContent.
+// Package untrustedxmlwriterrawcontent implements the native
+// UntrustedXmlWriterRawContent inspection.
 package untrustedxmlwriterrawcontent
 
 import (
@@ -11,6 +12,7 @@ const message = "Write untrusted XML content as escaped text."
 
 type rule struct{}
 
+// New returns the UntrustedXmlWriterRawContent inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "UntrustedXmlWriterRawContent" }
 func (rule) Semantic()                {}

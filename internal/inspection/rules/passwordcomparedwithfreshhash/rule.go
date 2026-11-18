@@ -54,7 +54,7 @@ func notStoredHash(ctx *analysis.Context, e syntax.Expr) bool {
 
 func check(ctx *analysis.Context, n syntax.Node, message string) {
 	binary := n.(*syntax.Binary)
-	if ctx.PHP < phpversion.PHP55 {
+	if ctx.PHP.Below(phpversion.PHP55) {
 		return
 	}
 	if binary.Op.Kind != syntax.TIsIdentical && binary.Op.Kind != syntax.TIsEqual && binary.Op.Kind != syntax.TIsNotIdentical && binary.Op.Kind != syntax.TIsNotEqual {

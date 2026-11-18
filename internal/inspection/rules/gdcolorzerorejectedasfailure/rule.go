@@ -13,6 +13,7 @@ const message = "Compare color allocation failure strictly with false."
 
 type rule struct{}
 
+// New returns the GdColorZeroRejectedAsFailure inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GdColorZeroRejectedAsFailure" }
 func (rule) Semantic()                {}

@@ -1,4 +1,5 @@
-// Package undefinedfunction implements the UndefinedFunction inspection.
+// Package undefinedfunction implements the native UndefinedFunction
+// inspection.
 package undefinedfunction
 
 import (

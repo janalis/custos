@@ -10,37 +10,37 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// IndexRelations answers the class questions of types.Accepts from the
+// indexRelations answers the class questions of types.Accepts from the
 // project index. Not safe for concurrent use (it caches resolutions).
-type IndexRelations struct {
+type indexRelations struct {
 	ix       *index.Index
 	ver      phpversion.Version
 	resolved map[string]bool
 }
 
-// NewIndexRelations returns the class relations of ix at PHP version ver.
-func NewIndexRelations(ix *index.Index, ver phpversion.Version) *IndexRelations {
-	return &IndexRelations{ix: ix, ver: ver}
+// newIndexRelations returns the class relations of ix at PHP version ver.
+func newIndexRelations(ix *index.Index, ver phpversion.Version) *indexRelations {
+	return &indexRelations{ix: ix, ver: ver}
 }
 
-// AcceptContext returns the acceptance context of a value passed in the file
+// acceptContext returns the acceptance context of a value passed in the file
 // of ctx: its strict_types mode and the class relations of its index;
 // internal marks a parameter of a builtin function.
-func AcceptContext(ctx *analysis.Context, internal bool) types.AcceptContext {
+func acceptContext(ctx *analysis.Context, internal bool) types.AcceptContext {
 	return types.AcceptContext{
-		Classes:  NewIndexRelations(ctx.Index(), ctx.PHP),
+		Classes:  newIndexRelations(ctx.Index(), ctx.PHP),
 		Strict:   syntax.StrictTypes(ctx.File),
 		Internal: internal,
 	}
 }
 
 // class returns the class-like named by class atom a (nil when unknown).
-func (r *IndexRelations) class(a string) *index.Class {
+func (r *indexRelations) class(a string) *index.Class {
 	return r.ix.Class(strings.TrimPrefix(a, `\`), r.ver)
 }
 
 // Resolved reports a class known together with its whole hierarchy.
-func (r *IndexRelations) Resolved(a string) bool {
+func (r *indexRelations) Resolved(a string) bool {
 	if v, ok := r.resolved[a]; ok {
 		return v
 	}
@@ -54,7 +54,7 @@ func (r *IndexRelations) Resolved(a string) bool {
 
 // IsSubtype reports whether child is, extends or implements parent; Maybe
 // when either is not resolved.
-func (r *IndexRelations) IsSubtype(child, parent string) types.Verdict {
+func (r *indexRelations) IsSubtype(child, parent string) types.Verdict {
 	if !r.Resolved(child) || !r.Resolved(parent) {
 		return types.Maybe
 	}
@@ -65,13 +65,13 @@ func (r *IndexRelations) IsSubtype(child, parent string) types.Verdict {
 }
 
 // IsFinal reports a final class or an enum.
-func (r *IndexRelations) IsFinal(a string) bool {
+func (r *indexRelations) IsFinal(a string) bool {
 	c := r.class(a)
 	return c != nil && (c.Final || c.Kind == syntax.KindEnum)
 }
 
 // IsInterface reports an interface.
-func (r *IndexRelations) IsInterface(a string) bool {
+func (r *indexRelations) IsInterface(a string) bool {
 	c := r.class(a)
 	return c != nil && c.Kind == syntax.KindInterface
 }

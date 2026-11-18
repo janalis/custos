@@ -1,4 +1,5 @@
-// Package xmlreaderattributecursornotrestored implements XmlReaderAttributeCursorNotRestored.
+// Package xmlreaderattributecursornotrestored implements the native
+// XmlReaderAttributeCursorNotRestored inspection.
 package xmlreaderattributecursornotrestored
 
 import (
@@ -11,6 +12,7 @@ const message = "Restore the XMLReader element cursor before element operations.
 
 type rule struct{}
 
+// New returns the XmlReaderAttributeCursorNotRestored inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "XmlReaderAttributeCursorNotRestored" }
 func (rule) Semantic()                {}
@@ -59,7 +61,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 func same(ctx *analysis.Context, a, b syntax.Expr) bool {
-	return semanticquery.ExpansionSameObject(ctx, a, b)
+	return semanticquery.SameLocalObject(ctx, a, b)
 }
 
 // cursorMayBeRestored includes conditional moves and incomplete histories.

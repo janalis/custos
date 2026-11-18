@@ -1,7 +1,7 @@
 ---
 id: DateOnlyParseRetainsCurrentTime
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -41,7 +41,7 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -61,7 +61,7 @@ $day=DateTimeImmutable::createFromFormat('!Y-m-d',$input);
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: the fix never changes the parsed calendar date; partial-date formats keep the report but get no edit. A value normalized by a directly chained `setTime` is not reported.
 

@@ -1,4 +1,5 @@
-// Package trimmaskusedassuffix implements the TrimMaskUsedAsSuffix inspection.
+// Package trimmaskusedassuffix implements the native TrimMaskUsedAsSuffix
+// inspection.
 package trimmaskusedassuffix
 
 import (
@@ -9,6 +10,7 @@ import (
 
 type rule struct{}
 
+// New returns the TrimMaskUsedAsSuffix inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "TrimMaskUsedAsSuffix" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }

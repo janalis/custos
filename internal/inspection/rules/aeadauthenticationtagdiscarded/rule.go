@@ -21,7 +21,7 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP71 {
+	if ctx.PHP.Below(phpversion.PHP71) {
 		return
 	}
 	call := n.(*syntax.FuncCall)

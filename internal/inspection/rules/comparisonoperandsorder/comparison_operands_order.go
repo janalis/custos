@@ -82,7 +82,7 @@ func cooConstantLike(e syntax.Expr) bool {
 }
 
 // cooSwappable reports whether exchanging the operands keeps the program's
-// behaviour and syntax: an interpolated string reads its variables when it
+// behavior and syntax: an interpolated string reads its variables when it
 // is evaluated, so it must not change places with an operand that has side
 // effects (F2), and before PHP 7.3 a heredoc closing marker has to stay
 // alone on its line (F3).

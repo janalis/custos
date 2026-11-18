@@ -32,7 +32,7 @@ Reported:
 This is an opt-in policy. Truthiness, previous-state checks, raw wait-status comparisons and dispatch acknowledgements can be intentional; enabling this rule requests explicit handling of the contract described below.
 
 - Report a resolved `fseek` call whose result is tested for truthiness as the condition of `if`, `elseif`, `else if`, `while`, `do … while` or `for` (only the last expression of a `for` condition list decides the loop). The result may reach the condition directly, through parentheses, through logical negation, through a loose or strict comparison with `true`/`false`, or through a plain `=` assignment whose assigned value is the call. These tests treat nonzero as success although fseek returns zero on success and minus one on failure. No claim is made about other positions such as ternary conditions, `&&`/`||` operands or branch bodies.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

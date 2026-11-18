@@ -1,4 +1,5 @@
-// Package utf8bytetruncation implements the Utf8ByteTruncation inspection.
+// Package utf8bytetruncation implements the native Utf8ByteTruncation
+// inspection.
 package utf8bytetruncation
 
 import (
@@ -11,6 +12,7 @@ import (
 
 type rule struct{}
 
+// New returns the Utf8ByteTruncation inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "Utf8ByteTruncation" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }

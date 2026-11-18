@@ -33,3 +33,4 @@ function unknownHeaderBefore($line) {
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Cache-Control: public, max-age=60');
 }
+header("Access-Control-Allow-Origin: ".$_SERVER["HTTP_ORIGIN"]); header("Cache-Control: public, max-age=60"); header("Vary: Origin");

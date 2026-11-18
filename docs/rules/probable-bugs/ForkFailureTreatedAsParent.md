@@ -6,7 +6,7 @@ title: ForkFailureTreatedAsParent
 
 # ForkFailureTreatedAsParent
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -30,7 +30,7 @@ Reported:
 - Report direct/unchanged-local pcntl_fork result tested by an if truthiness or negation condition; -1 is truthy. Numeric three-way dispatch remains outside this check.
 - No report when failure is already excluded on every path to the test: the comparisons of the fork result with known integers that guard the test leave -1 out. The fork result is the local while it still resolves to the reported call, or the plain assignment that stores that call (`($pid = pcntl_fork()) === -1`); a known integer is a literal, possibly signed, or a local whose only value is one (`$failed = -1`). A comparison guards the test as the condition of an enclosing `if`/`elseif` body, as an earlier condition of the chain for a later arm, as a ternary condition or short-circuit operand, or as the condition of an earlier `if` whose body always leaves (return, throw, exit, break, continue), in the same statement list or one enclosing it inside the same function. So `if ($pid === -1) { exit(1); }`, `if ($pid < 0) { return; }`, `-1 === $pid` and `0 > $pid` before the test exclude failure, as does testing inside `if ($pid !== -1) { … }` or `if ($pid >= 0) { … }`. Unrelated statements between guard and test do not matter.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 

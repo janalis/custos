@@ -1,6 +1,6 @@
 // Package testbudget scales time limits in tests by the speed of the
 // machine at test time, and measures compute-bound work in CPU time (CPU),
-// so complexity-regression tests (whose broken behaviour costs orders of
+// so complexity-regression tests (whose broken behavior costs orders of
 // magnitude more than the limit) do not fail spuriously on a loaded
 // machine.
 package testbudget
@@ -42,7 +42,7 @@ func calibrate() time.Duration {
 			x ^= x >> 7
 			x ^= x << 17
 		}
-		runtime.KeepAlive(x) // keep the loop from being optimised away
+		runtime.KeepAlive(x) // keep the loop from being optimized away
 		if d := time.Since(start); d < best {
 			best = d
 		}

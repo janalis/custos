@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Track an explicitly static closure bound using Closure::bindTo or builtin Closure::bind with a proven non-null object. Report invocation of the failed binding result on the same reachable local path, including an immediately invoked result. The object is proven only when every alternative of its inferred type is a class instance: a nullable, untyped, mixed or otherwise partly non-class type proves nothing, because binding null to a static closure succeeds.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

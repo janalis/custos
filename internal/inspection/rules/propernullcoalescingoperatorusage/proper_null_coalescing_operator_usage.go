@@ -28,7 +28,7 @@ func pncoIsCoalesce(n syntax.Node) bool {
 
 func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	b := n.(*syntax.Binary)
-	if b.Op.Kind != syntax.TCoalesce || b.Span().Len() == 0 || b.Left == nil || b.Right == nil || ctx.PHP < phpversion.PHP70 {
+	if b.Op.Kind != syntax.TCoalesce || b.Span().Len() == 0 || b.Left == nil || b.Right == nil || ctx.PHP.Below(phpversion.PHP70) {
 		return
 	}
 	if pncoIsCoalesce(b.Parent()) { // P1

@@ -16,3 +16,4 @@ function elseIfArm($f) { $p = fileperms($f); if ($f === '') { return 1; } elseif
 function elseIfBody($f) { $p = fileperms($f); if ($f === '') { return 1; } elseif ($p) { if (($p & 0222) === 0) { return true; } } return false; }
 function afterElseIf($f) { $p = fileperms($f); if ($f === '') { return 1; } elseif (!$p) { return false; } else { if (($p & 0222) === 0) { return true; } } return false; }
 function orRight($f) { $p = fileperms($f); if (!$p || $f === '') { return false; } if (!$p || ($p & 0222) === 0) { return true; } return false; }
+$m = fileperms($path); if ($m !== false && ($m & 0002) === 0) { return true; }

@@ -124,7 +124,7 @@ const (
 )
 
 // byLetters groups items (sorted by text) into runs of consecutive initial
-// letters labelled "A–C" (or "A" for one letter).
+// letters labeled "A–C" (or "A" for one letter).
 func byLetters(items []sideItem, collapsed *bool) []sideItem {
 	var out []sideItem
 	var first, last byte

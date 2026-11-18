@@ -30,7 +30,7 @@ func NativeArrayEntries(ctx *analysis.Context, e syntax.Expr) (map[string]syntax
 		}
 		if key[:2] == "i:" {
 			n, _ := strconv.ParseInt(key[2:], 10, 64)
-			if n >= next || (len(entries) == 0 && ctx.PHP >= phpversion.PHP83) {
+			if n >= next || (len(entries) == 0 && ctx.PHP.AtLeast(phpversion.PHP83)) {
 				if n == 1<<63-1 {
 					return nil, false
 				}
@@ -294,4 +294,28 @@ func NativeTruth(ctx *analysis.Context, e syntax.Expr) (bool, bool) {
 		return v != 0, err == nil
 	}
 	return false, false
+}
+
+// KnownByteLength returns the length in bytes of e when it is known: a
+// string, or a local holding random_bytes() or str_repeat() of known size.
+func KnownByteLength(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
+	if text, ok := NativeString(ctx, e); ok {
+		return int64(len(text)), true
+	}
+	c, ok := NativeLocalValue(ctx, e).(*syntax.FuncCall)
+	if !ok {
+		return 0, false
+	}
+	switch NativeBuiltinName(ctx, c) {
+	case "random_bytes":
+		size, known := NativeContractInt(ctx, CallArgument(c.Args, 0, "length"))
+		return size, known && size > 0
+	case "str_repeat":
+		text, known := NativeString(ctx, CallArgument(c.Args, 0, "string"))
+		count, ok := NativeContractInt(ctx, CallArgument(c.Args, 1, "times"))
+		if known && ok && count >= 0 && count <= 1<<30 {
+			return int64(len(text)) * count, true
+		}
+	}
+	return 0, false
 }

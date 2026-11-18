@@ -36,7 +36,7 @@ func TestColdFlowChainsAreOrderIndependent(t *testing.T) {
 	source := files[0]
 	replacement := []byte("<?php function f0(){return 'safe';}")
 	ix.Add(ExtractSymbols(source, replacement, opt, infer.Options{}))
-	next, ok := reverse.Update(map[string][]byte{source: replacement}, ix)
+	next, ok := reverse.Update(context.Background(), map[string][]byte{source: replacement}, ix)
 	if !ok {
 		t.Fatal("incremental chain update refused")
 	}

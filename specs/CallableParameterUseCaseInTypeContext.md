@@ -457,5 +457,3 @@ function untyped($flag = null) {
   arithmetic above, operands made only of int, bool and null give an int
   (PHP counts them as 0, 0 and 1): `$end = strtotime($start) + 60` is an
   int, not "float".
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

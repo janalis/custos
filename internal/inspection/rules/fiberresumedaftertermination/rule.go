@@ -1,4 +1,5 @@
-// Package fiberresumedaftertermination implements FiberResumedAfterTermination.
+// Package fiberresumedaftertermination implements the native
+// FiberResumedAfterTermination inspection.
 package fiberresumedaftertermination
 
 import (
@@ -11,6 +12,7 @@ const message = "Resume a fiber before it terminates."
 
 type rule struct{}
 
+// New returns the FiberResumedAfterTermination inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "FiberResumedAfterTermination" }
 func (rule) Semantic()                {}

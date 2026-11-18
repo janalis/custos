@@ -55,4 +55,7 @@ type Config struct {
 	// Adapters supply it, as they own filesystem access; nil keeps paths
 	// as given.
 	ProjectPath func(path string) string
+	// LabelRules runs each rule's checks under a "rule" profiler label
+	// carrying its ID, so a CPU profile splits the time rules take by rule.
+	LabelRules bool
 }

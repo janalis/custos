@@ -12,6 +12,7 @@ const message = "Restore stream watch arrays before each selection."
 
 type rule struct{}
 
+// New returns the SelectWatchArraysNotRestored inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SelectWatchArraysNotRestored" }
 func (rule) Semantic()                {}
@@ -55,7 +56,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			if node.Span().Start >= loop.Span().Start {
 				return false
 			}
-			if a, ok := node.(*syntax.Assign); ok && semanticquery.ExpansionCSame(ctx, a.Var, arg) {
+			if a, ok := node.(*syntax.Assign); ok && semanticquery.SameStableExpr(ctx, a.Var, arg) {
 				value = nil
 				if !a.ByRef && semanticquery.NativeDominates(a, loop) {
 					value, _ = a.Value.(*syntax.Array)
@@ -87,7 +88,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 				restored = restored || writes(ctx, x.Key, arg) || writes(ctx, x.Value, arg)
 			case *syntax.Arg:
 				// Only a proven builtin is known not to refill the array it receives.
-				if semanticquery.ExpansionCSame(ctx, x.Value, arg) {
+				if semanticquery.SameStableExpr(ctx, x.Value, arg) {
 					call, ok := x.Parent().Parent().(*syntax.FuncCall)
 					restored = restored || !ok || semanticquery.NativeBuiltinName(ctx, call) == ""
 				}
@@ -111,7 +112,7 @@ func writes(ctx *analysis.Context, target, watch syntax.Expr) bool {
 	case *syntax.List:
 		items = x.Items
 	default:
-		return semanticquery.ExpansionCSame(ctx, target, watch)
+		return semanticquery.SameStableExpr(ctx, target, watch)
 	}
 	for _, item := range items {
 		if item != nil && writes(ctx, item.Value, watch) {

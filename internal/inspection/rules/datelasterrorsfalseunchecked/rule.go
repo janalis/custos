@@ -1,4 +1,5 @@
-// Package datelasterrorsfalseunchecked implements the DateLastErrorsFalseUnchecked inspection.
+// Package datelasterrorsfalseunchecked implements the native
+// DateLastErrorsFalseUnchecked inspection.
 package datelasterrorsfalseunchecked
 
 import (
@@ -11,6 +12,7 @@ import (
 
 type rule struct{}
 
+// New returns the DateLastErrorsFalseUnchecked inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DateLastErrorsFalseUnchecked" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KArrayDimFetch} }
@@ -18,7 +20,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KArrayDi
 const message = "Handle the false result before reading parsing diagnostics."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP82 {
+	if ctx.PHP.Below(phpversion.PHP82) {
 		return
 	}
 	fetch := n.(*syntax.ArrayDimFetch)
@@ -30,14 +32,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if errors == nil || afterFailedParse(ctx, errors) {
 		return
 	}
-	if silentProbe(fetch) || !semanticquery.NativeLabelled(ctx, fetch.Var) && semanticquery.NativeNarrowedExcludes(ctx, fetch.Var, types.Of("array", "false"), "false") {
+	if silentProbe(fetch) || !semanticquery.NativeLabeled(ctx, fetch.Var) && semanticquery.NativeNarrowedExcludes(ctx, fetch.Var, types.Of("array", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(fetch, message)
 }
 func (rule) Semantic() {}
 
-// silentProbe recognises the contexts where PHP evaluates an offset of false
+// silentProbe recognizes the contexts where PHP evaluates an offset of false
 // without a diagnostic: isset, empty and the tested side of `??`.
 func silentProbe(fetch *syntax.ArrayDimFetch) bool {
 	for child, parent := syntax.Node(fetch), fetch.Parent(); ; child, parent = parent, parent.Parent() {
@@ -72,7 +74,7 @@ func afterFailedParse(ctx *analysis.Context, call *syntax.StaticCall) bool {
 		if !parseCall(ctx, x) || parsesAgain(ctx, stmt, x, call) {
 			return types.Unknown, nil
 		}
-		// A parsed date is always truthy: success is modelled as true.
+		// A parsed date is always truthy: success is modeled as true.
 		return types.Bool, func(t types.Type) bool { return t.OnlyOf("false") }
 	})
 }

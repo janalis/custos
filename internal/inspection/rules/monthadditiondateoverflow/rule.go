@@ -1,4 +1,5 @@
-// Package monthadditiondateoverflow implements the MonthAdditionDateOverflow inspection.
+// Package monthadditiondateoverflow implements the native
+// MonthAdditionDateOverflow inspection.
 package monthadditiondateoverflow
 
 import (
@@ -12,6 +13,7 @@ import (
 
 type rule struct{}
 
+// New returns the MonthAdditionDateOverflow inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "MonthAdditionDateOverflow" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }

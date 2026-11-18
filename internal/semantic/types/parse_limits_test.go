@@ -9,7 +9,7 @@ import (
 	"custos/internal/testing/testbudget"
 )
 
-// Doc types come from analysed code: pathological input must parse fast.
+// Doc types come from analyzed code: pathological input must parse fast.
 func TestFromDocPathological(t *testing.T) {
 	aliases := map[string]string{"A": "B|B", "B": "array{x: A, y: A}|A[]"}
 	// Each alias uses the next one three times: naive expansion is 3^n.

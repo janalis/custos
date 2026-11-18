@@ -6,3 +6,4 @@ function configuredEscape(array $row) {
     $file->rewind();
     return [$file->fgetcsv(';'), $file->fgetcsv(enclosure: "'")];
 }
+fputcsv($fp, ["north", "south"], ",", '"', "\\");

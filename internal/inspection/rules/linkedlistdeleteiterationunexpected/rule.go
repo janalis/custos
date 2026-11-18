@@ -13,6 +13,7 @@ const message = "Preserve linked-list elements during iteration."
 
 type rule struct{}
 
+// New returns the LinkedListDeleteIterationUnexpected inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "LinkedListDeleteIterationUnexpected" }
 func (rule) Semantic()                {}

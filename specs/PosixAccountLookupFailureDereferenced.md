@@ -1,7 +1,7 @@
 ---
 id: PosixAccountLookupFailureDereferenced
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -16,7 +16,7 @@ Identify array indexing on a direct or unchanged posix_getpwnam/posix_getpwuid r
 
 - D1. Report array indexing on a direct or unchanged posix_getpwnam/posix_getpwuid result unless a guard proves the failure value `false` cannot reach the read (see D4).
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 - D3a. When several assignments reach the read (a loop that reassigns the variable, or an assignment made on one path only), the read is reported if one of them is a result of this API that no guard on its own path covers. A guard written before the other assignment does not cover it; a test inside the loop, or after the conditional assignment, covers every assignment. A reaching value that is not a result of this API (a literal, another call, an unknown value) never causes a report by itself. It does not hide one either: an unguarded result of another call reaching the same read leaves a result of this API reported.
 
 - D4. A guard is a test of the same unchanged variable, written after the lookup, whose outcome on the path to the read excludes `false`. Accepted tests, each usable positively or through `!`:
@@ -88,7 +88,7 @@ When several assignments reach a use, each producer is checked on its own: an
 unguarded eligible producer is still reported when other paths use another API
 or are guarded, and an irrelevant variant cannot hide a later eligible call. A
 path whose value does not come from a known call establishes nothing. When the
-producers cannot be tracked within the analysis budget, nothing is reported.
+producers cannot be tracked, nothing is reported.
 
 ## Divergences
 

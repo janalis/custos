@@ -32,7 +32,7 @@ func TestReviewSafety(t *testing.T) {
 		{"namespace", "<?php namespace App; $r = is_array($v) || $v instanceof \\Traversable;", 1, "<?php namespace App; $r = \\is_iterable($v);"},
 		{"imported shadow", "<?php use function Foo\\is_iterable; $r = is_array($v) || $v instanceof Traversable;", 1, "<?php use function Foo\\is_iterable; $r = \\is_iterable($v);"},
 		{"reversed", "<?php $r = ($v instanceof Traversable) || is_array($v);", 1, "<?php $r = is_iterable($v);"},
-		{"chain keeps neighbours", "<?php $r = $a || is_array($v) || $v instanceof Traversable || $b;", 1, "<?php $r = $a || is_iterable($v) || $b;"},
+		{"chain keeps neighbors", "<?php $r = $a || is_array($v) || $v instanceof Traversable || $b;", 1, "<?php $r = $a || is_iterable($v) || $b;"},
 		{"inside and", "<?php $r = $a && (is_array($v) || $v instanceof Traversable);", 1, "<?php $r = $a && (is_iterable($v));"},
 		{"split by parentheses", "<?php $r = ($a || is_array($v)) || $v instanceof Traversable;", 1, ""},
 		{"comment", "<?php $r = is_array($v) || /* c */ $v instanceof Traversable;", 1, ""},

@@ -153,7 +153,7 @@ func TestReviewSafety(t *testing.T) {
 		{"whole array united", "<?php $_GET += $_POST; echo '<p>' . $_GET['v'];", 1},
 		{"whole array cleared", "<?php $_GET = []; echo '<p>' . $_GET['v'];", 0},
 		{"whole array cast", "<?php $_GET = array_map('intval', $_GET); echo '<p>' . $_GET['v'];", 0},
-		{"whole array from project code", "<?php $_GET = sanitise($_GET); echo '<p>' . $_GET['v'];", 0},
+		{"whole array from project code", "<?php $_GET = sanitize($_GET); echo '<p>' . $_GET['v'];", 0},
 		{"dynamic element from request", "<?php $_GET[$k] = $_POST['x']; echo '<p>' . $_GET['v'];", 1},
 		{"nested element from request", "<?php $_GET['v']['x'] = $_POST['x']; echo '<p>' . $_GET['v'];", 1},
 		{"globals entry from request", "<?php $GLOBALS['_GET'] = $_POST; echo '<p>' . $_GET['v'];", 1},

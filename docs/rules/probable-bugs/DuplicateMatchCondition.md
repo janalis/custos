@@ -58,10 +58,6 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 
 Available from PHP 8.0. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

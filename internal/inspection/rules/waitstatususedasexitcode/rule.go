@@ -13,6 +13,7 @@ const message = "Decode the child wait status."
 
 type rule struct{}
 
+// New returns the WaitStatusUsedAsExitCode inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "WaitStatusUsedAsExitCode" }
 func (rule) Semantic()                {}
@@ -29,9 +30,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || value < 1 || value > 255 {
 		return
 	}
-	wait := semanticquery.ExpansionCOutputCall(ctx, b, b.Left, []string{"pcntl_waitpid"}, 1, "status")
+	wait := semanticquery.OutputParameterCall(ctx, b, b.Left, []string{"pcntl_waitpid"}, 1, "status")
 	if wait == nil {
-		wait = semanticquery.ExpansionCOutputCall(ctx, b, b.Left, []string{"pcntl_wait"}, 0, "status")
+		wait = semanticquery.OutputParameterCall(ctx, b, b.Left, []string{"pcntl_wait"}, 0, "status")
 	}
 	if wait != nil && !rewritten(ctx, b, wait) {
 		ctx.ReportNode(b, message)

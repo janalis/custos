@@ -13,6 +13,7 @@ const message = "Read the entry stream before closing its archive."
 
 type rule struct{}
 
+// New returns the ZipEntryStreamUsedAfterArchiveClose inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ZipEntryStreamUsedAfterArchiveClose" }
 func (rule) Semantic()                {}

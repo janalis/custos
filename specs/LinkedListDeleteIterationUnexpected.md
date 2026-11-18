@@ -3,7 +3,7 @@ id: LinkedListDeleteIterationUnexpected
 group: Probable bugs
 kind: semantic
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # LinkedListDeleteIterationUnexpected
@@ -16,7 +16,7 @@ Preserve linked-list elements during iteration. This opt-in inspection applies t
 
 - D1. Enabled policy requires non-destructive linked-list traversal. Track setIteratorMode flags for resolved builtin SplDoublyLinkedList (and inherited SplQueue/SplStack behavior); report foreach iterable when the current mode includes IT_MODE_DELETE.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 - D4. The mode is the one set by the last `setIteratorMode` call that runs unconditionally before the loop on the same list. It only counts as proven when no other mode change can run between that call and the first execution of the loop. Mode changes placed after the loop are ignored unless an enclosing loop can replay them before a later execution of this loop. A possible replay prevents a fixed-mode proof.
 
 ## Exceptions (no report)
@@ -79,4 +79,4 @@ foreach ($l as $item) {
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

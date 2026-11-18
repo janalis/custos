@@ -12,6 +12,7 @@ const message = "Allow enough receive capacity for the message."
 
 type rule struct{}
 
+// New returns the SysvMessageExceedsReceiveCapacity inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SysvMessageExceedsReceiveCapacity" }
 func (rule) Semantic()                {}
@@ -25,7 +26,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.NativeBuiltin(ctx, c, "msg_receive") {
 		return
 	}
-	send := semanticquery.ExpansionDMessage(ctx, c)
+	send := semanticquery.MatchingQueueSend(ctx, c)
 	if send == nil {
 		return
 	}

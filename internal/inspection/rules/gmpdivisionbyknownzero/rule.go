@@ -14,6 +14,7 @@ const message = "Use a nonzero GMP divisor."
 
 type rule struct{}
 
+// New returns the GmpDivisionByKnownZero inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GmpDivisionByKnownZero" }
 func (rule) Semantic()                {}
@@ -31,7 +32,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	e := semanticquery.CallArgument(c.Args, 1, "num2")
-	if e != nil && stableDivisor(ctx, e) && zero(ctx, e) {
+	if e != nil && semanticquery.StableLocalValue(ctx, e, semanticquery.LocalStability{}) && zero(ctx, e) {
 		ctx.ReportNode(c, message)
 	}
 }

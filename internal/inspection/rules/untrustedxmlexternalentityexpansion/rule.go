@@ -13,6 +13,7 @@ const message = "Disable external entity expansion for request-controlled XML."
 
 type rule struct{}
 
+// New returns the UntrustedXmlExternalEntityExpansion inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "UntrustedXmlExternalEntityExpansion" }
 func (rule) Semantic()                {}

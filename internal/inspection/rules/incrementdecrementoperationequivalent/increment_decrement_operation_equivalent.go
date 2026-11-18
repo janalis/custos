@@ -52,7 +52,7 @@ func incDecValueDiscarded(a *syntax.Assign) bool {
 // incDecImplicitNull reports whether target is `$this->p` or `self::$p` /
 // `static::$p` for a property the enclosing class declares without a type
 // and without a non-null default, and (instance properties) its constructor
-// does not initialise: such a property starts out as null.
+// does not initialize: such a property starts out as null.
 func incDecImplicitNull(target syntax.Expr) bool {
 	name, static := "", false
 	switch t := target.(type) {

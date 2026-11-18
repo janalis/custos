@@ -1,4 +1,5 @@
-// Package strtokstateclobbered implements the StrtokStateClobbered inspection.
+// Package strtokstateclobbered implements the native StrtokStateClobbered
+// inspection.
 package strtokstateclobbered
 
 import (
@@ -11,6 +12,7 @@ import (
 
 type rule struct{}
 
+// New returns the StrtokStateClobbered inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "StrtokStateClobbered" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }

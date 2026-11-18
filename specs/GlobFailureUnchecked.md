@@ -1,7 +1,7 @@
 ---
 id: GlobFailureUnchecked
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -23,7 +23,7 @@ unchecked result.
 - D1. Report glob result directly or through a proven alias consumed by foreach or array-only operations without excluding false.
 - D1a. Array-only operations are calls to these builtins with the glob result as their array argument, positionally or by name: `count`, `sizeof`, `array_map`, `array_filter`, `array_values`, `array_keys`, `array_reverse`, `array_slice`, `array_unique`, `array_flip`, `array_sum`, `array_product`, `array_column`, `array_chunk`, `array_key_first`, `array_key_last`, `array_is_list`, `array_rand`, `array_key_exists`, `in_array`, `array_search`, `implode`, `join`, `array_combine`, `array_fill_keys`, and the first array of `array_merge`, `array_diff` and `array_intersect`. They throw a `TypeError` for false since PHP 8.0 and warn with a meaningless result before. Each unguarded use is reported on its own.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -46,7 +46,7 @@ No automatic fix: failure and an empty match set must remain distinguishable unl
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -76,8 +76,8 @@ When several assignments reach a use, each producer is checked on its own: an
 unguarded eligible producer is still reported when other paths use another API
 or are guarded, and an irrelevant variant cannot hide a later eligible call. A
 path whose value does not come from a known call establishes nothing. When the
-producers cannot be tracked within the analysis budget, nothing is reported.
+producers cannot be tracked, nothing is reported.
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

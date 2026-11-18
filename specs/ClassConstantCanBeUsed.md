@@ -426,9 +426,7 @@ return [
   without a parent `parent::class` is a compile-time error while
   `get_parent_class()` simply returns `false`; in a trait it depends on the
   using class. custos only reports `get_called_class()` with a class scope
-  and `get_parent_class()` in a class that declares `extends`. The EA case
-  whose parentless class expects the `parent::class` rewrite is listed in
-  `testdata/ea-divergences.json`.
+  and `get_parent_class()` in a class that declares `extends`.
 - **Function names (custos diverges):** upstream matches
   `get_called_class` / `get_parent_class` / `class_alias` on the written last
   segment, case-sensitively: it misses `Get_Parent_Class()` and rewrites a

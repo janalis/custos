@@ -1,4 +1,5 @@
-// Package sqlitenullbindingdiscardsvalue implements SqliteNullBindingDiscardsValue.
+// Package sqlitenullbindingdiscardsvalue implements the native
+// SqliteNullBindingDiscardsValue inspection.
 package sqlitenullbindingdiscardsvalue
 
 import (
@@ -13,6 +14,7 @@ const message = "Pass null when using the SQLite null binding type."
 
 type rule struct{}
 
+// New returns the SqliteNullBindingDiscardsValue inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SqliteNullBindingDiscardsValue" }
 func (rule) Semantic()                {}
@@ -24,7 +26,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	t := semanticquery.CallArgument(c.Args, 2, "type")
-	if !semanticquery.ExpansionGlobalConstant(ctx, t, "SQLITE3_NULL") {
+	if !semanticquery.ReadsGlobalConstant(ctx, t, "SQLITE3_NULL") {
 		return
 	}
 	arg := semanticquery.CallArgument(c.Args, 1, "value")

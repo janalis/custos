@@ -1,4 +1,5 @@
-// Package domappendmovesnodeunexpectedly implements DomAppendMovesNodeUnexpectedly.
+// Package domappendmovesnodeunexpectedly implements the native
+// DomAppendMovesNodeUnexpectedly inspection.
 package domappendmovesnodeunexpectedly
 
 import (
@@ -11,6 +12,7 @@ const message = "Clone the node when preserving its existing parent."
 
 type rule struct{}
 
+// New returns the DomAppendMovesNodeUnexpectedly inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DomAppendMovesNodeUnexpectedly" }
 func (rule) Semantic()                {}
@@ -32,15 +34,15 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			previous = nil
 			continue
 		}
-		if semanticquery.NativeMethod(ctx, p, "DOMNode", "appendChild") && semanticquery.ExpansionSameObject(ctx, semanticquery.CallArgument(p.Args, 0, "node"), node) {
+		if semanticquery.NativeMethod(ctx, p, "DOMNode", "appendChild") && semanticquery.SameLocalObject(ctx, semanticquery.CallArgument(p.Args, 0, "node"), node) {
 			previous = p
 		}
 
 	}
 	if previous != nil {
-		old := semanticquery.ExpansionDOMOwner(ctx, previous.Var)
-		current := semanticquery.ExpansionDOMOwner(ctx, c.Var)
-		if old != nil && current != nil && !semanticquery.ExpansionSameObject(ctx, previous.Var, c.Var) {
+		old := semanticquery.DOMOwnerDocument(ctx, previous.Var)
+		current := semanticquery.DOMOwnerDocument(ctx, c.Var)
+		if old != nil && current != nil && !semanticquery.SameLocalObject(ctx, previous.Var, c.Var) {
 			ctx.ReportNode(c, message)
 		}
 
@@ -51,14 +53,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // node removes or replaces itself, or it is named in a removal or replacement.
 func detaches(ctx *analysis.Context, p *syntax.MethodCall, node syntax.Expr) bool {
 	if semanticquery.NativeMethod(ctx, p, "DOMNode", "remove") || semanticquery.NativeMethod(ctx, p, "DOMNode", "replaceWith") {
-		return semanticquery.ExpansionSameObject(ctx, p.Var, node)
+		return semanticquery.SameLocalObject(ctx, p.Var, node)
 	}
 	if semanticquery.NativeMethod(ctx, p, "DOMNode", "removeChild") {
-		return semanticquery.ExpansionSameObject(ctx, semanticquery.CallArgument(p.Args, 0, "child"), node)
+		return semanticquery.SameLocalObject(ctx, semanticquery.CallArgument(p.Args, 0, "child"), node)
 	}
 	if semanticquery.NativeMethod(ctx, p, "DOMNode", "replaceChild") {
-		return semanticquery.ExpansionSameObject(ctx, semanticquery.CallArgument(p.Args, 0, "node"), node) ||
-			semanticquery.ExpansionSameObject(ctx, semanticquery.CallArgument(p.Args, 1, "child"), node)
+		return semanticquery.SameLocalObject(ctx, semanticquery.CallArgument(p.Args, 0, "node"), node) ||
+			semanticquery.SameLocalObject(ctx, semanticquery.CallArgument(p.Args, 1, "child"), node)
 	}
 	return false
 }
@@ -70,14 +72,14 @@ func releases(ctx *analysis.Context, p *syntax.MethodCall, parent, node syntax.E
 	position := 0
 	switch {
 	case semanticquery.NativeMethod(ctx, p, "DOMNode", "replaceChildren"):
-		return semanticquery.ExpansionSameObject(ctx, p.Var, parent)
+		return semanticquery.SameLocalObject(ctx, p.Var, parent)
 	case semanticquery.NativeMethod(ctx, p, "DOMNode", "removeChild"):
 	case semanticquery.NativeMethod(ctx, p, "DOMNode", "replaceChild"):
 		position = 1
 	default:
 		return false
 	}
-	if !semanticquery.ExpansionSameObject(ctx, p.Var, parent) {
+	if !semanticquery.SameLocalObject(ctx, p.Var, parent) {
 		return false
 	}
 	removed, kept := created(ctx, semanticquery.CallArgument(p.Args, position, "child")), created(ctx, node)

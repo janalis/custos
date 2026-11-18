@@ -1,7 +1,7 @@
 ---
 id: RealpathFailureUsedAsPath
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -22,7 +22,7 @@ Identify concatenation of an unchecked realpath result followed by consumption b
   - an earlier statement of an enclosing block that leaves it on failure: an `if` whose first branch always terminates, or `test || throw …` (PHP 8.0+), `test or exit`/`die`, `failed && exit`.
   - Composition is exact: inside a condition, a test protects the true branch only as a top-level `&&` conjunct and the false branch (or a terminating guard) only as a top-level `||` disjunct. `if ($root || $other)` and `if (!$root && $other) { return; }` prove nothing.
   - The check may sit between the concatenation and the consuming call when the joined string was stored in a variable first.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 
@@ -102,7 +102,7 @@ When several assignments reach a use, each producer is checked on its own: an
 unguarded eligible producer is still reported when other paths use another API
 or are guarded, and an irrelevant variant cannot hide a later eligible call. A
 path whose value does not come from a known call establishes nothing. When the
-producers cannot be tracked within the analysis budget, nothing is reported.
+producers cannot be tracked, nothing is reported.
 
 ## Divergences
 

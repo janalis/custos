@@ -70,3 +70,4 @@ function announce($value) {
 download('https://example.com/');
 download(lookup($_GET['key']));
 announce($_GET['trace']);
+$ch = curl_init('https://example.invalid/api'); curl_exec($ch);

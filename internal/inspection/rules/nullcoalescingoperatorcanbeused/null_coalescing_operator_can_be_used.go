@@ -22,7 +22,7 @@ func (nullCoalescingOperatorCanBeUsed) Kinds() []syntax.NodeKind {
 }
 
 func (r nullCoalescingOperatorCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP70 { // E1
+	if ctx.PHP.Below(phpversion.PHP70) { // E1
 		return
 	}
 	switch n := n.(type) {

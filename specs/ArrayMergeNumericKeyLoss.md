@@ -1,7 +1,7 @@
 ---
 id: ArrayMergeNumericKeyLoss
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -37,7 +37,7 @@ No automatic fix: array union and replacement have different collision semantics
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -55,4 +55,4 @@ array_merge(['a', 'k' => 'b', 1 => 'c'], $more);
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

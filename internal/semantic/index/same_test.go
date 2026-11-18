@@ -89,7 +89,7 @@ func TestSameDeclarationsIgnoresDigest(t *testing.T) {
 	}
 }
 
-// Fingerprint runs on every analysed file when indexing (the flow cache)
+// Fingerprint runs on every analyzed file when indexing (the flow cache)
 // and on every editor update (SameDeclarations).
 func BenchmarkFingerprint(b *testing.B) {
 	var src strings.Builder

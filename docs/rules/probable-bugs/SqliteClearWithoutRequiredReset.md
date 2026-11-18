@@ -6,7 +6,7 @@ title: SqliteClearWithoutRequiredReset
 
 # SqliteClearWithoutRequiredReset
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP 5.3–7.1" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≤ 7.1" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -43,10 +43,6 @@ None. A safe repair requires choosing values, error handling, or application beh
 ## PHP versions
 
 PHP resets statements before rebinding during execute starting with 7.2.14 and 7.3.0. Custos selects minor-version targets, so it conservatively excludes all PHP 7.2 and later. Earlier targets require a successful guarded fetch to establish an active cursor; execute alone resets its cursor and is insufficient.
-
-## Options
-
-None. Use normal rule configuration to enable or disable the inspection.
 
 ## Configure
 

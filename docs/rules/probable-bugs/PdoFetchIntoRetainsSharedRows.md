@@ -18,7 +18,7 @@ Identify array append of an unchanged fetch return in a loop when statement FETC
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - The statement is a `PDOStatement` by its resolved type, or a local variable whose latest write is an unconditional plain assignment of a builtin `PDO::query()` result. The second form keeps the rule working on targets below PHP 8.0, where `PDO::query()` carries no native return type.
 - The governing `setFetchMode()` call is the last one on the statement that runs unconditionally before the loop (or whose success guards the loop). It must select `PDO::FETCH_INTO` with an object target.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

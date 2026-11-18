@@ -44,10 +44,6 @@ No automatic fix: choosing reference capture and state lifetime requires intent.
 
 Available from PHP 7.4. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

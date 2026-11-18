@@ -1,7 +1,7 @@
 ---
 id: FinallyThrowMasksException
 group: Probable bugs
-kind: semantic
+kind: syntax
 needs: [names, types, flow]
 php: { min: "5.5", max: "" }
 ---

@@ -12,6 +12,7 @@ const message = "Supply positive image dimensions."
 
 type rule struct{}
 
+// New returns the GdImageDimensionsNotPositive inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GdImageDimensionsNotPositive" }
 func (rule) Semantic()                {}
@@ -29,7 +30,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	height := semanticquery.CallArgument(c.Args, 1, "height")
 	w, wk := semanticquery.NativeContractInt(ctx, width)
 	h, hk := semanticquery.NativeContractInt(ctx, height)
-	if (wk && w <= 0 && stableDimension(ctx, width)) || (hk && h <= 0 && stableDimension(ctx, height)) {
+	if (wk && w <= 0 && semanticquery.StableLocalValue(ctx, width, semanticquery.LocalStability{SharedOpaque: true})) || (hk && h <= 0 && semanticquery.StableLocalValue(ctx, height, semanticquery.LocalStability{SharedOpaque: true})) {
 		ctx.ReportNode(n, message)
 	}
 }

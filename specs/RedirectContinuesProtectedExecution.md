@@ -1,7 +1,7 @@
 ---
 id: RedirectContinuesProtectedExecution
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -17,7 +17,7 @@ Detect a conditional unauthorized branch emitting a Location header and falling 
 - D1. Report a conditional unauthorized branch emitting a Location header and falling through to an operation marked protected by the same authorization predicate.
 - D4. A protected operation must be a resolved project callable explicitly documented with `@custos-protected`; callable names alone never establish protection. The redirect branch tests the same authorization value guarding access to that operation.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 - D5. The redirect branch is an `if (!$v)` statement without `elseif`/`else` whose body does not terminate and emits a literal `Location:` header in its own scope; a header call inside a nested closure or function body does not count. The branch must precede the protected call in a statement list enclosing that call, either inside the same function-like scope or in top-level code. A protected call inside a nested closure or arrow function is not related to a redirect of the outer scope.
 - D6. The protected call must stay reachable while `$v` is falsy. `$v` is proven truthy at the call, and nothing is reported, when the conditions guarding the call hold only if `$v` is truthy: an arm entered only then (`if`/`elseif`/`while` body, `else`/later `elseif` arm of a condition that is true whenever `$v` is falsy, ternary or `match (true)` arm, right operand of `&&`/`and`/`||`/`or`), or code after an `if` between the redirect branch and the call whose branch for a falsy `$v` always leaves, with or without other arms. Conditions are understood through parentheses, `!`, `&&`/`and`, `||`/`or` and comparisons of `$v` with `true`/`false`; a jump label between them and the call, or any condition they cannot read, proves nothing and the report is kept.
 - D7. Any write to `$v` between the start of the redirect branch and the protected call (assignment, compound assignment, destructuring, `unset`, `++`/`--`, loop or catch binding) makes the authorization relationship unknown: no report.
@@ -41,7 +41,7 @@ No automatic fix: exit versus return depends on the containing scope and respons
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -67,4 +67,4 @@ function inline(bool $member) { if (!$member) { header('Location: /join'); } ret
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

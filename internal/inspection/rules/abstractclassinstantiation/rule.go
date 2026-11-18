@@ -13,6 +13,7 @@ const message = "Instantiate a concrete class."
 
 type rule struct{}
 
+// New returns the AbstractClassInstantiation inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "AbstractClassInstantiation" }
 func (rule) Semantic()                {}

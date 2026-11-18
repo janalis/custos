@@ -1,7 +1,7 @@
 ---
 id: StrtokStateClobbered
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -38,7 +38,7 @@ No automatic fix: independent tokenizer state requires restructuring.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -68,4 +68,4 @@ function cells($csv) {
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

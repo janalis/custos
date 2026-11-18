@@ -61,3 +61,4 @@ if ($stop !== strlen($raw)) {
     exit("Unexpected text after the number\n");
 }
 echo $parsed;
+$f = new NumberFormatter("en_US", NumberFormatter::DECIMAL); $s="37tail"; $n=$f->parse($s,NumberFormatter::TYPE_DOUBLE,$end); if ($n !== false && $end === strlen($s)) { echo $n; }

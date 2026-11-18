@@ -1,4 +1,5 @@
-// Package pgasyncdispatchassumedquerysuccess implements PgAsyncDispatchAssumedQuerySuccess.
+// Package pgasyncdispatchassumedquerysuccess implements the native
+// PgAsyncDispatchAssumedQuerySuccess inspection.
 package pgasyncdispatchassumedquerysuccess
 
 import (
@@ -11,6 +12,7 @@ const message = "Inspect the asynchronous PostgreSQL result status."
 
 type rule struct{}
 
+// New returns the PgAsyncDispatchAssumedQuerySuccess inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PgAsyncDispatchAssumedQuerySuccess" }
 func (rule) Semantic()                {}

@@ -1,9 +1,9 @@
 ---
 id: ZipEntryNameCollision
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # ZipEntryNameCollision
@@ -18,7 +18,7 @@ Make ZIP entry replacement explicit. This opt-in rule applies the policy describ
 - D1a. The same archive object means the same proven flow identity, not the same variable spelling: an alias of the guarded archive still counts, while a receiver variable reassigned to another archive between the guard and the second insertion does not.
 - D1b. The guarded entry is considered gone when a call on that archive, located after the guard and always executed before the second insertion, is one of close, open, deleteName, deleteIndex, renameName, renameIndex, unchangeAll, unchangeArchive, unchangeName or unchangeIndex. Their arguments are not matched against the entry: any such call removes proof. A call that runs only on some paths, or that precedes the guard, does not.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
@@ -66,4 +66,4 @@ $z=new ZipArchive(); $z->open("bundle.zip",ZipArchive::CREATE); $z->addFromStrin
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

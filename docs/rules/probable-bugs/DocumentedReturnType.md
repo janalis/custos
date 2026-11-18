@@ -78,7 +78,7 @@ None: either the code or the documentation is wrong.
 
 ## PHP versions
 
-All versions.
+No gating.
 
 ## Configure
 

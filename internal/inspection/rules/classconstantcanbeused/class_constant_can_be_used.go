@@ -78,7 +78,7 @@ func (b *cccBlock) captured(rel string) bool {
 }
 
 func (classConstantCanBeUsed) CheckFile(ctx *analysis.Context) {
-	if ctx.PHP < phpversion.PHP55 { // E1
+	if ctx.PHP.Below(phpversion.PHP55) { // E1
 		return
 	}
 	st := &cccState{ctx: ctx, cur: &cccBlock{global: true, stmts: ctx.File.Stmts, taken: map[string]bool{}}}

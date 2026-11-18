@@ -55,7 +55,7 @@ func (ambiguousMethodsCallsInArrayMapping) Check(ctx *analysis.Context, n syntax
 	match:
 		for _, r := range right { // D5
 			if ambiguousHasSideEffects(ctx, r) {
-				continue // E6: evaluating it once would change behaviour
+				continue // E6: evaluating it once would change behavior
 			}
 			for _, l := range left {
 				if astquery.EquivalentFoldNames(ctx.File, l, r) { // names compared as PHP does (case-insensitive)

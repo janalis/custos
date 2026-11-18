@@ -80,3 +80,4 @@ function otherStatus(): void
     http_response_code(200);
     echo 'body';
 }
+http_response_code(204);

@@ -1,7 +1,7 @@
 ---
 id: DomShallowImportDropsDescendants
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -40,7 +40,7 @@ Use exact byte edits and preserve comments, evaluation count, argument order and
 
 ## Options
 
-None. Use normal rule configuration to enable or disable the inspection.
+None.
 
 ## PHP versions
 
@@ -69,4 +69,4 @@ $s=new DOMDocument(); $s->loadXML('<list><entry/></list>'); $d=new DOMDocument()
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

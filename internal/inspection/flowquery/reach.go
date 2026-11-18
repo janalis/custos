@@ -124,10 +124,10 @@ func (j *jumps) passed(p syntax.Node, tail *syntax.Tail, stop uint32, list []syn
 	return false
 }
 
-// labelled reports that a label that counts starts in the positions from
+// labeled reports that a label that counts starts in the positions from
 // from up to to, among the labels of a list: a reached one in a function,
 // any at file level.
-func (j *jumps) labelled(tail *syntax.Tail, known *landed, from, to uint32) bool {
+func (j *jumps) labeled(tail *syntax.Tail, known *landed, from, to uint32) bool {
 	if known != nil {
 		return j.live.between(from, to)
 	}
@@ -144,7 +144,7 @@ func (j *jumps) labelled(tail *syntax.Tail, known *landed, from, to uint32) bool
 // `try` statements around n at most.
 func (j *jumps) into(tail *syntax.Tail, known *landed, top syntax.Stmt, n syntax.Node) bool {
 	from, to := top.Span().Start, n.Span().Start
-	if !j.labelled(tail, known, from, to) {
+	if !j.labeled(tail, known, from, to) {
 		return false
 	}
 	// Below the outermost loop around n every label leads to it.
@@ -164,13 +164,13 @@ func (j *jumps) into(tail *syntax.Tail, known *landed, top syntax.Stmt, n syntax
 		} else if apart, arms := others(p, child); arms {
 			// The labels of the other arms, written before child, lead
 			// nowhere; the ones from child on do.
-			if j.labelled(tail, known, child.Span().Start, to) {
+			if j.labeled(tail, known, child.Span().Start, to) {
 				return true
 			}
 			to = apart
 		}
 		if p == syntax.Node(top) {
-			return j.labelled(tail, known, from, to)
+			return j.labeled(tail, known, from, to)
 		}
 		child = p
 	}

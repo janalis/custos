@@ -82,7 +82,7 @@ func sameFlowRuns(t *testing.T, label string, cached, fresh flowCacheRun) {
 // A run with the flow steps cache comes out as a run without it: after
 // edits outside and within a recursion, a revert, a change of declarations
 // and a change of a dependency file. A project given by
-// CUSTOS_ORACLE_CORPUS (its src directory, analysed with every rule) is
+// CUSTOS_ORACLE_CORPUS (its src directory, analyzed with every rule) is
 // checked instead of the fixture, editing on disk the files
 // CUSTOS_ORACLE_EDITS lists (comma-separated, relative to the corpus) or
 // else its three largest files: a trailing comment, a sink at the start of

@@ -31,7 +31,7 @@ Reported:
 - Deferred side-effect operations are those owned by the generator body itself (nested functions, closures and classes are skipped): function, method and static calls, object creation, `echo`, `print`, inline HTML, `include`/`require`, `eval`, `exit`/`die`, `throw`, and assignments or increments whose target is not a plain local variable (property, static property, `$GLOBALS`, dynamic variable or destructuring targets).
 - A write to a named local variable (`$x = ...`, `$x[...] = ...`, `$x++`) is not observable outside the generator and does not count on its own. It counts only when the body may alias a local to outer state: a by-reference parameter, a `global` or `static` declaration, a reference assignment, or a by-reference `foreach`.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -46,10 +46,6 @@ No automatic fix: consuming a generator can be unbounded and removing yield chan
 ## PHP versions
 
 Available from PHP 5.5. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

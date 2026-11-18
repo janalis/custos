@@ -21,10 +21,10 @@ func (c *noreCase) checkModifiers() {
 	}
 	if c.fn != "preg_quote" && mods != "" { // D8
 		allowed := "eimsuxADJSUX"
-		if c.ctx.PHP >= phpversion.PHP82 {
+		if c.ctx.PHP.AtLeast(phpversion.PHP82) {
 			allowed += "n"
 		}
-		if c.ctx.PHP >= phpversion.PHP84 {
+		if c.ctx.PHP.AtLeast(phpversion.PHP84) {
 			allowed += "r"
 		}
 		for i := 0; i < len(mods); i++ {

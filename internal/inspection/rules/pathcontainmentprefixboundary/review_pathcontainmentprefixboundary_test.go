@@ -5,7 +5,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
-	"custos/internal/php/version"
+	phpversion "custos/internal/php/version"
 )
 
 func TestReviewPathContainmentPrefixBoundary(t *testing.T) {
@@ -89,7 +89,7 @@ func TestReviewPathContainmentPrefixBoundary(t *testing.T) {
 func TestReviewPathContainmentPrefixBoundaryOldPHPAndRange(t *testing.T) {
 	const src = "<?php function f($p){$r=realpath($p);return strpos($r,'/srv/files')===0||str_starts_with($r,'/srv/files');}"
 	p := New()
-	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}, PHP: version.MustParse("5.3")})
+	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}, PHP: phpversion.MustParse("5.3")})
 	if err != nil {
 		t.Fatal(err)
 	}

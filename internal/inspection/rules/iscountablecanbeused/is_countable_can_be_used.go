@@ -20,7 +20,7 @@ func isBooleanOr(n syntax.Node) (*syntax.Binary, bool) {
 }
 
 func (isCountableCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP74 { // E1
+	if ctx.PHP.Below(phpversion.PHP74) { // E1
 		return
 	}
 	call := n.(*syntax.FuncCall)

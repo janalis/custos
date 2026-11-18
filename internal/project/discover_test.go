@@ -78,6 +78,12 @@ func TestDiscoverListsFilesOnce(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("Discover: got %v, want one file", got)
 	}
+	// Named relatively and absolutely, too.
+	t.Chdir(dir)
+	got, err = Discover([]string{"src/a.php", filepath.Join(dir, "src", "a.php")}, nil)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("Discover: got %v (%v), want one file", got, err)
+	}
 }
 
 // Declaration files below a scanned path are left out; a named one is kept.

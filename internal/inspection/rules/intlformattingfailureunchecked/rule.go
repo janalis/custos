@@ -12,6 +12,7 @@ const message = "Check formatting success before consuming the formatted text."
 
 type rule struct{}
 
+// New returns the IntlFormattingFailureUnchecked inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "IntlFormattingFailureUnchecked" }
 func (rule) Semantic()                {}

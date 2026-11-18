@@ -1,4 +1,5 @@
-// Package nonvoidfunctionfallsthrough implements NonVoidFunctionFallsThrough.
+// Package nonvoidfunctionfallsthrough implements the native
+// NonVoidFunctionFallsThrough inspection.
 package nonvoidfunctionfallsthrough
 
 import (
@@ -16,6 +17,7 @@ const message = "Return a value on every reachable path."
 
 type rule struct{}
 
+// New returns the NonVoidFunctionFallsThrough inspection.
 func New() analysis.Rule { return rule{} }
 func (rule) ID() string  { return "NonVoidFunctionFallsThrough" }
 func (rule) Semantic()   {}
@@ -25,7 +27,7 @@ func (rule) Kinds() []syntax.NodeKind {
 }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if len(ctx.File.Errors) > 0 || ctx.PHP < phpversion.PHP70 || !semanticquery.NativeCallbackReachable(ctx, n) {
+	if len(ctx.File.Errors) > 0 || ctx.PHP.Below(phpversion.PHP70) || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	var typ syntax.Expr

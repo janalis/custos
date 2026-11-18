@@ -105,7 +105,7 @@ func (e *Env) Targets(call syntax.Node) []*index.Method {
 }
 
 // reached tells what the scope of a method call knows of its receiver (see
-// follows): a variable is followed only in a scope analysed to its end.
+// follows): a variable is followed only in a scope analyzed to its end.
 func (e *Env) reached(call syntax.Node) uint8 {
 	r := e.scope(syntax.EnclosingVariableScope(call))
 	followed := followTyped

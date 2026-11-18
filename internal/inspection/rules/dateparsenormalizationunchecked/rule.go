@@ -1,4 +1,5 @@
-// Package dateparsenormalizationunchecked implements the DateParseNormalizationUnchecked inspection.
+// Package dateparsenormalizationunchecked implements the native
+// DateParseNormalizationUnchecked inspection.
 package dateparsenormalizationunchecked
 
 import (
@@ -11,6 +12,7 @@ import (
 
 type rule struct{}
 
+// New returns the DateParseNormalizationUnchecked inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DateParseNormalizationUnchecked" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KStaticCall} }

@@ -98,3 +98,4 @@ function same_plaintext_after_rebinding(string $key): void {
     sodium_crypto_secretbox('receipt', $nonce, $key);
     sodium_crypto_secretbox('receipt', $nonce, $key);
 }
+sodium_crypto_secretbox('alpha', random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES), $k); sodium_crypto_secretbox('beta', random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES), $k);

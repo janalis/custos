@@ -1,4 +1,5 @@
-// Package curlheadercallbackmissingbytecount implements CurlHeaderCallbackMissingByteCount.
+// Package curlheadercallbackmissingbytecount implements the native
+// CurlHeaderCallbackMissingByteCount inspection.
 package curlheadercallbackmissingbytecount
 
 import (
@@ -11,6 +12,7 @@ const message = "Return the consumed header byte count."
 
 type rule struct{}
 
+// New returns the CurlHeaderCallbackMissingByteCount inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CurlHeaderCallbackMissingByteCount" }
 func (rule) Semantic()                {}

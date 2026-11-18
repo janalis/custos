@@ -4,7 +4,7 @@ import (
 	"custos/internal/php/syntax"
 )
 
-// assignIndex summarises the writes under a root node (nested closures
+// assignIndex summarizes the writes under a root node (nested closures
 // included), built in one walk and cached on the file: value discovery used
 // to re-walk the whole function body for every variable use, which is
 // quadratic on large functions.

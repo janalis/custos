@@ -16,7 +16,7 @@ Identify stream_socket_enable_crypto result tested only !== false and followed b
 
 - Report stream_socket_enable_crypto result tested only !== false and followed by fwrite in accepted branch, with same stream proven nonblocking through successful stream_set_blocking(false). Only true confirms established handshake.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 - The write must sit in the accepted branch itself, outside nested conditionals, loops, `switch`, `try` and nested functions, and before any completion guard (E3). Switching the stream back to blocking mode does not finish a pending handshake, so it never clears the finding on its own.
 
 ## Exceptions (no report)

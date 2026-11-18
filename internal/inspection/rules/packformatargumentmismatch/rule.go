@@ -16,6 +16,7 @@ const message = "Match pack values to the format."
 
 type rule struct{}
 
+// New returns the PackFormatArgumentMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PackFormatArgumentMismatch" }
 func (rule) Semantic()                {}
@@ -33,7 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || len(format) > 4096 || c.Args == nil {
 		return
 	}
-	if (ctx.PHP < phpversion.PHP56 && strings.ContainsAny(format, "qQJP")) || (ctx.PHP < phpversion.PHP70 && strings.ContainsAny(format, "gGeE")) || (ctx.PHP < phpversion.PHP55 && strings.Contains(format, "Z")) {
+	if (ctx.PHP.Below(phpversion.PHP56) && strings.ContainsAny(format, "qQJP")) || (ctx.PHP.Below(phpversion.PHP70) && strings.ContainsAny(format, "gGeE")) || (ctx.PHP.Below(phpversion.PHP55) && strings.Contains(format, "Z")) {
 		return
 	}
 	count := 0

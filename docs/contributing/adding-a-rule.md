@@ -29,8 +29,20 @@ mandatory, and the implementation step is the same as for EA rules.
 
 `specs/<ID>.md` (start from `specs/_TEMPLATE.md`) describes the rule's
 behavior in our own words. It has YAML front matter
-(`id`, `group`, `kind: syntax|semantic`, `needs`, `php: { min, max }`) and
-these sections:
+(`id`, `group`, `kind`, `needs`, `php: { min, max }`):
+
+- `kind` is `syntax` when the rule needs nothing from other files,
+  `semantic` when it needs declarations from other files and `flow` when it
+  also needs project-local callable summaries. It must match the rule's
+  `Semantic()` and `Flow()` markers (see the implementation step below);
+  `make architecture` checks it.
+- `needs` lists the semantic data the rule reads, for readers of the spec.
+- `php` is the target PHP range in which the rule as a whole is active; the
+  rule reference and `custos explain` show it. Leave it empty when the rule
+  runs at every version, even if some checks within it depend on the
+  version: those belong in the PHP versions section.
+
+It has these sections:
 
 | Section | Content |
 |---|---|
@@ -48,7 +60,9 @@ Rule pages and `custos explain` show the D/E labels only when the page
 refers to them elsewhere, and drop parenthetical references to labels the
 page does not show, such as "(D2)" in an option description. So describe
 options and the summary in words ("reports empty bodies"), not by label
-("enables D2").
+("enables D2"). `make architecture` rejects D/E/F labels and tables
+without rows in Options; a rule without options says `None.` there, and a
+rule without version gating says `No gating.` under PHP versions.
 
 A spec describes observable behavior only: no Go identifiers, repository
 paths, analysis budgets or advice to implementers. Those belong in the rule's
@@ -68,7 +82,7 @@ package unnecessarysemicolon
 
 import "custos/internal/inspection/analysis"
 
-// New constructs the stateless inspection.
+// New returns the UnnecessarySemicolon inspection.
 func New() analysis.Rule { return unnecessarySemicolon{} }
 ```
 
@@ -87,6 +101,10 @@ func (r unnecessarySemicolon) Check(ctx *analysis.Context, n syntax.Node) {
 }
 ```
 
+- The package comment opens with
+  `Package <pkg> implements the <ID> inspection.`, or `the native <ID>
+  inspection.` for a native rule; further sentences may follow.
+  `make architecture` checks it.
 - List only the node kinds the rule needs; the engine dispatches by kind.
   Whole-file rules also implement `analysis.FileRule` (`CheckFile`).
 - Semantic data is lazy: `ctx.Names()`, `ctx.Index()`, `ctx.TypeOf()` and
@@ -96,15 +114,20 @@ func (r unnecessarySemicolon) Check(ctx *analysis.Context, n syntax.Node) {
 - Keep rule-specific helpers and companion tests in the inspection package.
   Shared helpers live in `astquery`, `flowquery` and `semanticquery`; see
   [Inspection helpers](./architecture#inspection-helpers).
-- Add one constructor to `internal/inspection/catalogue/catalogue.go`.
-  Preserve group execution order and ID sorting within each group
-  (`TestStableExecutionOrder` checks it); `make architecture` checks complete
+- Do not edit `internal/inspection/catalogue/catalogue.go` by hand: it is
+  generated from the rule facts and the rule packages, in group execution
+  order and sorted by ID within each group. Run
+  `go generate ./internal/inspection/catalogue` (also part of
+  `make rules-doc`) once the rule's facts and `rule.go` exist; a test fails
+  when the committed file is stale, and `make architecture` checks complete
   and unique registration.
 - A fix is a `diagnostic.Fix{Title, Edits}` whose `Edits` function returns text
   edits on exact byte ranges. A fix must never change behavior or produce
   invalid PHP; when that cannot be guaranteed, do not offer it.
 - Messages are short and imperative: *"Stray semicolon; remove it."*
-- Version-gate the rule on `ctx.PHP` when the spec says so.
+- Version-gate the rule on `ctx.PHP` when the spec says so, with
+  `ctx.PHP.AtLeast(phpversion.PHP80)` or `ctx.PHP.Below(phpversion.PHP80)`
+  (`make architecture` rejects `<`/`>=` on version constants).
 
 ### Implementation notes
 

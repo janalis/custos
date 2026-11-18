@@ -63,12 +63,11 @@ F2. With a comment between keywords: write the lowercased sorted keywords into
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
+None.
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 

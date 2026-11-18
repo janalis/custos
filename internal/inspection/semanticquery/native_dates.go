@@ -19,7 +19,7 @@ func NativeDateClass(ctx *analysis.Context, e syntax.Expr) string {
 	if class != "DateTime" && class != "DateTimeImmutable" && class != "DateInterval" {
 		return ""
 	}
-	if class == "DateTimeImmutable" && ctx.PHP < phpversion.PHP55 {
+	if class == "DateTimeImmutable" && ctx.PHP.Below(phpversion.PHP55) {
 		return ""
 	}
 	if c := ctx.Index().Class(class, ctx.PHP); c == nil {
@@ -42,7 +42,7 @@ func NativeDateStatic(ctx *analysis.Context, n syntax.Node, method string) *synt
 	if class != "DateTime" && class != "DateTimeImmutable" {
 		return nil
 	}
-	if class == "DateTimeImmutable" && ctx.PHP < phpversion.PHP55 {
+	if class == "DateTimeImmutable" && ctx.PHP.Below(phpversion.PHP55) {
 		return nil
 	}
 	if c := ctx.Index().Class(class, ctx.PHP); c == nil {

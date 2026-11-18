@@ -57,7 +57,7 @@ func setOf(items ...string) map[string]bool {
 }
 
 func (r unqualifiedReference) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP70 { // E1
+	if ctx.PHP.Below(phpversion.PHP70) { // E1
 		return
 	}
 	all := ctx.Bool("REPORT_ALL_FUNCTIONS")

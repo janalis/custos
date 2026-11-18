@@ -1,7 +1,7 @@
 ---
 id: HeadersAfterCommittedOutput
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -17,7 +17,7 @@ Detect a response-header write (header, setcookie, or http_response_code used as
 - D1. Report `header`, `setcookie`, or `http_response_code` called as a setter, after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.
 - D1a. `http_response_code` is a setter only when it receives a status argument (first positional or named `response_code`) that is not a known falsy value. A dynamic status counts as a setter.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -44,7 +44,7 @@ No automatic fix: moving headers can change control flow and response semantics.
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -70,4 +70,4 @@ if (!headers_sent()) {
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

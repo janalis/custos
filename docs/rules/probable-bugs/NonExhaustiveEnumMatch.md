@@ -29,7 +29,7 @@ Reported:
 
 - Report match over a resolved enum when reachable enum cases are missing and there is no default arm.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 - An arm condition written as a constant of the enum that aliases one of its cases (`const Fallback = self::Left;`, directly or through another such constant) handles that case.
 - The required cases are the ones the subject may still hold at the match. Strict comparisons (`===`, `!==`) of the subject with a case of its enum (or an aliasing constant) narrow them where they guard the match: an equality that holds leaves one case, one that fails removes that case. Conditions combine through `!`, `&&`/`and`, `||`/`or` (each side of a true disjunction keeps what it proves), comparisons with `true`/`false` and a local holding a comparison's result. A comparison guards the match:
   - in the taken branch of an `if` / `elseif` / `else` chain, of a ternary or of a loop condition, in the right operand of `&&` / `||`, or in a `match` arm (a `default` arm keeps the cases earlier arms did not take);
@@ -51,10 +51,6 @@ No automatic fix: missing result expressions cannot be invented.
 ## PHP versions
 
 Available from PHP 8.1. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
 
 ## Configure
 

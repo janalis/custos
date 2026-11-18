@@ -345,8 +345,7 @@ class DiskStore extends Store
   parent returns a value; deleting such a child makes calls start returning
   the parent's value instead of `null`, so the suggested removal changes
   behavior. custos only reports that shape when the parent provably
-  returns nothing. Upstream's fixtures expect the report, so the affected
-  EA case is listed in `testdata/ea-divergences.json`.
+  returns nothing.
 - Equivalence of parameter types is by resolved type set; a doc-only type
   change is ignored.
 - **Letter case — custos diverges from upstream.** Upstream requires the

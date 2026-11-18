@@ -7,8 +7,11 @@
 package baseline
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -48,9 +51,10 @@ type Baseline struct {
 	counts map[key]int
 	byLoc  map[loc][]key   // entries by location, for moved findings
 	paths  map[string]bool // paths with at least one entry
+	digest string          // see Key
 }
 
-// MaxFileSize bounds a baseline file (it may be named by the analysed
+// MaxFileSize bounds a baseline file (it may be named by the analyzed
 // repository's custos.json).
 const MaxFileSize = 256 << 20
 
@@ -68,6 +72,18 @@ func Load(path string) (*Baseline, error) {
 	return bl, nil
 }
 
+// LoadConfigured reads the baseline a project configuration names. One
+// that does not exist yet (not generated before the first run) suppresses
+// nothing; any other error is returned. A baseline named explicitly, on
+// the command line, is read with Load: it must exist.
+func LoadConfigured(path string) (*Baseline, error) {
+	bl, err := Load(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return Empty(), nil
+	}
+	return bl, err
+}
+
 // Parse decodes a baseline whose entry paths are relative to dir. A
 // relative dir matches the relative paths of findings against it as they
 // are (the root-relative names of a captured snapshot, say).
@@ -76,7 +92,7 @@ func Parse(data []byte, dir string) (*Baseline, error) {
 	if err := json.Unmarshal(data, &f); err != nil {
 		return nil, err
 	}
-	bl := &Baseline{dir: dir, counts: map[key]int{}, byLoc: map[loc][]key{}, paths: map[string]bool{}}
+	bl := &Baseline{dir: dir, counts: map[key]int{}, byLoc: map[loc][]key{}, paths: map[string]bool{}, digest: fmt.Sprintf("%x %s", sha256.Sum256(data), dir)}
 	for _, e := range f.Entries {
 		k := key{e.Path, e.Rule, e.Message, e.Line}
 		if bl.counts[k] == 0 {
@@ -90,7 +106,11 @@ func Parse(data []byte, dir string) (*Baseline, error) {
 }
 
 // Empty returns a baseline that suppresses nothing.
-func Empty() *Baseline { return &Baseline{counts: map[key]int{}} }
+func Empty() *Baseline { return &Baseline{counts: map[key]int{}, digest: "empty"} }
+
+// Key identifies what the baseline records: two baselines with the same key
+// hide the same findings.
+func (b *Baseline) Key() string { return b.digest }
 
 // related maps a rule to the rules its findings may have moved from or
 // to: those it names in suppressedBy and those naming it there. A rule
@@ -342,7 +362,7 @@ func Write(path string, items []diagnostic.Item) (int, error) {
 		}
 		return a.Line < b.Line
 	})
-	// strings and ints only: marshalling cannot fail
+	// strings and ints only: marshaling cannot fail
 	data, _ := json.MarshalIndent(f, "", "  ")
 	return len(f.Entries), os.WriteFile(path, append(data, '\n'), 0o644)
 }

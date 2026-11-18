@@ -14,6 +14,7 @@ const message = "Convert timezone offsets to seconds."
 
 type rule struct{}
 
+// New returns the IntlTimezoneOffsetMillisecondsUsedAsSeconds inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "IntlTimezoneOffsetMillisecondsUsedAsSeconds" }
 func (rule) Semantic()                {}
@@ -50,7 +51,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		all := true
 		for _, v := range vars {
-			if !offsetUnchanged(ctx, source, arg, v) || !semanticquery.ExpansionCSame(ctx, v, semanticquery.CallArgument(source.Args, 2, "rawOffset")) && !semanticquery.ExpansionCSame(ctx, v, semanticquery.CallArgument(source.Args, 3, "dstOffset")) {
+			if !offsetUnchanged(ctx, source, arg, v) || !semanticquery.SameStableExpr(ctx, v, semanticquery.CallArgument(source.Args, 2, "rawOffset")) && !semanticquery.SameStableExpr(ctx, v, semanticquery.CallArgument(source.Args, 3, "dstOffset")) {
 				all = false
 			}
 		}

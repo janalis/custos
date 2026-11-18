@@ -1,4 +1,5 @@
-// Package domelementvaluecontainsbareampersand implements DomElementValueContainsBareAmpersand.
+// Package domelementvaluecontainsbareampersand implements the native
+// DomElementValueContainsBareAmpersand inspection.
 package domelementvaluecontainsbareampersand
 
 import (
@@ -19,6 +20,7 @@ const message = "Append a text node for literal ampersand text."
 
 type rule struct{}
 
+// New returns the DomElementValueContainsBareAmpersand inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DomElementValueContainsBareAmpersand" }
 func (rule) Semantic()                {}

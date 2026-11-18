@@ -258,7 +258,7 @@ var emptyRejecting = map[string]bool{
 // failure value becomes the empty text there, which throws.
 func rejectsEmpty(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
 	call, ok := n.(*syntax.MethodCall)
-	if !ok || ctx.PHP < phpversion.PHP80 || semanticquery.CallArgument(call.Args, 0, "source") != input {
+	if !ok || ctx.PHP.Below(phpversion.PHP80) || semanticquery.CallArgument(call.Args, 0, "source") != input {
 		return false
 	}
 	targets := ctx.Flow().Targets(call)

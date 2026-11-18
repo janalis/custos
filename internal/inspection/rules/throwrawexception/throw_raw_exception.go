@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/names"
@@ -101,14 +102,14 @@ func treCaughtAsRuntime(ctx *analysis.Context, n syntax.Node) bool {
 func treUserPresetsMessage(ctx *analysis.Context, fqn string) bool {
 	ix := ctx.Index()
 	declares := func(c *index.Class) bool {
-		if c == nil || isBuiltinClass(c, ctx.PHP) {
+		if c == nil || semanticquery.IsBuiltinClass(c, ctx.PHP) {
 			return false
 		}
 		if _, ok := c.Props["message"]; ok {
 			return true
 		}
 		for _, t := range c.Traits {
-			if tc := ix.Class(t, ctx.PHP); tc != nil && !isBuiltinClass(tc, ctx.PHP) {
+			if tc := ix.Class(t, ctx.PHP); tc != nil && !semanticquery.IsBuiltinClass(tc, ctx.PHP) {
 				if _, ok := tc.Props["message"]; ok {
 					return true
 				}

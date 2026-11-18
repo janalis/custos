@@ -6,7 +6,7 @@ title: ZipEntryNameCollision
 
 # ZipEntryNameCollision
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -31,7 +31,7 @@ Reported:
 - The same archive object means the same proven flow identity, not the same variable spelling: an alias of the guarded archive still counts, while a receiver variable reassigned to another archive between the guard and the second insertion does not.
 - The guarded entry is considered gone when a call on that archive, located after the guard and always executed before the second insertion, is one of close, open, deleteName, deleteIndex, renameName, renameIndex, unchangeAll, unchangeArchive, unchangeName or unchangeIndex. Their arguments are not matched against the entry: any such call removes proof. A call that runs only on some paths, or that precedes the guard, does not.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 

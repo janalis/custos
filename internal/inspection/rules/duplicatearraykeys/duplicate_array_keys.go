@@ -96,7 +96,7 @@ func stringKeyValue(raw string, php phpversion.Version) (string, bool) {
 	// Only a double-quoted literal has these escapes: the quote opens the
 	// literal, possibly after a binary prefix.
 	quote := strings.IndexByte(raw, '"')
-	if !ok || php >= phpversion.PHP70 || quote < 0 || quote > 1 || raw[0] == '\'' {
+	if !ok || php.AtLeast(phpversion.PHP70) || quote < 0 || quote > 1 || raw[0] == '\'' {
 		return val, ok
 	}
 	body := raw[quote+1 : len(raw)-1]
@@ -106,7 +106,7 @@ func stringKeyValue(raw string, php phpversion.Version) (string, bool) {
 		if body[i] != '\\' {
 			continue
 		}
-		if n := body[i+1]; n == 'u' || (n == 'e' && php < phpversion.PHP54) {
+		if n := body[i+1]; n == 'u' || (n == 'e' && php.Below(phpversion.PHP54)) {
 			// Decode what precedes the escape, then keep its two bytes.
 			piece, _ := astquery.StringLiteralValue(`"` + body[start:i] + `"`)
 			b.WriteString(piece)

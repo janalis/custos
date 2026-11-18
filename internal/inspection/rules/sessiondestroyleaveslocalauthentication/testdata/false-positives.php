@@ -29,3 +29,4 @@ function wholeArrayUnset() {
     session_destroy();
     if ($_SESSION['user']) { echo "in"; }
 }
+session_destroy(); $_SESSION=[]; if($_SESSION["admin"]){echo "admin";}

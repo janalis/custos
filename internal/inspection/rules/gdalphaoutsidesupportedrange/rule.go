@@ -12,6 +12,7 @@ const message = "Supply GD alpha between zero and 127."
 
 type rule struct{}
 
+// New returns the GdAlphaOutsideSupportedRange inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "GdAlphaOutsideSupportedRange" }
 func (rule) Semantic()                {}

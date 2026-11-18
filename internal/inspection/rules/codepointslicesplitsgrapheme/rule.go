@@ -49,6 +49,7 @@ func breaksCluster(r rune) bool {
 
 type rule struct{}
 
+// New returns the CodePointSliceSplitsGrapheme inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CodePointSliceSplitsGrapheme" }
 func (rule) Semantic()                {}
@@ -56,7 +57,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
-	if ctx.PHP < phpversion.PHP70 || !semanticquery.NativeBuiltin(ctx, c, "mb_substr") {
+	if ctx.PHP.Below(phpversion.PHP70) || !semanticquery.NativeBuiltin(ctx, c, "mb_substr") {
 		return
 	}
 	text, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(c.Args, 0, "string"))

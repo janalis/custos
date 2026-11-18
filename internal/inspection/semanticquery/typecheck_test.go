@@ -21,7 +21,7 @@ func TestIndexRelations(t *testing.T) {
 	ran := false
 	probeNative(t, typecheckSrc, func(ctx *analysis.Context, call *syntax.FuncCall) {
 		ran = true
-		r := NewIndexRelations(ctx.Index(), ctx.PHP)
+		r := newIndexRelations(ctx.Index(), ctx.PHP)
 		for c, want := range map[string]bool{`\N\A`: true, `\N\I`: true, `\N\P`: false, `\N\Nope`: false, `\Countable`: true} {
 			first := r.Resolved(c)
 			if cached := r.Resolved(c); first != want || cached != want {
@@ -48,9 +48,9 @@ func TestIndexRelations(t *testing.T) {
 		if !r.IsInterface(`\N\I`) || r.IsInterface(`\N\A`) || r.IsInterface(`\N\Nope`) {
 			t.Error("IsInterface")
 		}
-		ac := AcceptContext(ctx, true)
+		ac := acceptContext(ctx, true)
 		if !ac.Strict || !ac.Internal || ac.Classes == nil {
-			t.Errorf("AcceptContext: %+v", ac)
+			t.Errorf("acceptContext: %+v", ac)
 		}
 		arg := ctx.Types().Native().TypeOf(CallArgument(call.Args, 0, ""))
 		if got := types.Accepts(types.Of(`\N\I`), arg, ac); got != types.Yes {
@@ -67,7 +67,7 @@ func TestIndexRelations(t *testing.T) {
 
 func BenchmarkAcceptsIndex(b *testing.B) {
 	p := nativeProbe{check: func(ctx *analysis.Context, call *syntax.FuncCall) {
-		ac := AcceptContext(ctx, false)
+		ac := acceptContext(ctx, false)
 		expected, actual := types.Of(`\N\I`, "null"), types.Of(`\N\F`)
 		b.ReportAllocs()
 		for b.Loop() {

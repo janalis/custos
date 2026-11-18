@@ -1,4 +1,5 @@
-// Package regexbyteoffsetascharacteroffset implements the RegexByteOffsetAsCharacterOffset inspection.
+// Package regexbyteoffsetascharacteroffset implements the native
+// RegexByteOffsetAsCharacterOffset inspection.
 package regexbyteoffsetascharacteroffset
 
 import (
@@ -14,6 +15,7 @@ import (
 
 type rule struct{}
 
+// New returns the RegexByteOffsetAsCharacterOffset inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "RegexByteOffsetAsCharacterOffset" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }

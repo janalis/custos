@@ -1,4 +1,5 @@
-// Package hashcontextusedafterfinalization implements HashContextUsedAfterFinalization.
+// Package hashcontextusedafterfinalization implements the native
+// HashContextUsedAfterFinalization inspection.
 package hashcontextusedafterfinalization
 
 import (
@@ -12,6 +13,7 @@ const message = "Create a new hash context after finalization."
 
 type rule struct{}
 
+// New returns the HashContextUsedAfterFinalization inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "HashContextUsedAfterFinalization" }
 func (rule) Semantic()                {}

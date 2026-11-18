@@ -29,11 +29,11 @@ Reported:
 
 - Track direct rawOffset/dstOffset output locals of a preceding resolved IntlTimeZone::getOffset call in the same lexical scope. Report DateTime/DateTimeImmutable::modify with either local, or their sum, concatenated with the literal seconds unit. Already-divided offsets and unknown provenance are excluded.
 - Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
-Reject offset-unit proof after an intervening use of the output local, a reference alias, a nested scope or proof-budget exhaustion. Compound assignments and opaque calls discard the proof.
+Reject offset-unit proof after an intervening use of the output local, a reference alias, a nested scope or code too complex to analyze. Compound assignments and opaque calls discard the proof.
 
 - Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.

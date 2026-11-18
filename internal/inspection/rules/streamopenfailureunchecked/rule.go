@@ -57,7 +57,7 @@ func joinedWarningUnknown(ctx *analysis.Context, at *syntax.FuncCall) bool {
 	seen := map[string]bool{}
 	scalar := map[string]bool{}
 	registered := false
-	cyclic := semanticquery.NativeLabelled(ctx, at)
+	cyclic := semanticquery.NativeLabeled(ctx, at)
 	for parent := at.Parent(); parent != nil && parent != scope; parent = parent.Parent() {
 		switch parent.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
@@ -119,7 +119,7 @@ func joinedWarningUnknown(ctx *analysis.Context, at *syntax.FuncCall) bool {
 		switch semanticquery.NativeBuiltinName(ctx, call) {
 		case "set_error_handler":
 			registered = true
-			if !semanticquery.NativeDominates(call, at) || semanticquery.NativeLabelled(ctx, at) {
+			if !semanticquery.NativeDominates(call, at) || semanticquery.NativeLabeled(ctx, at) {
 				unknown = true
 				stack = nil
 				return true

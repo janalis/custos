@@ -177,5 +177,3 @@ if (!ready()) { a(); }
   statements, comments only) is not reported: swapping the branches would
   leave an empty `if` body — removing the empty `else` is the change to
   make, and the negation then reads naturally.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

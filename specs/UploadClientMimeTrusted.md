@@ -1,7 +1,7 @@
 ---
 id: UploadClientMimeTrusted
 group: Security
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -19,7 +19,7 @@ Detect acceptance of an upload based solely on $_FILES entry type compared to an
 - D1b. The call is reached only if the type matched: the conditions guarding it limit the entry type to string literals that all contain `/`. Tests combine through `!`, parentheses, `&&`/`and` and `||`/`or` (each side of a disjunction must limit it), and guard the call from the branch of an `if`/`elseif`/`else` chain, a ternary or `match (true)` arm, the right operand of `&&`/`||`, or code after an `if` whose branch for another type always leaves (return, throw, exit, break, continue), with or without other arms.
 - D1c. A call of the project between the test and the call, which may write `$_FILES`, a jump label between them, a write to the entry, or a test of another entry proves nothing.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -39,7 +39,7 @@ No automatic fix: content types, file size limits and image decoding policy must
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -63,4 +63,4 @@ function storeScan() {
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

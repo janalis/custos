@@ -71,7 +71,7 @@ var globArrayConsumers = map[string]struct {
 }
 
 // globFailureUse reports an array-only use whose single reaching value is a
-// builtin glob() call that no flow fact or recognised guard separates from false.
+// builtin glob() call that no flow fact or recognized guard separates from false.
 func globFailureUse(ctx *analysis.Context, use syntax.Expr, message string) {
 	call, ok := semanticquery.NativeLocalBuiltinResult(ctx, use, "false", "glob").(*syntax.FuncCall)
 	if !ok || semanticquery.NativeBuiltinName(ctx, call) != "glob" || ctx.Flow().Excludes(use, "false") || !semanticquery.NativeFailureFlowOnly(ctx, use) && semanticquery.NativeNarrowedExcludes(ctx, use, types.Of("array", "false"), "false") {

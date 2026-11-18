@@ -14,6 +14,7 @@ const message = "Retain the earlier Vary dimensions."
 
 type rule struct{}
 
+// New returns the VaryHeaderOverwritesEarlierDimensions inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "VaryHeaderOverwritesEarlierDimensions" }
 func (rule) Semantic()                {}
@@ -24,11 +25,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	key, value, replace, known := semanticquery.ExpansionHeader(ctx, c)
+	key, value, replace, known := semanticquery.LiteralHeader(ctx, c)
 	if !known || key != "vary" || !replace || value == "*" {
 		return
 	}
-	previous := semanticquery.ExpansionResponseAt(ctx, c).PreviousVary
+	previous := semanticquery.ResponseStateAt(ctx, c).PreviousVary
 	if previous == "" {
 		return
 	}

@@ -6,7 +6,7 @@ title: ArrayColumnMissingField
 
 # ArrayColumnMissingField
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.5" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -42,11 +42,7 @@ No automatic fix: whether to omit, reject, or substitute missing rows is an appl
 
 ## PHP versions
 
-Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
+Available from PHP 5.5, which introduced `array_column()`. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
 ## Configure
 

@@ -34,7 +34,7 @@ Reported:
 
 ## Exceptions (no report)
 
-Resolve inserted SQLITE3_ASSOC to the global builtin constant. Parentheses around the fetch do not bypass consumer checks. Captures into nested scopes and exhausted consumer budgets withhold the finding.
+Resolve inserted SQLITE3_ASSOC to the global builtin constant. Parentheses around the fetch do not bypass consumer checks. Captures into nested scopes and consumers too numerous to check withhold the finding.
 
 - Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
 - E1a. Exclude scopes that can reach the row without naming it: variable-variables, compact, extract, get_defined_vars, include or require, eval and goto in the same scope, and `$GLOBALS` when the row is a file-level variable. Exclude a row variable that is a by-reference parameter, a by-reference closure capture, or declared global or static, and a fetch stored through a compound or reference assignment.
@@ -50,10 +50,6 @@ Use exact byte edits and preserve comments, evaluation count, argument order and
 ## PHP versions
 
 Apply throughout PHP 5.3–8.5 only where the extension API and syntax exist.  Do not flag API unavailability through this rule.
-
-## Options
-
-None. Use normal rule configuration to enable or disable the inspection.
 
 ## Configure
 

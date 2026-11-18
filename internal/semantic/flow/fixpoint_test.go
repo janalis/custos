@@ -177,7 +177,7 @@ func TestSummariesKnowTheContractsTheyUsed(t *testing.T) {
 	if !tainted(own.Summaries["wrap"].Return) {
 		t.Fatalf("wrap=%+v", own.Summaries["wrap"])
 	}
-	// The environment answers for the file without analysing it again.
+	// The environment answers for the file without analyzing it again.
 	if len(env.scopes) == 0 || len(env.Calls(f.Stmts[0].(*syntax.Function))) != 1 {
 		t.Fatal("environment lost its scopes")
 	}

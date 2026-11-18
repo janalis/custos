@@ -1,13 +1,16 @@
 package project
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/platform/safeio"
 	"custos/internal/project/config"
 	"custos/internal/semantic/index"
@@ -15,9 +18,9 @@ import (
 	"custos/internal/semantic/stubs"
 )
 
-// IndexSources returns files to index: the analysed files first, then the
+// IndexSources returns files to index: the analyzed files first, then the
 // other PHP files under the project paths, then those of the project's vendor
-// directory (symbols only; neither is analysed). Discovery applies exclude
+// directory (symbols only; neither is analyzed). Discovery applies exclude
 // everywhere; vendor also leaves out test directories and the custos package.
 // Each file appears once, so a project path that holds vendor adds nothing
 // twice.
@@ -32,6 +35,9 @@ func IndexSources(root string, files, paths, exclude []string) []string {
 // vendor walk covers it).
 func IndexSourcesSkipping(root string, files, paths, exclude []string) ([]string, Skipped) {
 	out := append([]string(nil), files...)
+	// One working directory for every path, not a getwd per file.
+	cwd, _ := os.Getwd()
+	absolute := func(path string) string { return absoluteFrom(cwd, path) }
 	seen := make(map[string]bool, len(files))
 	for _, f := range files {
 		seen[absolute(f)] = true
@@ -120,7 +126,9 @@ func vendorDirBytes(b []byte) string {
 	if json.Unmarshal(b, &c) != nil || c.Config.VendorDir == "" || !filepath.IsLocal(c.Config.VendorDir) {
 		return "vendor"
 	}
-	return filepath.Clean(c.Config.VendorDir)
+	// Slash-separated, as snapshots name their files on every platform;
+	// filepath.Join and filepath.FromSlash accept it as well.
+	return path.Clean(filepath.ToSlash(c.Config.VendorDir))
 }
 
 // BuildIndex parses files in parallel and returns their symbols layered over
@@ -134,7 +142,7 @@ func BuildIndex(files []string, opt syntax.Options, options infer.Options) *inde
 
 // BuildIndexKeep is BuildIndex that also returns the sources it read for the
 // first keep files (nil where unreadable), so a following Run over them does
-// not read them again (IndexSources lists the analysed files first).
+// not read them again (IndexSources lists the analyzed files first).
 func BuildIndexKeep(files []string, keep int, opt syntax.Options, options infer.Options) (*index.Index, [][]byte) {
 	return BuildIndexCached(files, keep, opt, options, nil)
 }
@@ -143,22 +151,23 @@ func BuildIndexKeep(files []string, keep int, opt syntax.Options, options infer.
 // files past keep from cache while they are unchanged, records the others
 // in it, and saves it.
 func BuildIndexCached(files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache) (*index.Index, [][]byte) {
-	ix, srcs, _, _ := buildIndex(files, keep, opt, options, cache, false)
+	ix, srcs, _, _ := buildIndex(context.Background(), files, keep, opt, options, cache, false)
 	return ix, srcs
 }
 
 // BuildIndexUnread is BuildIndexCached keeping no source and also returning
 // the files whose declarations it could not read (unreadable, too large or
-// crashing the extraction).
-func BuildIndexUnread(files []string, opt syntax.Options, options infer.Options, cache *SymbolCache) (*index.Index, []string) {
-	ix, _, _, unread := buildIndex(files, 0, opt, options, cache, false)
+// crashing the extraction). Once ctx is done, files not started yet are
+// left out: the index is then incomplete, and the caller drops it.
+func BuildIndexUnread(ctx context.Context, files []string, opt syntax.Options, options infer.Options, cache *SymbolCache) (*index.Index, []string) {
+	ix, _, _, unread := buildIndex(ctx, files, 0, opt, options, cache, false)
 	return ix, unread
 }
 
 // buildIndex is BuildIndexCached also returning, with keepTrees, the syntax
 // trees of the first keep files (nil where unread or crashed), and the
 // files whose declarations it could not read.
-func buildIndex(files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache, keepTrees bool) (*index.Index, [][]byte, []*syntax.File, []string) {
+func buildIndex(ctx context.Context, files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache, keepTrees bool) (*index.Index, [][]byte, []*syntax.File, []string) {
 	ix := index.New(stubs.Index())
 	ix.DeferTypeAliases()
 	results := make([]*index.FileSymbols, len(files))
@@ -168,15 +177,14 @@ func buildIndex(files []string, keep int, opt syntax.Options, options infer.Opti
 		trees = make([]*syntax.File, keep)
 	}
 	// indexOne and indexTree isolate crashes of their own.
-	_ = parallel(context.Background(), len(files), 0, func(i int) {
+	_ = parallel(ctx, len(files), 0, func(i int) {
 		switch {
 		case i < keep && keepTrees:
 			results[i], srcs[i], trees[i] = indexTree(files[i], opt, options)
 			cache.declared(i, results[i])
 			return
 		case i < keep:
-			results[i], srcs[i] = indexOne(files[i], opt, options)
-			cache.declared(i, results[i])
+			results[i], srcs[i] = indexSource(i, files[i], opt, options, cache)
 			return
 		}
 		results[i] = indexCached(files[i], opt, options, cache)
@@ -191,8 +199,11 @@ func buildIndex(files []string, keep int, opt syntax.Options, options infer.Opti
 		}
 	}
 	// Saved before DropStaleInferred rewrites declarations for this project.
-	// The cache only saves time: a failure to write it changes no result.
-	_ = cache.Save()
+	// The cache only saves time: a failure to write it changes no result. A
+	// build stopped half way would save only the files it reached.
+	if ctx.Err() == nil {
+		_ = cache.Save()
+	}
 	for _, fs := range results {
 		if fs != nil {
 			ix.DropStaleInferred(fs)
@@ -209,7 +220,7 @@ var extract = ExtractSymbols
 // declares nothing it can read (nil). A crash (parser or inference bug on
 // unusual input) drops that file's symbols instead of taking down the CLI
 // or the language server; the file itself still gets an "internal" finding
-// when it is analysed.
+// when it is analyzed.
 func indexOne(path string, opt syntax.Options, options infer.Options) (fs *index.FileSymbols, src []byte) {
 	defer func() {
 		if recover() != nil {
@@ -224,6 +235,28 @@ func indexOne(path string, opt syntax.Options, options infer.Options) (fs *index
 		return nil, src
 	}
 	return extract(path, src, opt, options), src
+}
+
+// indexSource is indexOne taking the declarations of a file whose source
+// is unchanged from cache (see SymbolCache.source).
+func indexSource(i int, path string, opt syntax.Options, options infer.Options, cache *SymbolCache) (fs *index.FileSymbols, src []byte) {
+	defer func() {
+		if recover() != nil {
+			fs = nil
+		}
+	}()
+	src, err := ReadSource(path)
+	if err != nil || len(src) > syntax.MaxFileSize {
+		cache.declared(i, nil)
+		return nil, src
+	}
+	fs = cache.source(i, path, src, func() *index.FileSymbols { return extract(path, src, opt, options) })
+	if fs != nil {
+		// A digest is keyed for the life of the process (see index.Digest):
+		// one read back from the cache is another process's.
+		fs.Digest = index.Digest(&syntax.File{Src: src, Version: cmp.Or(opt.Version, phpversion.Default)})
+	}
+	return fs, src
 }
 
 // indexTree is indexOne keeping the file's syntax tree.

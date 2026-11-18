@@ -98,7 +98,7 @@ func nullAccessOf(ctx *analysis.Context, n syntax.Node) (NullAccess, bool) {
 		}
 		recv = a.Class
 	case *syntax.ArrayDimFetch:
-		if ctx.PHP < phpversion.PHP74 || a.Dim == nil || quietFetch(a) || elementWrite(ctx, a) {
+		if ctx.PHP.Below(phpversion.PHP74) || a.Dim == nil || quietFetch(a) || elementWrite(ctx, a) {
 			return NullAccess{}, false
 		}
 		recv = a.Var
@@ -457,7 +457,7 @@ func possiblyNullArguments(ctx *analysis.Context, call syntax.Node) []NullArgume
 		return nil
 	}
 	label, targets, ok := CallTargets(ctx, call, callee, func(file, name string) bool {
-		return TrustedBuiltinTypes(file, name, ctx.PHP)
+		return trustedBuiltinTypes(file, name, ctx.PHP)
 	})
 	if !ok {
 		return nil

@@ -170,7 +170,7 @@ func rtdStaticVariable(env *infer.Env, m *syntax.Method, ret *syntax.Return, v *
 }
 
 func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP70 { // E1
+	if ctx.PHP.Below(phpversion.PHP70) { // E1
 		return
 	}
 	m := n.(*syntax.Method)
@@ -351,7 +351,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 
-	l71 := ctx.PHP >= phpversion.PHP71
+	l71 := ctx.PHP.AtLeast(phpversion.PHP71)
 	suggestion := ""
 	switch len(set) {
 	case 0: // D10
@@ -389,13 +389,13 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		if hasReturnTag {
 			if tag, _ := doc.Tag("return"); strings.TrimSpace(tag.Text) == "static" { // static guard
-				if ctx.PHP < phpversion.PHP80 {
+				if ctx.PHP.Below(phpversion.PHP80) {
 					return
 				}
 				s = "static"
 			}
 		}
-		if s == "static" && ctx.PHP < phpversion.PHP80 {
+		if s == "static" && ctx.PHP.Below(phpversion.PHP80) {
 			return // see Divergences: never suggest static below 8.0
 		}
 		suggestion = s

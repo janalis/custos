@@ -1,4 +1,5 @@
-// Package pdoexeczerorejectedasfailure implements PdoExecZeroRejectedAsFailure.
+// Package pdoexeczerorejectedasfailure implements the native
+// PdoExecZeroRejectedAsFailure inspection.
 package pdoexeczerorejectedasfailure
 
 import (
@@ -14,6 +15,7 @@ const message = "Compare database execution failure strictly with false."
 
 type rule struct{}
 
+// New returns the PdoExecZeroRejectedAsFailure inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PdoExecZeroRejectedAsFailure" }
 func (rule) Semantic()                {}

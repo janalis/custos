@@ -26,3 +26,4 @@ function fromTemporaries(FreshSource $source, array $input)
     foreach (array_values($input) as &$fromBuiltin) {}
     $fromBuiltin = 0;
 }
+$xs=[1,2]; foreach($xs as &$x) {} unset($x); $x=9;

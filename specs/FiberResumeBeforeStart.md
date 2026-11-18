@@ -1,7 +1,7 @@
 ---
 id: FiberResumeBeforeStart
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "8.1", max: "" }
 ---

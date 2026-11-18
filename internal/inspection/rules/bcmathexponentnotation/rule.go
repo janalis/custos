@@ -14,6 +14,7 @@ const message = "Use ordinary decimal notation for BCMath operands."
 
 type rule struct{}
 
+// New returns the BcMathExponentNotation inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "BcMathExponentNotation" }
 func (rule) Semantic()                {}
@@ -24,7 +25,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	operands := semanticquery.ExpansionBcOperands(ctx, c)
+	operands := semanticquery.BCMathOperands(ctx, c)
 	// The shared operand list omits the exponent slot, which BCMath parses
 	// with the same well-formedness contract as the base.
 	switch semanticquery.NativeBuiltinName(ctx, c) {

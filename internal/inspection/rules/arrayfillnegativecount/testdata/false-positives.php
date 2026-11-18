@@ -73,3 +73,4 @@ function unknownCount($width)
 
 array_fill(0, 0, 'c');
 array_fill(-3, 2, 'c');
+array_fill(0, 4, 'q');

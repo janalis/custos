@@ -14,18 +14,19 @@ const message = "Remove the repeated attribute."
 
 type rule struct{}
 
+// New returns the NonRepeatableAttributeRepeated inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "NonRepeatableAttributeRepeated" }
 func (rule) Semantic()                {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAttribute} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	a := n.(*syntax.Attribute)
-	if ctx.PHP < phpversion.PHP80 {
+	if ctx.PHP.Below(phpversion.PHP80) {
 		return
 	}
 	fqn, flags, known := semanticquery.NativeAttributeFlags(ctx, a)
 	repeat := int64(64)
-	if ctx.PHP >= phpversion.PHP85 {
+	if ctx.PHP.AtLeast(phpversion.PHP85) {
 		repeat = 128
 	}
 	if !known || flags&repeat != 0 {

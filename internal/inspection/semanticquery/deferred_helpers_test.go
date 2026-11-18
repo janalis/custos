@@ -97,7 +97,7 @@ func TestOpaqueHandleOwnership(t *testing.T) {
 		t.Run(tc.store, func(t *testing.T) {
 			probeNative(t, `$handle=curl_init();`+tc.store+`probe($handle);`, func(ctx *analysis.Context, call *syntax.FuncCall) {
 				handle := CallArgument(call.Args, 0, "")
-				if got := NativeHandleUnescaped(ctx, handle, call); got != tc.owned {
+				if got := handleUnescaped(ctx, handle, call); got != tc.owned {
 					t.Fatalf("exclusive ownership=%v, want %v", got, tc.owned)
 				}
 				if !tc.owned && NativeCurlDefault(ctx, call, handle, "CURLOPT_HEADER") {
@@ -110,7 +110,7 @@ func TestOpaqueHandleOwnership(t *testing.T) {
 
 func TestHandleOwnershipBudgetIsConservative(t *testing.T) {
 	probeNative(t, `$handle=curl_init();$capture=fn()=>[`+strings.Repeat(`1,`, 5000)+`];probe($handle);`, func(ctx *analysis.Context, call *syntax.FuncCall) {
-		if NativeHandleUnescaped(ctx, CallArgument(call.Args, 0, ""), call) {
+		if handleUnescaped(ctx, CallArgument(call.Args, 0, ""), call) {
 			t.Fatal("exhausted capture scan established exclusive ownership")
 		}
 	})

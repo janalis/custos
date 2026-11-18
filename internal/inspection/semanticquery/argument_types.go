@@ -30,14 +30,14 @@ var stubTypeDrift = sync.OnceValue(func() map[string]bool {
 	return out
 })
 
-// TrustedBuiltinTypes reports whether the stub declaration of builtin callee
+// trustedBuiltinTypes reports whether the stub declaration of builtin callee
 // (a function FQN or `Class::method`) in stub file declares the native
 // parameter types PHP enforces at version ver: from PHP 8.0, where builtins
 // declare their parameter types, in a bundled extension, and not known to
 // drift from PHP.
-func TrustedBuiltinTypes(file, callee string, ver phpversion.Version) bool {
+func trustedBuiltinTypes(file, callee string, ver phpversion.Version) bool {
 	callee = strings.ToLower(strings.TrimPrefix(callee, `\`))
-	return ver >= phpversion.PHP80 && BundledStub(file) && !stubTypeDrift()[callee]
+	return ver.AtLeast(phpversion.PHP80) && BundledStub(file) && !stubTypeDrift()[callee]
 }
 
 // ArgumentMismatch is an argument that every declaration its call may bind
@@ -118,7 +118,7 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 		return nil
 	}
 	label, targets, ok := CallTargets(ctx, call, callee, func(file, name string) bool {
-		return TrustedBuiltinTypes(file, name, ctx.PHP)
+		return trustedBuiltinTypes(file, name, ctx.PHP)
 	})
 	if !ok {
 		return nil
@@ -187,7 +187,7 @@ func vivifiedNative(native types.Type) bool {
 // the checks of arguments and property writes.
 func fileTypeCheck(ctx *analysis.Context) *argumentCheck {
 	return ctx.Shared(argumentCheckKey{}, func() any {
-		classes := NewIndexRelations(ctx.Index(), ctx.PHP)
+		classes := newIndexRelations(ctx.Index(), ctx.PHP)
 		return &argumentCheck{
 			weak:     types.AcceptContext{Classes: classes, Strict: syntax.StrictTypes(ctx.File)},
 			strict:   types.AcceptContext{Classes: classes, Strict: true},

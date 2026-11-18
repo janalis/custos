@@ -63,10 +63,10 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T. Also affects `<assoc>` in F2. |
+| HARDEN_DECODING_RESULT_TYPE | bool | true | Reports `json_decode()` calls that leave the decoded type (objects or arrays) implicit. Also decides the `associative` argument the error-handling quick-fix writes. |
 | DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |
 | DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |
-| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E. |
+| HARDEN_ERRORS_HANDLING | bool | true | Reports JSON calls whose flags do not make errors throw (PHP 7.3 and later). |
 
 ## Configure
 

@@ -123,7 +123,7 @@ func TestFlowSurvivesSummaryPanic(t *testing.T) {
 	if build.results[0] == nil || build.results[1] != nil {
 		t.Fatalf("summaries: %v", build.results)
 	}
-	next, ok := build.Update(map[string][]byte{bad: []byte("<?php function bad() { return 1; }")}, ix)
+	next, ok := build.Update(context.Background(), map[string][]byte{bad: []byte("<?php function bad() { return 1; }")}, ix)
 	if !ok || next.results[0] == nil || next.results[1] != nil {
 		t.Fatal("an edit of the crashing file must keep the others' summaries")
 	}

@@ -29,7 +29,7 @@ func BenchmarkConditionalHistoryConsumers(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
 					if scenario.dom {
-						ExpansionDOMElementChildren(ctx, value, at)
+						DOMElementHasChildren(ctx, value, at)
 					} else {
 						ExecuteBindings(ctx, value.(*syntax.MethodCall))
 					}

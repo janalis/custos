@@ -1,7 +1,7 @@
 ---
 id: PgIdentifierEscapedAsLiteral
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "5.4", max: "" }
 ---
@@ -24,7 +24,7 @@ Escape PostgreSQL identifiers with the identifier API.
 
 ## Exceptions (no report)
 
-Parentheses around the producer do not bypass consumer checks. Captures into nested scopes and exhausted consumer budgets withhold the fix, while retaining the finding at the proven identifier use.
+Parentheses around the producer do not bypass consumer checks. Captures into nested scopes and consumers too numerous to check withhold the fix, while retaining the finding at the proven identifier use.
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
 - E2. Both @custos-ignore PgIdentifierEscapedAsLiteral and @noinspection PgIdentifierEscapedAsLiteral suppress this native rule.
@@ -46,7 +46,7 @@ Use exact byte edits and preserve comments, evaluation count, argument order and
 
 ## Options
 
-None. Use normal rule configuration to enable or disable the inspection.
+None.
 
 ## PHP versions
 
@@ -79,4 +79,4 @@ function f($c) { $t=pg_escape_identifier($c,'inventory'); pg_query($c,"SELECT * 
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

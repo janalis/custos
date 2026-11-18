@@ -12,6 +12,7 @@ const message = "Keep writes within shared-memory capacity."
 
 type rule struct{}
 
+// New returns the SharedMemoryWriteCapacityExceeded inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SharedMemoryWriteCapacityExceeded" }
 func (rule) Semantic()                {}
@@ -30,7 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	segment := semanticquery.CallArgument(c.Args, 0, "shmop")
-	if !semanticquery.ExpansionDUnaliased(ctx, segment, n) {
+	if !semanticquery.UnaliasedLocal(ctx, segment, n) {
 		return
 	}
 	offset := semanticquery.CallArgument(c.Args, 2, "offset")

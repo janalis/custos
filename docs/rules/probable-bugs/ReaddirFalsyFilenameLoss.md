@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Report a resolved readdir call whose result decides an `if`, `elseif`, `while`, `do … while` condition or the last condition expression of a `for`, when it is tested for truthiness: directly, through a plain `=` assignment in the condition, through any number of `!` negations, or through a comparison with the `true`/`false` constant that is loose on the entry itself (`readdir($h) == false`). A legal filename consisting of digit zero is otherwise treated as end-of-directory. Once the entry has been turned into a boolean by `!` or a loose comparison, further `!`, `==`, `!=`, `===`, `!==` tests of that boolean against `true`/`false` are followed too (`(!readdir($h)) === false` is still a truthiness test).
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

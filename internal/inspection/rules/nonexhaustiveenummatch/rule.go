@@ -1,4 +1,5 @@
-// Package nonexhaustiveenummatch implements the NonExhaustiveEnumMatch inspection.
+// Package nonexhaustiveenummatch implements the native
+// NonExhaustiveEnumMatch inspection.
 package nonexhaustiveenummatch
 
 import (
@@ -13,6 +14,7 @@ import (
 
 type rule struct{}
 
+// New returns the NonExhaustiveEnumMatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "NonExhaustiveEnumMatch" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMatch} }
@@ -20,7 +22,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMatch} 
 const message = "Handle every reachable enum case."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP81 {
+	if ctx.PHP.Below(phpversion.PHP81) {
 		return
 	}
 	match := n.(*syntax.Match)
@@ -58,7 +60,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// The cases the subject may still be there: comparisons and assignments
 	// narrow them, unless a jump may land between those and the match.
-	if names, ok := ctx.Types().Native().TypeOf(match.Cond).EnumCaseNames(classes[0]); ok && !semanticquery.NativeLabelled(ctx, match.Cond) {
+	if names, ok := ctx.Types().Native().TypeOf(match.Cond).EnumCaseNames(classes[0]); ok && !semanticquery.NativeLabeled(ctx, match.Cond) {
 		for name := range missing {
 			if !slices.Contains(names, name) {
 				delete(missing, name)

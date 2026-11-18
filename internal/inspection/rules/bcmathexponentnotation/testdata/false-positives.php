@@ -4,3 +4,4 @@ $b = bcpowmod('2', '10', '7');
 // The scale is an integer, not a numeric string operand.
 $c = bcsqrt('4', 2);
 $d = bcpow('2', $exponent);
+$x = bcadd('20000', '3', 0);

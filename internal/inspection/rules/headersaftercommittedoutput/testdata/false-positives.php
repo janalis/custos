@@ -59,3 +59,4 @@ function buffered(): void
     flush();
     header('X-State: ready');
 }
+header('X-State: ready'); echo 'started'; flush();

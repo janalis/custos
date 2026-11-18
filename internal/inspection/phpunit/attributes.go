@@ -12,7 +12,7 @@ import (
 // annotation equivalents. Names resolve through imports; unrelated short
 // attribute names and uncertain argument bindings provide no metadata.
 func AttributeMetadata(ctx *analysis.Context, groups []*syntax.AttributeGroup) []Metadata {
-	if ctx.PHP < phpversion.PHP80 {
+	if ctx.PHP.Below(phpversion.PHP80) {
 		return nil
 	}
 	var out []Metadata

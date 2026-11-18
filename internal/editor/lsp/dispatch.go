@@ -55,7 +55,7 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 		go func() {
 			defer s.guard("save", nil)
 			// The saved file's symbols may change what other open documents
-			// report (e.g. a method added or removed), so they are re-analysed.
+			// report (e.g. a method added or removed), so they are re-analyzed.
 			s.reflow(p.TextDocument.URI)
 		}()
 		return nil, nil

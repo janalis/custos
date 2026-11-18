@@ -13,6 +13,7 @@ const message = "Match the priority queue extraction mode."
 
 type rule struct{}
 
+// New returns the PriorityQueueExtractionShapeMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PriorityQueueExtractionShapeMismatch" }
 func (rule) Semantic()                {}

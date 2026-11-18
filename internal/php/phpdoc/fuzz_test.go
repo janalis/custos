@@ -46,7 +46,7 @@ func FuzzParse(f *testing.F) {
 	f.Fuzz(func(t *testing.T, s string) { exercise(s) })
 }
 
-// TestParsePathological guards the linear-time behaviour on hostile doc
+// TestParsePathological guards the linear-time behavior on hostile doc
 // comments (long tags, long blank runs in types, many tags).
 func TestParsePathological(t *testing.T) {
 	for name, c := range map[string]string{

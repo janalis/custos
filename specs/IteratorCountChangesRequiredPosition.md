@@ -1,7 +1,7 @@
 ---
 id: IteratorCountChangesRequiredPosition
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -17,7 +17,7 @@ Identify a position-dependent current or key read on a locally allocated finite 
 - D1. Report a position-dependent current or key read on a locally allocated finite, non-empty ArrayIterator after iterator_count consumes it, without rewind or seek. Unknown iterator implementations are excluded.
 - D1a. The count must be an `iterator_count` call that executes on every path to the read. Between the construction and the read, the iterator variable may only appear as an `iterator_count` argument or as the receiver of `current`, `key`, `valid`, `next` or `count`, none of which makes an exhausted cursor valid again. `rewind` and `seek` receivers are also accepted when they precede the last such count, which consumes the iterator again.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

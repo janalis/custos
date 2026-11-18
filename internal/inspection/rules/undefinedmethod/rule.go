@@ -1,4 +1,4 @@
-// Package undefinedmethod implements the UndefinedMethod inspection.
+// Package undefinedmethod implements the native UndefinedMethod inspection.
 package undefinedmethod
 
 import (

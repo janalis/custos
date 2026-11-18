@@ -1,7 +1,7 @@
 ---
 id: UselessUnset
 group: Unused
-kind: semantic
+kind: syntax
 needs: [flow]
 php: { min: "", max: "" }
 ---

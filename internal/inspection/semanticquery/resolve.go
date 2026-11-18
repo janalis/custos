@@ -9,11 +9,11 @@ import (
 	"custos/internal/semantic/names"
 )
 
-// ResolvedFunctionFQN resolves the named function call with PHP's runtime
+// resolvedFunctionFQN resolves the named function call with PHP's runtime
 // rules (imports, namespaced candidate first, then the global fallback)
 // against ix and returns the FQN of the target as declared (no leading
 // backslash). ok is false for dynamic calls and unresolvable names.
-func ResolvedFunctionFQN(r *names.Resolver, ix *index.Index, ver phpversion.Version, call *syntax.FuncCall) (string, bool) {
+func resolvedFunctionFQN(r *names.Resolver, ix *index.Index, ver phpversion.Version, call *syntax.FuncCall) (string, bool) {
 	name, ok := call.Name.(*syntax.Name)
 	if !ok {
 		return "", false
@@ -31,6 +31,6 @@ func ResolvedFunctionFQN(r *names.Resolver, ix *index.Index, ver phpversion.Vers
 // to ix are taken into account: a same-named function in the current
 // namespace or a non-global import wins over the global one.
 func ResolvesToGlobalFunction(r *names.Resolver, ix *index.Index, ver phpversion.Version, call *syntax.FuncCall, global string) bool {
-	fqn, ok := ResolvedFunctionFQN(r, ix, ver, call)
+	fqn, ok := resolvedFunctionFQN(r, ix, ver, call)
 	return ok && strings.EqualFold(fqn, global)
 }

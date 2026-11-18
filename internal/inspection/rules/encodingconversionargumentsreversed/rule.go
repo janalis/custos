@@ -14,6 +14,7 @@ const message = "Convert to the encoding required by the output consumer."
 
 type rule struct{}
 
+// New returns the EncodingConversionArgumentsReversed inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "EncodingConversionArgumentsReversed" }
 func (rule) Semantic()                {}

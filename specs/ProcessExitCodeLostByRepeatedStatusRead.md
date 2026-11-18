@@ -1,7 +1,7 @@
 ---
 id: ProcessExitCodeLostByRepeatedStatusRead
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "8.2" }
 ---
@@ -16,7 +16,7 @@ Identify exitcode read from second proc_get_status after first same-process resu
 
 - D1. Report exitcode read from second proc_get_status after first same-process result proved running false in a dominating branch, on PHP before8.3 only.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

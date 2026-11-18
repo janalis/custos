@@ -85,9 +85,7 @@ Reported:
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
-| (none) | | | Operand order of the fix follows the global comparison style (`regular` default / `yoda`). |
+None. Operand order of the fix follows the global comparison style (`regular` default / `yoda`).
 
 ## Configure
 

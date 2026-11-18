@@ -91,7 +91,7 @@ None.
 
 ## PHP versions
 
-All versions.
+No gating.
 
 ## Examples
 
@@ -128,5 +128,4 @@ function fill(Cart $cart, \stdClass $row): void
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies.
-These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

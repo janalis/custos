@@ -22,7 +22,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KForeach, syntax.KFuncCall} }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP55 {
+	if ctx.PHP.Below(phpversion.PHP55) {
 		return
 	}
 	var input syntax.Expr

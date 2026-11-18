@@ -1,4 +1,5 @@
-// Package sqlitebindingindexzero implements SqliteBindingIndexZero.
+// Package sqlitebindingindexzero implements the native
+// SqliteBindingIndexZero inspection.
 package sqlitebindingindexzero
 
 import (
@@ -12,6 +13,7 @@ const message = "Start SQLite binding positions at one."
 
 type rule struct{}
 
+// New returns the SqliteBindingIndexZero inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SqliteBindingIndexZero" }
 func (rule) Semantic()                {}

@@ -14,6 +14,7 @@ const message = "Keep pattern escaping out of literal replacement text."
 
 type rule struct{}
 
+// New returns the PregQuoteUsedOnReplacement inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PregQuoteUsedOnReplacement" }
 func (rule) Semantic()                {}

@@ -22,14 +22,13 @@
   },
   "AlterInForeach": {
     "summary": "Three related `foreach` value-variable pitfalls:\n\n1. a by-reference value (`as \u0026$v`) that stays alive after the loop, so a later\n   write to `$v` silently modifies the last array element;\n2. an `unset($v)` right after a loop whose `$v` was *not* a reference (the\n   unset is pointless, probably a leftover);\n3. (opt-in) writing back through `$array[$key] = …` inside\n   `foreach ($array as $key =\u003e $value)` where a by-reference value would do.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_VALUE_BY_REF | bool | false | Enables part C. Parts A and B are always active. |"
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_VALUE_BY_REF | bool | false | Also reports writes back into the iterated array through the loop key, which a by-reference value would replace. The by-reference checks are always active. |"
   },
   "AmbiguousMethodsCallsInArrayMapping": {
     "summary": "When a loop builds a map like `$map[key($x)] = key($x);`, the same call is\nevaluated twice per iteration (once for the key, once for the value). Compute\nit once into a local variable."
   },
   "AmbiguousReplacementBackreference": {
     "summary": "Detect preg_replace with a literal replacement containing a numeric backreference followed immediately by a digit where the parsed larger capture number does not exist but the shorter one does.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "AppendModeSeekUsedForOverwrite": {
@@ -44,19 +43,17 @@
     "fix": true
   },
   "ArrayChunkInvalidSize": {
-    "summary": "Detect array_chunk with a size proven an integer less than one.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect array_chunk with a size proven an integer less than one."
   },
   "ArrayColumnDuplicateIndexLoss": {
     "summary": "Using duplicate index values in array_column overwrites earlier rows. Use unique indices or group rows when every value must remain available."
   },
   "ArrayColumnMissingField": {
-    "summary": "Detect array_column on a literal array of literal rows when at least one row has the requested literal field and at least one lacks it.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "phpMin": "5.5",
+    "summary": "Detect array_column on a literal array of literal rows when at least one row has the requested literal field and at least one lacks it."
   },
   "ArrayCombineLengthMismatch": {
-    "summary": "Detect array_combine when both input arrays have statically known, unequal element counts; use PHP array overwrite semantics when counting.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect array_combine when both input arrays have statically known, unequal element counts; use PHP array overwrite semantics when counting."
   },
   "ArrayCopyRetainsReferences": {
     "summary": "Copying an array does not detach reference-valued elements. Changing a referenced element through the copy can also change the original array. This inspection is disabled by default because the intended policy or use can vary."
@@ -71,16 +68,13 @@
     "summary": "Filling an array with one object places the same object in every entry. Construct separate objects when entries must hold independent state. This inspection is disabled by default because the intended policy or use can vary."
   },
   "ArrayFilterDropsZero": {
-    "summary": "Detect builtin array_filter with its callback omitted or explicitly null, when the effective entries of a literal array contain integer zero or string zero and another nonempty scalar value. Later entries replacing the same key determine the effective value.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect builtin array_filter with its callback omitted or explicitly null, when the effective entries of a literal array contain integer zero or string zero and another nonempty scalar value. Later entries replacing the same key determine the effective value."
   },
   "ArrayFlipDuplicateValueLoss": {
-    "summary": "Detect array_flip of a literal array with two statically equal string or integer values after PHP key conversion.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect array_flip of a literal array with two statically equal string or integer values after PHP key conversion."
   },
   "ArrayFlipInvalidValueType": {
-    "summary": "Detect array_flip of a literal array containing a value proven neither string nor integer.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect array_flip of a literal array containing a value proven neither string nor integer."
   },
   "ArrayIsListCanBeUsed": {
     "phpMin": "8.1",
@@ -89,12 +83,10 @@
   },
   "ArrayMapMissingCallbackReturn": {
     "summary": "Detect array_map with a locally defined callback whose reachable normal exits all return no value and whose body evaluates a discarded expression with a non-void result.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "ArrayMergeNumericKeyLoss": {
-    "summary": "Detect array_merge with a literal input whose integer key is renumbered by the merge; report the merge call.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect array_merge with a literal input whose integer key is renumbered by the merge; report the merge call."
   },
   "ArrayMultisortLengthMismatch": {
     "summary": "Parallel arrays passed to array_multisort must have equal lengths. Align the records before sorting them together."
@@ -112,7 +104,6 @@
   },
   "ArrayReduceMissingInitialValue": {
     "summary": "Detect array_reduce without an initial argument when a local callback passes its accumulator to a builtin requiring an array on the first iteration.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "ArraySearchUsedAsInArray": {
@@ -141,8 +132,7 @@
   },
   "ArrowFunctionCapturedCounter": {
     "phpMin": "7.4",
-    "summary": "Detect an arrow function updating a captured scalar counter when the same callable is invoked at least twice without reassignment.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect an arrow function updating a captured scalar counter when the same callable is invoked at least twice without reassignment."
   },
   "AssertionContainsRequiredSideEffect": {
     "summary": "Identify an assert call containing an assignment to a previously undefined local when a reachable subsequent read requires that local before any unconditional assignment. Restrict to straight-line scope; exclude parameters, global/static locals, references, any earlier local definition or prior read. Do not guess about other side effects."
@@ -177,16 +167,13 @@
     "summary": "Basic authentication credentials sent over plain HTTP are exposed in transit. Use HTTPS for the configured request."
   },
   "BcMathExponentNotation": {
-    "summary": "Use ordinary decimal notation for BCMath operands.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Use ordinary decimal notation for BCMath operands."
   },
   "BcMathFloatOperand": {
-    "summary": "Supply decimal strings before BCMath arithmetic. This inspection is disabled by default; enabling it selects the stated policy.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Supply decimal strings before BCMath arithmetic. This inspection is disabled by default; enabling it selects the stated policy."
   },
   "BcMathScaleDiscardsRequiredFraction": {
-    "summary": "Retain fractional digits in decimal arithmetic. This inspection is disabled by default; enabling it selects the stated policy.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Retain fractional digits in decimal arithmetic. This inspection is disabled by default; enabling it selects the stated policy."
   },
   "BcryptPasswordTruncation": {
     "phpMin": "5.5",
@@ -196,12 +183,10 @@
     "summary": "Identify fflush after proven fwrite on the same exclusively locked stream when LOCK_UN occurs between write and flush and no intervening flush or close occurred."
   },
   "ByteLengthUsedAsCharacterCount": {
-    "summary": "Detect strlen of a literal non-ASCII valid UTF-8 string under an explicitly enabled Unicode character-count contract.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect strlen of a literal non-ASCII valid UTF-8 string under an explicitly enabled Unicode character-count contract."
   },
   "BytePaddingUsedForUnicodeWidth": {
-    "summary": "Detect str_pad with literal non-ASCII valid UTF-8 input under an explicitly enabled character-width contract.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect str_pad with literal non-ASCII valid UTF-8 input under an explicitly enabled character-width contract."
   },
   "CallableMethodValidity": {
     "summary": "`is_callable()` on a method callback that names a non-public method, or a\nnon-static method without an object, describes a callback that cannot really\nbe invoked from the outside (or will break when invoked statically). Flag the\nargument so the method's visibility/static-ness gets fixed."
@@ -210,12 +195,11 @@
     "summary": "A parameter's declared/documented type is a contract. Testing it with an\n`is_*()` function that can never succeed (or never fail) for that type is dead\nlogic, and re-assigning the parameter a value of an unrelated type breaks the\ncontract for every later reader of the variable."
   },
   "CallbackRequiredArgumentMismatch": {
-    "summary": "Detect array_map with N supplied input arrays and a resolved callback requiring more than N positional parameters.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect array_map with N supplied input arrays and a resolved callback requiring more than N positional parameters."
   },
   "CascadeStringReplacement": {
     "summary": "`str_replace()` accepts arrays of searches and replacements and applies them\nin order, so several consecutive replacements on the same subject — written\nas back-to-back assignments or as nested calls — can be one call. Also, a\nsearch array whose items are all the same string literal can be that string.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax of the arrays in the call the quick-fix rebuilds: `[...]` when true, `array(...)` when false. Detection unaffected. |",
     "fix": true
   },
   "CascadingDirnameCalls": {
@@ -257,19 +241,16 @@
     "fix": true
   },
   "ClosureCapturedValueWrite": {
-    "summary": "Detect a closure writing a scalar captured by value when that closure is invoked and the outer variable is subsequently read without an intervening assignment.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a closure writing a scalar captured by value when that closure is invoked and the outer variable is subsequently read without an intervening assignment."
   },
   "CodePointSliceSplitsGrapheme": {
     "phpMin": "7.0",
     "summary": "A visible character can contain several Unicode code points. Slice display text at grapheme boundaries to preserve the complete character. This inspection is disabled by default because the intended policy or use can vary."
   },
   "CollatorComparisonTruthinessReversed": {
-    "phpMin": "5.3",
     "summary": "Compare collation results explicitly."
   },
   "CollatorSortDiscardsRequiredKeys": {
-    "phpMin": "5.3",
     "summary": "Preserve keys during collation sorting. Disabled by default. Explicit enablement establishes the policy described in Detection; names, comments and example labels never establish intent.",
     "fix": true
   },
@@ -282,23 +263,20 @@
   },
   "ComparisonOperandsOrder": {
     "summary": "Enforces one consistent operand order for equality comparisons against a\nliteral/constant: with the project-wide comparison style set to *yoda*, the\nliteral must come first (`10 === $n`); with the *regular* style (default), the\nvariable part must come first (`$n === 10`).",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Driven by the global comparison style setting (`comparisonStyle`: `regular` default, or `yoda`). |",
+    "options": "None. Driven by the global comparison style setting (`comparisonStyle`: `regular` default, or `yoda`).",
     "fix": true
   },
   "CompressionDecoderFormatMismatch": {
-    "phpMin": "5.3",
     "summary": "Match the decoder to the compression format.",
     "fix": true
   },
   "CompressionLevelOutsideSupportedRange": {
-    "phpMin": "5.3",
     "summary": "Use a supported compression level. Enabled by default; require positive semantic or local-flow proof."
   },
   "ConflictingContentLengthHeaders": {
     "summary": "Send one consistent Content-Length value."
   },
   "ConnectTimeoutAssumedToBoundReads": {
-    "phpMin": "5.3",
     "summary": "Set a separate timeout for stream reads. This opt-in rule applies the policy described in Detection."
   },
   "ConstantCanBeUsed": {
@@ -317,7 +295,6 @@
   },
   "ContentLengthUsesCharacterCount": {
     "summary": "Detect Content-Length built from mb_strlen/grapheme_strlen of the exact response body later emitted without transformation.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "ContentRangeLengthMismatch": {
@@ -398,8 +375,7 @@
     "summary": "Unrestricted authentication can forward credentials across redirected hosts. Keep credential forwarding within an explicit trusted redirect policy. This inspection is disabled by default because the intended policy or use can vary."
   },
   "CurlResponseBodyWithoutReturnTransfer": {
-    "summary": "Detect curl_exec result used as a string or JSON document when a locally created handle is proven never configured with CURLOPT_RETURNTRANSFER true.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect curl_exec result used as a string or JSON document when a locally created handle is proven never configured with CURLOPT_RETURNTRANSFER true."
   },
   "CurlResponseZeroRejected": {
     "summary": "Identify curl_exec result used in a truthiness-based failure branch when the same handle has RETURNTRANSFER proven true, and failure branch throws or returns false. Unknown response still merits this contract warning."
@@ -408,8 +384,7 @@
     "summary": "Turning off cURL's TLS peer or host-name verification\n(`CURLOPT_SSL_VERIFYPEER`, `CURLOPT_SSL_VERIFYHOST`) lets anyone in the\nmiddle impersonate the server. Report places where these options are set to a\ndisabling value."
   },
   "CurlTransportSuccessAsHttpSuccess": {
-    "summary": "Detect curl_exec success used as the sole condition for a literal successful return when no HTTP response-code validation occurs for that handle.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect curl_exec success used as the sole condition for a literal successful return when no HTTP response-code validation occurs for that handle."
   },
   "CurlUploadDeclaredSizeMismatch": {
     "summary": "Identify INFILESIZE set to a known nonnegative integer different from exact remaining bytes of the same handle assigned to INFILE, with UPLOAD true and a locally known data:// read source. Unknown size or cursor excludes."
@@ -425,22 +400,18 @@
   },
   "DateLastErrorsFalseUnchecked": {
     "phpMin": "8.2",
-    "summary": "Detect direct array access on getLastErrors result or a proven alias without excluding false on PHP 8.2+.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect direct array access on getLastErrors result or a proven alias without excluding false on PHP 8.2+."
   },
   "DateMinutesMonthTokenConfusion": {
     "summary": "Detect a date format literal with unescaped hour token H, G, h or g followed by colon and m and optionally seconds.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "DateOnlyParseRetainsCurrentTime": {
     "summary": "Detect DateTime or DateTimeImmutable createFromFormat with a format containing calendar-date tokens but no time tokens or reset modifiers.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "DateParseNormalizationUnchecked": {
-    "summary": "Detect createFromFormat on a literal calendar date whose fields require normalization or whose parsing diagnostics are not checked before accepting the parsed value.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect createFromFormat on a literal calendar date whose fields require normalization or whose parsing diagnostics are not checked before accepting the parsed value."
   },
   "DateTimeConstantsUsage": {
     "summary": "The `ISO8601` date format constants do not actually produce ISO-8601 output\n(the offset lacks a colon). The `ATOM` variants produce the compliant format\nand should be used instead.",
@@ -455,7 +426,6 @@
     "fix": true
   },
   "DecompressionFailureConsumed": {
-    "phpMin": "5.3",
     "summary": "Check decompression before consuming data."
   },
   "DecryptionFailureUsedAsPlaintext": {
@@ -485,8 +455,7 @@
     "fix": true
   },
   "DirectoryIteratorDotEntries": {
-    "summary": "Detect a filesystem mutation on DirectoryIterator entry paths inside foreach without a dominating isDot exclusion.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a filesystem mutation on DirectoryIterator entry paths inside foreach without a dominating isDot exclusion."
   },
   "DisallowWritingIntoStaticProperties": {
     "summary": "Static properties are global mutable state. This opt-in rule flags assignments\nto static properties: by default only writes performed outside the class that\ndeclares the property; optionally every write.",
@@ -506,37 +475,29 @@
     "summary": "Report a returned value that breaks the function's return contract when\nPHPDoc is taken into account: the `@return` type rejects it, or the\ndeclared return type rejects a value whose type only PHPDoc describes. PHP\nmay run such a `return`, but the code and its documentation disagree.\nMismatches the code alone proves are InvalidReturnType's."
   },
   "DomAppendMovesNodeUnexpectedly": {
-    "summary": "Clone the node when preserving its existing parent. This inspection is disabled by default; enabling it selects the stated policy.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Clone the node when preserving its existing parent. This inspection is disabled by default; enabling it selects the stated policy."
   },
   "DomCrossDocumentAppend": {
-    "summary": "Import the node into the destination document.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Import the node into the destination document."
   },
   "DomElementValueContainsBareAmpersand": {
-    "summary": "Append a text node for literal ampersand text.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Append a text node for literal ampersand text."
   },
   "DomLiveNodeListRemovalSkipsNodes": {
-    "summary": "Remove live DOM matches without skipping shifted nodes.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Remove live DOM matches without skipping shifted nodes."
   },
   "DomMissingAttributeCheckedAsNull": {
-    "summary": "Use hasAttribute to test whether an attribute exists.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Use hasAttribute to test whether an attribute exists."
   },
   "DomShallowImportDropsDescendants": {
     "summary": "Import descendants when copying an element subtree. This inspection is disabled by default; enabling it selects the stated policy.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection.",
     "fix": true
   },
   "DomTextAssignmentDestroysChildren": {
-    "summary": "Preserve child nodes when adding element text. This inspection is disabled by default; enabling it selects the stated policy.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Preserve child nodes when adding element text. This inspection is disabled by default; enabling it selects the stated policy."
   },
   "DstUnsafeCalendarDayArithmetic": {
-    "summary": "Detect addition of literal 86400 to a timestamp derived from local midnight in a resolved DST-observing timezone under a daily-calendar scheduling contract.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect addition of literal 86400 to a timestamp derived from local midnight in a resolved DST-observing timezone under a daily-calendar scheduling contract."
   },
   "DuplicateArrayKeys": {
     "summary": "In an array literal a repeated string key silently overwrites the earlier\nentry. Either the earlier entry is dead (different value) or the whole entry\nis a redundant copy (same value)."
@@ -544,7 +505,6 @@
   "DuplicateMatchCondition": {
     "phpMin": "8.0",
     "summary": "Detect a later match arm condition statically strictly identical to an earlier condition, including resolved references to the same enum case.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "DynamicCallsToScopeIntrospection": {
@@ -556,7 +516,6 @@
   },
   "DynamicInvocationViaScopeResolution": {
     "summary": "Calling an instance (non-static) method through `::` (`self::run()`,\n`static::run()`, `$obj::run()`) hides that the call is really an instance call\nand breaks in static contexts. Such calls should use `-\u003e`.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
     "fix": true
   },
   "EfferentObjectCoupling": {
@@ -571,7 +530,6 @@
     "summary": "A named class (or trait, or enum) that declares nothing at all — no\nproperties, constants, methods, used traits or enum cases — is usually dead\nweight or an unfinished stub."
   },
   "EmptySplCollectionExtraction": {
-    "phpMin": "5.3",
     "summary": "Check that the collection contains an element."
   },
   "EncodingConversionArgumentsReversed": {
@@ -582,8 +540,7 @@
   },
   "EnumFromUncheckedExternalValue": {
     "phpMin": "8.1",
-    "summary": "Detect a resolved backed enum from call with a request-derived backing value not proven within its declared case set and without handling ValueError.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a resolved backed enum from call with a request-derived backing value not proven within its declared case set and without handling ValueError."
   },
   "EnumInstantiation": {
     "phpMin": "8.1",
@@ -597,24 +554,20 @@
   },
   "ExhaustedGeneratorReused": {
     "phpMin": "5.5",
-    "summary": "Detect a resolved Generator identity traversed again after a proven complete iterator_to_array call or complete foreach.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a resolved Generator identity traversed again after a proven complete iterator_to_array call or complete foreach."
   },
   "ExitStatusReadWithoutNormalExitCheck": {
-    "phpMin": "5.3",
     "summary": "Check normal termination before decoding the exit code."
   },
   "ExplodeEmptySeparator": {
-    "summary": "Detect explode with a separator statically equal to the empty string.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect explode with a separator statically equal to the empty string."
   },
   "FailedClosureBindingInvoked": {
     "phpMin": "5.4",
     "summary": "Check closure binding before invoking it."
   },
   "FastDigestUsedForPasswordStorage": {
-    "summary": "Detect a password input positively established by an HTML password-field mapping or explicit annotated password parameter reaching md5/sha1/hash and then a persisted credential field.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a password input positively established by an HTML password-field mapping or explicit annotated password parameter reaching md5/sha1/hash and then a persisted credential field."
   },
   "FiberResumeBeforeStart": {
     "phpMin": "8.1",
@@ -637,32 +590,26 @@
     "summary": "Identify Fiber::suspend inside the true branch of a strict Fiber::getCurrent() === null guard, with no callback boundary between guard and call."
   },
   "FileLockFailureUnchecked": {
-    "summary": "Detect a write following flock requiring an exclusive lock where acquisition success is not established.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a write following flock requiring an exclusive lock where acquisition success is not established."
   },
   "FilePermissionFailurePassesPolicy": {
     "summary": "Identify unchecked fileperms result masked with a nonzero permission bitmask, compared equal to zero in a branch returning true or performing the guarded operation. Require direct result provenance."
   },
   "FileReadFailureUnchecked": {
-    "summary": "Detect file_get_contents or stream_get_contents result consumed as a string without excluding false.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect file_get_contents or stream_get_contents result consumed as a string without excluding false."
   },
   "FileStatCacheAfterExternalMutation": {
-    "phpMin": "5.3",
     "phpMax": "8.2",
     "summary": "On PHP 8.2 and earlier, cached file metadata can survive changes made by a command run through exec or system. Clear the stat cache before reading that metadata again. This inspection is disabled by default because the intended policy or use can vary."
   },
   "FileTruncatedBeforeLock": {
-    "summary": "Detect fopen in w/w+ variants followed by exclusive flock on the same identity.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect fopen in w/w+ variants followed by exclusive flock on the same identity."
   },
   "FileWriteResultUnchecked": {
-    "summary": "Detect discarded file_put_contents followed on the same path by a resolved success marker: an unconditional return true or literal success response.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect discarded file_put_contents followed on the same path by a resolved success marker: an unconditional return true or literal success response."
   },
   "FilteredListJsonShape": {
     "summary": "Detect builtin json_encode consuming array_filter on a literal sequential array when default filtering certainly removes an interior element and leaves a later numeric key.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "FinallyThrowMasksException": {
@@ -690,11 +637,9 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| configuration | list of strings | empty (see below) | Additional debug entries (`function_name` or `\\Class::method`). |\n| migratedIntoUserSpace | bool | false | When false, the built-in defaults are merged into `configuration`; when true, only `configuration` is used. |"
   },
   "ForkChildFallsIntoParentWork": {
-    "phpMin": "5.3",
     "summary": "Terminate or separate the fork child branch. This opt-in rule applies the policy described in Detection."
   },
   "ForkFailureTreatedAsParent": {
-    "phpMin": "5.3",
     "summary": "Handle fork failure separately."
   },
   "FormEncodingUsedForRfc3986Signature": {
@@ -735,8 +680,7 @@
   },
   "GeneratorCallNeverConsumed": {
     "phpMin": "5.5",
-    "summary": "Detect a standalone discarded call to a resolved project callable containing yield and at least one deferred side-effect operation.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a standalone discarded call to a resolved project callable containing yield and at least one deferred side-effect operation."
   },
   "GeneratorReturnBeforeCompletion": {
     "phpMin": "7.0",
@@ -762,25 +706,21 @@
     "summary": "Identify glob with a constant pattern containing an unescaped brace alternative with a comma when known flags omit GLOB_BRACE. Literal brace matching is intentionally configurable by disabling this heuristic."
   },
   "GlobFailureUnchecked": {
-    "summary": "Detect glob result directly or through a proven alias consumed by foreach or array-only operations without excluding false.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect glob result directly or through a proven alias consumed by foreach or array-only operations without excluding false."
   },
   "GmpAutomaticBaseChangesDecimalInput": {
     "summary": "Specify decimal base for zero-prefixed GMP input. This inspection is disabled by default; enabling it selects the stated policy.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection.",
     "fix": true
   },
   "GmpDivisionByKnownZero": {
-    "summary": "Use a nonzero GMP divisor.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Use a nonzero GMP divisor."
   },
   "GmpDivisionPairUsedAsNumber": {
-    "summary": "Select a quotient or remainder before using the GMP result.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Select a quotient or remainder before using the GMP result."
   },
   "HardcodedCredentialAtKnownSink": {
     "summary": "Literal credentials embedded in connection setup are difficult to rotate and protect. Load them from the application's external configuration. This inspection is disabled by default because the intended policy or use can vary.",
-    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| excludedPaths | list | `[\"**/testdata/**\", \"**/tests/**\"]` | Project-relative path globs for files that are never reported. |"
+    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| excludedPaths | list | `[\"**/testdata/**\", \"**/tests/**\"]` | Path globs, matched against the file path relative to its project root, for files that are never reported. |"
   },
   "HashContextUsedAfterFinalization": {
     "summary": "Identify hash_update, hash_copy or hash_final on the same local context after unconditional hash_final, with no replacement."
@@ -789,11 +729,9 @@
     "summary": "Identify unchecked hash_file result consumed as file contents or as an expected digest in strict comparison; exclude result propagation and guarded false rejection."
   },
   "HeadersAfterCommittedOutput": {
-    "summary": "Detect a response-header write (header, setcookie, or http_response_code used as a setter) after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a response-header write (header, setcookie, or http_response_code used as a setter) after demonstrably committed output on every incoming path, such as output plus flush with no active buffering."
   },
   "HeapIterationConsumesCollection": {
-    "phpMin": "5.3",
     "summary": "Iterate a clone to preserve the heap. This opt-in inspection applies the policy stated in Detection.",
     "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
   },
@@ -834,12 +772,10 @@
   "ImmutableDateResultIgnored": {
     "phpMin": "5.5",
     "summary": "Detect discarded return from modify, add, sub, setDate, setTime, setTimestamp or setTimezone on a receiver proven DateTimeImmutable.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "ImplodeArgumentsOrder": {
     "summary": "`implode()` historically accepted its separator in either position; passing the\npieces first and the separator second is deprecated (7.4) and removed (8.0).\nWhen the second argument is clearly the separator (a string literal), the\narguments are swapped.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
     "fix": true
   },
   "ImpossibleTypeComparison": {
@@ -855,7 +791,7 @@
   },
   "IncrementDecrementOperationEquivalent": {
     "summary": "Adding or subtracting the literal `1` to a variable and storing it back\n(`$n += 1`, `$n = $n - 1`, …) is more idiomatically written with the increment\nor decrement operator.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |\n| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` when `PREFER_PREFIX_STYLE` is false and the value is discarded (F2). |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |\n| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` when `PREFER_PREFIX_STYLE` is false and the value is discarded. |",
     "fix": true
   },
   "IncrementalInflateEncodingMismatch": {
@@ -885,7 +821,6 @@
   },
   "IntervalDayComponentAsTotal": {
     "summary": "Detect a DateInterval produced by diff whose format consists solely of %d when the opt-in contract requires total elapsed days.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "IntlCalendarSecondsPassedAsMilliseconds": {
@@ -920,8 +855,7 @@
     "summary": "Report a returned value that the function's declared return type can never\naccept, judging the value only by what the code itself shows. PHP throws a\n`TypeError` when such a `return` runs. Mismatches that rest on PHPDoc are\nleft to DocumentedReturnType."
   },
   "InverseTrigInvalidRealDomain": {
-    "summary": "Keep the inverse trigonometric argument within minus one and one.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Keep the inverse trigonometric argument within minus one and one."
   },
   "InvertedIfElseConstructs": {
     "summary": "An `if`/`else` whose condition is a negation (`!expr`, or `false === expr`)\nreads backwards: swapping the two branches and dropping the negation makes the\nmain path positive and easier to follow.",
@@ -933,7 +867,7 @@
   },
   "IsEmptyFunctionUsage": {
     "summary": "`empty()` treats many unrelated values (`0`, `'0'`, `''`, `[]`, `null`,\n`false`) as \"empty\". When the argument's type is known, a precise check is\nclearer: `count(...) === 0` for countables, `... === null` for nullable\nscalars/objects. Optionally, any other `empty()` use can be flagged.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EMPTY_USAGE | bool | false | Also reports the remaining `empty()` calls that have no better replacement, without a fix. |\n| SUGGEST_TO_USE_COUNT_CHECK | bool | false | Suggests a count comparison for arrays and `Countable` values. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | true | Suggests a null comparison, as a whole. |\n| SUGGEST_NULL_COMPARISON_FOR_SCALARS | bool | true | Extends the null comparison to nullable int, float, bool and resource values; nullable objects only need the previous option. |\n\nGlobal setting: comparison style (`regular` default / `yoda`) selects the\noperand order of F1/F2.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EMPTY_USAGE | bool | false | Also reports the remaining `empty()` calls that have no better replacement, without a fix. |\n| SUGGEST_TO_USE_COUNT_CHECK | bool | false | Suggests a count comparison for arrays and `Countable` values. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | true | Suggests a null comparison, as a whole. |\n| SUGGEST_NULL_COMPARISON_FOR_SCALARS | bool | true | Extends the null comparison to nullable int, float, bool and resource values; nullable objects only need the previous option. |\n\nGlobal setting: comparison style (`regular` default / `yoda`) selects the\noperand order of the comparisons the quick-fix writes.",
     "fix": true
   },
   "IsIterableCanBeUsed": {
@@ -943,12 +877,11 @@
   },
   "IsNullFunctionUsage": {
     "summary": "`is_null($v)` is a function call doing what the `=== null` comparison does\nnatively. This opt-in rule rewrites `is_null()` calls (including negations and\ncomparisons of the result against `true`/`false`) into an identity comparison\nwith `null`.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |",
+    "options": "None. Operand order follows the global comparison style (`regular` default / `yoda`).",
     "fix": true
   },
   "IsoWeekCalendarYearMismatch": {
     "summary": "Detect a date format literal containing unescaped Y and W in the same year-week label.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "IssetArgumentExistence": {
@@ -964,8 +897,7 @@
   },
   "IteratorMaterializationKeyCollision": {
     "phpMin": "5.5",
-    "summary": "Detect iterator_to_array with key preservation enabled/default on a resolved generator yielding two certainly equal keys on the same execution path.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect iterator_to_array with key preservation enabled/default on a resolved generator yielding two certainly equal keys on the same execution path."
   },
   "JsonDecodeKnownInvalidUtf8": {
     "summary": "Identify json_decode with constant invalid UTF-8 bytes unless flags include JSON_INVALID_UTF8_IGNORE or JSON_INVALID_UTF8_SUBSTITUTE; validation uses actual string bytes."
@@ -982,7 +914,7 @@
   },
   "JsonEncodingApiUsage": {
     "summary": "`json_decode()` without its second argument silently returns `stdClass`\nobjects, which readers often confuse with arrays; and both `json_decode()` and\n`json_encode()` report failures only through `json_last_error()` unless the\n`JSON_THROW_ON_ERROR` flag (PHP 7.3+) is passed. This rule asks for an explicit\ndecoding target and for exception-based error handling.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T. Also affects `\u003cassoc\u003e` in F2. |\n| DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |\n| DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |\n| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| HARDEN_DECODING_RESULT_TYPE | bool | true | Reports `json_decode()` calls that leave the decoded type (objects or arrays) implicit. Also decides the `associative` argument the error-handling quick-fix writes. |\n| DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |\n| DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |\n| HARDEN_ERRORS_HANDLING | bool | true | Reports JSON calls whose flags do not make errors throw (PHP 7.3 and later). |",
     "fix": true
   },
   "JsonForceObjectChangesNestedLists": {
@@ -990,7 +922,6 @@
   },
   "JsonIntegerPrecisionLoss": {
     "summary": "Detect json_decode on literal JSON containing an integer outside the portable signed 64-bit range without JSON_BIGINT_AS_STRING.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "JsonInvalidDepth": {
@@ -1007,17 +938,14 @@
     "summary": "Repeated XML parsing can accumulate internally collected errors. Retrieve and clear the error buffer during the parsing loop. This inspection is disabled by default because the intended policy or use can vary."
   },
   "LinkedListDeleteIterationUnexpected": {
-    "phpMin": "5.3",
     "summary": "Preserve linked-list elements during iteration. This opt-in inspection applies the policy stated in Detection.",
     "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
   },
   "LocalizedNumberTrailingInputAccepted": {
-    "phpMin": "5.3",
     "summary": "Reject unparsed number suffixes. This opt-in rule applies the policy described in Detection."
   },
   "LogarithmInvalidRealDomain": {
-    "summary": "Use a positive logarithm argument.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Use a positive logarithm argument."
   },
   "LongInheritanceChain": {
     "summary": "Deep `extends` chains spread behavior over many levels and make a class hard\nto understand. The rule counts the ancestors of a class and complains when the\nchain reaches a threshold, with carve-outs for exception hierarchies, test\ncases and well-known framework base classes.",
@@ -1033,17 +961,14 @@
     "summary": "PHP's magic methods (`__get`, `__toString`, `__clone`, …) have fixed contracts:\nstatic-ness, visibility, number of parameters, return value. Violations are\nfatal errors, silently ignored methods or subtle bugs. This rule validates\neach magic method declared in a class-like, flags `__`-prefixed methods that\nare not magic, and catches magic names typed with a single underscore."
   },
   "MillisecondsUsedAsUnixSeconds": {
-    "summary": "Detect date, gmdate or DateTime setTimestamp consuming a positive literal timestamp between 100000000000 and 9999999999999 under an explicit millisecond-input contract.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect date, gmdate or DateTime setTimestamp consuming a positive literal timestamp between 100000000000 and 9999999999999 under an explicit millisecond-input contract."
   },
   "MisorderedModifiers": {
     "summary": "PSR-1/PSR-12 style expects method modifiers in a fixed order: `final` /\n`abstract` first, then the visibility, then `static`. Methods whose modifiers\nare written in another order are flagged and re-sorted.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
     "fix": true
   },
   "MissUsingParentKeyword": {
     "summary": "`parent::m()` is meant for calling the overridden implementation of the\ncurrent method. When it calls some *other* inherited method that nobody in the\nhierarchy overrides, it is equivalent to `$this-\u003em()` / `self::m()`, and using\n`parent::` there only misleads readers (and silently bypasses future\noverrides).",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
     "fix": true
   },
   "MissingArrayInitialization": {
@@ -1070,8 +995,7 @@
     "fix": true
   },
   "MonthAdditionDateOverflow": {
-    "summary": "Detect modify with literal +1 month or -1 month on a resolved literal date when the target month cannot contain the original day number.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect modify with literal +1 month or -1 month on a resolved literal date when the target month cannot contain the original day number."
   },
   "MultiAssignmentUsage": {
     "summary": "Two patterns where destructuring would be clearer:\n\n1. unpacking the `foreach` value variable with `list(...) = $value` as a\n   separate statement, when `foreach (... as list(...))` can do it directly\n   (PHP 5.5+);\n2. consecutive statements pulling numbered elements out of the same array\n   one at a time (`$a = $row[0]; $b = $row[1];`), which a single\n   `list(...) = $row` replaces."
@@ -1137,16 +1061,14 @@
     "summary": "Terminate every path in the never function."
   },
   "NoContentResponseWithBody": {
-    "summary": "Detect nonempty output after response status is proven 204 and before any status change.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect nonempty output after response status is proven 204 and before any status change."
   },
   "NonBlockingEmptyReadTreatedAsEof": {
     "summary": "An empty nonblocking read can mean that no data is currently available. Check EOF separately before closing the stream."
   },
   "NonExhaustiveEnumMatch": {
     "phpMin": "8.1",
-    "summary": "Detect match over a resolved enum when reachable enum cases are missing and there is no default arm.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect match over a resolved enum when reachable enum cases are missing and there is no default arm."
   },
   "NonRepeatableAttributeRepeated": {
     "phpMin": "8.0",
@@ -1167,7 +1089,6 @@
     "summary": "Identify a `socket_connect` failure branch that throws or returns false although the same socket was switched to nonblocking mode and the branch never looks at the failure reason. A nonblocking connect normally reports failure while the connection is still being established, so the branch rejects a connection that may yet succeed."
   },
   "NonblockingWaitZeroTreatedAsReaped": {
-    "phpMin": "5.3",
     "summary": "Require a positive PID from nonblocking wait."
   },
   "NotOptimalIfConditions": {
@@ -1188,7 +1109,6 @@
     "summary": "A value that may be `null` (nullable object parameter, nullable local\nvariable, call declared to return `?T`/`void`) is dereferenced — property or\nmethod access, array access, invocation, `clone`, or passed to a parameter\nthat rejects null — without a preceding null check. At runtime this is an\n\"call to a member function on null\"-style error.\n\nDisabled by default (experimental upstream)."
   },
   "NumberParseUsesCurrencyType": {
-    "phpMin": "5.3",
     "summary": "Parse currency with parseCurrency. Enabled by default; require positive semantic or local-flow proof."
   },
   "ObGetCleanCanBeUsed": {
@@ -1200,7 +1120,7 @@
   },
   "OneTimeUseVariables": {
     "summary": "A local variable that is assigned in one statement and consumed exactly once in\nthe very next `return`, `throw` or destructuring statement adds a name without\nadding meaning. The value can be used directly at the consumption site.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `ALLOW_LONG_STATEMENTS` | bool | false | When false, assignments whose text exceeds 80 characters are left alone (a long expression may deserve a name). When true, length is ignored. |\n| `ANALYZE_RETURN_STATEMENTS` | bool | true | Inspect `return` consumers. |\n| `ANALYZE_THROW_STATEMENTS` | bool | true | Inspect `throw` consumers. |\n| `ANALYZE_ARRAY_DESTRUCTURING` | bool | true | Inspect `list()`/`[]` destructuring consumers. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `ALLOW_LONG_STATEMENTS` | bool | false | When false, assignments whose text exceeds 80 characters are left alone (a long expression may deserve a name). When true, length is ignored. |\n| `ANALYZE_RETURN_STATEMENTS` | bool | true | Inspect variables consumed by a `return`. |\n| `ANALYZE_THROW_STATEMENTS` | bool | true | Inspect variables consumed by a `throw`. |\n| `ANALYZE_ARRAY_DESTRUCTURING` | bool | true | Inspect variables consumed by a `list()`/`[]` destructuring. |",
     "fix": true
   },
   "OnlyWritesOnParameter": {
@@ -1235,12 +1155,10 @@
     "summary": "Apply Override to an inherited member."
   },
   "OwnedStreamNotClosed": {
-    "summary": "Detect an owned successfully opened stream leaving its local scope without close, return or ownership transfer.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect an owned successfully opened stream leaving its local scope without close, return or ownership transfer."
   },
   "PackFormatArgumentMismatch": {
-    "summary": "Match pack values to the format.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Match pack values to the format."
   },
   "PackedHashtableOptimization": {
     "phpMin": "7.0",
@@ -1260,8 +1178,7 @@
     "summary": "parse_str already URL-decodes query values. Avoid a second decoding that changes encoded data into a different value."
   },
   "PartialStreamWriteUnchecked": {
-    "summary": "Detect fwrite whose result is ignored or checked only against false when the complete payload is then claimed sent via unconditional return true.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect fwrite whose result is ignored or checked only against false when the complete payload is then claimed sent via unconditional return true."
   },
   "PassingByReferenceCorrectness": {
     "summary": "A parameter declared by reference (`\u0026$p`) needs a variable-like argument.\nPassing the result of a call that does not return by reference, or a `new`\nexpression, makes PHP emit a notice (\"only variables should be passed by\nreference\") and the callee's writes are lost."
@@ -1269,7 +1186,6 @@
   "PasswordComparedWithFreshHash": {
     "phpMin": "5.5",
     "summary": "Detect password_hash result compared for equality with a stored string hash to decide password acceptance.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "PasswordUsedDirectlyAsEncryptionKey": {
@@ -1281,8 +1197,7 @@
     "summary": "Identify password_verify when argument one is the unchanged output of password_hash(argument two), with both same-scope identities proven."
   },
   "PathContainmentPrefixBoundary": {
-    "summary": "Detect canonical-path containment accepted through str_starts_with or equivalent prefix comparison against a literal non-root directory prefix without a directory-separator boundary.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect canonical-path containment accepted through str_starts_with or equivalent prefix comparison against a literal non-root directory prefix without a directory-separator boundary."
   },
   "PdoApiUsage": {
     "summary": "Preparing a statement with `PDO::prepare()` and immediately running it with an\nargument-less `execute()` gains nothing from the prepare step: no parameters\nare bound. A single `PDO::query()` call does the same job.",
@@ -1299,15 +1214,13 @@
   },
   "PdoExecuteArrayReplacesBindings": {
     "summary": "Detect execute with a literal empty parameter array on a statement with previously established required bindValue/bindParam bindings.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "PdoFetchBothLeaksDuplicateColumns": {
     "summary": "PDO's combined fetch mode exposes numeric and named copies of each field. Select the intended row representation before JSON serialization. This inspection is disabled by default because the intended policy or use can vary."
   },
   "PdoFetchColumnFalsyValueLoss": {
-    "summary": "Detect fetchColumn result used as a truthiness condition that skips successful zero or empty-string results.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect fetchColumn result used as a truthiness condition that skips successful zero or empty-string results."
   },
   "PdoFetchIntoRetainsSharedRows": {
     "summary": "Identify array append of an unchanged fetch return in a loop when statement FETCH_INTO mode targets same known object on every fetch. Cloned snapshots and immediate single-row consumption exclude."
@@ -1316,57 +1229,46 @@
     "summary": "Identify read of first selected named column from a row in unchanged FETCH_GROUP combined with FETCH_ASSOC results. Require complete projection and mode knowledge; wildcard, duplicate names or ambiguous SQL exclude."
   },
   "PdoIdentifierPlaceholder": {
-    "summary": "Detect PDO prepare with a named or positional parameter marker in a table-name position following FROM, JOIN, UPDATE, INTO or TABLE in parsed literal SQL.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect PDO prepare with a named or positional parameter marker in a table-name position following FROM, JOIN, UPDATE, INTO or TABLE in parsed literal SQL."
   },
   "PdoMixedPlaceholderStyles": {
-    "summary": "Detect PDO prepare with literal SQL containing both named and positional parameter markers outside quoted literals/comments.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect PDO prepare with literal SQL containing both named and positional parameter markers outside quoted literals/comments."
   },
   "PdoPlaceholderBindingMismatch": {
-    "summary": "Detect execute on a resolved PDOStatement whose literal prepared SQL requires markers absent from the complete effective binding set, or whose binding set has extra markers.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect execute on a resolved PDOStatement whose literal prepared SQL requires markers absent from the complete effective binding set, or whose binding set has extra markers."
   },
   "PdoQuotedPlaceholder": {
-    "summary": "Detect execution supplying a named binding occurring only as a quoted SQL string literal rather than an actual marker.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect execution supplying a named binding occurring only as a quoted SQL string literal rather than an actual marker."
   },
   "PdoReferenceBindingVariableReuse": {
-    "summary": "Detect two distinct PDO markers bound through bindParam to the same scalar local identity, with its value changed between bindings and before execute.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect two distinct PDO markers bound through bindParam to the same scalar local identity, with its value changed between bindings and before execute."
   },
   "PdoRepeatedNamedMarkerWithoutEmulation": {
     "summary": "Identify prepare on a proven PDO mysql native-preparation connection with EMULATE_PREPARES false and SQL containing repeated same named marker outside literals/comments. Exclude drivers permitting repetition, unresolved driver, emulation true and SQL parser uncertainty."
   },
   "PdoSelectRowCountAssumption": {
-    "summary": "Detect rowCount on a PDOStatement prepared from a SELECT and used as a total result count under an explicitly enabled portable-count contract.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect rowCount on a PDOStatement prepared from a SELECT and used as a total result count under an explicitly enabled portable-count contract."
   },
   "PermissionModeWrittenInDecimal": {
     "summary": "A decimal permission literal can represent a different bitmask from the intended octal notation. Write Unix permission masks with an explicit octal prefix. This inspection is disabled by default because the intended policy or use can vary."
   },
   "PgAsyncDispatchAssumedQuerySuccess": {
-    "summary": "Inspect the asynchronous PostgreSQL result status.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Inspect the asynchronous PostgreSQL result status."
   },
   "PgAsyncResultsNotDrained": {
-    "summary": "Drain all pending PostgreSQL results before another asynchronous query.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Drain all pending PostgreSQL results before another asynchronous query."
   },
   "PgEscapedLiteralQuotedAgain": {
     "phpMin": "5.4",
-    "summary": "Use the already quoted PostgreSQL literal directly.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Use the already quoted PostgreSQL literal directly."
   },
   "PgFetchedZeroRejected": {
     "summary": "Distinguish PostgreSQL fetch failure from a zero value.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection.",
     "fix": true
   },
   "PgIdentifierEscapedAsLiteral": {
     "phpMin": "5.4",
     "summary": "Escape PostgreSQL identifiers with the identifier API.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection.",
     "fix": true
   },
   "PgReturnedRowsUsedAsAffectedRows": {
@@ -1403,8 +1305,7 @@
     "summary": "Regex result indices depend on whether output is grouped by capture or by match. Read indices consistent with the selected layout."
   },
   "PregMatchFailureAsNonMatch": {
-    "summary": "Detect preg_match or preg_match_all tested with boolean negation or a falsy branch that handles input rejection without distinguishing false from zero.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect preg_match or preg_match_all tested with boolean negation or a falsy branch that handles input rejection without distinguishing false from zero."
   },
   "PregQuoteUsage": {
     "summary": "`preg_quote()` only escapes the pattern delimiter when it is given as the\nsecond argument. Called with a single argument, a `/` or `#` inside the quoted\ntext breaks the surrounding pattern."
@@ -1414,12 +1315,10 @@
     "fix": true
   },
   "PregReplaceFailureUnchecked": {
-    "summary": "Detect a nullable result of preg_replace or preg_replace_callback flowing into a non-null string parameter or dereference without a successful null guard.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a nullable result of preg_replace or preg_replace_callback flowing into a non-null string parameter or dereference without a successful null guard."
   },
   "PregSplitCaptureFlagWithoutGroups": {
     "summary": "Detect preg_split with PREG_SPLIT_DELIM_CAPTURE on a parsed literal regex containing no capturing groups.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "PreloadingUsageCorrectness": {
@@ -1430,11 +1329,9 @@
     "summary": "The `printf`/`scanf` family takes as many value arguments as the format string\nhas conversions. A missing or extra argument silently produces wrong output\n(or an `ArgumentCountError` in PHP 8), and a stray `%` makes the format\ninvalid."
   },
   "PriorityQueueExtractionShapeMismatch": {
-    "phpMin": "5.3",
     "summary": "Match the priority queue extraction mode."
   },
   "PriorityQueueMinOrderAssumption": {
-    "phpMin": "5.3",
     "summary": "Reverse priorities for smallest-first extraction. This opt-in inspection applies the policy stated in Detection.",
     "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
   },
@@ -1484,8 +1381,7 @@
     "summary": "An EOF-tested loop can pass a failed read to a strict string consumer. Loop on the successful read result before processing a line."
   },
   "ReadModifyWriteLockTooLate": {
-    "summary": "Detect file_get_contents of a path feeding a transformed value into file_put_contents on the same proven path with LOCK_EX but no enclosing lock spanning the read.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect file_get_contents of a path feeding a transformed value into file_put_contents on the same proven path with LOCK_EX but no enclosing lock spanning the read."
   },
   "ReaddirFalsyFilenameLoss": {
     "summary": "Compare the directory entry with false.",
@@ -1493,8 +1389,7 @@
   },
   "ReadonlyPropertyReassignment": {
     "phpMin": "8.1",
-    "summary": "Detect assignment to a resolved readonly instance property already initialized on every reachable incoming path.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect assignment to a resolved readonly instance property already initialized on every reachable incoming path."
   },
   "RealpathFailureUsedAsPath": {
     "summary": "Identify concatenation of an unchecked realpath result followed by consumption by a resolved filesystem path API; require local exact provenance."
@@ -1507,13 +1402,11 @@
     "summary": "Recursive array replacement can leave entries from the end of an older list. Replace the list explicitly when the shorter list should remove that tail. This inspection is disabled by default because the intended policy or use can vary."
   },
   "RecursiveTraversalOmitsDirectories": {
-    "phpMin": "5.3",
     "summary": "Include parent nodes when traversing directories. This opt-in inspection applies the policy stated in Detection.",
     "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
   },
   "RedirectContinuesProtectedExecution": {
-    "summary": "Detect a conditional unauthorized branch emitting a Location header and falling through to an operation marked protected by the same authorization predicate.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a conditional unauthorized branch emitting a Location header and falling through to an operation marked protected by the same authorization predicate."
   },
   "RedundantElseClause": {
     "summary": "When an `if` body always leaves the current flow (return, throw, break,\ncontinue, exit/die), the following `else`/`elseif` keyword is superfluous: its\ncode can simply follow the `if`. Removing it flattens nesting.",
@@ -1538,8 +1431,7 @@
     "summary": "Identify a constant slash or tilde delimited regex body with an unterminated ordinary character class or group, or unmatched closing parenthesis. Validate delimiter/modifier shape first. Exclude advanced (? syntax, extended mode, quoted \\Q regions, escapes not fully parsed and paired delimiters, so that valid PCRE features are never reported."
   },
   "RegexByteOffsetAsCharacterOffset": {
-    "summary": "Detect a PREG_OFFSET_CAPTURE byte offset flowing into the start argument of mb_substr or grapheme_substr for the same proven string value.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a PREG_OFFSET_CAPTURE byte offset flowing into the start argument of mb_substr or grapheme_substr for the same proven string value."
   },
   "RegexReplacementCallbackFallsThrough": {
     "summary": "Identify preg_replace_callback with an inline callback having a reachable fallthrough path and no generator semantics. An explicit return on every path excludes."
@@ -1558,12 +1450,10 @@
   },
   "RepeatedCookieHeaderReplacement": {
     "summary": "Detect a second header call with a Set-Cookie literal and default/true replace flag on a path with an earlier Set-Cookie header.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "RepeatedHtmlEntityEncoding": {
-    "summary": "Detect htmlspecialchars or htmlentities directly nesting an equivalent encoding call with matching flags/encoding and default or true double_encode.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect htmlspecialchars or htmlentities directly nesting an equivalent encoding call with matching flags/encoding and default or true double_encode."
   },
   "RequestControlledSessionId": {
     "summary": "Accepting a session identifier from request data can let a caller choose the session being used. Generate identifiers independently of untrusted input."
@@ -1576,8 +1466,7 @@
   },
   "SameSiteNoneWithoutSecure": {
     "phpMin": "7.3",
-    "summary": "Detect setcookie with literal options selecting SameSite None and secure absent or false.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect setcookie with literal options selecting SameSite None and secure absent or false."
   },
   "ScandirFailureIterated": {
     "summary": "Identify foreach iterable directly produced by scandir or its unchanged local result without a dominating false-rejecting guard."
@@ -1595,11 +1484,9 @@
     "summary": "Compare the seek result with zero."
   },
   "SelectFailureTreatedAsReadiness": {
-    "phpMin": "5.3",
     "summary": "Handle selection failure before processing ready streams."
   },
   "SelectWatchArraysNotRestored": {
-    "phpMin": "5.3",
     "summary": "Restore stream watch arrays before each selection. This opt-in rule applies the policy described in Detection."
   },
   "SelfClassReferencing": {
@@ -1624,19 +1511,16 @@
     "fix": true
   },
   "SessionCookieOptionsSetAfterStart": {
-    "summary": "Detect session_set_cookie_params after a successfully active session_start with no intervening close/destroy.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect session_set_cookie_params after a successfully active session_start with no intervening close/destroy."
   },
   "SessionDestroyLeavesLocalAuthentication": {
     "summary": "Destroying stored session data does not clear the current session array. Clear local authentication state before reading it again."
   },
   "SessionLockHeldDuringBlockingCall": {
-    "summary": "Detect a known blocking sleep/usleep or network operation while an active session with a known locking handler remains owned by the scope.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a known blocking sleep/usleep or network operation while an active session with a known locking handler remains owned by the scope."
   },
   "SessionMutationAfterClose": {
-    "summary": "Detect a write to $_SESSION after successful session_write_close and before a proven session_start reopening.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a write to $_SESSION after successful session_write_close and before a proven session_start reopening."
   },
   "SessionNameChangedWhileActive": {
     "summary": "A session name must be configured before the session becomes active. Set the name before starting the session."
@@ -1646,8 +1530,7 @@
     "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| authenticationKeys | list | `[\"authenticated\"]` | `$_SESSION` keys whose assignment of `true` marks a login; only regeneration right before such an assignment is checked. |"
   },
   "ShallowCloneNestedMutation": {
-    "summary": "Detect cloning an object followed by mutation of a nested object member where the nested identity is proven shared with the original.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect cloning an object followed by mutation of a nested object member where the nested identity is proven shared with the original."
   },
   "SharedLockUsedForWriting": {
     "summary": "A shared lock does not provide exclusive access for a write. Acquire an exclusive lock before changing the protected stream."
@@ -1669,8 +1552,7 @@
     "fix": true
   },
   "ShortStreamReadUnchecked": {
-    "summary": "Detect fread with a fixed positive byte count whose result reaches unpack requiring that exact length without a length check.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect fread with a fixed positive byte count whose result reaches unpack requiring that exact length without a length check."
   },
   "SignalHandlerHasNoDispatchMechanism": {
     "phpMin": "7.1",
@@ -1686,6 +1568,7 @@
     "summary": "Identify SimpleXMLElement::addChild value with known ampersand not part of a valid entity/reference. Exclude named entities whose declarations may come from the document DTD, unknown values and name-only calls."
   },
   "SimpleXmlLoadFileUsage": {
+    "phpMax": "7.4",
     "summary": "`simplexml_load_file()` is affected by a long-standing PHP bug (#62577) where\nloading fails depending on the libxml entity-loader state. Reading the file\nyourself and passing its contents to `simplexml_load_string()` avoids it.",
     "fix": true
   },
@@ -1727,47 +1610,37 @@
   },
   "SortComparatorReturnsBoolean": {
     "summary": "Detect usort, uasort, or uksort with a local comparator whose every returned value is boolean and at least one return is an ordering comparison.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "SortComparatorReturnsFloat": {
     "summary": "Detect a builtin sort comparator returning a subtraction whose operands are proven floats.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "SortResultUsedAsArray": {
-    "summary": "Detect the boolean result of sort, rsort, asort, arsort, ksort, krsort, usort, uasort, or uksort when consumed directly or through a proven alias by foreach or an array-only builtin.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect the boolean result of sort, rsort, asort, arsort, ksort, krsort, usort, uasort, or uksort when consumed directly or through a proven alias by foreach or an array-only builtin."
   },
   "SplFixedArrayIndexOutOfBounds": {
-    "phpMin": "5.3",
     "summary": "Use an index within the fixed array size."
   },
   "SplFixedArrayShrinkDiscardsValues": {
-    "phpMin": "5.3",
     "summary": "Preserve populated entries before shrinking. This opt-in inspection applies the policy stated in Detection.",
     "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
   },
   "SplObjectStorageIndirectArrayMutation": {
-    "phpMin": "5.3",
     "summary": "Assign the modified storage value back."
   },
   "SqlNullComparedWithEquality": {
     "summary": "SQL equality comparisons do not test whether a value is null. Use IS NULL or IS NOT NULL instead."
   },
   "SqliteBindingIndexZero": {
-    "summary": "Start SQLite binding positions at one.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Start SQLite binding positions at one."
   },
   "SqliteClearWithoutRequiredReset": {
-    "phpMin": "5.3",
     "phpMax": "7.1",
-    "summary": "Reset the SQLite statement before rebinding cleared parameters.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Reset the SQLite statement before rebinding cleared parameters."
   },
   "SqliteFetchBothLeaksDuplicateColumns": {
     "summary": "Fetch named SQLite columns before JSON serialization. This inspection is disabled by default; enabling it selects the stated policy.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection.",
     "fix": true
   },
   "SqliteForeignKeySettingInsideTransaction": {
@@ -1778,12 +1651,10 @@
     "summary": "Identify SQLite3::createFunction with SQLITE3_DETERMINISTIC when inline callback directly returns random_int, random_bytes, time or microtime, without composition. Unknown callback behavior cannot prove nondeterminism."
   },
   "SqliteNullBindingDiscardsValue": {
-    "summary": "Pass null when using the SQLite null binding type.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Pass null when using the SQLite null binding type."
   },
   "SqliteResultUsedAfterFinalize": {
-    "summary": "Read the SQLite result before finalizing it.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Read the SQLite result before finalizing it."
   },
   "StaticClosureCanBeUsed": {
     "phpMin": "5.4",
@@ -1818,7 +1689,7 @@
   },
   "StrStrUsedAsStrPos": {
     "summary": "`strstr()` / `stristr()` build and return a substring. When the result is only\nused as a yes/no answer (\"does the haystack contain the needle?\"), that copy is\nwasted work: a position search (`strpos()` / `stripos()`) compared strictly\nagainst `false` answers the same question without allocating.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Operand order in the fix follows the global comparison style (`regular` default / `yoda`). |",
+    "options": "None. Operand order in the fix follows the global comparison style (`regular` default / `yoda`).",
     "fix": true
   },
   "StrTrUsageAsStrReplace": {
@@ -1826,16 +1697,14 @@
     "fix": true
   },
   "StreamOpenFailureUnchecked": {
-    "summary": "Detect fopen result passed to a stream-only operation without excluding false.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect fopen result passed to a stream-only operation without excluding false."
   },
   "StreamOutputReturnUsedAsContent": {
     "summary": "Output the stream without printing its byte count.",
     "fix": true
   },
   "StreamUseAfterClose": {
-    "summary": "Detect a stream operation requiring an open resource on an identity closed by a successful fclose on every incoming path.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a stream operation requiring an open resource on an identity closed by a successful fclose on every incoming path."
   },
   "StringCaseManipulation": {
     "summary": "Lower- or upper-casing the haystack and/or needle only to make a substring\nsearch case-insensitive costs extra string copies; PHP already ships\ncase-insensitive variants of the position functions (`stripos`, `strripos`,\n`mb_stripos`, `mb_strripos`). Use them on the raw strings instead.",
@@ -1860,12 +1729,11 @@
   },
   "StrlenInEmptyStringCheckContext": {
     "summary": "Measuring a string's length only to know whether it is empty\n(`strlen($s) \u003e 0`, `!strlen($s)`, `if (strlen($s))`) is indirect and\nslower than comparing with the empty string. Suggest an identity comparison\nwith `''` instead, casting to string when the value is not known to be a\nstring.",
-    "options": "| Option | Type | Default | Effect |\n|--------|------|---------|--------|\n| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |",
+    "options": "None. Operand order follows the global comparison style (`regular` default / `yoda`).",
     "fix": true
   },
   "StrtokStateClobbered": {
-    "summary": "Detect starting a second two-argument strtok sequence between an initial sequence call and its one-argument continuation on the same reachable path.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect starting a second two-argument strtok sequence between an initial sequence call and its one-argument continuation on the same reachable path."
   },
   "StrtotimeUsage": {
     "summary": "Two wasteful `strtotime()` idioms: parsing the literal `'now'` just to get the\ncurrent timestamp (`time()` does that directly), and passing `time()` as the\nbase timestamp, which is already the default.",
@@ -1881,7 +1749,7 @@
   },
   "SubStrUsedAsStrPos": {
     "summary": "Checking a prefix by cutting it out with `substr($s, 0, …)` and comparing the\npiece is the long way of asking \"does `$s` start with this?\". The idiomatic\nform is a position search compared strictly against `0`\n(`strpos($s, $prefix) === 0`), or its case-insensitive variant when the cut\npiece was case-folded first.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Operand order of the fix follows the global comparison style (`regular` default / `yoda`). |",
+    "options": "None. Operand order of the fix follows the global comparison style (`regular` default / `yoda`).",
     "fix": true
   },
   "SuspiciousAssignments": {
@@ -1916,8 +1784,7 @@
     "summary": "Identify msg_receive when local successful msg_send on same queue and exact positive matching type uses a different serialize flag. Require known flags, no unknown queue operation and no competing-sender evidence; unknown message selection excludes."
   },
   "TempnamDirectoryFallbackUnchecked": {
-    "summary": "Detect tempnam result used for sensitive content under an explicitly enabled required-directory contract without verifying its parent directory.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect tempnam result used for sensitive content under an explicitly enabled required-directory contract without verifying its parent directory."
   },
   "TernaryOperatorSimplify": {
     "summary": "A ternary whose branches are the literals `true` and `false` merely restates\nits condition. When the condition is a binary expression, the ternary can be\nreplaced by the condition itself, its negation, or a boolean cast.",
@@ -1939,12 +1806,10 @@
     "summary": "When a class and one of its traits (or its parent class and one of its\ntraits) declare the same property, PHP only accepts it if both declarations\nare compatible, and even then the duplication is fragile. Point out these\noverlaps; when the two declarations are incompatible (PHP refuses to compose\nthe class), it is a real conflict."
   },
   "TransactionEarlyReturn": {
-    "summary": "Detect a reachable normal return from a scope owning a successfully begun PDO transaction where neither commit nor rollback occurs on the exit path.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a reachable normal return from a scope owning a successfully begun PDO transaction where neither commit nor rollback occurs on the exit path."
   },
   "TransactionExceptionWithoutRollback": {
-    "summary": "Detect a caught exceptional path after an owned PDO transaction begins when the catch continues or returns with the transaction active.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a caught exceptional path after an owned PDO transaction begins when the catch continues or returns with the transaction active."
   },
   "TransferEncodingWithContentLength": {
     "summary": "Choose a single HTTP message framing mechanism."
@@ -1954,8 +1819,7 @@
     "summary": "Check transliteration before consuming text."
   },
   "TrimMaskUsedAsSuffix": {
-    "summary": "Detect trim, ltrim or rtrim using a literal extension-like mask beginning with a dot and containing at least two alphabetic characters.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect trim, ltrim or rtrim using a literal extension-like mask beginning with a dot and containing at least two alphabetic characters."
   },
   "TruncationAssumedToRewind": {
     "summary": "Rewind after truncating the stream."
@@ -1986,8 +1850,7 @@
   },
   "UndeclaredDynamicProperty": {
     "phpMin": "8.2",
-    "summary": "Detect assigning a missing instance property on a resolved PHP 8.2+ class with a complete known hierarchy.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect assigning a missing instance property on a resolved PHP 8.2+ class with a complete known hierarchy."
   },
   "UndefinedClass": {
     "summary": "Report a class, interface, trait or enum name that nothing declares, used\nwhere PHP must load it: not the project, not an installed Composer package\nand not PHP or a known extension. Such code throws an `Error` when it runs;\nthe name usually has a typo or a missing `use` import. The rule needs a\ncomplete view of the code the project can load, so it reports nothing\nunless every Composer dependency is installed."
@@ -2002,30 +1865,25 @@
     "summary": "Report a read of a property that the object's class does not declare,\njudging the object only by what the code itself shows, and any access to an\nundeclared static property. PHP warns and reads `null` for the first, and\nthrows an `Error` for the second; the name usually has a typo. Objects\nthat accept any property (magic `__get`, `@property` and `@mixin` tags,\n`stdClass`, `#[AllowDynamicProperties]`) are left alone, and so are writes,\nwhich create a dynamic property (see UndeclaredDynamicProperty)."
   },
   "UnescapedHtmlOutput": {
-    "summary": "Detect request-derived text emitted into proven HTML text nodes, script or style element text, or classified attribute values without the escaping that context needs.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect request-derived text emitted into proven HTML text nodes, script or style element text, or classified attribute values without the escaping that context needs."
   },
   "UnicodeNormalizationFailureConsumed": {
-    "phpMin": "5.3",
     "summary": "Check normalization before consuming text."
   },
   "UninitializedTypedPropertyRead": {
     "phpMin": "7.4",
-    "summary": "Detect reading a resolved typed instance property when every incoming path proves it remains uninitialized.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect reading a resolved typed instance property when every incoming path proves it remains uninitialized."
   },
   "UnitEnumJsonEncoding": {
     "phpMin": "8.1",
-    "summary": "Detect json_encode receiving a resolved unit enum value without a JsonSerializable implementation.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect json_encode receiving a resolved unit enum value without a JsonSerializable implementation."
   },
   "UnknownInspection": {
     "summary": "A `@noinspection` suppression naming an inspection that does not exist (typo,\nrenamed or removed rule) silently suppresses nothing. Point it out so it can be\ncorrected or deleted."
   },
   "UnknownNamedArgument": {
     "phpMin": "8.0",
-    "summary": "Detect a named argument absent from every resolved target parameter list where no target has a variadic parameter.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect a named argument absent from every resolved target parameter list where no target has a variadic parameter."
   },
   "UnlinkFailureReportedAsSuccess": {
     "summary": "Identify discarded unlink call immediately followed by unconditional return true in the same function."
@@ -2055,13 +1913,11 @@
     "fix": true
   },
   "UnpackBufferTooShort": {
-    "summary": "Provide enough bytes for the unpack format.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Provide enough bytes for the unpack format."
   },
   "UnpackedNamedArgumentCollision": {
-    "phpMin": "8.0",
-    "summary": "Detect an explicit or unpacked argument binding a parameter already certainly bound by a literal unpacked array on the same call.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "phpMin": "8.1",
+    "summary": "Detect an explicit or unpacked argument binding a parameter already certainly bound by a literal unpacked array on the same call."
   },
   "UnqualifiedReference": {
     "phpMin": "7.0",
@@ -2091,16 +1947,13 @@
     "summary": "Writing through a string offset as if it were a nested array\n(`$str[0][1] = …`) or appending to a string with `[]` (`$str[] = …`) is a\nfatal error since PHP 7.1. When the written-to value is known to be a string,\nsuch writes are bugs."
   },
   "UntrustedFilesystemPath": {
-    "summary": "Detect request-derived path components reaching file read/write/delete or include sinks without established canonical containment or finite filename selection.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect request-derived path components reaching file read/write/delete or include sinks without established canonical containment or finite filename selection."
   },
   "UntrustedForwardedClientAddress": {
-    "summary": "Detect HTTP_X_FORWARDED_FOR-derived address used in an access-control comparison without established trusted-proxy validation.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect HTTP_X_FORWARDED_FOR-derived address used in an access-control comparison without established trusted-proxy validation."
   },
   "UntrustedHeaderValue": {
-    "summary": "Detect request-derived data reaching a response-header value without a dominating CR/LF rejection or safe construction summary.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect request-derived data reaching a response-header value without a dominating CR/LF rejection or safe construction summary."
   },
   "UntrustedInclusion": {
     "summary": "Including a file by a relative path makes PHP search `include_path` (and the\ncurrent working directory), so a different file than intended can be loaded.\nAnchor paths with `__DIR__` (or rely on autoloading)."
@@ -2109,23 +1962,19 @@
     "summary": "Request data inserted directly into an LDAP filter can alter its syntax. Escape values for the LDAP filter context."
   },
   "UntrustedNetworkDestination": {
-    "summary": "Detect request-derived destination reaching curl, URL stream reads or equivalent network sinks without a proven outbound destination policy.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect request-derived destination reaching curl, URL stream reads or equivalent network sinks without a proven outbound destination policy."
   },
   "UntrustedShellCommand": {
-    "summary": "Detect request-derived data reaching a shell-command sink in syntax-capable position without proven appropriate argument escaping or strict validation.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect request-derived data reaching a shell-command sink in syntax-capable position without proven appropriate argument escaping or strict validation."
   },
   "UntrustedSqlConstruction": {
-    "summary": "Detect request-derived data reaching a resolved SQL execution sink as SQL syntax without parameter binding or proven context-appropriate validation.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect request-derived data reaching a resolved SQL execution sink as SQL syntax without parameter binding or proven context-appropriate validation."
   },
   "UntrustedXmlExternalEntityExpansion": {
     "summary": "Expanding external entities in request-controlled XML can expose external resources. Disable that capability for untrusted documents."
   },
   "UntrustedXmlWriterRawContent": {
-    "summary": "Write untrusted XML content as escaped text.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Write untrusted XML content as escaped text."
   },
   "UnusedConstructorDependencies": {
     "summary": "A private property that is assigned in the constructor but never touched by\nany other method of the class (or its traits) is dead state — typically a\nleftover injected dependency. Point at the constructor assignments."
@@ -2135,12 +1984,10 @@
     "fix": true
   },
   "UnvalidatedRedirectTarget": {
-    "summary": "Detect request-derived data reaching a Location header without a proven permitted-local-target or finite destination policy.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect request-derived data reaching a Location header without a proven permitted-local-target or finite destination policy."
   },
   "UploadClientMimeTrusted": {
-    "summary": "Detect acceptance of an upload based solely on $_FILES entry type compared to an allowed MIME string without server-side content inspection.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect acceptance of an upload based solely on $_FILES entry type compared to an allowed MIME string without server-side content inspection."
   },
   "UselessReturn": {
     "summary": "Two pointless `return` forms: a bare `return;` as the very last statement of a\nfunction body (the function ends there anyway), and `return $local = expr;`\nwhere the assignment to a local variable can never be observed after the\nfunction has returned.",
@@ -2157,19 +2004,16 @@
   },
   "UsortDiscardsRequiredKeys": {
     "summary": "Detect usort on a statically keyed array followed by access through an original nonsequential integer or string key that cannot exist after reindexing.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "Utf8ByteTruncation": {
-    "summary": "Detect substr on a literal valid UTF-8 string with statically known offsets selecting an incomplete code-point byte sequence.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "summary": "Detect substr on a literal valid UTF-8 string with statically known offsets selecting an incomplete code-point byte sequence."
   },
   "ValidatedBooleanFalseRejectedAsInvalid": {
     "summary": "Identify FILTER_VALIDATE_BOOLEAN result compared strictly with false in a branch that unconditionally throws or returns explicit failure, when JSON-like known input is a valid false spelling; FILTER_NULL_ON_FAILURE and null comparisons exclude. Unknown input alone is insufficient to prove intent."
   },
   "ValidatedIntegerZeroRejected": {
     "summary": "Detect FILTER_VALIDATE_INT result tested for falsiness when zero is permitted by configured min/max bounds.",
-    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "VariableFunctionsUsage": {
@@ -2181,7 +2025,6 @@
     "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
   },
   "WaitStatusUsedAsExitCode": {
-    "phpMin": "5.3",
     "summary": "Decode the child wait status."
   },
   "WeakMapValueRetainsKey": {
@@ -2200,8 +2043,7 @@
     "summary": "Unprefixed XPath names do not select elements in a nonempty default namespace. Register and use a prefix for that namespace."
   },
   "XPathQueryFailureDereferenced": {
-    "summary": "Check the XPath query result before accessing its nodes.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Check the XPath query result before accessing its nodes."
   },
   "XmlParseZeroComparedWithFalse": {
     "summary": "Identify strict comparison of xml_parse result to boolean false. The API returns integer zero on failure; loose false and strict zero comparisons exclude."
@@ -2210,8 +2052,7 @@
     "summary": "Identify xml_parser_free on a locally created parser after at least one xml_parse call, with no xml_parse true final argument and no xml_parse_into_struct completion. Unknown parser aliases or paths exclude."
   },
   "XmlReaderAttributeCursorNotRestored": {
-    "summary": "Restore the XMLReader element cursor before element operations. This inspection is disabled by default; enabling it selects the stated policy.",
-    "options": "None. Use normal rule configuration to enable or disable the inspection."
+    "summary": "Restore the XMLReader element cursor before element operations. This inspection is disabled by default; enabling it selects the stated policy."
   },
   "XmlWriterAttributeAfterContent": {
     "summary": "Identify writeAttribute or startAttribute on same resolved XMLWriter after text/writeElement in its current element, with no new startElement or endElement. Maintain bounded local element stack; unknown writer calls invalidate state."
@@ -2226,33 +2067,27 @@
     "summary": "Writing an archive is not complete until finalization succeeds. Check the close result before returning success. This inspection is disabled by default because the intended policy or use can vary."
   },
   "ZipEntryIndexPastEnd": {
-    "phpMin": "5.3",
     "summary": "Use an existing ZIP entry index."
   },
   "ZipEntryNameCollision": {
-    "phpMin": "5.3",
     "summary": "Make ZIP entry replacement explicit. This opt-in rule applies the policy described in Detection."
   },
   "ZipEntryStreamUsedAfterArchiveClose": {
     "summary": "An entry stream depends on its containing ZIP archive remaining open. Consume the stream before closing the archive."
   },
   "ZipExtractionExceedsConfiguredBudget": {
-    "phpMin": "5.3",
     "summary": "Validate ZIP extraction against configured limits. This opt-in rule applies the policy described in Detection.",
     "options": "- `maxExpandedBytes`: positive integer; default `20971520`.\n- `maxEntries`: positive integer; default `1000`."
   },
   "ZipFirstEntryTreatedAsMissing": {
-    "phpMin": "5.3",
     "summary": "Distinguish a missing ZIP entry from index zero.",
     "fix": true
   },
   "ZipOpenTruthyResult": {
-    "phpMin": "5.3",
     "summary": "ZIP opening returns true for success and integer codes for errors. Check for true explicitly instead of using truthiness.",
     "fix": true
   },
   "ZipSourceRemovedBeforeArchiveClose": {
-    "phpMin": "5.3",
     "summary": "Keep ZIP source files until the archive closes."
   }
 }

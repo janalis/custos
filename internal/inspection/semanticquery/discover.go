@@ -212,7 +212,7 @@ func (d *discoverer) constant(c *syntax.ConstFetch) {
 	if k == nil {
 		return
 	}
-	if v := ConstantDeclValue(d.F, k); v != nil {
+	if v := constantDeclValue(d.F, k); v != nil {
 		d.Out = append(d.Out, v)
 		return
 	}
@@ -235,10 +235,10 @@ func ResolveConstant(env *infer.Env, c *syntax.ConstFetch) *index.Constant {
 	return k
 }
 
-// ConstantDeclValue returns the value expression of an indexed global
+// constantDeclValue returns the value expression of an indexed global
 // constant declared in file f (`const C = v;` or `define('C', v)`), nil when
 // declared elsewhere.
-func ConstantDeclValue(f *syntax.File, k *index.Constant) syntax.Expr {
+func constantDeclValue(f *syntax.File, k *index.Constant) syntax.Expr {
 	if k == nil || f == nil || k.File != f.Path || k.Span.Len() == 0 {
 		return nil
 	}

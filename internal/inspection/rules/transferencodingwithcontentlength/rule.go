@@ -12,6 +12,7 @@ const message = "Choose a single HTTP message framing mechanism."
 
 type rule struct{}
 
+// New returns the TransferEncodingWithContentLength inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "TransferEncodingWithContentLength" }
 func (rule) Semantic()                {}
@@ -22,11 +23,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	key, _, _, known := semanticquery.ExpansionHeader(ctx, c)
+	key, _, _, known := semanticquery.LiteralHeader(ctx, c)
 	if !known || (key != "content-length" && key != "transfer-encoding") {
 		return
 	}
-	response := semanticquery.ExpansionResponseAt(ctx, c)
+	response := semanticquery.ResponseStateAt(ctx, c)
 	if response.HasLength && response.HasTransfer {
 		ctx.ReportNode(c, message)
 	}

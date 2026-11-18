@@ -15,6 +15,7 @@ const message = "Use the query value without decoding it a second time."
 
 type rule struct{}
 
+// New returns the ParsedQueryValueDecodedTwice inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ParsedQueryValueDecodedTwice" }
 func (rule) Semantic()                {}

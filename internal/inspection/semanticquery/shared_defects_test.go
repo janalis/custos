@@ -39,11 +39,11 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 			call, ok := e.(*syntax.FuncCall)
 			return ok && NativeBuiltin(ctx, call, "scandir")
 		}
-		if v := NativeLocalResultOf(ctx, a, "false", scanned); v != nil {
+		if v := nativeLocalValue(ctx, a, "false", scanned); v != nil {
 			result = ctx.Text(v)
 		}
 	case "origin-false", "origin-null":
-		if v := NativeLocalResult(ctx, a, strings.TrimPrefix(p.query, "origin-")); v != nil {
+		if v := nativeLocalValue(ctx, a, strings.TrimPrefix(p.query, "origin-"), nil); v != nil {
 			result = ctx.Text(v)
 		}
 	case "same":
@@ -71,7 +71,7 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		v, known := NativeInt(ctx, a)
 		result = fmt.Sprintf("%d/%t", v, known)
 	case "truthy":
-		result = fmt.Sprint(ExpansionCTruthy(c))
+		result = fmt.Sprint(DirectCondition(c))
 	case "dominated":
 		// Every earlier call named mark() that dominates the probe.
 		count := 0
@@ -343,7 +343,7 @@ func TestSharedIdentityAcrossWrites(t *testing.T) {
 			}
 		})
 	}
-	// expansionDSame compares two different reads of one name.
+	// SameStableLocal compares two different reads of one name.
 	for _, tc := range []struct {
 		name, between string
 		want          bool
@@ -378,7 +378,7 @@ func TestSharedIdentityAcrossWrites(t *testing.T) {
 	}
 }
 
-// sharedDefectStable applies expansionDSame to the handles of fclose() and fread().
+// sharedDefectStable applies SameStableLocal to the handles of fclose() and fread().
 func sharedDefectStable(t testing.TB, src string) bool {
 	t.Helper()
 	result := false

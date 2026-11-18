@@ -17,7 +17,7 @@ Identify intdiv with second operand proven integer zero.
 - Report intdiv with second operand proven integer zero.
 - Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - A variable divisor counts as zero only when the single assignment reaching the call is an integer zero and nothing else can have rewritten the variable before the call runs. Besides plain, compound and reference assignment, these writes cancel the proof when they sit earlier in the same function body (or the same file for top-level code), or anywhere in that scope when the call is inside a loop: `++` or `--` on the variable, a closure capturing it by reference, a `foreach` whose key or value target names it (destructuring included), a `catch` binding of that name, and a call to `extract()`. Code inside a nested function does not count, apart from that by-reference capture.
-- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or code too complex to analyze invalidate proof.
 
 ## Exceptions (no report)
 

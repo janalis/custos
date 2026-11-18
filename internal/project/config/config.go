@@ -23,7 +23,7 @@ import (
 const FileName = "custos.json"
 
 // MaxFileSize bounds custos.json and composer.json (both come from the
-// analysed repository: a huge file, or a symlink to a device, must fail
+// analyzed repository: a huge file, or a symlink to a device, must fail
 // instead of exhausting memory or blocking).
 const MaxFileSize = 8 << 20
 
@@ -61,7 +61,7 @@ type Config struct {
 	// FlowOrder summarizes cross-file flow in the order the last run saved
 	// (see project.Options.FlowOrder).
 	FlowOrder bool
-	// ParseOnce keeps each analysed file's syntax tree between phases (see
+	// ParseOnce keeps each analyzed file's syntax tree between phases (see
 	// project.Options.ParseOnce).
 	ParseOnce       bool
 	Root            string // directory of custos.json / composer.json (or cwd)
@@ -103,7 +103,7 @@ func Resolve(root string, f File) (*Config, error) {
 
 func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, error) {
 	c := &Config{Root: root, Paths: f.Paths, Baseline: f.Baseline, Exclude: append(append([]string{}, DefaultExclude...), f.Exclude...), Rules: map[string]analysis.RuleConfig{}}
-	// The configuration comes with the analysed code: it must not point
+	// The configuration comes with the analyzed code: it must not point
 	// custos (and `custos fix`) at files outside the project.
 	for _, p := range f.Paths {
 		if !insideRoot(p) {

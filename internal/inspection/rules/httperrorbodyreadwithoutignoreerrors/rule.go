@@ -15,6 +15,7 @@ const message = "Enable reading HTTP error response bodies."
 
 type rule struct{}
 
+// New returns the HttpErrorBodyReadWithoutIgnoreErrors inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "HttpErrorBodyReadWithoutIgnoreErrors" }
 func (rule) Semantic()                {}

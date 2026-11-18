@@ -1,7 +1,7 @@
 ---
 id: LoopClosureCapturesReference
 group: Probable bugs
-kind: semantic
+kind: syntax
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---

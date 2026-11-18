@@ -47,7 +47,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	var fixes []diagnostic.Fix
-	if len(values) == 1 && ctx.PHP >= phpversion.PHP70 && ownedIntComparator(ctx, callback) {
+	if len(values) == 1 && ctx.PHP.AtLeast(phpversion.PHP70) && ownedIntComparator(ctx, callback) {
 		b := syntax.UnwrapParens(values[0]).(*syntax.Binary)
 		if (b.Op.Kind == syntax.TGreater || b.Op.Kind == syntax.TLess) && !flowquery.MayHaveSideEffects(b.Left) && !flowquery.MayHaveSideEffects(b.Right) {
 			edits := []diagnostic.TextEdit{{Span: b.Op.Span, NewText: "<=>"}}

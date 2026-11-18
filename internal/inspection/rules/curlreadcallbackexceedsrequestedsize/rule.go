@@ -1,4 +1,5 @@
-// Package curlreadcallbackexceedsrequestedsize implements CurlReadCallbackExceedsRequestedSize.
+// Package curlreadcallbackexceedsrequestedsize implements the native
+// CurlReadCallbackExceedsRequestedSize inspection.
 package curlreadcallbackexceedsrequestedsize
 
 import (
@@ -12,6 +13,7 @@ const message = "Return no more than the requested byte count."
 
 type rule struct{}
 
+// New returns the CurlReadCallbackExceedsRequestedSize inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CurlReadCallbackExceedsRequestedSize" }
 func (rule) Semantic()                {}

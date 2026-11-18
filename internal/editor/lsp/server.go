@@ -50,6 +50,14 @@ type document struct {
 
 // Server is the custos language server.
 type Server struct {
+	// ctx ends when the server stops: background builds stop with it.
+	ctx context.Context
+	// indexCancel stops the index build in progress, flowCancel the flow
+	// build or update in progress (flowCtx): a later one supersedes it.
+	indexCtx    context.Context
+	indexCancel context.CancelFunc
+	flowCtx     context.Context
+	flowCancel  context.CancelFunc
 	flowBuilder flowBuilder
 	flowUpdater flowUpdater
 	c           *conn
@@ -94,7 +102,9 @@ type Server struct {
 
 // Serve runs the server on r/w until exit.
 func Serve(ctx context.Context, r io.Reader, w io.Writer) error {
-	s := &Server{c: newConn(r, w), docs: map[string]*document{}, sem: make(chan struct{}, runtime.GOMAXPROCS(0))}
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+	s := &Server{ctx: ctx, c: newConn(r, w), docs: map[string]*document{}, sem: make(chan struct{}, runtime.GOMAXPROCS(0))}
 	for {
 		m, err := s.c.read()
 		if err != nil {
@@ -124,6 +134,14 @@ func Serve(ctx context.Context, r io.Reader, w io.Writer) error {
 			return ctx.Err()
 		}
 	}
+}
+
+// lifetime returns the context background work runs under; s.mu held.
+func (s *Server) lifetime() context.Context {
+	if s.ctx == nil {
+		return context.Background()
+	}
+	return s.ctx
 }
 
 // guard, deferred, recovers a panic: it is logged and onPanic (if any) runs.

@@ -17,6 +17,7 @@ const message = "Pass the CSV escape character explicitly."
 
 type rule struct{}
 
+// New returns the CsvEscapeDefaultDependency inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CsvEscapeDefaultDependency" }
 func (rule) Semantic()                {}
@@ -26,7 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !flowquery.Reachable(n, syntax.EnclosingFuncLike(n)) {
 		return
 	}
-	if ctx.PHP < phpversion.PHP84 {
+	if ctx.PHP.Below(phpversion.PHP84) {
 		return
 	}
 	args, pos, _, ok := semanticquery.NativeCSVSignature(ctx, n)

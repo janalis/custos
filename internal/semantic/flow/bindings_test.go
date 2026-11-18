@@ -76,7 +76,7 @@ func TestSwitchAllowLists(t *testing.T) {
 		name, src string
 		taint     bool
 	}{
-		{"labelled arm", a + `switch($a){case 'list': case 'show': probe($a); break;}`, false},
+		{"labeled arm", a + `switch($a){case 'list': case 'show': probe($a); break;}`, false},
 		{"after the switch, default replaces", a + `switch($a){case 'name': case 'date': break; default: $a='name';} probe($a);`, false},
 		{"after the switch, default leaves", `function f(){` + a + `switch($a){case 'list': break; default: return;} probe($a);}`, false},
 		{"after the switch, default throws", `function f(){` + a + `switch($a){case 'list': break; default: throw new E;} probe($a);}`, false},
@@ -85,7 +85,7 @@ func TestSwitchAllowLists(t *testing.T) {
 		{"default arm", a + `switch($a){case 'list': break; default: probe($a);}`, true},
 		{"default falls into the arm", a + `switch($a){default: echo 1; case 'list': probe($a);}`, true},
 		{"arm reached from a reassigning arm", a + `switch($a){case 'list': $a=$_GET['b']; case 'show': probe($a);}`, true},
-		{"arm reached from a labelled arm", a + `switch($a){case 'list': echo 1; case 'show': probe($a);}`, false},
+		{"arm reached from a labeled arm", a + `switch($a){case 'list': echo 1; case 'show': probe($a);}`, false},
 		{"another variable is the subject", a + `switch($c){case 'list': probe($a);}`, true},
 		{"label with leading whitespace", a + `switch($a){case ' list': probe($a);}`, false},
 		{"numeric string label", a + `switch($a){case '1': probe($a);}`, true},
@@ -598,9 +598,9 @@ func TestInvalidationKeepsRequestData(t *testing.T) {
 	}
 }
 
-// A function that writes a global variable is analysed before any scope that
+// A function that writes a global variable is analyzed before any scope that
 // reads what the writers leave, whichever scope is asked for first, and the
-// writers are analysed in source order.
+// writers are analyzed in source order.
 func TestGlobalWritersAreKnownBeforeTheScopeAskedFor(t *testing.T) {
 	for _, tc := range []struct {
 		name, src   string
@@ -629,9 +629,9 @@ func TestGlobalWritersAreKnownBeforeTheScopeAskedFor(t *testing.T) {
 	}
 }
 
-// A writer is analysed again only when request data reaches a global it is
+// A writer is analyzed again only when request data reaches a global it is
 // bound to: any other keeps the result of its first analysis. A scope around
-// a closure bound to such a global is analysed again with it.
+// a closure bound to such a global is analyzed again with it.
 func TestGlobalWritersAreAnalysedAgainOnlyForTheirGlobals(t *testing.T) {
 	const src = `function apart(){global $z; other(); $z='x'; probe($z);}
 		function reader(){global $g; other(); probe($g);}
@@ -687,7 +687,7 @@ func TestInvalidationDropsEverythingButRequestData(t *testing.T) {
 }
 
 // Shared bindings are walked on every write and call: the work is charged to
-// the scope budget, and each writer function is analysed once.
+// the scope budget, and each writer function is analyzed once.
 func TestSharedBindingsStayBounded(t *testing.T) {
 	for name, build := range map[string]func(*strings.Builder){
 		"global statements": func(src *strings.Builder) {

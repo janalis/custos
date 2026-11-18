@@ -1,7 +1,7 @@
 ---
 id: EfferentObjectCoupling
 group: Architecture
-kind: semantic
+kind: syntax
 needs: [names]
 php: { min: "", max: "" }
 ---

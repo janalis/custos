@@ -13,6 +13,7 @@ const message = "Rewind after truncating the stream."
 
 type rule struct{}
 
+// New returns the TruncationAssumedToRewind inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "TruncationAssumedToRewind" }
 func (rule) Semantic()                {}

@@ -13,6 +13,7 @@ const message = "Dispatch signals when asynchronous handling is disabled."
 
 type rule struct{}
 
+// New returns the SignalHandlerHasNoDispatchMechanism inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SignalHandlerHasNoDispatchMechanism" }
 func (rule) Semantic()                {}

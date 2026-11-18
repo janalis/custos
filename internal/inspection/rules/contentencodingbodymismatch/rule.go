@@ -15,6 +15,7 @@ const message = "Encode the body using the declared content coding."
 
 type rule struct{}
 
+// New returns the ContentEncodingBodyMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ContentEncodingBodyMismatch" }
 func (rule) Semantic()                {}
@@ -93,7 +94,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok {
 			return
 		}
-		key, text, _, known := semanticquery.ExpansionHeader(ctx, h)
+		key, text, _, known := semanticquery.LiteralHeader(ctx, h)
 		if !known {
 			return
 		}
@@ -105,7 +106,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if declared == nil {
 		return
 	}
-	response := semanticquery.ExpansionResponseAt(ctx, declared)
+	response := semanticquery.ResponseStateAt(ctx, declared)
 	if response.Final && response.Coding == value && (value == "gzip" || value == "deflate" || value == "identity") && coding != value {
 		ctx.ReportNode(c, message)
 	}

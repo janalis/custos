@@ -71,3 +71,4 @@ function dynamicPath($path)
     setcookie("auth", "token", time() + 3600, $path);
     setcookie("auth", "", 1, "/");
 }
+setcookie("auth","token",["path"=>"/app"]); setcookie("auth","",["expires"=>1,"path"=>"/app"]);

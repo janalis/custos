@@ -3,7 +3,7 @@ id: SplFixedArrayShrinkDiscardsValues
 group: Probable bugs
 kind: semantic
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # SplFixedArrayShrinkDiscardsValues
@@ -16,7 +16,7 @@ Preserve populated entries before shrinking. This opt-in inspection applies the 
 
 - D1. Enabled policy forbids discarding populated fixed-array slots. Track known size and assigned slots of builtin SplFixedArray; report setSize with smaller nonnegative literal size when at least one populated slot is outside the new bounds. A null value still counts as populated when assignment is proven.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 - D4. `offsetSet` with a literal index populates that slot and `offsetUnset` with a literal index releases it, exactly like the bracket forms; writes and releases are applied in source order, so a slot refilled after its release is populated again. An earlier `setSize` on the same array already dropped the slots past its bound.
 
 ## Exceptions (no report)
@@ -81,4 +81,4 @@ $cache->setSize(2);
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

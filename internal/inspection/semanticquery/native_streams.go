@@ -42,3 +42,12 @@ func FileLockOperation(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
 	}
 	return 0, false
 }
+
+// PathArgumentCall identifies a builtin consuming its first argument as a path.
+func PathArgumentCall(ctx *analysis.Context, c *syntax.FuncCall) bool {
+	switch NativeBuiltinName(ctx, c) {
+	case "file_get_contents", "file_put_contents", "fopen", "file", "is_file", "is_dir", "file_exists", "unlink", "mkdir", "rmdir", "scandir", "opendir":
+		return true
+	}
+	return false
+}

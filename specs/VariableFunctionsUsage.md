@@ -401,5 +401,3 @@ function sample(string $dir)
   to `Shop\Pkg\Tool::run`), and a namespaced or imported function of the
   same name captures an unqualified one. custos adds a leading `\` in those
   cases (Fix, "Name spelling").
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

@@ -1,4 +1,5 @@
-// Package possiblynullargument implements the PossiblyNullArgument inspection.
+// Package possiblynullargument implements the native PossiblyNullArgument
+// inspection.
 package possiblynullargument
 
 import (

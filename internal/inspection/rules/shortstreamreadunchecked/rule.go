@@ -63,7 +63,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // fread of size bytes, leave only a complete read: fread returns false or
 // at most size bytes.
 func lengthChecked(ctx *analysis.Context, input syntax.Expr, size int64) bool {
-	if semanticquery.NativeLabelled(ctx, input) {
+	if semanticquery.NativeLabeled(ctx, input) {
 		return false
 	}
 	read := types.Union(types.StringLengths(types.IntRange{Lo: 0, Hi: size}), types.Of("false"))

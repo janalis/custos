@@ -93,7 +93,7 @@ func tainted(ctx *analysis.Context, x syntax.Expr, depth int) bool {
 	depth--
 	switch n := x.(type) {
 	case *syntax.Variable:
-		if value, known := ctx.Flow().Resolve(n); known && value != x && !semanticquery.RebindableVariable(ctx, n) {
+		if value, known := ctx.Flow().Resolve(n); known && value != x && semanticquery.StableLocalValue(ctx, n, semanticquery.LocalStability{}) {
 			return tainted(ctx, value, depth)
 		}
 	case *syntax.InterpolatedString:

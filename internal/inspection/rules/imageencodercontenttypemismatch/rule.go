@@ -21,6 +21,7 @@ var canonicalTypes = map[string]bool{"image/png": true, "image/jpeg": true, "ima
 
 type rule struct{}
 
+// New returns the ImageEncoderContentTypeMismatch inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ImageEncoderContentTypeMismatch" }
 func (rule) Semantic()                {}

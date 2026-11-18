@@ -56,7 +56,7 @@ var ErrSkipped = errors.New("not a regular file")
 // readFixable reads a file fix may rewrite, unless src already holds its
 // bytes, and returns its permission bits.
 // Symlinks (and other non-regular files) are skipped, in dry runs too:
-// writing through a link may lead outside the project, and the analysed
+// writing through a link may lead outside the project, and the analyzed
 // repository is untrusted.
 func readFixable(path string, src []byte) ([]byte, os.FileMode, error) {
 	info, err := os.Lstat(path)

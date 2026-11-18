@@ -53,9 +53,9 @@ func TestFlowHooksStayWithTheirServer(t *testing.T) {
 	if builds != 1 {
 		t.Fatal("another server used the build override")
 	}
-	left.setFlowUpdater(func(build *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+	left.setFlowUpdater(func(_ context.Context, build *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
 		updates++
-		return build.Update(changed, ix)
+		return build.Update(context.Background(), changed, ix)
 	})
 	defer left.setFlowUpdater(nil)
 	left.docs[leftURI] = &document{path: leftPath, text: append(append([]byte(nil), source...), []byte(" // edited")...)}

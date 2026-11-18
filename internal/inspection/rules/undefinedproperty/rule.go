@@ -1,4 +1,5 @@
-// Package undefinedproperty implements the UndefinedProperty inspection.
+// Package undefinedproperty implements the native UndefinedProperty
+// inspection.
 package undefinedproperty
 
 import (

@@ -131,7 +131,7 @@ func (f *File) Basis(s *Snapshot) *Snapshot {
 // The one exception is an internal memo of contract comparisons (see
 // sameHeld), which guards itself; it changes no answer.
 //
-// Replacing one file is what every analysed file does to see its own buffer,
+// Replacing one file is what every analyzed file does to see its own buffer,
 // so it does not rebuild the collection: the result overlays the file on its
 // base and answers lookups from both.
 type Snapshot struct {
@@ -311,6 +311,16 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 		}
 	}
 	return remaining, true
+}
+
+// Contracts returns a snapshot of s's contracts alone, without the files
+// they come from: Equal to s, and a basis an Encoder writes.
+func (s *Snapshot) Contracts() *Snapshot {
+	if s == nil {
+		return nil
+	}
+	f := s.flat()
+	return &Snapshot{options: f.options, summaries: f.summaries, shared: f.shared}
 }
 
 // Equal reports whether two immutable snapshots expose the same contracts.

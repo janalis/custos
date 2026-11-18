@@ -81,11 +81,6 @@ Reported:
 <li>line 22: Reorder modifiers as: abstract public static.</li>
 </ul>
 
-## Options
-
-| Option | Type | Default | Effect |
-|---|---|---|---|
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

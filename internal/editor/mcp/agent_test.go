@@ -292,7 +292,7 @@ func TestStaleCheckpointsNameChangedInputs(t *testing.T) {
 	if listed := invoke(ctx, t, s, "checkpoints", Input{}); listed["total"] != 3 {
 		t.Fatal(listed)
 	}
-	// A failing walk marks the checkpoint stale unless the caller cancelled.
+	// A failing walk marks the checkpoint stale unless the caller canceled.
 	next = invoke(ctx, t, s, "analyze", Input{})["checkpointId"].(string)
 	if err := os.Symlink(t.TempDir(), filepath.Join(root, "src", "link")); err != nil {
 		t.Fatal(err)

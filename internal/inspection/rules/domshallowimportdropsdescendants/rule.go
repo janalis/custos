@@ -1,4 +1,5 @@
-// Package domshallowimportdropsdescendants implements DomShallowImportDropsDescendants.
+// Package domshallowimportdropsdescendants implements the native
+// DomShallowImportDropsDescendants inspection.
 package domshallowimportdropsdescendants
 
 import (
@@ -14,6 +15,7 @@ const message = "Import descendants when copying an element subtree."
 
 type rule struct{}
 
+// New returns the DomShallowImportDropsDescendants inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DomShallowImportDropsDescendants" }
 func (rule) Semantic()                {}
@@ -32,7 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	node := semanticquery.CallArgument(c.Args, 0, "node")
-	if !semanticquery.ExpansionDOMElementChildren(ctx, node, c) || stale(ctx, node, c) {
+	if !semanticquery.DOMElementHasChildren(ctx, node, c) || stale(ctx, node, c) {
 		return
 	}
 	var fixes []diagnostic.Fix

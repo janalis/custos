@@ -23,6 +23,7 @@ var readers = map[string]bool{
 
 type rule struct{}
 
+// New returns the SplFixedArrayIndexOutOfBounds inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "SplFixedArrayIndexOutOfBounds" }
 func (rule) Semantic()                {}

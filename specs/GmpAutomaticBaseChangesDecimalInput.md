@@ -1,7 +1,7 @@
 ---
 id: GmpAutomaticBaseChangesDecimalInput
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
 php: { min: "", max: "" }
 ---
@@ -21,7 +21,7 @@ Specify decimal base for zero-prefixed GMP input. This inspection is disabled by
 ## Exceptions (no report)
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. A variable argument is not reported when its assigned literal may be stale at the call: the variable, or a variable whose value was copied into it, is changed by `++` or `--`, is bound by a `catch` clause, is captured by reference in a closure `use` list, or is stored by reference in an array item; or the enclosing scope calls `extract()` or one-argument `parse_str()`. A file-level variable is also a global, so a `global` declaration naming it, or any `$GLOBALS` access in the file, has the same effect.
+- E2. A variable argument is not reported when its assigned literal may be stale at the call. The variable is proven only while nothing in its scope can change it behind its plain assignments, anywhere and in any statement order: `++` or `--` on it or on one of its elements; a `catch`, `foreach` key or value binding it; a reference to it (a by-reference assignment on either side, a by-reference `foreach` over it, a by-reference array item, a by-reference capture by a nested closure, or an argument, other than the inspected argument itself, that a resolved callee binds by reference or that a callee custos cannot resolve receives); a write naming its target at run time (a variable variable, `extract()`, one-argument `parse_str()` or `mb_parse_str()`, `include`/`require`, `eval`); or a `$GLOBALS` access other than a literal entry naming another variable. A `global` or `static` declaration of it, or a by-reference capture by the closure that is the scope, removes the proof too. In top-level code, where locals are globals, a `global` declaration naming it in any function of the file, or a `$GLOBALS` access anywhere in the file, does as well. The same holds for every local whose value an assignment stores into it, whatever the assigned expression computes, directly or through further assignments. A read inside an arrow function also checks the scopes the arrow function captures from.
 - E3. Both @custos-ignore GmpAutomaticBaseChangesDecimalInput and @noinspection GmpAutomaticBaseChangesDecimalInput suppress this native rule.
 
 ## Report
@@ -41,7 +41,7 @@ Use exact byte edits and preserve comments, evaluation count, argument order and
 
 ## Options
 
-None. Use normal rule configuration to enable or disable the inspection.
+None.
 
 ## PHP versions
 
@@ -102,4 +102,4 @@ function read()
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

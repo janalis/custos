@@ -1,4 +1,5 @@
-// Package nonblockingsocketconnectpendingrejected implements NonblockingSocketConnectPendingRejected.
+// Package nonblockingsocketconnectpendingrejected implements the native
+// NonblockingSocketConnectPendingRejected inspection.
 package nonblockingsocketconnectpendingrejected
 
 import (
@@ -12,6 +13,7 @@ const message = "Handle a pending nonblocking connection."
 
 type rule struct{}
 
+// New returns the NonblockingSocketConnectPendingRejected inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "NonblockingSocketConnectPendingRejected" }
 func (rule) Semantic()                {}

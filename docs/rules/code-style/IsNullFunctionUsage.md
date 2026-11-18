@@ -72,9 +72,7 @@ Reported:
 
 ## Options
 
-| Option | Type | Default | Effect |
-|---|---|---|---|
-| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |
+None. Operand order follows the global comparison style (`regular` default / `yoda`).
 
 ## Configure
 

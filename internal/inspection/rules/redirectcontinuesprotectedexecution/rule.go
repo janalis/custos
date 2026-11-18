@@ -107,7 +107,7 @@ func redirectPredicateRebound(ctx *analysis.Context, scope syntax.Node, name str
 // authorized reports whether the conditions guarding c prove local
 // name truthy there (or make c unreachable).
 func authorized(ctx *analysis.Context, name string, c *syntax.FuncCall) bool {
-	if semanticquery.NativeLabelled(ctx, c) {
+	if semanticquery.NativeLabeled(ctx, c) {
 		return false // a jump may land between a guard and the call
 	}
 	t := ctx.Types().Native().NarrowedVarAt(name, c, types.Bool)

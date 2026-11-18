@@ -16,7 +16,7 @@ func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "FinallyThrowMasksException" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KTry} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP55 {
+	if ctx.PHP.Below(phpversion.PHP55) {
 		return
 	}
 	tr := n.(*syntax.Try)

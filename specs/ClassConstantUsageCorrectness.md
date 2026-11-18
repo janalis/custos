@@ -260,5 +260,3 @@ is acceptable next to the alias `Bag`.)
   resolved class differ by more than letter case (`\App\Old\Resp::class`
   for an alias of `\App\Http\Resp`), there is no case mismatch to report
   (Grav's `GPM\Response` compatibility alias).
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

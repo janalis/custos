@@ -16,7 +16,7 @@ import (
 	"custos/internal/semantic/infer"
 )
 
-// TestIndexScope: the project paths are indexed besides the analysed files,
+// TestIndexScope: the project paths are indexed besides the analyzed files,
 // each file once, and vendor follows the project excludes.
 func TestIndexScope(t *testing.T) {
 	root := t.TempDir()
@@ -27,7 +27,7 @@ func TestIndexScope(t *testing.T) {
 		writeFile(t, f, "<?php\n")
 	}
 	t.Chdir(root)
-	// The analysed file is named relative to the working directory and the
+	// The analyzed file is named relative to the working directory and the
 	// project path holds vendor: neither is listed twice.
 	got := IndexSources(root, []string{filepath.Join("src", "app.php")}, []string{root}, []string{"gen"})
 	want := []string{filepath.Join("src", "app.php"), other, lib}
@@ -65,7 +65,7 @@ func TestDiscoverSymlinks(t *testing.T) {
 	}
 }
 
-// TestRequestedFilesNotIndexed: a file a rule requests by name is analysed
+// TestRequestedFilesNotIndexed: a file a rule requests by name is analyzed
 // but not indexed as PHP.
 func TestRequestedFilesNotIndexed(t *testing.T) {
 	root := t.TempDir()
@@ -86,7 +86,7 @@ func TestRequestedFilesNotIndexed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, sources, _, saved := p.prepare(false)
+	_, sources, _, _, saved := p.prepare(false, false)
 	saved()
 	if len(p.Files) != 2 || sources[0] != nil || sources[1] == nil || !reflect.DeepEqual(extracted, []string{"a.php"}) {
 		t.Fatalf("files %v sources %q extracted %v", p.Files, sources, extracted)

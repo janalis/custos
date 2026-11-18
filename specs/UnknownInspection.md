@@ -91,7 +91,7 @@ None.
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 

@@ -52,3 +52,4 @@ function guardOfOuterList($expected, $enabled) {
         if ($_SERVER['HTTP_X_FORWARDED_FOR'] === $expected) { openGate(); }
     }
 }
+echo $_SERVER['HTTP_X_FORWARDED_FOR'];

@@ -13,6 +13,7 @@ const message = "Compare collation results explicitly."
 
 type rule struct{}
 
+// New returns the CollatorComparisonTruthinessReversed inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CollatorComparisonTruthinessReversed" }
 func (rule) Semantic()                {}
@@ -26,7 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.NativeMethod(ctx, c, "Collator", "compare") {
 		return
 	}
-	if semanticquery.ExpansionCTruthy(c) {
+	if semanticquery.DirectCondition(c) {
 		ctx.ReportNode(c, message)
 		return
 	}

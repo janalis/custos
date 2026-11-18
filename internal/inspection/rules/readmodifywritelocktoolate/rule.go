@@ -78,7 +78,7 @@ func lockFollows(statement syntax.Stmt, write syntax.Node) bool {
 }
 
 // readModifyWriteLockDelegated reports an application call completed before
-// read that may serialise the operation: its name mentions a lock without
+// read that may serialize the operation: its name mentions a lock without
 // being an unlock, or it receives the path that is read and written.
 func readModifyWriteLockDelegated(ctx *analysis.Context, callee syntax.Expr, args *syntax.ArgList, read *syntax.FuncCall, path syntax.Expr) bool {
 	if callee == nil || args == nil || args.Span().End > read.Span().Start {

@@ -1,4 +1,5 @@
-// Package unpackednamedargumentcollision implements the UnpackedNamedArgumentCollision inspection.
+// Package unpackednamedargumentcollision implements the native
+// UnpackedNamedArgumentCollision inspection.
 package unpackednamedargumentcollision
 
 import (
@@ -13,6 +14,7 @@ import (
 
 type rule struct{}
 
+// New returns the UnpackedNamedArgumentCollision inspection.
 func New() analysis.Rule { return rule{} }
 func (rule) ID() string  { return "UnpackedNamedArgumentCollision" }
 func (rule) Kinds() []syntax.NodeKind {
@@ -22,7 +24,7 @@ func (rule) Kinds() []syntax.NodeKind {
 const message = "Bind each argument only once."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP81 {
+	if ctx.PHP.Below(phpversion.PHP81) {
 		return
 	}
 	target, known := semanticquery.ResolveCallee(ctx, n)

@@ -29,7 +29,7 @@ func (e *Env) BodyReturnType(f *index.Function) types.Type {
 	}
 	if f.File != e.File.Path {
 		if f.Inferred == "" || stubs.Index().Function(f.FQN, 0) != nil {
-			// A polyfill of a builtin keeps the behaviour it had before
+			// A polyfill of a builtin keeps the behavior it had before
 			// (its body is an approximation of the builtin).
 			return types.Unknown
 		}

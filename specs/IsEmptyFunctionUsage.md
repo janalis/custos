@@ -125,11 +125,11 @@ D3 has no fix.
 | SUGGEST_NULL_COMPARISON_FOR_SCALARS | bool | true | Extends the null comparison to nullable int, float, bool and resource values; nullable objects only need the previous option. |
 
 Global setting: comparison style (`regular` default / `yoda`) selects the
-operand order of F1/F2.
+operand order of the comparisons the quick-fix writes.
 
 ## PHP versions
 
-None.
+No gating.
 
 ## Examples
 
@@ -289,5 +289,3 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
   "not empty" with `=== null` (and `count(false)` throws). The D1/D2
   message is still reported, but the fix is offered only when native
   declarations alone give the subject the same types.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

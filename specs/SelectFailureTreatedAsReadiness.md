@@ -1,9 +1,9 @@
 ---
 id: SelectFailureTreatedAsReadiness
 group: Probable bugs
-kind: semantic
+kind: flow
 needs: [names, types, flow]
-php: { min: "5.3", max: "" }
+php: { min: "", max: "" }
 ---
 
 # SelectFailureTreatedAsReadiness
@@ -16,7 +16,7 @@ Handle selection failure before processing ready streams.
 
 - D1. Report a direct or unchanged-local stream_select result compared strictly !== 0. False passes this readiness test. Loose != 0 excludes false and is not reported; explicit three-way handling and other comparison forms are outside this subset.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and code too complex to analyze remove proof.
 
 ## Exceptions (no report)
 
@@ -69,4 +69,4 @@ $r=stream_select($read,$write,$except,1); if ($r!==false && $r!==0) { echo "read
 
 ## Divergences
 
-Native custos inspection, independently specified. No EA counterpart or EA fixture conformance applies.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

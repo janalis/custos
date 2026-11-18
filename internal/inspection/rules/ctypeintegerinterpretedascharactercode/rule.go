@@ -11,6 +11,7 @@ const message = "Pass a string to avoid character-code interpretation."
 
 type rule struct{}
 
+// New returns the CtypeIntegerInterpretedAsCharacterCode inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "CtypeIntegerInterpretedAsCharacterCode" }
 func (rule) Semantic()                {}

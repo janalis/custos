@@ -1,4 +1,5 @@
-// Package pgescapedliteralquotedagain implements PgEscapedLiteralQuotedAgain.
+// Package pgescapedliteralquotedagain implements the native
+// PgEscapedLiteralQuotedAgain inspection.
 package pgescapedliteralquotedagain
 
 import (
@@ -13,6 +14,7 @@ const message = "Use the already quoted PostgreSQL literal directly."
 
 type rule struct{}
 
+// New returns the PgEscapedLiteralQuotedAgain inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "PgEscapedLiteralQuotedAgain" }
 func (rule) Semantic()                {}
@@ -27,7 +29,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if query == nil {
 		query = semanticquery.CallArgument(c.Args, 0, "query")
 	}
-	parts, values, known := semanticquery.ExpansionSQLParts(ctx, query)
+	parts, values, known := semanticquery.SQLSkeletonParts(ctx, query)
 	if !known {
 		return
 	}

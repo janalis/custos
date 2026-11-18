@@ -105,7 +105,7 @@ func falsy(e syntax.Expr, failsFalse bool) bool {
 }
 
 // webmozartAssert names the assertion class of webmozart/assert, matched by
-// the name written in the call: its source need not be analysed.
+// the name written in the call: its source need not be analyzed.
 const webmozartAssert = `webmozart\assert\assert`
 
 // LibraryFailurePassing returns, for a static call of an assertion of

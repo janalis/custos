@@ -84,7 +84,7 @@ func Each(ctx context.Context, n int, fn func(int)) error {
 // internalFailure is the result of a file whose analysis crashed outside
 // any rule (parser, shared inference, the engine itself): an internal
 // finding and an internal-failure gap, so the run goes on and the file
-// cannot read as completely analysed.
+// cannot read as completely analyzed.
 func internalFailure(path string, src []byte, r any) diagnostic.FileResult {
 	return diagnostic.FileResult{
 		Path: path, Src: src,

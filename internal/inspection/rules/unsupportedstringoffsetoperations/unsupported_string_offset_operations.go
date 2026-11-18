@@ -56,7 +56,7 @@ func usoType(ctx *analysis.Context, c syntax.Expr) types.Type {
 }
 
 func (unsupportedStringOffsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP71 { // E1
+	if ctx.PHP.Below(phpversion.PHP71) { // E1
 		return
 	}
 	e := n.(*syntax.ArrayDimFetch)

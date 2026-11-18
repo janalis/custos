@@ -345,5 +345,3 @@ foreach ($incomingRows as $row) {
   it is meant to run once per item (Grav's archivers and security scans).
 - Conformance note: the upstream test suite runs with `SUGGEST_USING_CLONE`
   enabled.
-
-Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

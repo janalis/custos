@@ -1,7 +1,7 @@
 ---
 id: DstUnsafeCalendarDayArithmetic
 group: Probable bugs
-kind: syntax
+kind: semantic
 needs: [names]
 php: { min: "", max: "" }
 ---
@@ -37,7 +37,7 @@ No automatic fix: changing representation from elapsed seconds to calendar dates
 
 ## Options
 
-None. Enable or disable this rule through normal rule configuration.
+None.
 
 ## PHP versions
 
@@ -52,7 +52,7 @@ $day=new DateTimeImmutable('2025-03-30 00:00:00',new DateTimeZone('Europe/Paris'
 
 ## Divergences
 
-Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.
 
 Audit constraint: mutable DateTime instances are accepted only as fresh receiver expressions. Stored mutable dates may have changed date or timezone since construction.
 

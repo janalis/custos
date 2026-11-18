@@ -353,7 +353,7 @@ func (s *Server) typeAt(snap *project.Snapshot, in Input) (Output, error) {
 	if uint64(offset) >= uint64(len(src)) {
 		return nil, errors.New("byte offset outside the file")
 	}
-	file := syntax.ParseBest(in.Path, src, syntax.Options{Version: snap.Config.PHP, ShortOpenTag: snap.Config.ShortOpenTag})
+	file := syntax.ParseBest(in.Path, src, snap.Config.Parse())
 	var expr syntax.Expr
 	syntax.InspectFile(file, func(n syntax.Node) bool {
 		span := n.Span()
@@ -374,7 +374,7 @@ func (s *Server) typeAt(snap *project.Snapshot, in Input) (Output, error) {
 	if expr == nil {
 		return Output{"resolved": false, "reason": "No expression at this position."}, nil
 	}
-	env := infer.NewEnv(file, names.New(file), snap.Index, snap.Config.PHP, infer.Options{Assertions: snap.Config.Flow.Assertions})
+	env := infer.NewEnv(file, names.New(file), snap.Index, snap.Config.PHP, snap.Config.Infer())
 	doc := env.TypeOf(expr)
 	native := env.Native().TypeOf(expr)
 	line, column := syntax.NewLineIndex(src).RuneColumn(expr.Span().Start)

@@ -29,7 +29,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// The parameter is nullable from PHP 8.0: null reads the name like the
 	// argument-less form. Older versions coerce it and take the setter path.
-	if ctx.PHP >= phpversion.PHP80 && syntax.IsNullConst(semanticquery.NativeValue(ctx, name)) {
+	if ctx.PHP.AtLeast(phpversion.PHP80) && syntax.IsNullConst(semanticquery.NativeValue(ctx, name)) {
 		return
 	}
 	state, known := ctx.Flow().GlobalStateBefore(call, "session")

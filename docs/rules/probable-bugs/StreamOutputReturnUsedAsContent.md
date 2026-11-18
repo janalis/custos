@@ -30,7 +30,7 @@ Reported:
 ## Detection
 
 - Report a direct readfile or fpassthru return used as the sole operand of echo or print. These functions already output stream bytes; their numeric successful return is output again. Grouping parentheses around the call, as in `echo(readfile($f));` or `print (fpassthru($h));`, are looked through: they are not call syntax and the operand is still the stream call alone.
-- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 

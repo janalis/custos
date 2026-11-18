@@ -403,7 +403,7 @@ type versionTwinKey struct{}
 
 // envCount returns the number of environments to ask in ctx.
 func envCount(ctx *analysis.Context) int {
-	if ctx.PHP < phpversion.Max {
+	if ctx.PHP.Below(phpversion.Max) {
 		return newestEnv + 1
 	}
 	return provenEnv + 1
@@ -598,11 +598,11 @@ func accessBase(x syntax.Expr) syntax.Expr {
 type typeRelationsKey struct{}
 
 // typeChecks answers the class questions of the checks.
-type typeChecks struct{ *IndexRelations }
+type typeChecks struct{ *indexRelations }
 
 func typeRelations(ctx *analysis.Context) typeChecks {
 	return ctx.Shared(typeRelationsKey{}, func() any {
-		return typeChecks{NewIndexRelations(ctx.Index(), ctx.PHP)}
+		return typeChecks{newIndexRelations(ctx.Index(), ctx.PHP)}
 	}).(typeChecks)
 }
 
@@ -619,7 +619,7 @@ func (r typeChecks) classVerdict(c, a string) types.Verdict {
 	if r.isTrait(a) || !r.Resolved(a) || r.dependencyHierarchy(a) {
 		return types.Maybe
 	}
-	return types.Accepts(types.Of(c), types.Of(a), types.AcceptContext{Classes: r.IndexRelations, Strict: true})
+	return types.Accepts(types.Of(c), types.Of(a), types.AcceptContext{Classes: r.indexRelations, Strict: true})
 }
 
 // dependencyHierarchy reports whether class atom a or one of its ancestors

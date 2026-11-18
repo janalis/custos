@@ -21,7 +21,7 @@ type Request struct {
 	Options         map[string]string // "Rule.OPTION" -> raw value
 	Calls           []string          // raw option calls (EA list options)
 	// Companions are extra project files (path -> clean source) whose
-	// symbols are visible to the analysed file.
+	// symbols are visible to the analyzed file.
 	Companions map[string][]byte
 	// CompleteWorld marks the indexed files as everything the project can
 	// load (see index.World).
@@ -103,6 +103,10 @@ type CompareOptions struct {
 	OnlyPrefixed string
 	// HideExpected suppresses expected fix text in diffs (EA fixtures).
 	HideExpected bool
+	// NoFixWithoutFixed requires a fixture without expected fix output to
+	// be left as it is by the fixes (own fixtures: a quick-fix is always
+	// shown by a .fixed file).
+	NoFixWithoutFixed bool
 }
 
 // Check runs engine on a marked-up fixture and compares the outcome.
@@ -135,6 +139,15 @@ func Check(engine Engine, req Request, marked, fixed []byte, opt CompareOptions)
 	SortExpectations(got)
 	var res Result
 	res.Missing, res.Unexpected = diff(want, got, opt.Messages)
+	if fixed == nil && opt.NoFixWithoutFixed && len(got) > 0 {
+		out, err := engine.Fix(req)
+		if err != nil {
+			return res, err
+		}
+		if !bytes.Equal(out, clean) {
+			res.FixDiff = fmt.Sprintf("a fix changes the fixture, which has no .fixed file to show it:\n%s", out)
+		}
+	}
 	if fixed != nil {
 		out, err := engine.Fix(req)
 		if err != nil {

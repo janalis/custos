@@ -134,7 +134,7 @@ None: the intended value cannot be guessed.
 
 ## PHP versions
 
-All versions.
+No gating.
 
 ## Configure
 

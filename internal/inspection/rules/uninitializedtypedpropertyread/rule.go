@@ -1,4 +1,5 @@
-// Package uninitializedtypedpropertyread implements the UninitializedTypedPropertyRead inspection.
+// Package uninitializedtypedpropertyread implements the native
+// UninitializedTypedPropertyRead inspection.
 package uninitializedtypedpropertyread
 
 import (
@@ -12,6 +13,7 @@ import (
 
 type rule struct{}
 
+// New returns the UninitializedTypedPropertyRead inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "UninitializedTypedPropertyRead" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KPropertyFetch} }
@@ -19,7 +21,7 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KPropert
 const message = "Initialize this typed property before reading it."
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if ctx.PHP < phpversion.PHP74 {
+	if ctx.PHP.Below(phpversion.PHP74) {
 		return
 	}
 	fetch := n.(*syntax.PropertyFetch)

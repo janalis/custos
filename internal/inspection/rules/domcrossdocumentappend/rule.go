@@ -1,4 +1,5 @@
-// Package domcrossdocumentappend implements DomCrossDocumentAppend.
+// Package domcrossdocumentappend implements the native
+// DomCrossDocumentAppend inspection.
 package domcrossdocumentappend
 
 import (
@@ -11,6 +12,7 @@ const message = "Import the node into the destination document."
 
 type rule struct{}
 
+// New returns the DomCrossDocumentAppend inspection.
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "DomCrossDocumentAppend" }
 func (rule) Semantic()                {}
@@ -34,7 +36,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // owns it. Any other earlier adoption leaves the owner unknown, because it
 // may be conditional or may have moved an ancestor of the node.
 func owner(ctx *analysis.Context, at *syntax.MethodCall, e syntax.Expr) *syntax.New {
-	doc := semanticquery.ExpansionDOMOwner(ctx, e)
+	doc := semanticquery.DOMOwnerDocument(ctx, e)
 	if _, ok := syntax.UnwrapParens(e).(*syntax.Variable); !ok || doc == nil {
 		return doc
 	}
@@ -55,8 +57,8 @@ func owner(ctx *analysis.Context, at *syntax.MethodCall, e syntax.Expr) *syntax.
 	if last == nil || value == syntax.Expr(last) {
 		return doc
 	}
-	if !semanticquery.NativeDominates(last, at) || !semanticquery.ExpansionSameObject(ctx, semanticquery.CallArgument(last.Args, 0, "node"), e) {
+	if !semanticquery.NativeDominates(last, at) || !semanticquery.SameLocalObject(ctx, semanticquery.CallArgument(last.Args, 0, "node"), e) {
 		return nil
 	}
-	return semanticquery.ExpansionDOMOwner(ctx, last.Var)
+	return semanticquery.DOMOwnerDocument(ctx, last.Var)
 }

@@ -6,7 +6,7 @@ title: UnpackedNamedArgumentCollision
 
 # UnpackedNamedArgumentCollision
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.0" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.1" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -30,7 +30,7 @@ Reported:
 - Report an explicit or unpacked argument binding a parameter already certainly bound by a literal unpacked array on the same call.
 - Model PHP's argument counter when assigning positional values: a positional value takes the slot after the highest parameter slot filled so far, whether that slot was filled positionally or by name. A name collected by a variadic parameter fills no slot and leaves the counter unchanged.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -45,11 +45,7 @@ No automatic fix: choosing which value to retain is application intent.
 
 ## PHP versions
 
-Available from PHP 8.0. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
-
-## Options
-
-None. Enable or disable this rule through normal rule configuration.
+Available from PHP 8.1, which allows unpacking string keys. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
 ## Configure
 

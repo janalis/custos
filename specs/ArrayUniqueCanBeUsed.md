@@ -1,7 +1,7 @@
 ---
 id: ArrayUniqueCanBeUsed
 group: Control flow
-kind: syntax
+kind: semantic
 needs: []
 php: { min: "7.2", max: "" }
 ---
