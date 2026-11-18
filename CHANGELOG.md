@@ -8,12 +8,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 
 - `analyse` keeps each checked file's findings in the cache and reports them
-  again, without checking the file, while nothing they depend on changed.
-  On laravel/framework, a run with nothing changed used about 87% less CPU
-  than a run without the cache (2.3 s against 17–19 s), and a run after an
-  edit inside a function body that keeps what it does for its callers about
-  as little. Findings are the same; `--no-cache` turns it off with the rest
-  of the cache.
+  again, without checking the file, while nothing they depend on changed;
+  the cache also keeps the checked files' declarations, trusted while a
+  file's content is the same. On laravel/framework (Linux, 4 cores), a run
+  with nothing changed took 1.5 s of CPU and 0.7 s against 6.5 s and 2.0 s
+  with 0.1.15's cache (composer: 0.4 s against 2.7 s of CPU), and an edit
+  inside a function body that keeps what it does for its callers has only
+  that file checked again. Findings are the same; `--no-cache` turns it off
+  with the rest of the cache.
 - `--cpuprofile` labels the samples taken while a rule runs with the rule's
   ID, so `go tool pprof -tags` shows the time each rule takes.
 
@@ -49,11 +51,6 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Output, messages and docs use US spelling: the text report ends with
   "file(s) analyzed", and files skipped for size or nesting depth are
   reported as "not analyzed". The `analyse` command keeps its name.
-- The cache also keeps the declarations of the checked files, trusted while
-  a file's content is the same, so a later run parses only the checked files
-  that changed to index them. On laravel/framework, a run with nothing
-  changed used about a third less CPU (1.6–1.9 s against 2.4–2.8 s), for a
-  cache about 8 MB larger.
 - The language server stops an index or cross-file flow build as soon as a
   later one replaces it (a configuration change, an edit to declarations),
   instead of finishing it and discarding the result.
