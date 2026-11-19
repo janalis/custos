@@ -357,9 +357,6 @@ func (w *nativeLocalWrites) rewritten(name string, from, read uint32, content bo
 
 // untouched reports that nothing writes name before offset read, in any form.
 func (w *nativeLocalWrites) untouched(name string, read uint32) bool {
-	if !w.known {
-		return false
-	}
 	for _, write := range w.writes {
 		if (write.name == name || write.name == "") && write.at < read {
 			return false
