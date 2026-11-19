@@ -44,7 +44,8 @@ Reported:
 - An operand that may also be null, a scalar or an unresolved class.
 - An object of a class that takes part in arithmetic: `GMP`,
   `BcMath\Number`, `FFI\CData`, `SimpleXMLElement` and their subclasses.
-- A type that comes only from PHPDoc.
+- A type that comes only from PHPDoc, which DocumentedOperandType
+  covers.
 
 ## Fix
 

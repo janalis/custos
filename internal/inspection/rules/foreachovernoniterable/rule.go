@@ -4,6 +4,7 @@ package foreachovernoniterable
 
 import (
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
 
@@ -18,20 +19,10 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KForeach
 
 func (rule) Semantic() {}
 
-// Check reports the subject of a loop when native declarations prove it
-// holds only scalars or null.
+// Check reports the subject of a loop when native declarations prove it holds only scalars or null.
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	subject := n.(*syntax.Foreach).Expr
-	typ := ctx.Types().ProvenTypeOf(subject)
-	if typ.IsUnknown() {
-		return
+	loop := n.(*syntax.Foreach)
+	if j, ok := semanticquery.NonIterableSubject(ctx, loop); ok && j.Proven {
+		ctx.ReportNode(loop.Expr, "Iterate over an array or an object, not "+j.Type.String()+".")
 	}
-	for _, a := range typ.Atoms() {
-		switch a {
-		case "int", "float", "string", "bool", "true", "false", "null":
-		default:
-			return
-		}
-	}
-	ctx.ReportNode(subject, "Iterate over an array or an object, not "+typ.String()+".")
 }

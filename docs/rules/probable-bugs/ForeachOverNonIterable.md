@@ -41,7 +41,8 @@ Reported:
 - A subject of unknown type, or one that may be an array, an object,
   `iterable`, `callable` or `mixed`: a `foreach` walks the properties of any
   object.
-- A type that comes only from PHPDoc.
+- A type that comes only from PHPDoc, which
+  DocumentedForeachOverNonIterable covers.
 
 ## Fix
 

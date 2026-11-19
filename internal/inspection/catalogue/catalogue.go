@@ -140,6 +140,9 @@ import (
 	"custos/internal/inspection/rules/disallowwritingintostaticproperties"
 	"custos/internal/inspection/rules/disconnectedforeachinstruction"
 	"custos/internal/inspection/rules/documentedargumenttype"
+	"custos/internal/inspection/rules/documentedforeachovernoniterable"
+	"custos/internal/inspection/rules/documentedmemberaccessonnonobject"
+	"custos/internal/inspection/rules/documentedoperandtype"
 	"custos/internal/inspection/rules/documentedpropertyassignment"
 	"custos/internal/inspection/rules/documentedreturntype"
 	"custos/internal/inspection/rules/domappendmovesnodeunexpectedly"
@@ -818,6 +821,9 @@ func All() []analysis.Rule {
 		deflatestreamneverfinished.New(),
 		directoryiteratordotentries.New(),
 		documentedargumenttype.New(),
+		documentedforeachovernoniterable.New(),
+		documentedmemberaccessonnonobject.New(),
+		documentedoperandtype.New(),
 		documentedpropertyassignment.New(),
 		documentedreturntype.New(),
 		domappendmovesnodeunexpectedly.New(),

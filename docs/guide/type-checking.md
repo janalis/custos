@@ -18,7 +18,7 @@ off by default. Turn it on with `typeCheck` in `custos.json`:
 |---|---|---|
 | `off` | Nothing beyond the rules you enable yourself. This is the default. | |
 | `proven` | Mistakes that native declarations and the code alone prove. | `InvalidArgumentType`, `InvalidReturnType`, `InvalidPropertyAssignment`, `ArgumentCountMismatch`, `UndefinedFunction`, `UndefinedClass`, `UndefinedMethod`, `UndefinedProperty`, `ImpossibleTypeComparison`, `MemberAccessOnNonObject`, `ForeachOverNonIterable`, `InvalidOperandType` |
-| `documented` | Everything in `proven`, plus values that break a documented contract or may be null. | `DocumentedArgumentType`, `DocumentedReturnType`, `DocumentedPropertyAssignment`, `PossiblyNullAccess`, `PossiblyNullArgument`, `RedundantTypeCheck` |
+| `documented` | Everything in `proven`, plus values that break a documented contract or may be null. | `DocumentedArgumentType`, `DocumentedReturnType`, `DocumentedPropertyAssignment`, `DocumentedMemberAccessOnNonObject`, `DocumentedForeachOverNonIterable`, `DocumentedOperandType`, `PossiblyNullAccess`, `PossiblyNullArgument`, `RedundantTypeCheck` |
 
 A rule's own `enabled` setting always wins over the level, and `--rule` still
 selects exactly the rules it names. A finding is only reported when the types

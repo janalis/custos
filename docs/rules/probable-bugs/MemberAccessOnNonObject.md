@@ -43,7 +43,8 @@ Reported:
 - A receiver of unknown type, or one that may be `mixed`, `object`,
   `iterable`, `callable` or a class.
 - A receiver that can only be null, which PossiblyNullAccess covers.
-- A type that comes only from PHPDoc.
+- A type that comes only from PHPDoc, which
+  DocumentedMemberAccessOnNonObject covers.
 - A property read inside `isset()`, `empty()` or on the left of `??`,
   which PHP evaluates without complaint.
 

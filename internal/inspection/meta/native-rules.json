@@ -697,6 +697,30 @@
     "typeCheck": "documented"
   },
   {
+    "id": "DocumentedForeachOverNonIterable",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "typeCheck": "documented"
+  },
+  {
+    "id": "DocumentedMemberAccessOnNonObject",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "typeCheck": "documented"
+  },
+  {
+    "id": "DocumentedOperandType",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "typeCheck": "documented"
+  },
+  {
     "id": "DocumentedReturnType",
     "group": "Probable bugs",
     "severity": "warning",

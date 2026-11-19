@@ -27,7 +27,8 @@ null.
 - E1. A receiver of unknown type, or one that may be `mixed`, `object`,
   `iterable`, `callable` or a class.
 - E2. A receiver that can only be null, which PossiblyNullAccess covers.
-- E3. A type that comes only from PHPDoc.
+- E3. A type that comes only from PHPDoc, which
+  DocumentedMemberAccessOnNonObject covers.
 - E4. A property read inside `isset()`, `empty()` or on the left of `??`,
   which PHP evaluates without complaint.
 

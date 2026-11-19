@@ -5,6 +5,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `DocumentedMemberAccessOnNonObject`, `DocumentedForeachOverNonIterable`
+  and `DocumentedOperandType` report member access on a non-object, a loop
+  over a non-iterable value and arithmetic on arrays or plain objects when
+  PHPDoc shows the mistake but native declarations alone do not. They are
+  off by default and part of the `typeCheck: documented` level.
+
 ## [0.2.0] - 2026-11-19
 
 ### Added

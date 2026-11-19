@@ -920,6 +920,18 @@
             "link": "/rules/probable-bugs/DocumentedArgumentType"
           },
           {
+            "text": "DocumentedForeachOverNonIterable",
+            "link": "/rules/probable-bugs/DocumentedForeachOverNonIterable"
+          },
+          {
+            "text": "DocumentedMemberAccessOnNonObject",
+            "link": "/rules/probable-bugs/DocumentedMemberAccessOnNonObject"
+          },
+          {
+            "text": "DocumentedOperandType",
+            "link": "/rules/probable-bugs/DocumentedOperandType"
+          },
+          {
             "text": "DocumentedPropertyAssignment",
             "link": "/rules/probable-bugs/DocumentedPropertyAssignment"
           },

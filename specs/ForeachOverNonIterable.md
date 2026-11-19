@@ -24,7 +24,8 @@ array nor an object. PHP raises a warning and skips the loop.
 - E1. A subject of unknown type, or one that may be an array, an object,
   `iterable`, `callable` or `mixed`: a `foreach` walks the properties of any
   object.
-- E2. A type that comes only from PHPDoc.
+- E2. A type that comes only from PHPDoc, which
+  DocumentedForeachOverNonIterable covers.
 
 ## Report
 

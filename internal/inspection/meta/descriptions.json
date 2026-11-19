@@ -469,6 +469,16 @@
   "DocumentedArgumentType": {
     "summary": "Report an argument that breaks a parameter's contract when PHPDoc is taken\ninto account: the `@param` type of a project function rejects it, or the\ndeclared type rejects a value whose type only PHPDoc describes. PHP may run\nsuch a call, but the code and its documentation disagree. Mismatches the\ncode alone proves are InvalidArgumentType's."
   },
+  "DocumentedForeachOverNonIterable": {
+    "summary": "Report a `foreach` over a value that PHPDoc says is neither an array nor an\nobject. The loop may still run, since PHP does not check PHPDoc, but the loop\nand the documentation disagree. Subjects the code alone proves are not\niterable are ForeachOverNonIterable's."
+  },
+  "DocumentedMemberAccessOnNonObject": {
+    "summary": "Report a method call or property access on a value that PHPDoc says is never\nan object. The code may still run, since PHP does not check PHPDoc, but the\naccess and the documentation disagree. Receivers the code alone proves are\nnever objects are MemberAccessOnNonObject's."
+  },
+  "DocumentedOperandType": {
+    "phpMin": "8.0",
+    "summary": "Report an arithmetic or bitwise operation on an array or an object when\nPHPDoc says the operand cannot take part in it. The code may hold a number at\nrun time, since PHP does not check PHPDoc, but the operation and the\ndocumentation disagree. Operands the code alone proves wrong are\nInvalidOperandType's."
+  },
   "DocumentedPropertyAssignment": {
     "summary": "Report a value stored in a property that breaks the property's contract\nwhen PHPDoc is taken into account: the `@var` type of the property rejects\nit, or the declared type rejects a value whose type only PHPDoc describes.\nPHP may run such an assignment, but the code and its documentation\ndisagree. Mismatches the code alone proves are InvalidPropertyAssignment's."
   },
