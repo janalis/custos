@@ -604,6 +604,24 @@ func (e *Env) collectSelfOut(call *syntax.MethodCall, sv *scopeVars) {
 	sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ})
 }
 
+// selfOutOfProperty is t, the type of the property narrowing key name names,
+// after statement x: what a method called on that property documents it to
+// hold from then on.
+func (e *Env) selfOutOfProperty(x syntax.Expr, name string, t types.Type) types.Type {
+	call, isCall := x.(*syntax.MethodCall)
+	if !isCall || e.native || !isPropKey(name) || call.NullSafe || narrowKey(syntax.UnwrapParens(call.Var)) != name {
+		return t
+	}
+	id, named := call.Name.(*syntax.Identifier)
+	if !named || !e.Index.HasSelfOut(id.Value) {
+		return t
+	}
+	if out := e.selfOutType(t, id.Value); !out.IsUnknown() {
+		return out
+	}
+	return t
+}
+
 // selfOutType is the type receiver has after a call of method; unknown unless
 // every class of receiver documents one that names a type.
 func (e *Env) selfOutType(receiver types.Type, method string) types.Type {

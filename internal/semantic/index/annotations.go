@@ -73,14 +73,19 @@ var mixinTags = [...]string{"mixin", "phpstan-mixin", "psalm-mixin"}
 const maxClassMixins = 32
 
 // mixins records the @mixin tags of d: whether there is any, and the classes
-// they name (generic arguments dropped, templates skipped).
+// and templates they name (generic arguments dropped).
 func (x *extractor) mixins(c *Class, d *phpdoc.Doc, at uint32) {
 	for _, tag := range mixinTags {
 		for _, t := range d.All(tag) {
 			c.Mixin = true
 			typ, _ := phpdoc.SplitType(t.Text)
 			for _, class := range types.FromDoc(typ, x.genResolver(at)).Classes() {
-				if name := strings.TrimPrefix(class, `\`); len(c.Mixins) < maxClassMixins && !strings.HasPrefix(name, "~") && !slices.Contains(c.Mixins, name) {
+				name := strings.TrimPrefix(class, `\`)
+				if template, ok := strings.CutPrefix(name, "~"); ok {
+					if len(c.MixinTemplates) < maxClassMixins && !slices.Contains(c.MixinTemplates, template) {
+						c.MixinTemplates = append(c.MixinTemplates, template)
+					}
+				} else if len(c.Mixins) < maxClassMixins && !slices.Contains(c.Mixins, name) {
 					c.Mixins = append(c.Mixins, name)
 				}
 			}

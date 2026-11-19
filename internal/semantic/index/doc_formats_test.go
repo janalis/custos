@@ -80,8 +80,8 @@ class Bare {}
 class Plain {}
 `)
 	host := fs.Classes[0]
-	if !host.Mixin || !reflect.DeepEqual(host.Mixins, []string{`Domain\Item`, `Other\Thing`}) {
-		t.Errorf("Host: mixin=%v mixins=%v", host.Mixin, host.Mixins)
+	if !host.Mixin || !reflect.DeepEqual(host.Mixins, []string{`Domain\Item`, `Other\Thing`}) || !reflect.DeepEqual(host.MixinTemplates, []string{"T"}) {
+		t.Errorf("Host: mixin=%v mixins=%v templates=%v", host.Mixin, host.Mixins, host.MixinTemplates)
 	}
 	if c := fs.Classes[1]; !c.Mixin || c.Mixins != nil {
 		t.Errorf("bare @mixin: mixin=%v mixins=%v", c.Mixin, c.Mixins)
@@ -128,8 +128,12 @@ func TestMixinsAreCapped(t *testing.T) {
 	for i := range maxClassMixins + 5 {
 		fmt.Fprintf(&doc, " * @mixin M%d\n", i)
 	}
-	fs := extract(t, "many.php", "<?php\n/**\n"+doc.String()+" */\nclass Many {}\n")
-	if c := fs.Classes[0]; !c.Mixin || len(c.Mixins) != maxClassMixins {
-		t.Errorf("mixin=%v, %d mixins kept", c.Mixin, len(c.Mixins))
+	var templates strings.Builder
+	for i := range maxClassMixins + 5 {
+		fmt.Fprintf(&templates, " * @template T%d\n * @mixin T%d\n * @mixin T%d\n", i, i, i)
+	}
+	fs := extract(t, "many.php", "<?php\n/**\n"+doc.String()+templates.String()+" */\nclass Many {}\n")
+	if c := fs.Classes[0]; !c.Mixin || len(c.Mixins) != maxClassMixins || len(c.MixinTemplates) != maxClassMixins {
+		t.Errorf("mixin=%v, %d mixins and %d templates kept", c.Mixin, len(c.Mixins), len(c.MixinTemplates))
 	}
 }

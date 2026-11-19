@@ -325,7 +325,7 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 		c := strings.TrimPrefix(cls, `\`)
 		p := e.Index.FindProperty(c, id.Value, e.PHP)
 		if p == nil {
-			mixin := e.mixinWith(c, func(m string) bool { return e.Index.FindProperty(m, id.Value, e.PHP) != nil })
+			mixin := e.mixinWith(c, recv.TypeArgs(cls), func(m string) bool { return e.Index.FindProperty(m, id.Value, e.PHP) != nil })
 			if mixin == "" {
 				return types.Unknown
 			}
@@ -343,18 +343,24 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 // tags, which analyzed code may chain or make cyclic.
 const maxMixinClasses = 32
 
-// mixinWith returns the first class that class documents through @mixin,
-// directly, by inheritance or through another mixin, for which has holds; ""
-// when there is none. Mixins are PHPDoc: native types do not see them.
-func (e *Env) mixinWith(class string, has func(string) bool) string {
+// mixinWith returns the first class that class, instantiated with args,
+// documents through @mixin, directly, by inheritance or through another mixin,
+// for which has holds; "" when there is none. Mixins are PHPDoc: native types
+// do not see them.
+func (e *Env) mixinWith(class string, args []types.Type, has func(string) bool) string {
 	if e.native {
 		return ""
 	}
+	type receiver struct {
+		class string
+		args  []types.Type
+	}
 	seen := map[string]bool{strings.ToLower(class): true}
-	queue := []string{class}
+	queue := []receiver{{class, args}}
 	for len(queue) > 0 {
-		for _, c := range e.Index.Ancestors(queue[0], e.PHP) {
-			for _, mixin := range c.Mixins {
+		bindings := e.genBindings(queue[0].class, queue[0].args)
+		for _, c := range e.Index.Ancestors(queue[0].class, e.PHP) {
+			for _, mixin := range slices.Concat(c.Mixins, templateMixins(c, bindings[strings.ToLower(c.FQN)])) {
 				if seen[strings.ToLower(mixin)] {
 					continue
 				}
@@ -365,12 +371,32 @@ func (e *Env) mixinWith(class string, has func(string) bool) string {
 					return mixin
 				}
 				seen[strings.ToLower(mixin)] = true
-				queue = append(queue, mixin)
+				queue = append(queue, receiver{class: mixin})
 			}
 		}
 		queue = queue[1:]
 	}
 	return ""
+}
+
+// templateMixins lists the classes the `@mixin T` tags of c stand for: what
+// the receiver binds T to, else T's bound.
+func templateMixins(c *index.Class, bound tplBindings) []string {
+	var out []string
+	for _, name := range c.MixinTemplates {
+		t, ok := bound[name]
+		if !ok || t.IsUnknown() {
+			for _, tp := range c.Templates {
+				if tp.Name == name {
+					t = types.FromDoc(tp.Bound, nil)
+				}
+			}
+		}
+		for _, class := range t.Classes() {
+			out = append(out, strings.TrimPrefix(class, `\`))
+		}
+	}
+	return out
 }
 
 // memberClasses lists the classes of receiver type recv whose member a
@@ -529,7 +555,7 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 		c := strings.TrimPrefix(cls, `\`)
 		owner := c
 		if e.Index.FindMethod(c, id.Value, e.PHP) == nil {
-			owner = e.mixinWith(c, func(m string) bool { return e.Index.FindMethod(m, id.Value, e.PHP) != nil })
+			owner = e.mixinWith(c, recv.TypeArgs(cls), func(m string) bool { return e.Index.FindMethod(m, id.Value, e.PHP) != nil })
 		}
 		// A mixin's fluent method returns the object it was called on.
 		t := e.methodReturn(owner, id.Value, true, c, recv.TypeArgs(cls), n.Args)

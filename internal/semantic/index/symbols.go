@@ -355,6 +355,8 @@ type Class struct {
 	// Mixins are the classes those tags name (FQNs without the leading
 	// backslash); a template or an unresolvable type names none.
 	Mixins []string `json:"mixins,omitempty"`
+	// MixinTemplates are the class templates those tags name (`@mixin T`).
+	MixinTemplates []string `json:"mixinTpl,omitempty"`
 	// Conditional is set for a named class-like declared inside a function,
 	// a condition, a loop or a try block rather than at the top level of
 	// its file (namespaces, declare statements and plain braces aside): it

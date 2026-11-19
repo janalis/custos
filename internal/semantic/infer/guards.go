@@ -52,6 +52,7 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 				t = e.afterPropertyElemWrite(use, scope, t, es.Expr, name)
 			}
 			// `Assert::string($x);` (@phpstan-assert on the callee).
+			t = e.selfOutOfProperty(es.Expr, name, t)
 			if ca := e.assertsOf(es.Expr); ca != nil {
 				t, _ = e.applyAsserts(ca, index.AssertAlways, name, t, false)
 			}

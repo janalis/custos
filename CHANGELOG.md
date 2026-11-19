@@ -43,7 +43,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   extra arguments to project functions that cannot read them.
 - `@mixin` types the members of the named class on the class that declares
   it, and `@phpstan-self-out` and `@psalm-this-out` change the type of the
-  local variable a method is called on.
+  local variable or property a method is called on.
 - A [type checking guide](https://janalis.github.io/custos/guide/type-checking)
   lists the levels, the rules and the declaration formats custos reads.
 

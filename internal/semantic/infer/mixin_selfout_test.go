@@ -52,6 +52,45 @@ function f(Builder $b, Child $c, LoopA $l) {
 	})
 }
 
+func TestTemplateMixins(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Query { public int $limit; public function count(): int {} }
+class Other { public function name(): string {} }
+/**
+ * @template T
+ * @mixin T
+ */
+class Proxy {}
+/**
+ * @template T of Query
+ * @mixin T
+ */
+class Bounded {}
+/** @extends Proxy<Query> */
+class QueryProxy extends Proxy {}
+/**
+ * @param Proxy<Query> $bound
+ * @param Proxy<Query|Other> $union
+ * @param Proxy<int> $scalar
+ * @param Bounded<Query> $viaArg
+ */
+function f($bound, $union, $scalar, Proxy $raw, Bounded $viaBound, $viaArg, QueryProxy $inherited) {
+    t('method', $bound->count());
+    t('property', $bound->limit);
+    t('unionFirst', $union->count());
+    t('unionSecond', $union->name());
+    t('scalar', $scalar->count());
+    t('raw', $raw->count());
+    t('viaBound', $viaBound->count());
+    t('viaArg', $viaArg->count());
+    t('inherited', $inherited->count());
+}
+`, map[string]string{
+		"method": "int", "property": "int", "unionFirst": "int", "unionSecond": "string", "scalar": "?unknown",
+		"raw": "?unknown", "viaBound": "int", "viaArg": "int", "inherited": "int",
+	})
+}
+
 // A chain of mixins longer than the lookup budget ends the search.
 func TestMixinLookupIsBounded(t *testing.T) {
 	var src strings.Builder
@@ -97,6 +136,44 @@ function f(Builder $b, Draft $d) {
 			}
 		}
 		return true
+	})
+}
+
+func TestSelfOutRebindsAProperty(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Open { public function id(): int {} }
+class Draft {
+    /** @phpstan-self-out Open */
+    public function open(): void {}
+    /** @phpstan-self-out mixed */
+    public function vague(): void {}
+    public function plain(): void {}
+}
+class Holder {
+    public Draft $state;
+    public ?Draft $maybe;
+    public Draft $other;
+    public Draft $third;
+    public Draft $fourth;
+    public function run(Holder $h, string $name) {
+        $this->state->open();
+        t('after', $this->state);
+        t('chain', $this->state->id());
+        $this->other->vague();
+        t('vague', $this->other);
+        $this->third->plain();
+        t('plain', $this->third);
+        $this->maybe?->open();
+        t('nullsafe', $this->maybe);
+        $h->fourth->open();
+        t('otherObject', $h->fourth);
+        $this->fourth->{$name}();
+        t('dynamic', $this->fourth);
+    }
+}
+`, map[string]string{
+		"after": `\Open`, "chain": "int", "vague": `\Draft`, "plain": `\Draft`, "nullsafe": `\Draft|null`,
+		"otherObject": `\Open`, "dynamic": `\Draft`,
 	})
 }
 
