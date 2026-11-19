@@ -187,3 +187,25 @@ func TestEffectiveGlobalNamespaceBlock(t *testing.T) {
 		}
 	}
 }
+
+func TestAliases(t *testing.T) {
+	src := "<?php\nnamespace A;\nuse X\\Foo as Bar;\nuse function Y\\f as G;\nuse const Z\\C as K;\nnamespace B;\nuse Q;\n"
+	r := New(syntax.Parse("t.php", []byte(src), syntax.Options{}))
+	for _, c := range []struct {
+		kind  syntax.UseKind
+		alias string
+		want  bool
+	}{
+		{syntax.UseNormal, "bar", true},
+		{syntax.UseNormal, "Q", true},
+		{syntax.UseNormal, "Foo", false},
+		{syntax.UseFunction, "g", true},
+		{syntax.UseFunction, "f", false},
+		{syntax.UseConst, "K", true},
+		{syntax.UseConst, "k", false},
+	} {
+		if got := r.Aliases(c.kind, c.alias); got != c.want {
+			t.Errorf("Aliases(%d, %q) = %v, want %v", c.kind, c.alias, got, c.want)
+		}
+	}
+}

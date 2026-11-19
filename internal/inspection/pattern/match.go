@@ -8,6 +8,7 @@ import (
 	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/inspection/astquery"
 	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 // binding is what a metavariable matched: one node, or a run of call
@@ -33,7 +34,8 @@ type matcher struct {
 type budget struct {
 	steps    int
 	spent    bool
-	reported bool // the file's analysis was marked incomplete
+	reported bool    // the file's analysis was marked incomplete
+	binds    []named // storage the rule's top-level matchers reuse, one at a time
 }
 
 // maxSteps is a rule's budget per file.
@@ -405,6 +407,9 @@ func (m *matcher) bind(name string, b binding) bool {
 // resolves it.
 func (m *matcher) name(p, t *syntax.Name, role nameRole) bool {
 	want := strings.TrimPrefix(p.Value, `\`)
+	if !m.mayResolveTo(t, want, role) {
+		return false
+	}
 	ctx := m.ctx
 	switch role {
 	case roleFunction:
@@ -432,6 +437,30 @@ func (m *matcher) name(p, t *syntax.Name, role nameRole) bool {
 	}
 	fqn, _ := m.resolved(classKey{t})
 	return fqn != "" && strings.EqualFold(strings.TrimPrefix(fqn, `\`), want)
+}
+
+// mayResolveTo reports whether target name t may resolve to want, without
+// resolving it: resolving keeps a name's last segment, except for an
+// unqualified name an import aliases, and for self, static and parent.
+func (m *matcher) mayResolveTo(t *syntax.Name, want string, role nameRole) bool {
+	if strings.EqualFold(lastSegment(t.Value), lastSegment(want)) {
+		return true
+	}
+	if strings.Contains(t.Value, `\`) {
+		return false
+	}
+	switch role {
+	case roleFunction:
+		return m.ctx.Names().Aliases(syntax.UseFunction, t.Value)
+	case roleConst:
+		return m.ctx.Names().Aliases(syntax.UseConst, t.Value)
+	}
+	return names.IsSpecialClass(t.Value) || m.ctx.Names().Aliases(syntax.UseNormal, t.Value)
+}
+
+// lastSegment returns the part of a name after its last backslash.
+func lastSegment(name string) string {
+	return name[strings.LastIndexByte(name, '\\')+1:]
 }
 
 // Keys of the name resolutions shared by every custom rule of a file.

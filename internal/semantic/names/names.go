@@ -143,6 +143,27 @@ func (r *Resolver) ScopeAt(offset uint32) *Scope {
 	return best
 }
 
+// Aliases reports whether an import of kind anywhere in the file binds
+// alias: only then can resolving an unqualified name change its last
+// segment. Class and function aliases fold case; constant aliases do not.
+func (r *Resolver) Aliases(kind syntax.UseKind, alias string) bool {
+	for _, s := range r.scopes {
+		var ok bool
+		switch kind {
+		case syntax.UseFunction:
+			_, ok = s.Functions[Fold(alias)]
+		case syntax.UseConst:
+			_, ok = s.Consts[alias]
+		default:
+			_, ok = s.Classes[Fold(alias)]
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
 // Namespace returns the namespace at offset ("" for global).
 func (r *Resolver) Namespace(offset uint32) string { return r.ScopeAt(offset).Namespace }
 

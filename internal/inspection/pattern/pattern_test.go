@@ -49,6 +49,7 @@ func TestMatch(t *testing.T) {
 	}{
 		{"function any args", Definition{Match: Patterns{`\dump(...)`}}, `dump(1, 2); \dump(); var_dump(1);`, 2, ""},
 		{"function alias", Definition{Match: Patterns{`\App\dbg($X)`}}, `namespace B; use function App\dbg as d; d(1); dbg(2);`, 1, ""},
+		{"const alias", Definition{Match: Patterns{`\App\LIMIT`}}, `namespace B; use const App\LIMIT as L; echo L, LIMIT, App\OTHER, \App\LIMIT;`, 2, ""},
 		{"namespaced fallback", Definition{Match: Patterns{`\strlen($X)`}}, `namespace A; strlen($a); \strlen($b);`, 2, ""},
 		{"namespaced declared wins", Definition{Match: Patterns{`\strlen($X)`}}, `namespace A; function strlen($x) {} strlen($a);`, 0, ""},
 		{"class through use", Definition{Match: Patterns{`new \DateTime()`}}, `namespace A; use DateTime as D; new D; new D(); new D('now'); new \DateTime;`, 3, ""},

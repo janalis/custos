@@ -99,13 +99,14 @@ func (r *rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if p.root.Kind() != n.Kind() {
 			continue
 		}
-		m := &matcher{ctx: ctx, budget: b}
+		m := &matcher{ctx: ctx, budget: b, binds: b.binds[:0]}
 		matched := m.match(p.root, n, roleClass, false) && r.accepts(m, n)
-		if spent(m, n.Span()) {
-			return
-		}
-		if matched {
+		over := spent(m, n.Span())
+		if matched && !over {
 			r.report(m, n, n.Span())
+		}
+		b.binds = m.binds
+		if matched || over {
 			return
 		}
 	}
@@ -151,9 +152,10 @@ func (r *rule) checkFile(ctx *analysis.Context) {
 func (r *rule) checkSeq(ctx *analysis.Context, p *snippet, list []syntax.Stmt) {
 	b := r.budget(ctx)
 	for i := 0; i < len(list); {
-		m := &matcher{ctx: ctx, budget: b}
+		m := &matcher{ctx: ctx, budget: b, binds: b.binds[:0]}
 		n, ok := m.stmts(p.stmts, list[i:], true)
 		ok = ok && r.accepts(m, list[i])
+		b.binds = m.binds
 		if spent(m, list[i].Span()) {
 			return
 		}
@@ -268,6 +270,9 @@ const maxQuoted = 60
 // interpolate replaces the metavariables of the message by the code they
 // bound, on one line.
 func (r *rule) interpolate(m *matcher) string {
+	if !strings.Contains(r.message, "$") {
+		return r.message
+	}
 	return metaVarRE.ReplaceAllStringFunc(r.message, func(v string) string {
 		// Compile checked every pattern binds the message's metavariables.
 		text := strings.Join(strings.Fields(m.ctx.SpanText(m.lookup(v[1:]).span)), " ")
