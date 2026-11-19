@@ -880,7 +880,7 @@ func paramsAt(ps []Param, ver phpversion.Version) []Param {
 	}
 	for _, p := range ps {
 		if p.Avail.In(ver) {
-			p.Type, p.TypeVer = returnAt(p.Type, decodeVerTypes(p.TypeVer), ver), ""
+			p.Type = returnAt(p.Type, decodeVerTypes(p.TypeVer), ver)
 			out = append(out, p)
 		}
 	}

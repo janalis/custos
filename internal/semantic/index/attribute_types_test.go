@@ -148,7 +148,7 @@ function f(#[LanguageLevelTypeAware(['8.0' => 'int'], default: 'string')] $x, $y
 	if p := fn.Params[0]; p.Type != "int" || p.TypeVer == "" {
 		t.Fatalf("param = %+v", p)
 	}
-	if got := paramsAt(fn.Params, phpversion.PHP74)[0]; got.Type != "string" || got.TypeVer != "" {
+	if got := paramsAt(fn.Params, phpversion.PHP74)[0]; got.Type != "string" || got.TypeVer == "" {
 		t.Errorf("at 7.4 = %+v", got)
 	}
 	if got := paramsAt(fn.Params, phpversion.PHP80)[0]; got.Type != "int" {

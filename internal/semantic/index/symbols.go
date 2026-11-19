@@ -38,7 +38,8 @@ type Param struct {
 	Type string `json:"t,omitempty"`
 	// TypeVer lists the types of older PHP versions when they differ from
 	// Type (see VerType), from a stub's #[LanguageLevelTypeAware], packed
-	// by encodeVerTypes; "" when the type does not vary.
+	// by encodeVerTypes; "" when the type does not vary. It stays on the
+	// copy resolved for one version, whose Type is that version's.
 	TypeVer string `json:"tv,omitempty"`
 	DocType string `json:"d,omitempty"`
 	// DocValues is the documented type keeping its integer ranges and

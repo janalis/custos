@@ -22,6 +22,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   over the unprefixed tag of the same name.
 - PhpStorm attributes document types: `#[ArrayShape]`, `#[ObjectShape]`,
   `#[NoReturn]` and the literal values of `#[ExpectedValues]`.
+- Builtin parameters whose type depends on the PHP version are checked
+  against the type of the configured version.
 
 ## [0.1.16] - 2026-11-18
 

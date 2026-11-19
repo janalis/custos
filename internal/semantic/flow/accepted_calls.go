@@ -62,6 +62,12 @@ func (e *Env) accepted(call syntax.Node, list *syntax.ArgList, builtin bool, fol
 		if !ok || at < 0 || arg.Unpack || params[at].ByRef || params[at].Variadic {
 			continue
 		}
+		// A stub type that varies by PHP version serves type checks; it
+		// does not vouch for the value the way a guard written in the code
+		// does (a handle passed on is not a handle checked for failure).
+		if builtin && params[at].TypeVer != "" {
+			continue
+		}
 		// A later argument that assigns the variable replaces what this
 		// parameter received.
 		written := false
