@@ -135,9 +135,9 @@ the top of a file:
 `$F = \fopen($P, $M); $_; \fclose($F);` finds a file opened and closed in
 the same block.
 
-Each `$_;` may try many ways to split a block, so the work of matching one
-statement list is bounded: past it, custos stops and reports the file's
-[analysis as incomplete](./cli#analysis-status) instead of a finding.
+Each `$_;` may try many ways to split a block, so the work a rule does in
+one file is bounded: past it, the rule stops for that file and custos
+reports the file's [analysis as incomplete](./cli#analysis-status).
 
 ## Context
 

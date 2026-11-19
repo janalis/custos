@@ -42,3 +42,29 @@ func TestHostilePatterns(t *testing.T) {
 		t.Fatal("glob matched")
 	}
 }
+
+// One budget covers a rule's matches in a file: a costly pattern tried on
+// every candidate node stops once, records one gap and reports nothing.
+func TestBudgetPerFile(t *testing.T) {
+	r, err := Compile(Definition{
+		ID: "R", Message: "m",
+		Match:     Patterns{`if ($C) { $_; $X->a(); $_; $X->a(); $_; $X->a(); $_; $X->b(); }`},
+		NotInside: Patterns{`while ($_) { $_; $Y->a(); $_; $Y->a(); $_; $Y->c(); }`},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := analysis.NewEngine([]analysis.Rule{r}, analysis.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := "<?php\nwhile (1) {\n" + strings.Repeat("if ($c) {\n"+strings.Repeat("    $o->a();\n", 60)+"}\n", 200) + "}\n"
+	start := testbudget.CPU()
+	res := e.AnalyzeResult(syntax.Parse("x.php", []byte(src), syntax.Options{}))
+	if d := testbudget.CPU() - start; d > testbudget.Of(5*time.Second) {
+		t.Fatalf("took %s", d)
+	}
+	if len(res.Findings) != 0 || len(res.Incomplete) != 1 || res.Incomplete[0].Reason != "query-budget" {
+		t.Fatalf("result: %+v", res)
+	}
+}

@@ -1,7 +1,6 @@
 package pattern
 
 import (
-	"maps"
 	"reflect"
 	"strings"
 
@@ -21,18 +20,23 @@ type binding struct {
 
 // matcher matches one pattern against code of one file.
 type matcher struct {
-	ctx   *analysis.Context
-	binds map[string]binding
-	// steps counts the statement comparisons of this match; past
-	// maxSteps it stops, unmatched, and exhausted is set.
-	steps     int
-	exhausted bool
+	ctx    *analysis.Context
+	binds  []named // in binding order; backtracking truncates
+	budget *budget // shared by every matcher of the rule in the file
 }
 
-// maxSteps bounds the statement comparisons of one match: each `$_;` may
-// try every split of a statement list, and patterns come from the
-// analyzed project.
-const maxSteps = 100000
+// budget bounds the statement comparisons one rule makes in one file: each
+// `$_;` may try every split of a statement list, and patterns come from
+// the analyzed project. Every matcher of the rule draws from it; once it
+// is spent, the rule reports nothing more in the file.
+type budget struct {
+	steps    int
+	spent    bool
+	reported bool // the file's analysis was marked incomplete
+}
+
+// maxSteps is a rule's budget per file.
+const maxSteps = 1000000
 
 // nameRole is how a name position resolves.
 type nameRole uint8
@@ -53,8 +57,8 @@ var (
 // or, with prefix, a first run of them; it returns how many statements
 // matched. `$_;` matches any run of statements, as short as possible.
 func (m *matcher) stmts(ps, ts []syntax.Stmt, prefix bool) (int, bool) {
-	if m.steps++; m.steps > maxSteps {
-		m.exhausted = true
+	if m.budget.steps++; m.budget.steps > maxSteps {
+		m.budget.spent = true
 		return 0, false
 	}
 	if len(ps) == 0 {
@@ -62,12 +66,12 @@ func (m *matcher) stmts(ps, ts []syntax.Stmt, prefix bool) (int, bool) {
 	}
 	if stmtMeta(ps[0]) == wildcard {
 		for k := 0; k <= len(ts); k++ {
-			saved := maps.Clone(m.binds)
+			saved := len(m.binds)
 			if n, ok := m.stmts(ps[1:], ts[k:], prefix); ok {
 				return k + n, true
 			}
-			m.binds = saved
-			if m.exhausted {
+			m.binds = m.binds[:saved]
+			if m.budget.spent {
 				break
 			}
 		}
@@ -80,14 +84,6 @@ func (m *matcher) stmts(ps, ts []syntax.Stmt, prefix bool) (int, bool) {
 	return n + 1, ok
 }
 
-// gap records that the match at span stopped at its step budget: the
-// file's analysis is then incomplete.
-func (m *matcher) gap(span syntax.Span) {
-	if m.exhausted {
-		m.ctx.Gap("query-budget", span)
-	}
-}
-
 // enclosed reports whether a node enclosing n matches one of patterns,
 // keeping the bindings of the first that does.
 func (m *matcher) enclosed(patterns []*snippet, n syntax.Node) bool {
@@ -96,11 +92,11 @@ func (m *matcher) enclosed(patterns []*snippet, n syntax.Node) bool {
 			if p.root.Kind() != a.Kind() {
 				continue
 			}
-			saved := maps.Clone(m.binds)
+			saved := len(m.binds)
 			if m.match(p.root, a, roleClass, false) {
 				return true
 			}
-			m.binds = saved
+			m.binds = m.binds[:saved]
 		}
 	}
 	return false
@@ -290,14 +286,37 @@ func (m *matcher) argsAt(p *syntax.ArgList, targets []syntax.Expr, end uint32) b
 	return len(p.Args) == len(targets)
 }
 
+// named is a metavariable's binding.
+type named struct {
+	name string
+	b    binding
+}
+
+// get returns what metavariable name bound.
+func (m *matcher) get(name string) (binding, bool) {
+	for _, n := range m.binds {
+		if n.name == name {
+			return n.b, true
+		}
+	}
+	return binding{}, false
+}
+
+// lookup returns what metavariable name, which compile checked every
+// pattern binds, bound.
+func (m *matcher) lookup(name string) binding {
+	b, _ := m.get(name)
+	return b
+}
+
 // bind records a metavariable; a repeated one must bind equivalent code.
 func (m *matcher) bind(name string, b binding) bool {
 	if name == wildcard {
 		return true
 	}
-	prev, ok := m.binds[name]
+	prev, ok := m.get(name)
 	if !ok {
-		m.binds[name] = b
+		m.binds = append(m.binds, named{name, b})
 		return true
 	}
 	if prev.seq || b.seq {

@@ -187,7 +187,7 @@ func (r *rule) render(m *matcher, matched syntax.Node, span syntax.Span) (diagno
 	endsWithStmt := false
 	for _, sl := range t.slots {
 		start, end := sl.span.Start, sl.span.End
-		bd := m.binds[sl.name]
+		bd := m.lookup(sl.name)
 		repl := ctx.SpanText(bd.span)
 		_, boundStmt := bd.node.(syntax.Stmt)
 		switch {

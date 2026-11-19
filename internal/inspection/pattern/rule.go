@@ -1,7 +1,7 @@
 package pattern
 
 import (
-	"maps"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -85,6 +85,10 @@ func (r *rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !r.applies(ctx) {
 		return
 	}
+	b := r.budget(ctx)
+	if b.spent {
+		return
+	}
 	for _, p := range r.patterns {
 		if p.root == nil {
 			if list, ok := syntax.StmtListOf(n); ok {
@@ -95,13 +99,39 @@ func (r *rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if p.root.Kind() != n.Kind() {
 			continue
 		}
-		m := &matcher{ctx: ctx, binds: map[string]binding{}}
-		if m.match(p.root, n, roleClass, false) && r.accepts(m, n) {
+		m := &matcher{ctx: ctx, budget: b}
+		matched := m.match(p.root, n, roleClass, false) && r.accepts(m, n)
+		if spent(m, n.Span()) {
+			return
+		}
+		if matched {
 			r.report(m, n, n.Span())
 			return
 		}
-		m.gap(n.Span())
 	}
+}
+
+// budgetKey keys a rule's budget among the file's shared data (a
+// pointer-sized key: looking it up allocates nothing).
+type budgetKey struct{ r *rule }
+
+// budget returns the rule's budget in the file.
+func (r *rule) budget(ctx *analysis.Context) *budget {
+	return ctx.Shared(budgetKey{r}, func() any { return &budget{} }).(*budget)
+}
+
+// spent reports whether the rule's budget in the file is spent, so its
+// last match is not trusted; the first time, it marks the file's analysis
+// incomplete at span.
+func spent(m *matcher, span syntax.Span) bool {
+	if !m.budget.spent {
+		return false
+	}
+	if !m.budget.reported {
+		m.budget.reported = true
+		m.ctx.Gap("query-budget", span)
+	}
+	return true
 }
 
 // checkFile checks the sequence patterns against the top-level statements.
@@ -119,16 +149,15 @@ func (r *rule) checkFile(ctx *analysis.Context) {
 // checkSeq reports the runs of list matching sequence pattern p, each
 // statement in one run at most.
 func (r *rule) checkSeq(ctx *analysis.Context, p *snippet, list []syntax.Stmt) {
-	steps := 0 // one budget for the whole list
+	b := r.budget(ctx)
 	for i := 0; i < len(list); {
-		m := &matcher{ctx: ctx, binds: map[string]binding{}, steps: steps}
+		m := &matcher{ctx: ctx, budget: b}
 		n, ok := m.stmts(p.stmts, list[i:], true)
-		steps = m.steps
-		if m.exhausted {
-			m.gap(list[i].Span())
+		ok = ok && r.accepts(m, list[i])
+		if spent(m, list[i].Span()) {
 			return
 		}
-		if !ok || !r.accepts(m, list[i]) {
+		if !ok {
 			i++
 			continue
 		}
@@ -169,7 +198,8 @@ func (r *rule) inContext(m *matcher, n syntax.Node) bool {
 	if len(r.notInside) == 0 {
 		return true
 	}
-	probe := &matcher{ctx: m.ctx, binds: maps.Clone(m.binds)}
+	// The probe's bindings are its own: appending copies the match's.
+	probe := &matcher{ctx: m.ctx, binds: slices.Clip(m.binds), budget: m.budget}
 	return !probe.enclosed(r.notInside, n)
 }
 
@@ -201,7 +231,7 @@ func (r *rule) inScope(ctx *analysis.Context) bool {
 // satisfied checks the where constraints of the bound metavariables.
 func (r *rule) satisfied(m *matcher) bool {
 	for name, c := range r.where {
-		b := m.binds[name]
+		b := m.lookup(name)
 		text := m.ctx.SpanText(b.span)
 		if c.regex != nil && !c.regex.MatchString(text) {
 			return false
@@ -219,7 +249,7 @@ func (r *rule) satisfied(m *matcher) bool {
 			}
 		}
 		for _, p := range c.not {
-			inner := &matcher{ctx: m.ctx, binds: map[string]binding{}}
+			inner := &matcher{ctx: m.ctx, budget: m.budget}
 			node := b.node
 			if es, ok := node.(*syntax.ExprStmt); ok && p.expr {
 				node = es.Expr // `f()` excludes the statement `f();`
@@ -240,7 +270,7 @@ const maxQuoted = 60
 func (r *rule) interpolate(m *matcher) string {
 	return metaVarRE.ReplaceAllStringFunc(r.message, func(v string) string {
 		// Compile checked every pattern binds the message's metavariables.
-		text := strings.Join(strings.Fields(m.ctx.SpanText(m.binds[v[1:]].span)), " ")
+		text := strings.Join(strings.Fields(m.ctx.SpanText(m.lookup(v[1:]).span)), " ")
 		if len(text) > maxQuoted {
 			cut := maxQuoted - 3
 			for !utf8.RuneStart(text[cut]) {
