@@ -575,7 +575,8 @@ func (p *docParser) shape(body string, resolve Resolver, depth int) ([]ShapeKey,
 		}
 		kv := splitTop(entry, ':')
 		var k ShapeKey
-		if len(kv) >= 2 && isShapeKey(strings.TrimSpace(kv[0])) {
+		// `self::A` is a positional entry: its colons name a constant.
+		if len(kv) >= 2 && kv[1] != "" && isShapeKey(strings.TrimSpace(kv[0])) {
 			name := strings.TrimSpace(kv[0])
 			if strings.HasSuffix(name, "?") {
 				k.Optional = true

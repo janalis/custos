@@ -74,7 +74,15 @@ type AcceptContext struct {
 	// Internal marks a parameter of a builtin function: outside strict mode,
 	// null passed to its scalar parameter is only deprecated.
 	Internal bool
+	// nested counts the element and generic argument comparisons around
+	// this one (see maxTypeArgDepth).
+	nested uint8
 }
+
+// maxTypeArgDepth is the deepest generic argument compared. An invariant
+// argument is compared in both directions, which doubles the work at each
+// level of a doc type that analyzed code controls; deeper ones decide nothing.
+const maxTypeArgDepth = 4
 
 // Accepts reports whether expected accepts every value of actual (Yes),
 // none of them (No) or some only, or cannot tell (Maybe). Each member of
@@ -241,7 +249,7 @@ func acceptAtom(expected Type, e string, actual Type, a string, ctx AcceptContex
 	case "null":
 		return yesIf(a == "null")
 	case "array":
-		return acceptArray(expected, actual, a)
+		return acceptArray(expected, actual, a, ctx)
 	case "iterable":
 		return acceptIterable(expected, actual, a, ctx)
 	case "callable":
@@ -255,7 +263,7 @@ func acceptAtom(expected Type, e string, actual Type, a string, ctx AcceptContex
 	case "object":
 		switch a {
 		case "object":
-			return Yes
+			return yesIf(!objectShapeRejected(expected, actual, ctx))
 		case "callable", "iterable":
 			return Maybe
 		}
@@ -402,7 +410,7 @@ func valueLengths(values []string) []IntRange {
 
 // acceptArray judges member a against the plain `array` alternative of
 // expected (a non-empty or shaped expected array decides less).
-func acceptArray(expected, actual Type, a string) Verdict {
+func acceptArray(expected, actual Type, a string, ctx AcceptContext) Verdict {
 	if a != "array" && !strings.HasSuffix(a, "[]") {
 		switch a {
 		case "iterable", "callable":
@@ -413,10 +421,80 @@ func acceptArray(expected, actual Type, a string) Verdict {
 	switch {
 	case expected.IsNonEmptyArray() && actual.isEmptyArray():
 		return No
+	case shapeRejected(expected, actual, ctx):
+		return No
 	case expected.IsNonEmptyArray() && !actual.IsNonEmptyArray(), expected.HasShape():
 		return Maybe
 	}
 	return Yes
+}
+
+// shapeRejected reports an array of actual that cannot have the shape
+// expected describes: a required key it cannot hold, a key required on both
+// sides whose values have nothing in common, or a required key the sealed
+// expected shape does not list. What an open or optional key may hold decides
+// nothing.
+func shapeRejected(expected, actual Type, ctx AcceptContext) bool {
+	if !expected.HasShape() {
+		return false
+	}
+	if !actual.HasShape() {
+		return intKeysOnly(actual) && requiresStringKey(expected)
+	}
+	have := actual.ShapeKeys()
+	for _, want := range expected.ShapeKeys() {
+		if want.Optional {
+			continue
+		}
+		i := slices.IndexFunc(have, func(k ShapeKey) bool { return k.Name == want.Name })
+		if i < 0 {
+			if actual.IsSealedShape() {
+				return true
+			}
+			continue
+		}
+		if !have[i].Optional && elemVerdict(want.Type, have[i].Type, ctx) == No {
+			return true
+		}
+	}
+	if !expected.IsSealedShape() {
+		return false
+	}
+	return slices.ContainsFunc(have, func(k ShapeKey) bool {
+		_, listed := expected.ShapeKey(k.Name)
+		return !k.Optional && !listed
+	})
+}
+
+// intKeysOnly reports an array whose keys are all integers.
+func intKeysOnly(t Type) bool {
+	key := t.ArrayKey()
+	return !key.IsUnknown() && key.OnlyOf("int")
+}
+
+// requiresStringKey reports a shape with a required key that is no integer.
+func requiresStringKey(t Type) bool {
+	return slices.ContainsFunc(t.ShapeKeys(), func(k ShapeKey) bool {
+		return !k.Optional && !IsIntKey(k.Name)
+	})
+}
+
+// objectShapeRejected reports a property required by both object shapes
+// whose values have nothing in common. A property the actual shape does not
+// list decides nothing: any object may have more than its shape says.
+func objectShapeRejected(expected, actual Type, ctx AcceptContext) bool {
+	want, have := expected.genOf("object"), actual.genOf("object")
+	if want == nil || have == nil || want.props == nil || have.props == nil {
+		return false
+	}
+	for _, w := range want.props.keys {
+		for _, h := range have.props.keys {
+			if w.Name == h.Name && !w.Optional && !h.Optional && elemVerdict(w.Type, h.Type, ctx) == No {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // acceptIterable judges member a against the `iterable` alternative: arrays
@@ -441,7 +519,7 @@ func acceptIterable(expected, actual Type, a string, ctx AcceptContext) Verdict 
 // expected (`int[]`, `list<Foo>`), whose element type is elem.
 func acceptArrayElems(expected, elem, actual Type, a string, ctx AcceptContext) Verdict {
 	if a != "array" && !strings.HasSuffix(a, "[]") {
-		return acceptArray(expected, actual, a)
+		return acceptArray(expected, actual, a, ctx)
 	}
 	if actual.isEmptyArray() {
 		return Yes
@@ -465,7 +543,7 @@ func actualElem(actual Type, a string) Type {
 // comparison is strict, and it answers No only when both are known and no
 // element can fit.
 func elemVerdict(want, have Type, ctx AcceptContext) Verdict {
-	return Accepts(want, have, AcceptContext{Classes: ctx.Classes, Strict: true})
+	return Accepts(want, have, AcceptContext{Classes: ctx.Classes, Strict: true, nested: ctx.nested + 1})
 }
 
 // acceptByClass judges member a against class alternative e.
@@ -504,7 +582,7 @@ func acceptByClass(expected Type, e string, actual Type, a string, ctx AcceptCon
 // that are unknown, templates or merely different in width decide nothing.
 func typeArgsRejected(expected, actual Type, class string, ctx AcceptContext) bool {
 	want, have := expected.TypeArgs(class), actual.TypeArgs(class)
-	if ctx.Classes == nil || len(want) == 0 || len(want) != len(have) {
+	if ctx.Classes == nil || ctx.nested >= maxTypeArgDepth || len(want) == 0 || len(want) != len(have) {
 		return false
 	}
 	for i := range want {

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -144,11 +145,19 @@ func (t Type) WithTypeArgs(atom string, args []Type) Type {
 }
 
 // WithoutClassTypeArgs returns t without the generic arguments of its class
-// atoms, at any depth of element types. A closure keeps its signature.
+// atoms, in its element type and shape values too. A closure keeps its signature.
 func (t Type) WithoutClassTypeArgs() Type {
 	if t.element != nil {
 		element := t.element.WithoutClassTypeArgs()
 		t.element = &element
+	}
+	if t.arr != nil && len(t.arr.keys) > 0 {
+		arr := *t.arr
+		arr.keys = slices.Clone(arr.keys)
+		for i := range arr.keys {
+			arr.keys[i].Type = arr.keys[i].Type.WithoutClassTypeArgs()
+		}
+		t.arr = &arr
 	}
 	kept := make([]genEntry, 0, len(t.gen))
 	for _, g := range t.gen {

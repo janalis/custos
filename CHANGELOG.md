@@ -26,6 +26,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   against the type of the configured version.
 - The `Documented*` type rules compare generic arguments by the variance of
   each template: `Box<string>` is reported where `Box<int>` is documented.
+- The `Documented*` type rules compare array and object shapes: a missing
+  required key, a key the sealed shape does not list, or a value of another
+  type is reported.
+
+### Fixed
+
+- A class constant in a positional shape entry (`array{self::A, int}`) no
+  longer reads as a key named `self`.
 
 ## [0.1.16] - 2026-11-18
 

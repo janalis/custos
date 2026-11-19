@@ -75,3 +75,28 @@ func TestWithoutClassTypeArgs(t *testing.T) {
 		}
 	}
 }
+
+// countingClasses counts the generic arguments compared.
+type countingClasses struct {
+	fakeClasses
+	calls *int
+}
+
+func (c countingClasses) TemplateVariance(class string, i int) (Variance, bool) {
+	*c.calls++
+	return Invariant, true
+}
+
+// Nested invariant arguments are compared in both directions: the work stays
+// bounded however deep a doc type nests them.
+func TestAcceptsNestedGenericArgumentsAreBounded(t *testing.T) {
+	want, have := "int", "string"
+	for range maxDocDepth - 2 {
+		want, have = `\A<`+want+`>`, `\A<`+have+`>`
+	}
+	calls := 0
+	Accepts(FromDoc(want, nil), FromDoc(have, nil), AcceptContext{Classes: countingClasses{calls: &calls}, Strict: true})
+	if limit := 1 << (maxTypeArgDepth + 1); calls == 0 || calls > limit {
+		t.Errorf("%d comparisons, want at most %d", calls, limit)
+	}
+}
