@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/php/syntax"
 	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/platform/safeio"
 	"github.com/janalis/custos/internal/project/config"
 )
 
@@ -27,9 +29,9 @@ type fixtureSettings struct {
 // cmdTestRules runs every rule that has a fixture directory over its
 // marked-up fixtures and compares findings and fixes.
 func cmdTestRules(args []string, stdout, stderr io.Writer) (int, error) {
-	fs := newFlagSet("test-rules", stderr)
-	configDir := fs.String("config", ".", "directory to look for custos.json from")
-	if err := fs.Parse(args); err != nil {
+	flags := newFlagSet("test-rules", stderr)
+	configDir := flags.String("config", ".", "directory to look for custos.json from")
+	if err := flags.Parse(args); err != nil {
 		return 2, err
 	}
 	cfg, err := config.Load(*configDir)
@@ -37,13 +39,23 @@ func cmdTestRules(args []string, stdout, stderr io.Writer) (int, error) {
 		return 2, err
 	}
 	dir := filepath.Join(cfg.Root, filepath.FromSlash(cfg.CustomRuleTests))
-	if fs.NArg() > 0 {
-		dir = fs.Arg(0)
+	if flags.NArg() > 0 {
+		// Absolute, so fixtures' project paths are relative to the root.
+		dir = flags.Arg(0)
+		if abs, err := filepath.Abs(dir); err == nil {
+			dir = abs
+		}
 	}
-	entries, err := os.ReadDir(dir)
+	// Fixtures come with the project: read them only within their
+	// directory, bounded, and never through a link out of it.
+	root, err := os.OpenRoot(dir)
 	if err != nil {
 		return 2, fmt.Errorf("rule fixtures: %w", err)
 	}
+	defer root.Close()
+	// The root opened, so the directory is readable; one that fails
+	// meanwhile lists no fixtures, which is reported below.
+	entries, _ := fs.ReadDir(root.FS(), ".")
 	rules := cfg.Registry(rulesWithExtra())
 	ran, failed := 0, 0
 	for _, e := range entries {
@@ -54,23 +66,22 @@ func cmdTestRules(args []string, stdout, stderr io.Writer) (int, error) {
 		if !ok {
 			return 2, fmt.Errorf("rule fixtures: %s: unknown rule", e.Name())
 		}
-		fixtures, _ := filepath.Glob(filepath.Join(dir, e.Name(), "*.php")) // the pattern is valid
-		for _, path := range fixtures {
-			if strings.HasSuffix(path, ".fixed.php") {
+		fixtures, _ := fs.Glob(root.FS(), e.Name()+"/*.php") // the pattern is valid
+		for _, name := range fixtures {
+			if strings.HasSuffix(name, ".fixed.php") {
 				continue
 			}
 			ran++
-			problems, err := checkFixture(cfg, rules, m.ID, path)
+			problems, err := checkFixture(cfg, rules, m.ID, root, filepath.Join(dir, filepath.FromSlash(name)), name)
 			if err != nil {
-				return 2, fmt.Errorf("%s: %w", path, err)
+				return 2, fmt.Errorf("%s: %w", name, err)
 			}
-			rel, _ := filepath.Rel(dir, path)
 			if len(problems) == 0 {
-				fmt.Fprintf(stdout, "ok    %s\n", filepath.ToSlash(rel))
+				fmt.Fprintf(stdout, "ok    %s\n", name)
 				continue
 			}
 			failed++
-			fmt.Fprintf(stdout, "FAIL  %s\n", filepath.ToSlash(rel))
+			fmt.Fprintf(stdout, "FAIL  %s\n", name)
 			for _, p := range problems {
 				fmt.Fprintf(stdout, "      %s\n", strings.ReplaceAll(p, "\n", "\n      "))
 			}
@@ -86,10 +97,11 @@ func cmdTestRules(args []string, stdout, stderr io.Writer) (int, error) {
 	return 0, nil
 }
 
-// checkFixture runs rule id alone over the fixture at path and returns
-// what differs from its markup and its .fixed.php.
-func checkFixture(cfg *config.Config, rules []analysis.Rule, id, path string) ([]string, error) {
-	marked, err := os.ReadFile(path)
+// checkFixture runs rule id alone over the fixture name of root, at path
+// on disk, and returns what differs from its markup and its .fixed.php.
+func checkFixture(cfg *config.Config, rules []analysis.Rule, id string, root *os.Root, path, name string) ([]string, error) {
+	read := func(name string) ([]byte, error) { return safeio.ReadRootFile(root, name, config.MaxFileSize) }
+	marked, err := read(name)
 	if err != nil {
 		return nil, err
 	}
@@ -97,9 +109,9 @@ func checkFixture(cfg *config.Config, rules []analysis.Rule, id, path string) ([
 	if err != nil {
 		return nil, err
 	}
-	base := strings.TrimSuffix(path, ".php")
+	base := strings.TrimSuffix(name, ".php")
 	var settings fixtureSettings
-	if b, err := os.ReadFile(base + ".json"); err == nil {
+	if b, err := read(base + ".json"); err == nil {
 		if err := json.Unmarshal(b, &settings); err != nil {
 			return nil, fmt.Errorf("%s.json: %w", filepath.Base(base), err)
 		}
@@ -143,7 +155,7 @@ func checkFixture(cfg *config.Config, rules []analysis.Rule, id, path string) ([
 	for _, e := range unexpected {
 		problems = append(problems, "unexpected "+at(e))
 	}
-	if fixed, err := os.ReadFile(base + ".fixed.php"); err == nil {
+	if fixed, err := read(base + ".fixed.php"); err == nil {
 		out := fixing.FixSource(engine, path, src, fixing.Options{Parse: opts}).Source
 		if !bytes.Equal(markup.NormalizeWS(out), markup.NormalizeWS(fixed)) {
 			problems = append(problems, fmt.Sprintf("fixed source differs from %s.fixed.php:\n%s", filepath.Base(base), out))

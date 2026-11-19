@@ -40,8 +40,17 @@ func TestCustomRules(t *testing.T) {
 	if out := invoke(ctx, t, s, "rules", Input{Rule: "fromgo"}); out["total"] != 1 {
 		t.Fatal(out)
 	}
-	writeFile(t, filepath.Join(root, "custos.json"), `{"customRules":[{"id":"Bad"}]}`)
-	if got := s.customRules(s.workspaces["default"]); len(got) != 1 || got[0].ID() != "FromGo" {
+	if got := s.customRules(nil); len(got) != 1 || got[0].ID() != "FromGo" {
 		t.Fatal(got)
+	}
+	// A checkpoint keeps the rules it was analyzed with: once its snapshot
+	// is gone, the workspace's configuration as it is now decides.
+	writeFile(t, filepath.Join(root, "custos.json"), `{"customRules":[{"id":"Bad"}]}`)
+	if _, err := s.call(ctx, "findings", Input{CheckpointID: cp, Rule: "NoMore"}); err == nil || !strings.Contains(err.Error(), "inputs changed (custos.json)") {
+		t.Fatal(err)
+	}
+	delete(s.snapshots, cp)
+	if cfg := s.checkpointConfig(s.workspaces["default"], s.checkpoints[cp]); cfg != nil {
+		t.Fatal(cfg)
 	}
 }

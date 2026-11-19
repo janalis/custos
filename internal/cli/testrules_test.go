@@ -111,6 +111,34 @@ func TestTestRulesErrors(t *testing.T) {
 	}
 }
 
+// A relative fixtures directory gives rules the same project paths.
+func TestTestRulesRelativeDir(t *testing.T) {
+	dir := t.TempDir()
+	writeTree(t, dir, map[string]string{
+		"custos.json":                   `{"customRules": [{"id": "InFixtures", "match": "\\f()", "paths": ["custos-tests/**"], "message": "m"}]}`,
+		"custos-tests/InFixtures/a.php": "<?php\n<warning descr=\"m\">f()</warning>;\n",
+	})
+	t.Chdir(dir)
+	for _, args := range [][]string{{"test-rules"}, {"test-rules", "custos-tests"}} {
+		if code, out, stderr := runCLI(t, args...); code != 0 {
+			t.Fatalf("%v: %d %s %s", args, code, out, stderr)
+		}
+	}
+}
+
+// A fixture linking out of the fixtures directory is refused.
+func TestTestRulesConfined(t *testing.T) {
+	dir := t.TempDir()
+	writeTree(t, dir, map[string]string{"custos.json": testRulesConfig, "secret.php": "<?php $a == null;", "custos-tests/StrictNull/": ""})
+	if err := os.Symlink(filepath.Join(dir, "secret.php"), filepath.Join(dir, "custos-tests/StrictNull/a.php")); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	if code, _, stderr := runCLI(t, "test-rules"); code != 2 || !strings.Contains(stderr, "StrictNull/a.php") {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+}
+
 // A rule a program adds may not take the ID of a configured one.
 func TestTestRulesEngineError(t *testing.T) {
 	dir := t.TempDir()

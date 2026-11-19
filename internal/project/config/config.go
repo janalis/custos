@@ -136,9 +136,12 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 			return nil, fmt.Errorf("config: customRuleTests %q leaves the project root", f.CustomRuleTests)
 		}
 		c.CustomRuleTests = f.CustomRuleTests
+	} else {
+		// Rule fixtures hold markup, not project code. Exclusions match
+		// at any depth, so only the distinctive default name is excluded
+		// for the project; a chosen directory is excluded by choice.
+		c.Exclude = slices.Insert(c.Exclude, len(DefaultExclude), DefaultRuleTests)
 	}
-	// Rule fixtures hold markup, not project code.
-	c.Exclude = slices.Insert(c.Exclude, len(DefaultExclude), path.Clean(filepath.ToSlash(c.CustomRuleTests)))
 	if f.Baseline != "" && !insideRoot(f.Baseline) {
 		return nil, fmt.Errorf("config: baseline %q leaves the project root", f.Baseline)
 	}
@@ -195,7 +198,7 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 		return nil, err
 	}
 	for id, rs := range f.Rules {
-		m, ok := analysis.Lookup(c.Custom, id)
+		m, ok := analysis.Lookup(append(ExtraRules[:len(ExtraRules):len(ExtraRules)], c.Custom...), id)
 		if !ok {
 			return nil, fmt.Errorf("config: unknown rule %q", id)
 		}
@@ -271,6 +274,11 @@ func (c *Config) compileCustom(f File, read func(string) ([]byte, error)) error 
 	c.CustomRuleFiles = files
 	return nil
 }
+
+// ExtraRules are the rules a program embedding custos adds to the
+// catalogue (see cli.RunWith): rules entries may configure them. The
+// program sets them once, before loading any configuration.
+var ExtraRules []analysis.Rule
 
 // Registry returns the rules to run: base, then the project's custom rules.
 func (c *Config) Registry(base []analysis.Rule) []analysis.Rule {

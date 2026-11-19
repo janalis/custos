@@ -20,20 +20,30 @@ import (
 )
 
 // customRules returns the rules outside the catalogue that the server runs
-// in w: those its program adds, then the workspace configuration's (none
-// when it does not load: the analysis itself reports that).
-func (s *Server) customRules(w *workspace) []analysis.Rule {
+// with cfg: those its program adds, then the configuration's (cfg may be
+// nil: a configuration that does not load).
+func (s *Server) customRules(cfg *config.Config) []analysis.Rule {
 	var own []analysis.Rule
 	for _, r := range s.rules {
 		if _, catalogue := meta.Lookup(r.ID()); !catalogue {
 			own = append(own, r)
 		}
 	}
-	cfg, err := config.LoadConfined(w.root)
-	if err != nil {
+	if cfg == nil {
 		return own
 	}
 	return cfg.Registry(own)
+}
+
+// checkpointConfig returns the configuration cp was analyzed with: its
+// snapshot's, else the workspace's as it is now (nil when it does not load;
+// validating the checkpoint reports why).
+func (s *Server) checkpointConfig(w *workspace, cp *checkpoint) *config.Config {
+	if snap := s.snapshots[cp.ID]; snap != nil {
+		return snap.Config
+	}
+	cfg, _ := config.LoadConfined(w.root)
+	return cfg
 }
 
 // facts returns the catalogue facts followed by those of custom.
@@ -51,9 +61,9 @@ func facts(custom []analysis.Rule) ([]meta.Rule, error) {
 }
 
 // canonicalRule resolves a rule or legacy ID regardless of case, among the
-// catalogue and the workspace's custom rules.
-func (s *Server) canonicalRule(w *workspace, id string) (string, error) {
-	rules, err := facts(s.customRules(w))
+// catalogue and the custom rules of checkpoint cp.
+func (s *Server) canonicalRule(w *workspace, cp *checkpoint, id string) (string, error) {
+	rules, err := facts(s.customRules(s.checkpointConfig(w, cp)))
 	if err != nil {
 		return "", err
 	}
@@ -124,7 +134,7 @@ func (s *Server) ruleInfo(ctx context.Context, w *workspace, in Input) (Output, 
 	if err != nil {
 		return nil, err
 	}
-	own := s.customRules(w)
+	own := s.customRules(cfg)
 	rules, err := facts(own)
 	if err != nil {
 		return nil, err

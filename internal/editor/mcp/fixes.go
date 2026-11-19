@@ -192,7 +192,7 @@ func (s *Server) checkPrepare(ctx context.Context, w *workspace, cp *checkpoint,
 	if in.Rule == "" {
 		return "", nil
 	}
-	return s.canonicalRule(w, in.Rule)
+	return s.canonicalRule(w, cp, in.Rule)
 }
 
 func validateEdits(src []byte, edits []diagnostic.TextEdit) error {

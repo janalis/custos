@@ -70,10 +70,14 @@ func TestCustomRulesCommands(t *testing.T) {
 
 func TestCustomRulesInvalidConfig(t *testing.T) {
 	writeCustomProject(t, `{"customRules": [{"id": "Bad", "match": "f(", "message": "m"}]}`)
-	for _, args := range [][]string{{"analyse"}, {"rules"}, {"explain", "Bad"}} {
+	for _, args := range [][]string{{"analyse"}, {"explain", "Bad"}} {
 		if code, _, stderr := runCLI(t, args...); code != 2 || !strings.Contains(stderr, "custom rule Bad") {
 			t.Errorf("%v: %d %s", args, code, stderr)
 		}
+	}
+	// The catalogue is still listed, to help fix the configuration.
+	if code, out, stderr := runCLI(t, "rules"); code != 0 || !strings.Contains(out, "UnnecessarySemicolon") || !strings.Contains(stderr, "custom rules not listed") {
+		t.Errorf("rules: %d %s", code, stderr)
 	}
 	// A catalogue rule is explained without reading the configuration.
 	if code, _, _ := runCLI(t, "explain", "NestedNotOperators"); code != 0 {

@@ -58,7 +58,10 @@ func parseTemplate(text string) (*template, error) {
 				sp, sl.spread, sl.drop = a.Span(), true, rel(dropSpan(a))
 			}
 			if es, ok := n.Parent().(*syntax.ExprStmt); ok {
-				sl.stmt, sl.isStmt = rel(es.Span()), true
+				// The snippet's text ends before the `;` of a lone expression.
+				stmt := rel(es.Span())
+				stmt.End = min(stmt.End, uint32(len(s.text)))
+				sl.stmt, sl.isStmt = stmt, true
 			}
 			sl.span = rel(sp)
 			t.slots = append(t.slots, sl)
@@ -181,6 +184,7 @@ func (r *rule) render(m *matcher, matched syntax.Node, span syntax.Span) (diagno
 	var b strings.Builder
 	text := t.snip.text
 	last := uint32(0)
+	endsWithStmt := false
 	for _, sl := range t.slots {
 		start, end := sl.span.Start, sl.span.End
 		bd := m.binds[sl.name]
@@ -192,6 +196,7 @@ func (r *rule) render(m *matcher, matched syntax.Node, span syntax.Span) (diagno
 			return diagnostic.Fix{}, false
 		case boundStmt:
 			start, end = sl.stmt.Start, sl.stmt.End
+			endsWithStmt = end == uint32(len(text))
 		case sl.spread && !bd.seq:
 			repl = "..." + repl
 		case sl.spread && len(bd.args) == 0:
@@ -210,7 +215,9 @@ func (r *rule) render(m *matcher, matched syntax.Node, span syntax.Span) (diagno
 	out := b.String()
 	_, stmt := matched.(syntax.Stmt)
 	switch {
-	case stmt && t.snip.expr:
+	case stmt && t.snip.expr && !endsWithStmt:
+		// An expression replacing a statement needs its `;`; a template
+		// ending in a bound statement (`$S;`) carries its own.
 		out += ";"
 	case t.snip.expr && needsParens(t.snip.root, level(matched)):
 		out = "(" + out + ")"

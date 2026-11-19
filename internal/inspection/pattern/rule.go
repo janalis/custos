@@ -100,6 +100,7 @@ func (r *rule) Check(ctx *analysis.Context, n syntax.Node) {
 			r.report(m, n, n.Span())
 			return
 		}
+		m.gap(n.Span())
 	}
 }
 
@@ -118,9 +119,15 @@ func (r *rule) checkFile(ctx *analysis.Context) {
 // checkSeq reports the runs of list matching sequence pattern p, each
 // statement in one run at most.
 func (r *rule) checkSeq(ctx *analysis.Context, p *snippet, list []syntax.Stmt) {
+	steps := 0 // one budget for the whole list
 	for i := 0; i < len(list); {
-		m := &matcher{ctx: ctx, binds: map[string]binding{}}
+		m := &matcher{ctx: ctx, binds: map[string]binding{}, steps: steps}
 		n, ok := m.stmts(p.stmts, list[i:], true)
+		steps = m.steps
+		if m.exhausted {
+			m.gap(list[i].Span())
+			return
+		}
 		if !ok || !r.accepts(m, list[i]) {
 			i++
 			continue
@@ -159,8 +166,11 @@ func (r *rule) inContext(m *matcher, n syntax.Node) bool {
 	if len(r.inside) > 0 && !m.enclosed(r.inside, n) {
 		return false
 	}
+	if len(r.notInside) == 0 {
+		return true
+	}
 	probe := &matcher{ctx: m.ctx, binds: maps.Clone(m.binds)}
-	return len(r.notInside) == 0 || !probe.enclosed(r.notInside, n)
+	return !probe.enclosed(r.notInside, n)
 }
 
 // inScope reports whether the file lies within the rule's paths and
@@ -210,7 +220,11 @@ func (r *rule) satisfied(m *matcher) bool {
 		}
 		for _, p := range c.not {
 			inner := &matcher{ctx: m.ctx, binds: map[string]binding{}}
-			if inner.match(p.root, b.node, roleClass, false) {
+			node := b.node
+			if es, ok := node.(*syntax.ExprStmt); ok && p.expr {
+				node = es.Expr // `f()` excludes the statement `f();`
+			}
+			if inner.match(p.root, node, roleClass, false) {
 				return false
 			}
 		}

@@ -10,6 +10,7 @@ import (
 	"github.com/janalis/custos/internal/inspection/analysis"
 	inspections "github.com/janalis/custos/internal/inspection/catalogue"
 	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 const usage = `custos — PHP inspections and fixes
@@ -71,8 +72,8 @@ func RunWith(version string, args []string, stdin io.Reader, stdout, stderr io.W
 }
 
 func run(version string, args []string, stdin io.Reader, stdout, stderr io.Writer, rules []analysis.Rule, embedded bool) int {
-	extra = rules
-	defer func() { extra = nil }()
+	extra, config.ExtraRules = rules, rules
+	defer func() { extra, config.ExtraRules = nil, nil }()
 	// Allocation sampling is off unless --memprofile turns it on: it would
 	// only cost the deep recursive stacks of the analysis a few percent.
 	runtime.MemProfileRate = 0

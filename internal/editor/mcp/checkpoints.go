@@ -530,7 +530,7 @@ func (s *Server) findings(ctx context.Context, cp *checkpoint, in Input) (Output
 	rule := in.Rule
 	if rule != "" {
 		var err error
-		if rule, err = s.canonicalRule(s.workspaces[cp.Workspace], rule); err != nil {
+		if rule, err = s.canonicalRule(s.workspaces[cp.Workspace], cp, rule); err != nil {
 			return nil, err
 		}
 	}

@@ -135,6 +135,10 @@ the top of a file:
 `$F = \fopen($P, $M); $_; \fclose($F);` finds a file opened and closed in
 the same block.
 
+Each `$_;` may try many ways to split a block, so the work of matching one
+statement list is bounded: past it, custos stops and reports the file's
+[analysis as incomplete](./cli#analysis-status) instead of a finding.
+
 ## Context
 
 `inside` lists patterns of which one must match code around the match, and
@@ -232,7 +236,9 @@ var_dump($order);
 `basic.fixed.php` holds the expected result of applying the quick-fixes;
 whitespace differences are ignored. `basic.json` may set `php`, the target
 version, and `path`, the project path the rule sees: a fixture of a rule
-limited to `src/**` needs `{"path": "src/Example.php"}`. The command lists
+limited to `src/**` needs `{"path": "src/Example.php"}`. `analyse` and `fix`
+skip `custos-tests/`, whose fixtures hold markup; when `customRuleTests`
+names another directory, add it to `exclude`. The command lists
 each fixture as `ok` or `FAIL` with what differs, and exits with `1` when
 one fails.
 
@@ -274,7 +280,7 @@ func main() {
 ```
 
 `custos.NewRule` calls the check function for every node of the listed
-kinds. The context gives the file's source (`ctx.Text`), resolved names
+kinds. `custos.json` configures such rules like the others, by their ID. The context gives the file's source (`ctx.Text`), resolved names
 (`ctx.GlobalFunctionName`, `ctx.Names()`), inferred types (`ctx.TypeOf`) and
 reporting with quick-fixes (`ctx.ReportNode`). The repository's
 `examples/custom-binary` is a complete program.

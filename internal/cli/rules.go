@@ -20,9 +20,12 @@ func cmdRules(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	// The catalogue is listed even when the project's configuration is
+	// broken: valid rule IDs are what fixing it needs.
 	cfg, err := config.Load(".")
 	if err != nil {
-		return err
+		fmt.Fprintf(stderr, "custos: %v (custom rules not listed)\n", err)
+		cfg = &config.Config{}
 	}
 	implemented := map[string]bool{}
 	for _, r := range registry() {

@@ -39,7 +39,7 @@ custos reads `custos.json` from the project root. Every key is optional.
 | `rules` | Per-rule settings, keyed by rule ID or PhpStorm name. |
 | `customRules` | The project's own pattern rules. See [Custom rules](./custom-rules). |
 | `customRuleFiles` | JSON files, relative to the root, each holding a list of custom rules. |
-| `customRuleTests` | Directory of the rules' fixtures for `custos test-rules`, relative to the root; `analyse` and `fix` skip it. Default `custos-tests`. |
+| `customRuleTests` | Directory of the rules' fixtures for `custos test-rules`, relative to the root. Default `custos-tests`, which `analyse` and `fix` skip; add a directory you name to `exclude`. |
 
 Each `rules` entry accepts:
 

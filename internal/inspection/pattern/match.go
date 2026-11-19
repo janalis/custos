@@ -23,7 +23,16 @@ type binding struct {
 type matcher struct {
 	ctx   *analysis.Context
 	binds map[string]binding
+	// steps counts the statement comparisons of this match; past
+	// maxSteps it stops, unmatched, and exhausted is set.
+	steps     int
+	exhausted bool
 }
+
+// maxSteps bounds the statement comparisons of one match: each `$_;` may
+// try every split of a statement list, and patterns come from the
+// analyzed project.
+const maxSteps = 100000
 
 // nameRole is how a name position resolves.
 type nameRole uint8
@@ -44,6 +53,10 @@ var (
 // or, with prefix, a first run of them; it returns how many statements
 // matched. `$_;` matches any run of statements, as short as possible.
 func (m *matcher) stmts(ps, ts []syntax.Stmt, prefix bool) (int, bool) {
+	if m.steps++; m.steps > maxSteps {
+		m.exhausted = true
+		return 0, false
+	}
 	if len(ps) == 0 {
 		return 0, prefix || len(ts) == 0
 	}
@@ -54,6 +67,9 @@ func (m *matcher) stmts(ps, ts []syntax.Stmt, prefix bool) (int, bool) {
 				return k + n, true
 			}
 			m.binds = saved
+			if m.exhausted {
+				break
+			}
 		}
 		return 0, false
 	}
@@ -62,6 +78,14 @@ func (m *matcher) stmts(ps, ts []syntax.Stmt, prefix bool) (int, bool) {
 	}
 	n, ok := m.stmts(ps[1:], ts[1:], prefix)
 	return n + 1, ok
+}
+
+// gap records that the match at span stopped at its step budget: the
+// file's analysis is then incomplete.
+func (m *matcher) gap(span syntax.Span) {
+	if m.exhausted {
+		m.ctx.Gap("query-budget", span)
+	}
 }
 
 // enclosed reports whether a node enclosing n matches one of patterns,

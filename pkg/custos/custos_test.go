@@ -37,6 +37,17 @@ func TestRun(t *testing.T) {
 	if code != 1 || !strings.Contains(out.String(), "error: Remove eval of '1;' [NoEval] (fixable)") || !strings.Contains(out.String(), "[NoDump]") {
 		t.Fatalf("analyse: %d %s %s", code, out.String(), errb.String())
 	}
+	// custos.json configures a rule written in Go like any other.
+	if err := os.WriteFile(filepath.Join(dir, "custos.json"), []byte(`{"rules": {"NoEval": {"severity": "info"}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if code := Run("test", []string{"analyse", "--no-cache", "--rule", "NoEval", "."}, strings.NewReader(""), &out, &errb, noEval(t)); code != 0 || !strings.Contains(out.String(), "info: Remove eval") {
+		t.Fatalf("configured: %d %s %s", code, out.String(), errb.String())
+	}
+	if err := os.Remove(filepath.Join(dir, "custos.json")); err != nil {
+		t.Fatal(err)
+	}
 	out.Reset()
 	if code := Run("test", []string{"explain", "NoEval"}, strings.NewReader(""), &out, &errb, noEval(t)); code != 0 || !strings.Contains(out.String(), "group: Custom, severity: error, enabled by default, has a quick-fix") {
 		t.Fatalf("explain: %d %s", code, out.String())

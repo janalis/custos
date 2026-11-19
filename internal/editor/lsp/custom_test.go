@@ -73,15 +73,16 @@ func TestCustomRuleReload(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write("custos.json", `{"customRuleFiles": ["rules.json"]}`)
+	write("custos.json", `{"customRuleFiles": ["rules.json", "more.rules"]}`)
 	write("rules.json", `[{"id": "NoTriple", "match": "!!!$X", "message": "first"}]`)
+	write("more.rules", `[]`)
 	cl := startServer(t)
 	cl.initialize(map[string]any{
 		"rootUri":      "file://" + dir,
 		"capabilities": map[string]any{"workspace": map[string]any{"didChangeWatchedFiles": map[string]any{"dynamicRegistration": true}}},
 	})
 	_ = cl.c.notify("initialized", map[string]any{})
-	if reg := cl.wait("client/registerCapability"); !strings.Contains(string(reg.Params), "**/custos.json") || !strings.Contains(string(reg.Params), "**/rules.json") {
+	if reg := cl.wait("client/registerCapability"); !strings.Contains(string(reg.Params), "**/*.json") || !strings.Contains(string(reg.Params), "**/more.rules") || strings.Contains(string(reg.Params), "**/rules.json") {
 		t.Fatalf("registration: %s", reg.Params)
 	}
 	uri := "file://" + filepath.Join(dir, "a.php")
@@ -104,5 +105,17 @@ func TestCustomRuleReload(t *testing.T) {
 	changed("custos.json")
 	cl.waitFor("diagnostics after config edit", func(m *message) bool {
 		return m.Method == "textDocument/publishDiagnostics" && strings.Contains(string(m.Params), `"message":"third"`)
+	})
+	// A rule file listed while the server runs is followed too.
+	write("late.json", `[{"id": "Late", "match": "!!!$X", "message": "late one"}]`)
+	write("custos.json", `{"customRuleFiles": ["late.json"]}`)
+	changed("custos.json")
+	cl.waitFor("diagnostics of a listed file", func(m *message) bool {
+		return m.Method == "textDocument/publishDiagnostics" && strings.Contains(string(m.Params), `"message":"late one"`)
+	})
+	write("late.json", `[{"id": "Late", "match": "!!!$X", "message": "late two"}]`)
+	changed("late.json")
+	cl.waitFor("diagnostics after a listed file's edit", func(m *message) bool {
+		return m.Method == "textDocument/publishDiagnostics" && strings.Contains(string(m.Params), `"message":"late two"`)
 	})
 }

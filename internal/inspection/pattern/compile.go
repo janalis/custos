@@ -132,6 +132,7 @@ func compile(d Definition) (*rule, error) {
 			for len(p.stmts) > 0 && stmtMeta(p.stmts[0]) == wildcard {
 				p.stmts = p.stmts[1:]
 			}
+			p.stmts = mergeWildcards(p.stmts)
 			if !slices.ContainsFunc(p.stmts, func(s syntax.Stmt) bool { return stmtMeta(s) == "" }) {
 				return nil, fmt.Errorf("match %q: a sequence needs a statement that is not a lone metavariable", text)
 			}
@@ -289,6 +290,14 @@ func resolvesNames(p *snippet) bool {
 	return found
 }
 
+// mergeWildcards keeps one `$_;` of each run: two in a row match what one
+// does, with more ways to split the statements.
+func mergeWildcards(stmts []syntax.Stmt) []syntax.Stmt {
+	return slices.CompactFunc(stmts, func(a, b syntax.Stmt) bool {
+		return stmtMeta(a) == wildcard && stmtMeta(b) == wildcard
+	})
+}
+
 // single parses a pattern that must be one expression or statement.
 func single(text string) (*snippet, error) {
 	p, err := parseSnippet(text)
@@ -319,7 +328,7 @@ func metaVarName(n syntax.Node) string {
 	if !ok || v.NameExpr != nil {
 		return ""
 	}
-	if v.Name == wildcard || metaName(v.Name) {
+	if v.Name == wildcard || metaName(v.Name) && !syntax.Superglobal(v.Name) {
 		return v.Name
 	}
 	return ""

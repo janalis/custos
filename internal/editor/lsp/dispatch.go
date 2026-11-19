@@ -3,6 +3,7 @@ package lsp
 import (
 	"encoding/json"
 	"path/filepath"
+	"strings"
 )
 
 func (s *Server) handle(m *message) (result any, rerr *rpcError) {
@@ -20,14 +21,17 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 			// follows edits made outside open buffers (git checkout, codegen…),
 			// baseline changes so regenerating it takes effect, and Composer
 			// metadata changes so the index world follows installs.
-			watchers := []any{map[string]any{"globPattern": "**/*.php"}, map[string]any{"globPattern": "**/composer.json"}, map[string]any{"globPattern": "**/installed.json"}}
+			// JSON covers Composer's metadata, custos.json and the custom rule
+			// files, including those the configuration lists later.
+			watchers := []any{map[string]any{"globPattern": "**/*.php"}, map[string]any{"globPattern": "**/*.json"}}
 			s.mu.Lock()
 			if p := baselinePath(s.cfg); p != "" {
 				watchers = append(watchers, map[string]any{"globPattern": "**/" + filepath.Base(p)})
 			}
-			// Configuration edits take effect without a restart.
 			for _, p := range configInputs(s.cfg, s.root) {
-				watchers = append(watchers, map[string]any{"globPattern": "**/" + filepath.Base(p)})
+				if !strings.HasSuffix(p, ".json") {
+					watchers = append(watchers, map[string]any{"globPattern": "**/" + filepath.Base(p)})
+				}
 			}
 			s.mu.Unlock()
 			_ = s.c.request("client/registerCapability", map[string]any{"registrations": []any{map[string]any{
