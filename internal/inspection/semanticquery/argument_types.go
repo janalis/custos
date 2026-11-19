@@ -455,14 +455,15 @@ func valueName(t types.Type) string {
 }
 
 // typeName prints t coarsely: its atoms, without value facts or the
-// leading backslash of class names. A class keeps its generic arguments,
-// which may be all that tells it from the type it was given for.
+// leading backslash of class names. A class keeps its generic arguments and
+// a callable its signature, which may be all that tells them from the type
+// they were given for.
 func typeName(t types.Type) string {
 	atoms := t.Atoms()
 	names := make([]string, len(atoms))
 	for i, a := range atoms {
 		names[i] = strings.TrimPrefix(a, `\`)
-		if args := t.TypeArgs(a); len(args) > 0 && types.IsClassAtom(a) && a != `\Closure` {
+		if args := t.TypeArgs(a); len(args) > 0 && (types.IsClassAtom(a) || a == "callable") {
 			names[i] = declaredTypeName(types.Of(a).WithTypeArgs(a, args).DocString())
 		}
 	}

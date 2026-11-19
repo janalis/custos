@@ -231,6 +231,9 @@ func isScalarAtom(a string) bool {
 
 // acceptAtom judges member a of actual against alternative e of expected.
 func acceptAtom(expected Type, e string, actual Type, a string, ctx AcceptContext) Verdict {
+	if isCallableAtom(e) && isCallableAtom(a) && signatureRejected(expected.genOf(e), actual.genOf(a), ctx) {
+		return No
+	}
 	switch {
 	case e == "void" || e == "never" || e == "static" || e == "self" || e == "parent" || isTemplateAtom(e):
 		return Maybe
@@ -427,6 +430,26 @@ func acceptArray(expected, actual Type, a string, ctx AcceptContext) Verdict {
 		return Maybe
 	}
 	return Yes
+}
+
+// signatureRejected reports a callable that cannot be called as want says:
+// its return type or a parameter type has nothing in common with the written
+// one, or it requires more arguments than want passes. Types are compared
+// without strict mode, which the callable's own file decides.
+func signatureRejected(want, have *genEntry, ctx AcceptContext) bool {
+	if want == nil || have == nil || len(want.args) == 0 || len(have.args) == 0 || ctx.nested >= maxTypeArgDepth {
+		return false
+	}
+	weak := AcceptContext{Classes: ctx.Classes, nested: ctx.nested + 1}
+	if Accepts(want.args[0], have.args[0].WithoutClassTypeArgs(), weak) == No {
+		return true
+	}
+	for i := 1; i < min(len(want.args), len(have.args)); i++ {
+		if Accepts(have.args[i], want.args[i].WithoutClassTypeArgs(), weak) == No {
+			return true
+		}
+	}
+	return want.sig != nil && have.sig != nil && want.sig.rest == nil && have.sig.required > len(want.args)-1
 }
 
 // shapeRejected reports an array of actual that cannot have the shape
