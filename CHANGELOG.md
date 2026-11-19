@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-19
+
 ### Added
 
 - `@psalm-template-contravariant` and `@phpstan-template-contravariant`
@@ -994,7 +996,8 @@ First public release.
   stay inside the project; `custos fix` never writes through symlinks; the
   language server rejects malformed or oversized messages.
 
-[Unreleased]: https://github.com/janalis/custos/compare/v0.1.16...HEAD
+[Unreleased]: https://github.com/janalis/custos/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/janalis/custos/compare/v0.1.16...v0.2.0
 [0.1.16]: https://github.com/janalis/custos/compare/v0.1.15...v0.1.16
 [0.1.15]: https://github.com/janalis/custos/compare/v0.1.14...v0.1.15
 [0.1.14]: https://github.com/janalis/custos/compare/v0.1.13...v0.1.14
