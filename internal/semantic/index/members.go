@@ -323,6 +323,31 @@ func voidDoc(doc string, body *syntax.Block) string {
 
 // callsCSPRNG reports whether body calls a secure random generator by name
 // (a function or a method of that name, as the IV rule's same-file check).
+// readsExtraArgs reports a body that may use arguments beyond its parameters
+// (see Function.ReadsArgs); nested functions count, which only keeps more
+// calls silent.
+func readsExtraArgs(body *syntax.Block) bool {
+	if body == nil {
+		return true
+	}
+	found := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		switch c := n.(type) {
+		case *syntax.Include, *syntax.Eval:
+			found = true
+		case *syntax.FuncCall:
+			if name, ok := c.Name.(*syntax.Name); ok {
+				switch strings.ToLower(name.Value[strings.LastIndexByte(name.Value, '\\')+1:]) {
+				case "func_get_args", "func_get_arg", "func_num_args":
+					found = true
+				}
+			}
+		}
+		return !found
+	})
+	return found
+}
+
 func callsCSPRNG(body syntax.Node) bool {
 	found := false
 	syntax.Inspect(body, func(n syntax.Node) bool {
@@ -683,6 +708,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 			meth.ReturnsValue = returnsValue(m.Body)
 		}
 	}
+	meth.ReadsArgs = readsExtraArgs(m.Body)
 	meth.Return, meth.RetVer = x.returnType(m.ReturnType, m.Attrs, at)
 	if d != nil {
 		meth.DocReturn = voidDoc(x.docTypeStr(d.EffectiveReturnType(), at), m.Body)

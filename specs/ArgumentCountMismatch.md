@@ -40,9 +40,11 @@ and extra arguments.
   default value and is not variadic without an argument. The message names
   the parameters the nominal declaration leaves unbound.
 - D5. Too many: every declaration of D3 is declared by PHP itself (a
-  builtin function, or a method or constructor of a builtin class), none
-  has a variadic parameter, and the call passes more positional arguments
-  than the declaration with the most parameters accepts.
+  builtin function, or a method or constructor of a builtin class) or, with
+  the `strictUserArgs` option, by the project in a body that cannot read
+  extra arguments; none has a variadic parameter, and the call passes more
+  positional arguments than the declaration with the most parameters
+  accepts.
 - D6. A builtin's parameters are those it declares at the configured PHP
   version.
 
@@ -65,7 +67,10 @@ and extra arguments.
 - E4. An override in a subtype that accepts the call (fewer required
   parameters, a variadic parameter) makes the call valid.
 - E5. Extra arguments to a function or method of the project: PHP allows
-  them, and the callee may read them with `func_get_args()`.
+  them, and the callee may read them with `func_get_args()`. With the
+  `strictUserArgs` option, still silent when a declaration has no body, or
+  its body calls `func_get_args()`, `func_get_arg()` or `func_num_args()`,
+  includes another file or evaluates code.
 - E6. Builtins below PHP 8.0, whose parameter counts are not declared in a
   form the stubs describe exactly; builtins of extensions not bundled with
   PHP; and builtins whose stub signature is known to differ from the one
@@ -87,7 +92,9 @@ None: the missing value or the intended call cannot be guessed.
 
 ## Options
 
-None.
+| Option | Type | Default | Effect |
+|---|---|---|---|
+| strictUserArgs | bool | false | Also report extra arguments passed to functions and methods of the project that cannot read them. |
 
 ## PHP versions
 

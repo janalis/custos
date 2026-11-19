@@ -47,7 +47,14 @@
     "severity": "error",
     "enabledByDefault": false,
     "hasFix": false,
-    "typeCheck": "proven"
+    "typeCheck": "proven",
+    "options": [
+      {
+        "name": "strictUserArgs",
+        "type": "bool",
+        "default": false
+      }
+    ]
   },
   {
     "id": "ArrayChunkInvalidSize",

@@ -35,6 +35,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   enables the type-checking rules as a group; a rule's own `enabled` wins.
 - New rules, off by default and part of `typeCheck: proven`:
   `MemberAccessOnNonObject`, `ForeachOverNonIterable` and `InvalidOperandType`.
+- `ArgumentCountMismatch` has a `strictUserArgs` option that also reports
+  extra arguments to project functions that cannot read them.
 
 ### Fixed
 

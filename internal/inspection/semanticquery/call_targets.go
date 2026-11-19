@@ -16,6 +16,9 @@ type CallTarget struct {
 	Params []index.Param
 	// Builtin marks a declaration of PHP itself (the stubs).
 	Builtin bool
+	// ReadsArgs marks a declaration that may use arguments beyond its
+	// parameters (see index.Function.ReadsArgs).
+	ReadsArgs bool
 }
 
 // TrustBuiltin reports whether the stub declaration of builtin callee (a
@@ -116,7 +119,7 @@ func (r targetResolver) function(c *syntax.FuncCall) (string, []CallTarget, bool
 			return "", nil, false
 		}
 	}
-	return strings.TrimPrefix(f.FQN, `\`), []CallTarget{{Params: f.Params, Builtin: f.Builtin}}, true
+	return strings.TrimPrefix(f.FQN, `\`), []CallTarget{{Params: f.Params, Builtin: f.Builtin, ReadsArgs: f.ReadsArgs}}, true
 }
 
 // construction resolves the constructor a `new` runs.
@@ -132,7 +135,9 @@ func (r targetResolver) construction(c *syntax.New, callee Callee) (string, []Ca
 			return "", nil, false
 		}
 	}
-	return strings.TrimPrefix(declared.FQN, `\`) + "::__construct", []CallTarget{{Params: callee.Params, Builtin: callee.Builtin}}, true
+	ctor := ix.FindMethod(cls, "__construct", r.ctx.PHP)
+	reads := ctor == nil || ctor.ReadsArgs
+	return strings.TrimPrefix(declared.FQN, `\`) + "::__construct", []CallTarget{{Params: callee.Params, Builtin: callee.Builtin, ReadsArgs: reads}}, true
 }
 
 // methodTargets lists method name as class cls resolves it and, with
@@ -191,7 +196,7 @@ func resolveMethodTargets(ix *index.Index, cls, name string, overrides bool, ver
 	}
 	out := methodTargets{label: strings.TrimPrefix(m.Class, `\`) + "::" + m.Name, ok: true}
 	add := func(m *index.Method) {
-		out.targets = append(out.targets, CallTarget{Params: m.Params, Builtin: m.Builtin})
+		out.targets = append(out.targets, CallTarget{Params: m.Params, Builtin: m.Builtin, ReadsArgs: m.ReadsArgs})
 		if m.Builtin && !slices.Contains(out.builtin, m) {
 			out.builtin = append(out.builtin, m)
 		}

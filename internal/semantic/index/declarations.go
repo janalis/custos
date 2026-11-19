@@ -36,6 +36,7 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 		FQN: fqn, Params: x.params(n.Params, d, at), ByRef: n.ByRef,
 		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d), CSPRNG: callsCSPRNG(n.Body), Deprecated: x.deprecated(n.Attrs, d), NoDiscard: x.noDiscard(n.Attrs),
 	}
+	fn.ReadsArgs = readsExtraArgs(n.Body)
 	fn.Return, fn.RetVer = x.returnType(n.ReturnType, n.Attrs, at)
 	if d != nil {
 		fn.DocReturn = voidDoc(x.docTypeStr(d.EffectiveReturnType(), at), n.Body)

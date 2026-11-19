@@ -66,7 +66,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			missing = nil
 		}
 		accepted, capped := maximum(t.Params)
-		if !t.Builtin || !capped {
+		if !capped || !t.Builtin && (!ctx.Bool("strictUserArgs") || t.ReadsArgs) {
 			limit = -1
 		} else if limit >= 0 {
 			limit = max(limit, accepted)
@@ -77,7 +77,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	// Extra arguments are legal for functions of the project, which may
-	// read them with func_get_args().
+	// read them with func_get_args(): only strictUserArgs reports those
+	// that cannot.
 	if limit < 0 || len(args.positional) <= limit {
 		return
 	}

@@ -35,7 +35,8 @@
     "summary": "Use an overwrite-capable stream mode."
   },
   "ArgumentCountMismatch": {
-    "summary": "Report a call that leaves a required parameter without an argument, and a\ncall to a PHP function or method that passes more arguments than it\ndeclares. Since PHP 7.1 a missing argument throws an `ArgumentCountError`\nfor functions of the project, and PHP's own functions reject both missing\nand extra arguments."
+    "summary": "Report a call that leaves a required parameter without an argument, and a\ncall to a PHP function or method that passes more arguments than it\ndeclares. Since PHP 7.1 a missing argument throws an `ArgumentCountError`\nfor functions of the project, and PHP's own functions reject both missing\nand extra arguments.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| strictUserArgs | bool | false | Also report extra arguments passed to functions and methods of the project that cannot read them. |"
   },
   "ArgumentUnpackingCanBeUsed": {
     "phpMin": "5.6",

@@ -139,9 +139,13 @@ type Function struct {
 	// CSPRNG is set when the body calls a cryptographically secure
 	// generator by name (random_bytes, openssl_random_pseudo_bytes,
 	// mcrypt_create_iv): an IV wrapper usable from other files.
-	CSPRNG bool        `json:"csprng,omitempty"`
-	File   string      `json:"-"`
-	Span   syntax.Span `json:"-"`
+	CSPRNG bool `json:"csprng,omitempty"`
+	// ReadsArgs is set when the function may use arguments beyond its
+	// parameters: it has no body here, reads them with func_get_args() and
+	// its kin, or runs code the index does not see (include, eval).
+	ReadsArgs bool        `json:"readsArgs,omitempty"`
+	File      string      `json:"-"`
+	Span      syntax.Span `json:"-"`
 }
 
 // Method is a class member function.
@@ -218,7 +222,9 @@ type Method struct {
 	// `$this->m(…)` (`m()`, lower-case). Never set for builtins.
 	Inits  []string `json:"inits,omitempty"`
 	CSPRNG bool     `json:"csprng,omitempty"` // see Function.CSPRNG
-	Stores []string `json:"storesProps,omitempty"`
+	// ReadsArgs: see Function.ReadsArgs.
+	ReadsArgs bool     `json:"readsArgs,omitempty"`
+	Stores    []string `json:"storesProps,omitempty"`
 	// Magic marks a method declared only by a class `@method` tag: a real
 	// declaration in the class or its ancestors wins over it (FindMethod).
 	Magic   bool        `json:"magic,omitempty"`
