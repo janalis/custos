@@ -77,22 +77,9 @@ Unknown top-level keys and unknown rule options are ignored.
 
 ## Type checking
 
-The type-checking rules are off by default. `typeCheck` enables them as a
-group, and a rule's own `enabled` setting still wins:
-
-```json
-{
-  "typeCheck": "documented",
-  "rules": {
-    "PossiblyNullArgument": { "enabled": false }
-  }
-}
-```
-
-| Level | Rules it enables |
-|---|---|
-| `proven` | `InvalidArgumentType`, `InvalidReturnType`, `InvalidPropertyAssignment`, `ArgumentCountMismatch`, `UndefinedFunction`, `UndefinedClass`, `UndefinedMethod`, `UndefinedProperty`, `ImpossibleTypeComparison`, `MemberAccessOnNonObject`, `ForeachOverNonIterable`, `InvalidOperandType` |
-| `documented` | Everything in `proven`, plus `DocumentedArgumentType`, `DocumentedReturnType`, `DocumentedPropertyAssignment`, `PossiblyNullAccess`, `PossiblyNullArgument`, `RedundantTypeCheck` |
+`typeCheck` enables the type-checking rules as a group; a rule's own `enabled`
+setting still wins. [Type checking](./type-checking) lists the levels, their
+rules and the declaration formats custos reads.
 
 ## Excluded directories
 

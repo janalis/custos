@@ -79,7 +79,9 @@ invalid PHP, custos diverges on purpose.
 custos works alongside type checkers (PHPStan, Psalm), formatters
 (PHP-CS-Fixer, PHP_CodeSniffer) and your main PHP language server
 (Intelephense, Phpactor, PhpStorm). It covers patterns that are legal PHP
-but probably wrong, slow, insecure or outdated. Through its
+but probably wrong, slow, insecure or outdated, and offers optional
+[type checking](./type-checking) that reads the same PHPDoc, PHPStan, Psalm
+and PhpStorm declarations. Through its
 [MCP server](./mcp), AI coding agents can run the same checks and apply the
 same quick-fixes. The [benchmark](./benchmark) compares their speed and
 memory use on real projects.

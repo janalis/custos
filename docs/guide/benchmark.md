@@ -80,7 +80,7 @@ from a third-party plugin; the table lists what the tool itself provides.
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Written in | Go | PHP | PHP | PHP | Rust | PHP | PHP | PHP |
 | Runs without PHP | [✓](https://janalis.github.io/custos/guide/installation) | — | — | — | ✓ | — | — | — |
-| Type checking | — infers types for its rules | ✓ | ✓ | ✓ | [✓ `analyze`](https://mago.carthage.software/1.59.0/en/tools/analyzer/overview) | — | — | — |
+| Type checking | [partial: `typeCheck` setting, off by default](https://janalis.github.io/custos/guide/type-checking) | ✓ | ✓ | ✓ | [✓ `analyze`](https://mago.carthage.software/1.59.0/en/tools/analyzer/overview) | — | — | — |
 | Taint analysis | [✓ across files and into vendor/](https://janalis.github.io/custos/guide/cli) | — | [✓ `--taint-analysis`](https://psalm.dev/docs/security_analysis/) | — | [partial: superglobals echoed directly](https://mago.carthage.software/1.59.0/en/tools/linter/rules) | — | — | — |
 | Automatic fixes | [✓ `custos fix`](https://janalis.github.io/custos/guide/cli) | [partial: `--fix`, experimental](https://phpstan.org/user-guide/command-line-usage) | [✓ `psalter`](https://psalm.dev/docs/manipulating_code/fixing/) | [partial: `--automatic-fix`, few issues](https://github.com/phan/phan/blob/6.0.11/src/Phan/CLI.php) | [✓ `--fix`](https://mago.carthage.software/1.59.0/en/fundamentals/shared-reporting-options) | [✓ `phpcbf`](https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki) | ✓ | ✓ |
 | Formatting | — | — | — | — | [✓ `fmt`](https://mago.carthage.software/1.59.0/en/tools/formatter/overview) | ✓ `phpcbf` | ✓ | — |

@@ -1,0 +1,91 @@
+# Type checking
+
+custos can check types in the same run as its other rules. Type checking is
+off by default. Turn it on with `typeCheck` in `custos.json`:
+
+```json
+{
+  "typeCheck": "documented",
+  "rules": {
+    "PossiblyNullArgument": { "enabled": false }
+  }
+}
+```
+
+## Levels
+
+| Level | What it reports | Rules |
+|---|---|---|
+| `off` | Nothing beyond the rules you enable yourself. This is the default. | |
+| `proven` | Mistakes that native declarations and the code alone prove. | `InvalidArgumentType`, `InvalidReturnType`, `InvalidPropertyAssignment`, `ArgumentCountMismatch`, `UndefinedFunction`, `UndefinedClass`, `UndefinedMethod`, `UndefinedProperty`, `ImpossibleTypeComparison`, `MemberAccessOnNonObject`, `ForeachOverNonIterable`, `InvalidOperandType` |
+| `documented` | Everything in `proven`, plus values that break a documented contract or may be null. | `DocumentedArgumentType`, `DocumentedReturnType`, `DocumentedPropertyAssignment`, `PossiblyNullAccess`, `PossiblyNullArgument`, `RedundantTypeCheck` |
+
+A rule's own `enabled` setting always wins over the level, and `--rule` still
+selects exactly the rules it names. A finding is only reported when the types
+settle it: unknown types, `mixed` and unresolved classes stay silent.
+
+## Declaration formats
+
+custos reads these declarations, whichever tool they were written for.
+
+### PHPDoc, PHPStan and Psalm tags
+
+| Purpose | Tags |
+|---|---|
+| Parameters, returns, variables | `@param`, `@return`, `@var`, each also with the `@phpstan-` and `@psalm-` prefix |
+| Output parameters | `@param-out`, `@phpstan-param-out`, `@psalm-param-out` |
+| Templates | `@template`, `@template-covariant`, `@template-contravariant`, each also with the `@phpstan-` and `@psalm-` prefix |
+| Inheritance | `@extends`, `@implements`, `@use`, and their `@template-`, `@phpstan-` and `@psalm-` forms |
+| Type aliases | `@phpstan-type`, `@psalm-type`, `@phpstan-import-type`, `@psalm-import-type` |
+| Assertions | `@phpstan-assert`, `@psalm-assert`, and their `-if-true` and `-if-false` forms |
+| Magic members | `@method`, `@property`, `@property-read`, `@property-write`, each also with the `@phpstan-` and `@psalm-` prefix |
+| Mixins | `@mixin`, `@phpstan-mixin`, `@psalm-mixin` |
+
+When several tags describe the same thing, `@phpstan-` wins over `@psalm-`,
+which wins over the plain tag.
+
+### Type syntax
+
+| Kind | Examples |
+|---|---|
+| Unions, intersections, nullable | `int\|string`, `A&B`, `?int` |
+| Literals | `'asc'`, `42`, `0x1F`, `1_000` |
+| Refined scalars | `positive-int`, `int<0, 10>`, `non-empty-string`, `numeric-string`, `int-mask<1, 2, 4>`, `int-mask-of<Foo::FLAG_*>` |
+| Arrays | `list<int>`, `non-empty-array<string, int>`, `int[]` |
+| Array shapes | `array{id: int, name?: string}`, `array{int, string}`, `array{id: int, ...}` |
+| Object shapes | `object{id: int, name?: string}` |
+| Callables | `callable(int, string=): bool`, `Closure(int &$x, string ...$rest): void` |
+| Generics | `Collection<int, User>`, `class-string<User>`, `enum-string<Suit>` |
+| Key and value types | `key-of<Foo::MAP>`, `value-of<Foo::MAP>`, `Foo::BAR_*` |
+| Conditional returns | `($x is int ? A : B)` |
+
+### PhpStorm attributes
+
+| Attribute | Effect |
+|---|---|
+| `#[ArrayShape]`, `#[ObjectShape]` | Describe the array or object member of the type. Their keys count as optional and the shape as open, because PhpStorm's syntax cannot say otherwise. |
+| `#[ExpectedValues]` | Limits an int or string parameter or property to the listed literal values or flags. |
+| `#[NoReturn]` | The function never returns. |
+| `#[LanguageLevelTypeAware]` | Gives a parameter or return type per PHP version. |
+
+A plain `@param array` or `@return array` is refined by a shape attribute. A
+tag that already has a shape keeps priority over the attribute.
+
+## What is compared
+
+| Comparison | Reported when |
+|---|---|
+| Generic arguments | An argument has nothing in common with the expected one, following the template's declared variance. Arguments are trusted on parameters that the function does not reassign. |
+| Array shapes | A required key is missing, a required key's value has another type, or a sealed shape does not list a required key. |
+| Object shapes | A property required on both sides has another type. |
+| Callables | The return type or a parameter type has nothing in common, or the callable requires more arguments than it receives. |
+
+## Limits
+
+- `#[ExpectedValues]` only uses literal values: constants, `valuesFromClass`
+  and `flagsFromClass` are ignored.
+- `#[Pure]`, `#[Immutable]`, `@throws` and `@phpstan-self-out` do not affect
+  any check.
+- Generic arguments are not mapped from a subclass to its parent's templates.
+- Extra arguments to project functions are reported only with the
+  `strictUserArgs` option of `ArgumentCountMismatch`.

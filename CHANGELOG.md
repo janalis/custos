@@ -37,6 +37,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `MemberAccessOnNonObject`, `ForeachOverNonIterable` and `InvalidOperandType`.
 - `ArgumentCountMismatch` has a `strictUserArgs` option that also reports
   extra arguments to project functions that cannot read them.
+- A [type checking guide](https://janalis.github.io/custos/guide/type-checking)
+  lists the levels, the rules and the declaration formats custos reads.
 
 ### Fixed
 

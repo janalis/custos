@@ -106,8 +106,9 @@
       "name": "Type checking",
       "cells": {
         "custos": {
-          "value": "no",
-          "note": "infers types for its rules"
+          "value": "partial",
+          "note": "`typeCheck` setting, off by default",
+          "source": "https://janalis.github.io/custos/guide/type-checking"
         },
         "phpstan": {
           "value": "yes"
