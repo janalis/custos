@@ -333,11 +333,23 @@ var docBuiltin = map[string]bool{
 	"static": true,
 }
 
+// Variance is how a template argument may vary between a type and its
+// subtypes: invariant (`@template`), covariant (`@template-covariant`) or
+// contravariant (`@template-contravariant`).
+type Variance uint8
+
+const (
+	Invariant Variance = iota
+	Covariant
+	Contravariant
+)
+
 // TemplateParam is a declared template: `@template T of Bound`.
 type TemplateParam struct {
-	Name    string
-	Bound   string // type text after `of` / `as`; "" when absent
-	Default string // type text after `=` (`@template T of array-key = int`); "" when absent
+	Name     string
+	Bound    string // type text after `of` / `as`; "" when absent
+	Default  string // type text after `=` (`@template T of array-key = int`); "" when absent
+	Variance Variance
 }
 
 // TemplateParams returns the templates declared by @template (and the
@@ -352,7 +364,7 @@ func (d *Doc) TemplateParams() []TemplateParam {
 		if len(f) == 0 {
 			continue
 		}
-		p := TemplateParam{Name: f[0]}
+		p := TemplateParam{Name: f[0], Variance: templateVariance(t.Name)}
 		rest := strings.TrimSpace(strings.TrimSpace(t.Text)[len(f[0]):])
 		if len(f) > 2 && (f[1] == "of" || f[1] == "as") {
 			p.Bound, rest = SplitType(strings.TrimSpace(rest[len(f[1]):]))
@@ -366,13 +378,32 @@ func (d *Doc) TemplateParams() []TemplateParam {
 	return out
 }
 
+// isTemplateTag reports whether name declares a template: @template, its
+// covariant/contravariant forms, each optionally psalm-/phpstan-prefixed.
 func isTemplateTag(name string) bool {
-	switch strings.ToLower(name) {
-	case "template", "template-covariant", "template-contravariant",
-		"psalm-template", "psalm-template-covariant", "phpstan-template", "phpstan-template-covariant":
+	n := strings.ToLower(name)
+	if rest, ok := strings.CutPrefix(n, "psalm-"); ok {
+		n = rest
+	} else {
+		n = strings.TrimPrefix(n, "phpstan-")
+	}
+	switch n {
+	case "template", "template-covariant", "template-contravariant":
 		return true
 	}
 	return false
+}
+
+// templateVariance is the variance a template tag declares.
+func templateVariance(name string) Variance {
+	n := strings.ToLower(name)
+	switch {
+	case strings.HasSuffix(n, "-covariant"):
+		return Covariant
+	case strings.HasSuffix(n, "-contravariant"):
+		return Contravariant
+	}
+	return Invariant
 }
 
 // Templates returns the names declared by @template (and the psalm-/phpstan-
@@ -380,12 +411,11 @@ func isTemplateTag(name string) bool {
 func (d *Doc) Templates() []string {
 	var out []string
 	for _, t := range d.Tags {
-		switch strings.ToLower(t.Name) {
-		case "template", "template-covariant", "template-contravariant",
-			"psalm-template", "psalm-template-covariant", "phpstan-template", "phpstan-template-covariant":
-			if f := strings.Fields(t.Text); len(f) > 0 {
-				out = append(out, f[0])
-			}
+		if !isTemplateTag(t.Name) {
+			continue
+		}
+		if f := strings.Fields(t.Text); len(f) > 0 {
+			out = append(out, f[0])
 		}
 	}
 	return out

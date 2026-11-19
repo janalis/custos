@@ -107,3 +107,35 @@ func TestProseIsNoType(t *testing.T) {
 		t.Errorf("single word return type %q", r)
 	}
 }
+
+func TestTemplateVariance(t *testing.T) {
+	tags := []struct {
+		tag  string
+		want Variance
+	}{
+		{"template", Invariant},
+		{"template-covariant", Covariant},
+		{"template-contravariant", Contravariant},
+		{"psalm-template", Invariant},
+		{"psalm-template-covariant", Covariant},
+		{"psalm-template-contravariant", Contravariant},
+		{"phpstan-template", Invariant},
+		{"PHPStan-Template-Covariant", Covariant},
+		{"phpstan-template-contravariant", Contravariant},
+	}
+	for _, c := range tags {
+		d := Parse("/** @" + c.tag + " T of Foo */")
+		tp := d.TemplateParams()
+		if len(tp) != 1 || tp[0] != (TemplateParam{Name: "T", Bound: "Foo", Variance: c.want}) {
+			t.Errorf("@%s: TemplateParams = %+v", c.tag, tp)
+		}
+		if names := d.Templates(); len(names) != 1 || names[0] != "T" {
+			t.Errorf("@%s: Templates = %v", c.tag, names)
+		}
+	}
+	for _, tag := range []string{"psalm-phpstan-template", "phpstan-psalm-template", "templates", "psalm-"} {
+		if d := Parse("/** @" + tag + " T */"); len(d.Templates()) != 0 || len(d.TemplateParams()) != 0 {
+			t.Errorf("@%s read as a template", tag)
+		}
+	}
+}

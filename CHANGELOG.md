@@ -5,6 +5,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `@psalm-template-contravariant` and `@phpstan-template-contravariant`
+  declare templates like the other template tags, and each template keeps
+  the variance its tag declares.
+
 ## [0.1.16] - 2026-11-18
 
 ### Added
