@@ -55,13 +55,21 @@ func neverObject(t types.Type) bool {
 	return true
 }
 
-// quietRead reports a property read PHP evaluates without complaint: inside
-// isset() or empty(), or on the left of `??`, at any depth of the chain.
+// quietRead reports a property read PHP evaluates without complaint: the
+// base of a chain inside isset() or empty(), or on the left of `??`.
 func quietRead(n syntax.Node) bool {
 	child := n
 	for p := n.Parent(); ; child, p = p, p.Parent() {
 		switch parent := p.(type) {
-		case *syntax.PropertyFetch, *syntax.ArrayDimFetch, *syntax.Paren:
+		case *syntax.Paren:
+		case *syntax.PropertyFetch:
+			if parent.Var != child {
+				return false // a dynamic name is read as usual
+			}
+		case *syntax.ArrayDimFetch:
+			if parent.Var != child {
+				return false // an index is read as usual
+			}
 		case *syntax.Isset, *syntax.Empty:
 			return true
 		case *syntax.Binary:

@@ -33,7 +33,7 @@ type PropertyMismatch struct {
 
 // Message is the finding's text: the type to assign instead.
 func (m PropertyMismatch) Message() string {
-	return "Assign " + declaredTypeName(m.Expected) + " to " + m.Property + ", not " + givenName(m.Given, m.Values) + "."
+	return "Assign " + declaredTypeName(m.Expected) + " to " + m.Property + ", not " + mismatchName(m.Expected, m.Given, m.Values) + "."
 }
 
 type propertyTypesKey struct{ write syntax.Node }

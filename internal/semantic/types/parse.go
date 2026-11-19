@@ -817,6 +817,9 @@ func numberLiteral(s string) Type {
 // listed exactly; a wider mask is the range from 0 to every flag set.
 const maxMaskFlags = 8
 
+// maxMaskRange is the widest run of adjacent values read as separate flags.
+const maxMaskRange = 64
+
 // intMask parses int-mask<1, 2, 4> and int-mask-of<Foo::FLAG_*>: every
 // bitwise OR of the given non-negative int values (0 included). Unknown
 // or negative flags make it a plain int.
@@ -831,10 +834,13 @@ func (p *docParser) intMask(low, args string, resolve Resolver, depth int) Type 
 			return false
 		}
 		for _, r := range rs {
-			if r.Lo != r.Hi || r.Lo < 0 {
+			// Adjacent literals arrive merged: 1|2 is the range 1..2.
+			if r.Lo < 0 || r.Hi-r.Lo >= maxMaskRange {
 				return false
 			}
-			flags = append(flags, r.Lo)
+			for v := r.Lo; v <= r.Hi; v++ {
+				flags = append(flags, v)
+			}
 		}
 		return true
 	}

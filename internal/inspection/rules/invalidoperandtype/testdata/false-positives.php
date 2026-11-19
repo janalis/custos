@@ -4,6 +4,11 @@ class Money extends GMP {}
 
 class Orphan extends MissingBase {}
 
+function converted(SimpleXMLElement $xml)
+{
+    return $xml * 2;
+}
+
 /** @param array $documented */
 function allowed(array $a, array $b, ?array $maybe, array|int $either, mixed $anything, iterable $items, $unknown, $documented, int $n, string $s, GMP $gmp, Money $money, Orphan $orphan, Missing $missing, object $thing, array|string $text)
 {

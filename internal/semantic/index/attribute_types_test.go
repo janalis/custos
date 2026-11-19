@@ -79,12 +79,14 @@ func TestNoReturnAttribute(t *testing.T) {
 #[NoReturn] function b(): void {}
 #[NoReturn] function c(): never {}
 #[NoReturn] function d(): int {}
+#[NoReturn(true)] function conditional(bool $exit = false) {}
+#[NoReturn()] function emptyArgs() {}
 /** @return string */
 #[NoReturn] function e() {}
 function f() {}
 class K { #[NoReturn] function m() {} }
 `)
-	want := map[string]string{`App\a`: "never", `App\b`: "never", `App\c`: "never", `App\d`: "", `App\e`: "string", `App\f`: ""}
+	want := map[string]string{`App\a`: "never", `App\b`: "never", `App\c`: "never", `App\d`: "", `App\conditional`: "", `App\emptyArgs`: "never", `App\e`: "string", `App\f`: ""}
 	for _, fn := range fs.Functions {
 		if fn.DocReturn != want[fn.FQN] {
 			t.Errorf("%s: DocReturn = %q, want %q", fn.FQN, fn.DocReturn, want[fn.FQN])

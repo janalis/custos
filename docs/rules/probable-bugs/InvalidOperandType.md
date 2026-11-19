@@ -42,8 +42,8 @@ Reported:
 - `+` between arrays, which merges them: an array operand of `+` is
   reported only when the other operand is known and cannot be an array.
 - An operand that may also be null, a scalar or an unresolved class.
-- An object of a class that overloads operators: `GMP`, `BcMath\Number`,
-  `FFI\CData` and their subclasses.
+- An object of a class that takes part in arithmetic: `GMP`,
+  `BcMath\Number`, `FFI\CData`, `SimpleXMLElement` and their subclasses.
 - A type that comes only from PHPDoc.
 
 ## Fix

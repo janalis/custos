@@ -435,9 +435,11 @@ func acceptArray(expected, actual Type, a string, ctx AcceptContext) Verdict {
 // signatureRejected reports a callable that cannot be called as want says:
 // its return type or a parameter type has nothing in common with the written
 // one, or it requires more arguments than want passes. Types are compared
-// without strict mode, which the callable's own file decides.
+// without strict mode, which the callable's own file decides. Only a written
+// signature counts: what a closure's body was inferred to return may be a
+// path that never completes.
 func signatureRejected(want, have *genEntry, ctx AcceptContext) bool {
-	if want == nil || have == nil || len(want.args) == 0 || len(have.args) == 0 || ctx.nested >= maxTypeArgDepth {
+	if want == nil || have == nil || have.sig == nil || len(want.args) == 0 || len(have.args) == 0 || ctx.nested >= maxTypeArgDepth {
 		return false
 	}
 	weak := AcceptContext{Classes: ctx.Classes, nested: ctx.nested + 1}
@@ -449,7 +451,7 @@ func signatureRejected(want, have *genEntry, ctx AcceptContext) bool {
 			return true
 		}
 	}
-	return want.sig != nil && have.sig != nil && want.sig.rest == nil && have.sig.required > len(want.args)-1
+	return want.sig != nil && want.sig.rest == nil && have.sig.required > len(want.args)-1
 }
 
 // shapeRejected reports an array of actual that cannot have the shape

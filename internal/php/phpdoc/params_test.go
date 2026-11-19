@@ -108,6 +108,17 @@ func TestProseIsNoType(t *testing.T) {
 	}
 }
 
+func TestTemplateDeclaredForSeveralTools(t *testing.T) {
+	d := Parse("/**\n * @template K\n * @psalm-template K of int\n * @phpstan-template K of string\n * @psalm-template K of float\n * @template-covariant V\n * @psalm-template-covariant V\n * @template V\n */")
+	want := []TemplateParam{{Name: "K", Bound: "string"}, {Name: "V", Variance: Covariant}}
+	if got := d.TemplateParams(); !slices.Equal(got, want) {
+		t.Errorf("TemplateParams = %+v", got)
+	}
+	if got := d.Templates(); !slices.Equal(got, []string{"K", "V"}) {
+		t.Errorf("Templates = %v", got)
+	}
+}
+
 func TestTemplateVariance(t *testing.T) {
 	tags := []struct {
 		tag  string

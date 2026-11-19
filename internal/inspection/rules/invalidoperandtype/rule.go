@@ -24,8 +24,8 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KBinary,
 func (rule) Semantic() {}
 
 // overloading lists the classes (lower case) whose objects take part in
-// arithmetic.
-var overloading = [...]string{"gmp", `bcmath\number`, `ffi\cdata`}
+// arithmetic: by overloading operators or by converting to a number.
+var overloading = [...]string{"gmp", `bcmath\number`, `ffi\cdata`, "simplexmlelement"}
 
 // Check reports the operands of an arithmetic or bitwise operation that
 // native declarations prove make it throw.

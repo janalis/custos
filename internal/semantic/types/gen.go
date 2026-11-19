@@ -112,6 +112,9 @@ func (t Type) callSigOf(atom string) *callSig {
 	return nil
 }
 
+// HasObjectShape reports an object member listing its properties.
+func (t Type) HasObjectShape() bool { return t.objectShapeDoc("object") != "" }
+
 // objectShapeDoc is the doc syntax of atom's object shape, "" without one.
 func (t Type) objectShapeDoc(atom string) string {
 	e := t.genOf(atom)

@@ -53,7 +53,7 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 	}
 	c.Conditional = n.Name != nil && conditionalDeclaration(n)
 	if d := x.doc(n); d != nil {
-		x.mixins(c, d, at)
+		c.Mixin = d.Has("mixin") || d.Has("phpstan-mixin") || d.Has("psalm-mixin")
 		c.Deprecated = d.Has("deprecated")
 		c.Avail = x.avail(n.Attrs, d)
 		x.magicMembers(c, d, at)
@@ -321,8 +321,6 @@ func voidDoc(doc string, body *syntax.Block) string {
 	return doc
 }
 
-// callsCSPRNG reports whether body calls a secure random generator by name
-// (a function or a method of that name, as the IV rule's same-file check).
 // readsExtraArgs reports a body that may use arguments beyond its parameters
 // (see Function.ReadsArgs); nested functions count, which only keeps more
 // calls silent.
@@ -348,6 +346,8 @@ func readsExtraArgs(body *syntax.Block) bool {
 	return found
 }
 
+// callsCSPRNG reports whether body calls a secure random generator by name
+// (a function or a method of that name, as the IV rule's same-file check).
 func callsCSPRNG(body syntax.Node) bool {
 	found := false
 	syntax.Inspect(body, func(n syntax.Node) bool {
@@ -713,7 +713,6 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	if d != nil {
 		meth.DocReturn = voidDoc(x.docTypeStr(d.EffectiveReturnType(), at), m.Body)
 		meth.GenReturn = x.genReturn(d, at)
-		meth.SelfOut = x.selfOut(d, at)
 		meth.CondReturn = x.condReturn(d, at)
 		meth.Asserts = x.assertions(d, m.Params, !meth.Static, at)
 		meth.Tpl = x.funcTemplates(d, m.Params, meth.Asserts, at)

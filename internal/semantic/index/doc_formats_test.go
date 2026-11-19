@@ -27,34 +27,6 @@ class Box {}
 	}
 }
 
-func TestMixinClasses(t *testing.T) {
-	fs := extract(t, "mixins.php", `<?php
-namespace App;
-use Domain\Item;
-/**
- * @template T
- * @mixin Item
- * @mixin Item
- * @phpstan-mixin \Other\Thing<int>
- * @psalm-mixin T
- */
-class Host {}
-/** @mixin */
-class Empty1 {}
-class Plain {}
-`)
-	host := fs.Classes[0]
-	if !host.Mixin || !reflect.DeepEqual(host.Mixins, []string{`Domain\Item`, `Other\Thing`}) {
-		t.Errorf("Host: mixin=%v mixins=%v", host.Mixin, host.Mixins)
-	}
-	if c := fs.Classes[1]; !c.Mixin || c.Mixins != nil {
-		t.Errorf("bare @mixin: mixin=%v mixins=%v", c.Mixin, c.Mixins)
-	}
-	if c := fs.Classes[2]; c.Mixin || c.Mixins != nil {
-		t.Errorf("no tag: mixin=%v mixins=%v", c.Mixin, c.Mixins)
-	}
-}
-
 func TestPrefixedMagicMembersWin(t *testing.T) {
 	fs := extract(t, "magic_prefixed.php", `<?php
 /**
@@ -85,33 +57,6 @@ class Magic {}
 	for name, want := range map[string]string{"m": "string", "n": "bool"} {
 		if m := c.Methods[name]; m == nil || m.DocReturn != want {
 			t.Errorf("%s() = %+v, want %s", name, m, want)
-		}
-	}
-}
-
-func TestSelfOut(t *testing.T) {
-	fs := extract(t, "self_out.php", `<?php
-/** @template T */
-class Box {
-	/** @phpstan-self-out self<int> */
-	function a() {}
-	/** @psalm-this-out Box<T> */
-	function b() {}
-	/** @this-out static */
-	function c() {}
-	/**
-	 * @self-out Box<string>
-	 * @phpstan-this-out Box<int>
-	 */
-	function d() {}
-	/** @return int */
-	function e() {}
-}
-`)
-	ms := fs.Classes[0].Methods
-	for name, want := range map[string]string{"a": "self", "b": `\Box<\~T>`, "c": "static", "d": `\Box<int>`, "e": ""} {
-		if got := ms[name].SelfOut; got != want {
-			t.Errorf("%s: SelfOut = %q, want %q", name, got, want)
 		}
 	}
 }

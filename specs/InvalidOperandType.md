@@ -26,8 +26,8 @@ code itself shows cannot take part in it. PHP throws a `TypeError`.
 - E1. `+` between arrays, which merges them: an array operand of `+` is
   reported only when the other operand is known and cannot be an array.
 - E2. An operand that may also be null, a scalar or an unresolved class.
-- E3. An object of a class that overloads operators: `GMP`, `BcMath\Number`,
-  `FFI\CData` and their subclasses.
+- E3. An object of a class that takes part in arithmetic: `GMP`,
+  `BcMath\Number`, `FFI\CData`, `SimpleXMLElement` and their subclasses.
 - E4. A type that comes only from PHPDoc.
 
 ## Report

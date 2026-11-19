@@ -141,7 +141,11 @@ func (x *extractor) attrDoc(doc, native string, attrs []*syntax.AttributeGroup, 
 // documents never unless a tag or a value-returning native type says more.
 func (x *extractor) attrReturnDoc(doc, native string, attrs []*syntax.AttributeGroup, at uint32) string {
 	doc = x.attrDoc(doc, native, attrs, at)
-	if doc == "" && (native == "" || native == "void" || native == "never") && x.phpStormAttr(attrs, "NoReturn") != nil {
+	if doc != "" || native != "" && native != "void" && native != "never" {
+		return doc
+	}
+	// With arguments the attribute names the calls that exit, not all of them.
+	if a := x.phpStormAttr(attrs, "NoReturn"); a != nil && (a.Args == nil || len(a.Args.Args) == 0) {
 		return "never"
 	}
 	return doc

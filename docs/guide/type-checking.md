@@ -65,7 +65,7 @@ which wins over the plain tag.
 |---|---|
 | `#[ArrayShape]`, `#[ObjectShape]` | Describe the array or object member of the type. Their keys count as optional and the shape as open, because PhpStorm's syntax cannot say otherwise. |
 | `#[ExpectedValues]` | Limits an int or string parameter or property to the listed literal values or flags. |
-| `#[NoReturn]` | The function never returns. |
+| `#[NoReturn]` | Without arguments, the function never returns. With arguments it names only some calls, and is ignored. |
 | `#[LanguageLevelTypeAware]` | Gives a parameter or return type per PHP version. |
 
 A plain `@param array` or `@return array` is refined by a shape attribute. A
@@ -85,7 +85,10 @@ tag that already has a shape keeps priority over the attribute.
 - `#[ExpectedValues]` only uses literal values: constants, `valuesFromClass`
   and `flagsFromClass` are ignored.
 - `#[Pure]`, `#[Immutable]`, `@throws` and `@phpstan-self-out` do not affect
-  any check.
+  any check, and `@mixin` only keeps members of the class from being reported
+  as undefined.
+- A closure is compared by its written signature: what its body was inferred
+  to return is not checked against a callable type.
 - Generic arguments are not mapped from a subclass to its parent's templates.
 - Extra arguments to project functions are reported only with the
   `strictUserArgs` option of `ArgumentCountMismatch`.

@@ -2,6 +2,7 @@
 package phpdoc
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -356,6 +357,7 @@ type TemplateParam struct {
 // variants Templates accepts) with their bounds, in declaration order.
 func (d *Doc) TemplateParams() []TemplateParam {
 	var out []TemplateParam
+	var ranks []int
 	for _, t := range d.Tags {
 		if !isTemplateTag(t.Name) {
 			continue
@@ -373,9 +375,31 @@ func (d *Doc) TemplateParams() []TemplateParam {
 		if strings.HasPrefix(rest, "=") {
 			p.Default, _ = SplitType(strings.TrimSpace(rest[1:]))
 		}
-		out = append(out, p)
+		// One template declared for several tools keeps its position; the
+		// most specific tag describes it.
+		rank := templateTagRank(t.Name)
+		if i := slices.IndexFunc(out, func(o TemplateParam) bool { return o.Name == p.Name }); i >= 0 {
+			if rank > ranks[i] {
+				out[i], ranks[i] = p, rank
+			}
+			continue
+		}
+		out, ranks = append(out, p), append(ranks, rank)
 	}
 	return out
+}
+
+// templateTagRank orders the variants of a template tag: phpstan-, psalm-,
+// then the plain tag.
+func templateTagRank(name string) int {
+	n := strings.ToLower(name)
+	switch {
+	case strings.HasPrefix(n, "phpstan-"):
+		return 2
+	case strings.HasPrefix(n, "psalm-"):
+		return 1
+	}
+	return 0
 }
 
 // isTemplateTag reports whether name declares a template: @template, its
@@ -414,7 +438,7 @@ func (d *Doc) Templates() []string {
 		if !isTemplateTag(t.Name) {
 			continue
 		}
-		if f := strings.Fields(t.Text); len(f) > 0 {
+		if f := strings.Fields(t.Text); len(f) > 0 && !slices.Contains(out, f[0]) {
 			out = append(out, f[0])
 		}
 	}

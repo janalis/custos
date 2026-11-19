@@ -21,11 +21,11 @@ function takesTest(callable $test) {}
  */
 function mismatches(array $wrongValue, array $missingKey, array $extraKey, array $list, object $wrongProperty, callable $wrongReturn, callable $wrongParameter, callable $tooManyRequired)
 {
-    takesRow(<warning descr="Pass array{id:int,name:string} to $row of takesRow(), not array.">$wrongValue</warning>);
-    takesRow(<warning descr="Pass array{id:int,name:string} to $row of takesRow(), not array.">$missingKey</warning>);
-    takesRow(<warning descr="Pass array{id:int,name:string} to $row of takesRow(), not array.">$extraKey</warning>);
+    takesRow(<warning descr="Pass array{id:int,name:string} to $row of takesRow(), not array{id:string,name:string}.">$wrongValue</warning>);
+    takesRow(<warning descr="Pass array{id:int,name:string} to $row of takesRow(), not array{id:int}.">$missingKey</warning>);
+    takesRow(<warning descr="Pass array{id:int,name:string} to $row of takesRow(), not array{id:int,name:string,extra:int}.">$extraKey</warning>);
     takesRow(<warning descr="Pass array{id:int,name:string} to $row of takesRow(), not int[].">$list</warning>);
-    takesItem(<warning descr="Pass object{id:int} to $item of takesItem(), not object.">$wrongProperty</warning>);
+    takesItem(<warning descr="Pass object{id:int} to $item of takesItem(), not object{id:string}.">$wrongProperty</warning>);
     takesTest(<warning descr="Pass callable(int): (bool) to $test of takesTest(), not callable(int): (array).">$wrongReturn</warning>);
     takesTest(<warning descr="Pass callable(int): (bool) to $test of takesTest(), not callable(array): (bool).">$wrongParameter</warning>);
     takesTest(<warning descr="Pass callable(int): (bool) to $test of takesTest(), not callable(int, int): (bool).">$tooManyRequired</warning>);

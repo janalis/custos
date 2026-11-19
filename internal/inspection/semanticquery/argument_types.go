@@ -405,13 +405,22 @@ func (c *argumentCheck) declaredType(text, def string) types.Type {
 
 // Message is the finding's text: the type to pass instead.
 func (m ArgumentMismatch) Message() string {
-	return "Pass " + declaredTypeName(m.Expected) + " to $" + m.Param + " of " + m.Callee + "(), not " + givenName(m.Given, m.Values) + "."
+	return "Pass " + declaredTypeName(m.Expected) + " to $" + m.Param + " of " + m.Callee + "(), not " + mismatchName(m.Expected, m.Given, m.Values) + "."
 }
 
 // valuesDecide reports whether the values form of a PHPDoc type rejects
 // given while its plain form does not: the exact value decides.
 func valuesDecide(c *argumentCheck, doc, values, def string, native, given types.Type, at types.AcceptContext) bool {
 	return documented(doc, values, given) != doc && !c.docTypeRejects(doc, def, native, given, at)
+}
+
+// mismatchName prints the given type of a finding against expected: a shape
+// against a shape shows its keys, which are what differs.
+func mismatchName(expected string, given types.Type, values bool) string {
+	if strings.Contains(expected, "{") && (given.HasShape() || given.HasObjectShape()) {
+		return declaredTypeName(given.DocString())
+	}
+	return givenName(given, values)
 }
 
 // givenName prints the given type of a finding: with its exact values when

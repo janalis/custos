@@ -27,7 +27,7 @@ type ReturnMismatch struct {
 
 // Message is the finding's text: the type to return instead.
 func (m ReturnMismatch) Message() string {
-	return "Return " + declaredTypeName(m.Expected) + " from " + m.Function + ", not " + givenName(m.Given, m.Values) + "."
+	return "Return " + declaredTypeName(m.Expected) + " from " + m.Function + ", not " + mismatchName(m.Expected, m.Given, m.Values) + "."
 }
 
 type returnTypesKey struct{ n syntax.Node }

@@ -41,15 +41,15 @@ func TestAcceptsCallableSignatures(t *testing.T) {
 	}
 }
 
-// An inferred closure knows its return type but not its parameters.
+// An inferred closure has no written signature to compare.
 func TestAcceptsCallableWithoutShape(t *testing.T) {
 	ctx := AcceptContext{Classes: fakeClasses{}, Strict: true}
 	inferred := WithCallableReturn(Of(`\Closure`), `\Closure`, Int)
 	if got := Accepts(FromDoc(`callable(int, int): int`, nil), inferred, ctx); got != Yes {
 		t.Errorf("arity unknown = %v, want yes", got)
 	}
-	if got := Accepts(FromDoc(`callable(): array`, nil), inferred, ctx); got != No {
-		t.Errorf("return type = %v, want no", got)
+	if got := Accepts(FromDoc(`callable(): array`, nil), inferred, ctx); got != Yes {
+		t.Errorf("inferred return type = %v, want yes", got)
 	}
 }
 
