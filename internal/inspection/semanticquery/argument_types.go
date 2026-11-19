@@ -188,7 +188,7 @@ func vivifiedNative(native types.Type) bool {
 // the checks of arguments and property writes.
 func fileTypeCheck(ctx *analysis.Context) *argumentCheck {
 	return ctx.Shared(argumentCheckKey{}, func() any {
-		classes := newIndexRelations(ctx.Index(), ctx.PHP)
+		classes := fileRelations(ctx)
 		return &argumentCheck{
 			weak:      types.AcceptContext{Classes: classes, Strict: syntax.StrictTypes(ctx.File)},
 			strict:    types.AcceptContext{Classes: classes, Strict: true},
@@ -420,9 +420,15 @@ func valuesDecide(c *argumentCheck, doc, values, def string, native, given types
 }
 
 // mismatchName prints the given type of a finding against expected: a shape
-// against a shape shows its keys, which are what differs.
+// against a shape, or int keys against string keys, show their keys, which
+// are what differs.
 func mismatchName(expected string, given types.Type, values bool) string {
 	if strings.Contains(expected, "{") && (given.HasShape() || given.HasObjectShape()) {
+		return declaredTypeName(given.DocString())
+	}
+	// Int keys where string keys are expected: the element type alone
+	// hides them.
+	if strings.Contains(expected, "array<") && given.ArrayKey().OnlyOf("int") && types.FromDoc(expected, nil).ArrayKey().OnlyOf("string") {
 		return declaredTypeName(given.DocString())
 	}
 	return givenName(given, values)

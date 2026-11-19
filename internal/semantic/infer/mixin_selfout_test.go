@@ -47,7 +47,7 @@ function f(Builder $b, Child $c, LoopA $l) {
     t('cycle', $l->nothing());
 }
 `, map[string]string{
-		"method": "int", "property": "int", "own": "float", "fluent": `\Builder`, "fluentThis": `\Builder`,
+		"method": "int", "property": "int", "own": "float", "fluent": "?unknown", "fluentThis": "?unknown",
 		"inherited": "int", "chained": "string", "missing": "?unknown", "missingProp": "?unknown", "cycle": "?unknown",
 	})
 }

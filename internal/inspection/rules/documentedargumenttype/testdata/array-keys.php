@@ -13,11 +13,15 @@ function wantsMap(array $map) {}
  */
 function keys(array $map, array $filled, array $items, $k)
 {
-    wantsList(<warning descr="Pass array<int,int> to $list of wantsList(), not int[].">$filled</warning>);
-    wantsMap(<warning descr="Pass array<string,int> to $map of wantsMap(), not int[].">$items</warning>);
+    wantsMap(<warning descr="Pass array<string,int> to $map of wantsMap(), not non-empty-array<int,int>.">$items</warning>);
+
+    wantsList($filled);
     if ($map !== []) {
-        wantsList(<warning descr="Pass array<int,int> to $list of wantsList(), not int[].">$map</warning>);
+        wantsList($map);
     }
+    $byId = [];
+    $byId[(string) $k] = 1;
+    wantsList($byId);
 
     wantsList($map);
     wantsMap([]);

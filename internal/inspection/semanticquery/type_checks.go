@@ -602,7 +602,7 @@ type typeChecks struct{ *indexRelations }
 
 func typeRelations(ctx *analysis.Context) typeChecks {
 	return ctx.Shared(typeRelationsKey{}, func() any {
-		return typeChecks{newIndexRelations(ctx.Index(), ctx.PHP)}
+		return typeChecks{fileRelations(ctx)}
 	}).(typeChecks)
 }
 

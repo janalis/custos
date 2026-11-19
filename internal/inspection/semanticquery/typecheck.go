@@ -2,7 +2,6 @@ package semanticquery
 
 import (
 	"slices"
-	"strconv"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -11,6 +10,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
 	"custos/internal/semantic/types"
 )
 
@@ -20,6 +20,9 @@ type indexRelations struct {
 	ix       *index.Index
 	ver      phpversion.Version
 	resolved map[string]bool
+	// env binds written generic arguments to templates (nil: by position).
+	env     *infer.Env
+	typeArg map[string][]types.Type // TypeArgsAs results
 }
 
 // newIndexRelations returns the class relations of ix at PHP version ver.
@@ -27,12 +30,19 @@ func newIndexRelations(ix *index.Index, ver phpversion.Version) *indexRelations 
 	return &indexRelations{ix: ix, ver: ver}
 }
 
+// fileRelations returns the class relations of the file of ctx.
+func fileRelations(ctx *analysis.Context) *indexRelations {
+	r := newIndexRelations(ctx.Index(), ctx.PHP)
+	r.env = ctx.Types()
+	return r
+}
+
 // acceptContext returns the acceptance context of a value passed in the file
 // of ctx: its strict_types mode and the class relations of its index;
 // internal marks a parameter of a builtin function.
 func acceptContext(ctx *analysis.Context, internal bool) types.AcceptContext {
 	return types.AcceptContext{
-		Classes:  newIndexRelations(ctx.Index(), ctx.PHP),
+		Classes:  fileRelations(ctx),
 		Strict:   syntax.StrictTypes(ctx.File),
 		Internal: internal,
 	}
@@ -93,10 +103,9 @@ func typeArgsDeclared(ctx *analysis.Context, x syntax.Expr, depth int) bool {
 func localTypeArgsDeclared(ctx *analysis.Context, v *syntax.Variable, depth int) bool {
 	scope := syntax.EnclosingVariableScope(v)
 	params, _ := astquery.ScopeParts(scope)
-	untouched := nativeContractScope(ctx, scope).localWrites(ctx, scope).untouched(v.Name, v.Span().Start)
 	for _, p := range params {
-		if p.Var != nil && p.Var.Name == v.Name && untouched {
-			return true
+		if p.Var != nil && p.Var.Name == v.Name {
+			return nativeContractScope(ctx, scope).localWrites(ctx, scope).untouched(v.Name, v.Span().Start)
 		}
 	}
 	origins, single := ctx.Flow().Reaching(v)
@@ -112,7 +121,37 @@ func ownPropertyTypeArgs(ctx *analysis.Context, n *syntax.PropertyFetch) bool {
 		return false
 	}
 	p := ctx.Index().FindProperty(strings.TrimPrefix(ctx.Types().ClassFQN(class), `\`), id.Value, ctx.PHP)
-	return p != nil && plainDocReturn(p.DocType)
+	return p != nil && plainDocReturn(p.DocType) && !propertyChanged(ctx, n, id.Value)
+}
+
+// propertyChanged reports a write of `$this->name`, or a call on it that
+// documents its new type, before read in the same function: the value read
+// may differ from the declaration.
+func propertyChanged(ctx *analysis.Context, read syntax.Node, name string) bool {
+	own := func(x syntax.Expr) bool {
+		pf, ok := syntax.UnwrapParens(x).(*syntax.PropertyFetch)
+		if !ok {
+			return false
+		}
+		this, isVar := pf.Var.(*syntax.Variable)
+		id, named := pf.Name.(*syntax.Identifier)
+		return isVar && this.Name == "this" && named && id.Value == name
+	}
+	changed := false
+	syntax.Inspect(syntax.EnclosingVariableScope(read), func(n syntax.Node) bool {
+		if changed || n.Span().Start >= read.Span().Start {
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.Assign:
+			changed = own(x.Var)
+		case *syntax.MethodCall:
+			id, named := x.Name.(*syntax.Identifier)
+			changed = own(x.Var) && (!named || ctx.Index().HasSelfOut(id.Value))
+		}
+		return !changed
+	})
+	return changed
 }
 
 // plainMethodReturn reports a method whose documented return mentions no
@@ -121,9 +160,11 @@ func plainMethodReturn(m *index.Method) bool {
 	return m != nil && m.Tpl == nil && m.GenReturn == "" && plainDocReturn(m.DocReturn)
 }
 
-// plainDocReturn reports a documented type that mentions no template.
+// plainDocReturn reports a documented type that mentions no template and
+// does not stand for the object it is read on (`static`, `self`, `$this`),
+// whose arguments are the receiver's.
 func plainDocReturn(doc string) bool {
-	return doc != "" && !strings.Contains(doc, `\~`)
+	return doc != "" && !strings.Contains(doc, `\~`) && !types.FromDoc(doc, nil).HasAny("static", "self")
 }
 
 // Limits on one walk up a hierarchy, which analyzed code controls: each
@@ -138,6 +179,23 @@ const (
 // gives none or the walk runs out of budget. A template of a that args does
 // not bind, or binds to an overlong type, reads as mixed.
 func (r *indexRelations) TypeArgsAs(a string, args []types.Type, ancestor string) []types.Type {
+	var key strings.Builder
+	key.WriteString(a + "|" + ancestor)
+	for _, arg := range args {
+		key.WriteString("|" + arg.DocString())
+	}
+	if found, ok := r.typeArg[key.String()]; ok {
+		return found
+	}
+	found := r.typeArgsAs(a, args, ancestor)
+	if r.typeArg == nil {
+		r.typeArg = map[string][]types.Type{}
+	}
+	r.typeArg[key.String()] = found
+	return found
+}
+
+func (r *indexRelations) typeArgsAs(a string, args []types.Type, ancestor string) []types.Type {
 	seen := map[string]bool{}
 	work := maxTypeArgWork
 	var walk func(fqn string, args []types.Type) []types.Type
@@ -151,7 +209,7 @@ func (r *indexRelations) TypeArgsAs(a string, args []types.Type, ancestor string
 			return nil
 		}
 		seen[k] = true
-		bound := boundTemplates(c, args, &work)
+		bound := boundTemplates(r.bindings(c, args), &work)
 		for _, s := range c.Supers {
 			if work < 0 {
 				return nil
@@ -177,19 +235,33 @@ func (r *indexRelations) TypeArgsAs(a string, args []types.Type, ancestor string
 	return walk(a, args)
 }
 
-// boundTemplates resolves the templates of c in a doc type to args, by
-// position, each rendered once and charged to work; a template without a
-// usable argument reads as mixed.
-func boundTemplates(c *index.Class, args []types.Type, work *int) types.Resolver {
-	rendered := make(map[string]string, len(args))
+// bindings binds the templates of c to args as a written `C<…>` does.
+func (r *indexRelations) bindings(c *index.Class, args []types.Type) map[string]types.Type {
+	if r.env != nil {
+		return r.env.ClassArgBindings(c, args)
+	}
+	out := map[string]types.Type{}
 	for i, tp := range c.Templates {
-		if i >= len(args) || args[i].IsUnknown() {
+		if i < len(args) {
+			out[tp.Name] = args[i]
+		}
+	}
+	return out
+}
+
+// boundTemplates resolves templates in a doc type to their bindings, each
+// rendered once and charged to work; a template without a usable binding
+// reads as mixed.
+func boundTemplates(bindings map[string]types.Type, work *int) types.Resolver {
+	rendered := make(map[string]string, len(bindings))
+	for name, t := range bindings {
+		if t.IsUnknown() {
 			continue
 		}
-		text := args[i].DocString()
+		text := t.DocString()
 		*work -= len(text)
 		if len(text) <= types.MaxDocTypeLen {
-			rendered[tp.Name] = "=" + text
+			rendered[name] = "=" + text
 		}
 	}
 	return func(written string) string {
@@ -208,15 +280,15 @@ type docConstants struct {
 	parsed map[string]types.Type
 }
 
-// typeOf is doc type text with its class constants read as their values,
-// nullable when asked; plain when one of them has no value known from its
-// declaration.
+// typeOf is doc type text with its constants read as their values, nullable
+// when asked; plain when one of them has no value known from its declaration
+// or a value is not of the kind plain declares.
 func (d docConstants) typeOf(text string, plain types.Type, nullable bool) types.Type {
 	t, ok := d.parsed[text]
 	if !ok {
 		known := true
 		t = types.FromDocResolved(text, nil, func(expr string) types.Type {
-			v := d.constant(expr)
+			v := index.ConstantValues(d.ix, expr, d.ver)
 			known = known && !v.IsUnknown()
 			return v
 		})
@@ -225,67 +297,13 @@ func (d docConstants) typeOf(text string, plain types.Type, nullable bool) types
 		}
 		d.parsed[text] = t
 	}
-	if t.IsUnknown() {
+	if t.IsUnknown() || !plain.Has("mixed") && !t.Without("null").OnlyOf(plain.Without("null").Atoms()...) {
 		return plain
 	}
 	if nullable {
 		return types.Union(t, types.Of("null"))
 	}
 	return t
-}
-
-// constant is the type of `\Foo::BAR` or `\Foo::*`; unknown unless every
-// constant it names is declared with a literal value. Only a class without
-// ancestors lists all its constants for `*`.
-func (d docConstants) constant(expr string) types.Type {
-	owner, member, _ := strings.Cut(strings.TrimPrefix(expr, `\`), "::")
-	if owner == "" {
-		return d.globalConstant(member)
-	}
-	if member != "*" {
-		if k := d.ix.FindConst(owner, member, d.ver); k != nil {
-			return literalValue(k.Value)
-		}
-		return types.Unknown
-	}
-	c := d.ix.Class(owner, d.ver)
-	if c == nil || c.Parent != "" || len(c.Interfaces) > 0 || len(c.Traits) > 0 || len(c.Consts) == 0 {
-		return types.Unknown
-	}
-	values := make([]types.Type, 0, len(c.Consts))
-	for _, k := range c.Consts {
-		v := literalValue(k.Value)
-		if v.IsUnknown() {
-			return types.Unknown
-		}
-		values = append(values, v)
-	}
-	return types.Union(values...)
-}
-
-// globalConstant is the type of a global constant written unqualified: the
-// one of its namespace, else the global one.
-func (d docConstants) globalConstant(fqn string) types.Type {
-	k := d.ix.Constant(fqn, d.ver)
-	if k == nil {
-		k = d.ix.Constant(fqn[strings.LastIndexByte(fqn, '\\')+1:], d.ver)
-	}
-	if k == nil {
-		return types.Unknown
-	}
-	return literalValue(k.Value)
-}
-
-// literalValue is the exact type of int or plain string literal source text.
-func literalValue(text string) types.Type {
-	text = strings.TrimSpace(text)
-	if v, err := strconv.ParseInt(text, 0, 64); err == nil {
-		return types.IntValue(v)
-	}
-	if len(text) >= 2 && (text[0] == '\'' || text[0] == '"') && text[len(text)-1] == text[0] && !strings.ContainsAny(text[1:len(text)-1], `\$'"`) {
-		return types.StringLiteral(text[1 : len(text)-1])
-	}
-	return types.Unknown
 }
 
 // class returns the class-like named by class atom a (nil when unknown).

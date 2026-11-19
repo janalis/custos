@@ -38,7 +38,9 @@ class Owner extends Base
 {
     const OWN_VALUE = 3;
 
-    public function own(#[ExpectedValues([self::OWN_VALUE, static::OWN_VALUE])] int $value) {}
+    public function own(#[ExpectedValues([self::OWN_VALUE])] int $value) {}
+
+    public function late(#[ExpectedValues([static::OWN_VALUE])] int $value) {}
 
     public function inherited(#[ExpectedValues([parent::PARENT_VALUE])] int $value) {}
 }
@@ -55,6 +57,14 @@ function computedLevel(#[ExpectedValues([LEVEL_COMPUTED])] int $level) {}
 function noSuchLevel(#[ExpectedValues([LEVEL_MISSING])] int $level) {}
 
 function keyword(#[ExpectedValues([null])] ?int $level) {}
+
+class Letters
+{
+    const A = 'a';
+}
+
+/** @param int $value */
+function mixedKinds(#[ExpectedValues([Letters::A, 'x'])] $value) {}
 
 function listed(#[ExpectedValues([Mode::FAST, 4])] int $mode) {}
 
@@ -88,12 +98,14 @@ function calls(int $any)
     optional(<warning descr="Pass Mode::FAST|null to $mode of optional(), not 2.">2</warning>);
 
     levels(<warning descr="Pass LEVEL_LOW|LEVEL_HIGH to $level of levels(), not 3.">3</warning>);
-    (new Owner())->own(<warning descr="Pass Owner::OWN_VALUE|Owner::OWN_VALUE to $value of Owner::own(), not 9.">9</warning>);
+    (new Owner())->own(<warning descr="Pass Owner::OWN_VALUE to $value of Owner::own(), not 9.">9</warning>);
     (new Owner())->inherited(<warning descr="Pass Base::PARENT_VALUE to $value of Owner::inherited(), not 9.">9</warning>);
 
     levels(1);
     levels(LEVEL_HIGH);
     (new Owner())->own(3);
+    (new Owner())->late(9);
+    mixedKinds(9);
     (new Owner())->inherited(7);
     (new Orphan())->noParent(9);
     computedLevel(9);
@@ -112,7 +124,9 @@ function calls(int $any)
     optional();
     implicit(null);
     computed(9);
-    inherited(9);
+    inherited(<warning descr="Pass Extended::* to $value of inherited(), not 9.">9</warning>);
+    inherited(5);
+    inherited(2);
     missing(9);
     unknownConstant(9);
 }

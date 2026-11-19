@@ -103,3 +103,25 @@ class Start extends Far {}
 		t.Errorf("within the budget: %d arguments", len(got))
 	}
 }
+
+func BenchmarkTypeArgsAs(b *testing.B) {
+	var src strings.Builder
+	src.WriteString("<?php\n/** @template T */\nclass C0 {}\n")
+	for i := 1; i <= 8; i++ {
+		fmt.Fprintf(&src, "/**\n * @template T\n * @extends C%d<T>\n */\nclass C%d extends C%d {}\n", i-1, i, i-1)
+	}
+	ix := index.New(nil)
+	ix.Add(index.Extract(syntax.Parse("t.php", []byte(src.String()), syntax.Options{Version: phpversion.PHP84})))
+	args := []types.Type{types.Int}
+	b.Run("cached", func(b *testing.B) {
+		r := newIndexRelations(ix, phpversion.PHP84)
+		for b.Loop() {
+			r.TypeArgsAs(`\C8`, args, `\C0`)
+		}
+	})
+	b.Run("walk", func(b *testing.B) {
+		for b.Loop() {
+			newIndexRelations(ix, phpversion.PHP84).TypeArgsAs(`\C8`, args, `\C0`)
+		}
+	})
+}

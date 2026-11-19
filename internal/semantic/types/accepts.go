@@ -507,11 +507,13 @@ func requiresStringKey(t Type) bool {
 	})
 }
 
-// arrayKeysRejected reports a non-empty array whose keys have nothing in
-// common with the keys expected: an empty array fits any key type.
-func arrayKeysRejected(expected, actual Type, ctx AcceptContext) bool {
+// arrayKeysRejected reports a non-empty array of int keys where only string
+// keys are expected. The other way round decides nothing: PHP stores a
+// numeric string key as an int, so string keys may well be ints. An empty
+// array fits any key type.
+func arrayKeysRejected(expected, actual Type, _ AcceptContext) bool {
 	want, have := expected.ArrayKey(), actual.ArrayKey()
-	return !want.IsUnknown() && !have.IsUnknown() && actual.IsNonEmptyArray() && elemVerdict(want, have, ctx) == No
+	return !want.IsUnknown() && !have.IsUnknown() && actual.IsNonEmptyArray() && want.OnlyOf("string") && have.OnlyOf("int")
 }
 
 // objectShapeRejected reports a property required by both object shapes

@@ -47,7 +47,7 @@ func TestAcceptsArrayKeys(t *testing.T) {
 		want             Verdict
 	}{
 		{`array<string, int>`, `non-empty-array<int, int>`, No},
-		{`array<int, int>`, `non-empty-array<string, int>`, No},
+		{`array<int, int>`, `non-empty-array<string, int>`, Maybe}, // numeric strings are int keys
 		{`non-empty-array<string, int>`, `non-empty-list<int>`, No},
 		{`array<string, int>`, `array<int, int>`, Maybe},
 		{`array<string, int>`, `non-empty-array<string, int>`, Maybe},

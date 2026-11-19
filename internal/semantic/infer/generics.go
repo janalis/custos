@@ -141,6 +141,14 @@ func (e *Env) bindArgs(c *index.Class, args []types.Type) tplBindings {
 	return b
 }
 
+// ClassArgBindings binds the templates of c to the generic arguments args the
+// way a written type `C<…>` does (see bindArgs): by position, skipping
+// templates with a bound or default when fewer arguments are given, the value
+// template of a Traversable class for a single argument; nil without args.
+func (e *Env) ClassArgBindings(c *index.Class, args []types.Type) map[string]types.Type {
+	return e.bindArgs(c, args)
+}
+
 // substTemplates parses doc type text whose `\~T` atoms are templates of
 // class c, replacing them by their bindings in b (else their bound, else
 // mixed). bound reports whether a template was replaced by an actual

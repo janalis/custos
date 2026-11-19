@@ -56,11 +56,21 @@ Reported:
   type nullable.
 - The weak-mode conversions and the exceptions of InvalidArgumentType
   apply alike.
-- D5. Integer ranges, non-empty strings and literal string values
-  (`'asc'|'desc'`) of a `@param` type count only against an argument whose
-  possible values are all known (an integer or string literal such as `0`
-  or `'up'`); otherwise `@param positive-int` accepts any integer and
-  `@param 'asc'|'desc'` any string.
+- D5. Integer ranges, non-empty strings, literal string values
+  (`'asc'|'desc'`), constants (`Mode::FAST|Mode::SLOW`, `Mode::*`) and the
+  values a PhpStorm `#[ExpectedValues]` attribute lists count only against
+  an argument whose possible values are all known (an integer or string
+  literal such as `0` or `'up'`); otherwise `@param positive-int` accepts any
+  integer and `@param 'asc'|'desc'` any string. A constant counts only when
+  it is declared with a literal value.
+- Generic arguments are compared by the variance of each template, also
+  when the argument's class gives them to the documented class through
+  `@extends` or `@implements`. They count when a declaration states them: a
+  parameter the function does not write, a property of `$this` the function
+  does not write, a function or method whose documented return mentions no
+  template and is not `static`, or a local assigned only from one of those.
+- Array and object shapes, callable signatures, and arrays of int keys
+  where only string keys are documented are compared.
 
 ## Exceptions (no report)
 

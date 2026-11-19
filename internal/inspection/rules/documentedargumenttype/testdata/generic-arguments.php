@@ -158,3 +158,60 @@ function notDeclared(bool $flag, Factory $factory, Box $box, $unknown)
     takesBox($factory->stored);
     takesBox(missingFunction());
 }
+
+/**
+ * @template TKey of array-key
+ * @template TValue
+ */
+interface Coll {}
+
+/**
+ * @template TKey of array-key
+ * @template TValue
+ * @implements Coll<TKey, TValue>
+ */
+class ArrColl implements Coll {}
+
+/** @param Coll<int, Factory> $coll */
+function takesColl(Coll $coll) {}
+
+/** @param Traversable<int, Factory> $items */
+function takesTraversable(Traversable $items) {}
+
+/** @template T */
+class Copyable
+{
+    /** @return static */
+    public function copy() {}
+}
+
+/** @param Copyable<int> $c */
+function takesCopyable(Copyable $c) {}
+
+/**
+ * @param ArrColl<Factory> $short
+ * @param IteratorAggregate<Factory> $aggregate
+ */
+function bindingRules(ArrColl $short, IteratorAggregate $aggregate)
+{
+    takesColl($short);
+    takesTraversable($aggregate);
+    $copy = new Copyable();
+    takesCopyable($copy->copy());
+}
+
+class Store
+{
+    /** @var Box<int> */
+    private $items;
+
+    /** @var Box<string> */
+    private $names;
+
+    public function run()
+    {
+        $this->items = makeBox();
+        takesBox($this->items);
+        takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">$this->names</warning>);
+    }
+}

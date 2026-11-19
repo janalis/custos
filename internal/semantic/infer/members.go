@@ -339,6 +339,17 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 	return types.Union(ts...)
 }
 
+// returnsReceiver reports a method documented or declared to return the
+// object it is called on (`static`, `self`, `$this`).
+func returnsReceiver(m *index.Method) bool {
+	for _, text := range [...]string{m.Return, m.DocReturn} {
+		if types.FromDoc(text, nil).HasAny("static", "self") {
+			return true
+		}
+	}
+	return false
+}
+
 // maxMixinClasses bounds the classes one member lookup visits through @mixin
 // tags, which analyzed code may chain or make cyclic.
 const maxMixinClasses = 32
@@ -351,7 +362,7 @@ const maxMixinVisits = 256
 // for which has holds; "" when there is none. Mixins are PHPDoc: native types
 // do not see them.
 func (e *Env) mixinWith(class string, args []types.Type, has func(string) bool) string {
-	if e.native {
+	if e.native || !e.hasMixins(class) {
 		return ""
 	}
 	type receiver struct {
@@ -384,6 +395,17 @@ func (e *Env) mixinWith(class string, args []types.Type, has func(string) bool) 
 		queue = queue[1:]
 	}
 	return ""
+}
+
+// hasMixins reports whether class or one of its ancestors has a @mixin tag,
+// before mixinWith pays for a search.
+func (e *Env) hasMixins(class string) bool {
+	for _, c := range e.Index.Ancestors(class, e.PHP) {
+		if c.Mixin {
+			return true
+		}
+	}
+	return false
 }
 
 // templateMixins lists the classes the `@mixin T` tags of c stand for: what
@@ -563,8 +585,12 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 		owner := c
 		if e.Index.FindMethod(c, id.Value, e.PHP) == nil {
 			owner = e.mixinWith(c, recv.TypeArgs(cls), func(m string) bool { return e.Index.FindMethod(m, id.Value, e.PHP) != nil })
+			// What a mixin's fluent method returns depends on how the class
+			// forwards the call: the mixin object, or itself.
+			if owner != "" && returnsReceiver(e.Index.FindMethod(owner, id.Value, e.PHP)) {
+				return types.Unknown
+			}
 		}
-		// A mixin's fluent method returns the object it was called on.
 		t := e.methodReturn(owner, id.Value, true, c, recv.TypeArgs(cls), n.Args)
 		if t.IsUnknown() {
 			return types.Unknown

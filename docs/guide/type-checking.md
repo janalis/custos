@@ -78,15 +78,17 @@ tag that already has a shape keeps priority over the attribute.
 |---|---|
 | Generic arguments | An argument has nothing in common with the expected one, following the template's declared variance, including through `@extends` and `@implements`. Arguments count when a declaration states them: an unmodified parameter, a property of `$this`, or a function or method whose documented return mentions no template. |
 | Array shapes | A required key is missing, a required key's value has another type, or a sealed shape does not list a required key. |
-| Array keys | A non-empty array's keys have nothing in common with the documented key type. A key the code proved present, such as with `isset($map[0])`, overrides a key type it contradicts. |
+| Array keys | A non-empty array of int keys is passed where only string keys are documented. String keys never decide, since PHP stores numeric string keys as ints. A key the code proved present, such as with `isset($map[0])`, overrides a key type it contradicts. |
 | Object shapes | A property required on both sides has another type. |
 | Callables | The return type or a parameter type has nothing in common, or the callable requires more arguments than it receives. |
 
 ## Limits
 
 - `#[ExpectedValues]` counts a constant only when it is declared with a
-  literal value. A class named by `valuesFromClass` must have no parent,
-  interface or trait.
+  literal value, and ignores `static::` constants, which a subclass may
+  override.
+- A method reached through `@mixin` that returns `static` or `$this` has an
+  unknown type: what it returns depends on how the class forwards the call.
 - `#[Pure]`, `#[Immutable]` and `@throws` do not affect any check.
 - A closure is compared by its written signature: what its body was inferred
   to return is not checked against a callable type.

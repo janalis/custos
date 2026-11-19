@@ -229,7 +229,7 @@ func (x *extractor) constantRef(e syntax.Expr, text string, at uint32) string {
 	owner, member, _ := strings.Cut(text, "::")
 	if cl := syntax.EnclosingClass(e); cl != nil && cl.Name != nil {
 		switch strings.ToLower(owner) {
-		case "self", "static":
+		case "self":
 			return x.classConstantRef(`\`+x.r.SymbolFQN(cl)+"::"+member, at)
 		case "parent":
 			if parent := x.r.ParentFQN(cl); parent != "" {
