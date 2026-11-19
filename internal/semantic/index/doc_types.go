@@ -1,6 +1,7 @@
 package index
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -106,9 +107,18 @@ func ConstantValues(ix *Index, expr string, ver phpversion.Version) types.Type {
 	if !ix.AncestorsComplete(owner, ver) {
 		return types.Unknown
 	}
+	ancestors := ix.Ancestors(owner, ver)
+	for _, c := range ancestors {
+		// A class that is not indexed may declare more constants.
+		for _, named := range slices.Concat([]string{c.Parent}, c.Interfaces, c.Traits) {
+			if named != "" && ix.Class(named, ver) == nil {
+				return types.Unknown
+			}
+		}
+	}
 	var values []types.Type
 	seen := map[string]bool{}
-	for _, c := range ix.Ancestors(owner, ver) {
+	for _, c := range ancestors {
 		for name, k := range c.Consts {
 			if seen[name] || !constantMatches(name, member) {
 				continue

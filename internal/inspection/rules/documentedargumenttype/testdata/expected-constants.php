@@ -66,6 +66,20 @@ class Letters
 /** @param int $value */
 function mixedKinds(#[ExpectedValues([Letters::A, 'x'])] $value) {}
 
+class Shadowing extends Mode
+{
+    const FAST = 1;
+}
+
+class Unrooted extends MissingParent
+{
+    const ONLY = 1;
+}
+
+function shadowing(#[ExpectedValues(valuesFromClass: Shadowing::class)] int $value) {}
+
+function unrooted(#[ExpectedValues(valuesFromClass: Unrooted::class)] int $value) {}
+
 function listed(#[ExpectedValues([Mode::FAST, 4])] int $mode) {}
 
 function fromClass(#[ExpectedValues(valuesFromClass: Mode::class)] int $mode) {}
@@ -111,6 +125,9 @@ function calls(int $any)
     computedLevel(9);
     noSuchLevel(9);
     keyword(9);
+    shadowing(<warning descr="Pass Shadowing::* to $value of shadowing(), not 9.">9</warning>);
+    shadowing(2);
+    unrooted(9);
     listed(Mode::FAST);
     listed(1);
     listed(4);

@@ -214,4 +214,12 @@ class Store
         takesBox($this->items);
         takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">$this->names</warning>);
     }
+
+    public function afterCall()
+    {
+        $this->names->touch();
+        takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">$this->names</warning>);
+        $this->names->{'dynamic'}();
+        takesBox($this->names);
+    }
 }

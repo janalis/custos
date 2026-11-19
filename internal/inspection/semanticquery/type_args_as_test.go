@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
@@ -122,6 +123,34 @@ func BenchmarkTypeArgsAs(b *testing.B) {
 	b.Run("walk", func(b *testing.B) {
 		for b.Loop() {
 			newIndexRelations(ix, phpversion.PHP84).TypeArgsAs(`\C8`, args, `\C0`)
+		}
+	})
+}
+
+// An argument of unknown type binds nothing: its template reads as mixed.
+func TestTypeArgsAsUnknownArgument(t *testing.T) {
+	r := typeArgsIndex(t, `<?php
+/** @template T */
+class Box {}
+/**
+ * @template U
+ * @extends Box<U>
+ */
+class Sub extends Box {}
+`)
+	if got := r.TypeArgsAs(`\Sub`, []types.Type{types.Unknown}, `\Box`); len(got) != 1 || !got[0].Has("mixed") {
+		t.Errorf("TypeArgsAs = %v", got)
+	}
+}
+
+func TestTypeArgsDeclaredStaticCalls(t *testing.T) {
+	probeNative(t, `class F { /** @return array<int, int> */ public static function make() {} }
+$c = 'F';
+probe($c::make(), F::{'make'}(), F::make());`, func(ctx *analysis.Context, call *syntax.FuncCall) {
+		for i, want := range []bool{false, false, true} {
+			if got := typeArgsDeclared(ctx, CallArgument(call.Args, i, ""), 0); got != want {
+				t.Errorf("argument %d: %v, want %v", i, got, want)
+			}
 		}
 	})
 }
