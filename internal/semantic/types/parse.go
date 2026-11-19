@@ -2,6 +2,7 @@ package types
 
 import (
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -218,10 +219,7 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		return String
 	}
 	if s[0] >= '0' && s[0] <= '9' || s[0] == '-' {
-		if strings.ContainsAny(s, ".eE") {
-			return Float
-		}
-		return Int
+		return numberLiteral(s)
 	}
 
 	// Indexed access to a literal shape or a resolved alias.
@@ -297,7 +295,16 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 			return Ints(r)
 		}
 		return Int
-	case "class-string", "interface-string":
+	case "int-mask", "int-mask-of":
+		return p.intMask(low, args, resolve, depth)
+	case "new", "template-type":
+		// new<T> (an instance of the class string T) and template-type<…>
+		// (a template argument read off another type) depend on bindings
+		// the parser does not see.
+		if strings.HasPrefix(args, "<") {
+			return Mixed
+		}
+	case "class-string", "interface-string", "enum-string":
 		// class-string<Foo>: a string carrying the class as generic
 		// argument (bound by method templates, see ClassString).
 		if strings.HasPrefix(args, "<") && matchingClose(args) == len(args)-1 {
@@ -749,4 +756,81 @@ func validClassName(s string) bool {
 		start = false
 	}
 	return !start
+}
+
+// numberLiteral is the type of a numeric literal in a doc type: the exact
+// int for an integer (decimal, 0x, 0o, 0b or legacy 0 octal, with optional
+// `_` separators), float for a decimal or exponent form, else int.
+func numberLiteral(s string) Type {
+	if v, err := strconv.ParseInt(s, 0, 64); err == nil {
+		return IntValue(v)
+	}
+	if strings.ContainsAny(s, ".eE") {
+		return Float
+	}
+	return Int
+}
+
+// maxMaskFlags is the most flags of an int-mask whose combinations are
+// listed exactly; a wider mask is the range from 0 to every flag set.
+const maxMaskFlags = 8
+
+// intMask parses int-mask<1, 2, 4> and int-mask-of<Foo::FLAG_*>: every
+// bitwise OR of the given non-negative int values (0 included). Unknown
+// or negative flags make it a plain int.
+func (p *docParser) intMask(low, args string, resolve Resolver, depth int) Type {
+	if !strings.HasPrefix(args, "<") || matchingClose(args) != len(args)-1 {
+		return Int
+	}
+	var flags []int64
+	add := func(t Type) bool {
+		rs, ok := t.IntRanges()
+		if !ok || len(t.atoms) != 1 {
+			return false
+		}
+		for _, r := range rs {
+			if r.Lo != r.Hi || r.Lo < 0 {
+				return false
+			}
+			flags = append(flags, r.Lo)
+		}
+		return true
+	}
+	inner := args[1 : len(args)-1]
+	if low == "int-mask-of" {
+		if !add(p.union(inner, resolve, depth+1)) {
+			return Int
+		}
+	} else {
+		for _, part := range splitTop(inner, ',') {
+			if !add(p.union(part, resolve, depth+1)) {
+				return Int
+			}
+		}
+	}
+	return maskValues(flags)
+}
+
+// maskValues is the int type of every OR of a subset of flags.
+func maskValues(flags []int64) Type {
+	var all int64
+	for _, f := range flags {
+		all |= f
+	}
+	if len(flags) > maxMaskFlags {
+		return Ints(IntRange{0, all})
+	}
+	values := []int64{0}
+	for _, f := range flags {
+		for _, v := range values {
+			if w := v | f; !slices.Contains(values, w) {
+				values = append(values, w)
+			}
+		}
+	}
+	rs := make([]IntRange, len(values))
+	for i, v := range values {
+		rs[i] = IntRange{v, v}
+	}
+	return Ints(rs...)
 }

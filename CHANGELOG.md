@@ -10,6 +10,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `@psalm-template-contravariant` and `@phpstan-template-contravariant`
   declare templates like the other template tags, and each template keeps
   the variance its tag declares.
+- Doc types keep the value of integer literals (`0|1`, `0x1F`, `1_000`) and
+  understand `int-mask<…>`, `int-mask-of<…>` and `enum-string<T>`;
+  `new<T>` and `template-type<…>` no longer read as a class of that name.
 
 ## [0.1.16] - 2026-11-18
 
