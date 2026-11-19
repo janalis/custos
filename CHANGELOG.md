@@ -20,6 +20,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `@phpstan-method`, `@psalm-method` and the prefixed `@property`,
   `@property-read` and `@property-write` tags declare magic members, and win
   over the unprefixed tag of the same name.
+- PhpStorm attributes document types: `#[ArrayShape]`, `#[ObjectShape]`,
+  `#[NoReturn]` and the literal values of `#[ExpectedValues]`.
 
 ## [0.1.16] - 2026-11-18
 

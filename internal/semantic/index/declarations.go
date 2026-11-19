@@ -43,6 +43,7 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 		fn.Asserts = x.assertions(d, n.Params, false, at)
 		fn.Tpl = x.funcTemplates(d, n.Params, fn.Asserts, at)
 	}
+	fn.DocReturn = x.attrReturnDoc(fn.DocReturn, fn.Return, n.Attrs, at)
 	x.out.Functions = append(x.out.Functions, fn)
 }
 

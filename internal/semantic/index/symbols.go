@@ -3,6 +3,7 @@
 package index
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/php/phpdoc"
@@ -33,8 +34,12 @@ func (a Avail) In(v phpversion.Version) bool {
 // Param is a function/method parameter. Types are normalised type strings
 // (see internal/semantic/types), "" when undeclared.
 type Param struct {
-	Name    string `json:"n"`
-	Type    string `json:"t,omitempty"`
+	Name string `json:"n"`
+	Type string `json:"t,omitempty"`
+	// TypeVer lists the types of older PHP versions when they differ from
+	// Type (see VerType), from a stub's #[LanguageLevelTypeAware], packed
+	// by encodeVerTypes; "" when the type does not vary.
+	TypeVer string `json:"tv,omitempty"`
 	DocType string `json:"d,omitempty"`
 	// DocValues is the documented type keeping its integer ranges and
 	// non-empty strings, which DocType drops (see Type.ValueDocString); ""
@@ -55,7 +60,33 @@ type Param struct {
 	Avail Avail  `json:"a,omitempty"`
 }
 
-// VerType is the return type of a builtin before a PHP version: Type
+// encodeVerTypes packs vs into the text Param.TypeVer keeps, which leaves
+// Param comparable.
+func encodeVerTypes(vs []VerType) string {
+	var b strings.Builder
+	for _, v := range vs {
+		b.WriteString(strconv.FormatUint(uint64(v.Until), 10))
+		b.WriteByte('=')
+		b.WriteString(v.Type)
+		b.WriteByte(0)
+	}
+	return b.String()
+}
+
+// decodeVerTypes unpacks the text encodeVerTypes wrote.
+func decodeVerTypes(s string) []VerType {
+	var out []VerType
+	for entry := range strings.SplitSeq(strings.TrimSuffix(s, "\x00"), "\x00") {
+		until, typ, _ := strings.Cut(entry, "=")
+		v, err := strconv.ParseUint(until, 10, 64)
+		if err == nil {
+			out = append(out, VerType{Until: phpversion.Version(v), Type: typ})
+		}
+	}
+	return out
+}
+
+// VerType is the return or parameter type of a builtin before a PHP version: Type
 // applies to versions below Until (and at or above the previous entry's
 // Until). From phpstorm-stubs' #[LanguageLevelTypeAware] version maps.
 type VerType struct {

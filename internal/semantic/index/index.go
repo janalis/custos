@@ -863,7 +863,7 @@ func paramsUnchanged(ps []Param, ver phpversion.Version) bool {
 		ver = phpversion.Max
 	}
 	for _, p := range ps {
-		if !p.Avail.In(ver) {
+		if !p.Avail.In(ver) || p.TypeVer != "" {
 			return false
 		}
 	}
@@ -880,6 +880,7 @@ func paramsAt(ps []Param, ver phpversion.Version) []Param {
 	}
 	for _, p := range ps {
 		if p.Avail.In(ver) {
+			p.Type, p.TypeVer = returnAt(p.Type, decodeVerTypes(p.TypeVer), ver), ""
 			out = append(out, p)
 		}
 	}

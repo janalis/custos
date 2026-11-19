@@ -78,6 +78,10 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 				if d != nil {
 					prop.DocType, prop.DocValues = x.docTypeStrs(d.EffectiveVarType(p.Var.Name), at)
 				}
+				prop.DocType = x.attrDoc(prop.DocType, prop.Type, m.Attrs, at)
+				if prop.DocValues == "" {
+					prop.DocValues = x.expectedValues(prop.DocType, prop.Type, m.Attrs, at)
+				}
 				c.Props[prop.Name] = prop
 			}
 		case *syntax.ClassConst:
@@ -253,11 +257,18 @@ func (x *extractor) params(ps []*syntax.Param, d *phpdoc.Doc, at uint32) []Param
 	out := make([]Param, 0, len(ps))
 	for _, p := range ps {
 		prm := Param{
-			Name: p.Var.Name, Type: x.typeStr(p.Type, at),
+			Name:     p.Var.Name,
 			Optional: p.Default != nil || p.Variadic, ByRef: p.ByRef, Variadic: p.Variadic,
 			Promoted: len(p.Modifiers) > 0, Default: x.text(p.Default), Avail: x.avail(p.Attrs, nil),
 		}
+		var byVer []VerType
+		prm.Type, byVer = x.returnType(p.Type, p.Attrs, at)
+		prm.TypeVer = encodeVerTypes(byVer)
 		prm.DocType, prm.DocValues = x.docTypeStrs(docTypes[p.Var.Name], at)
+		prm.DocType = x.attrDoc(prm.DocType, prm.Type, p.Attrs, at)
+		if prm.DocValues == "" {
+			prm.DocValues = x.expectedValues(prm.DocType, prm.Type, p.Attrs, at)
+		}
 		if p.ByRef {
 			prm.Out = x.docTypeStr(outTypes[p.Var.Name], at)
 		}
@@ -681,6 +692,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 		meth.Asserts = x.assertions(d, m.Params, !meth.Static, at)
 		meth.Tpl = x.funcTemplates(d, m.Params, meth.Asserts, at)
 	}
+	meth.DocReturn = x.attrReturnDoc(meth.DocReturn, meth.Return, m.Attrs, at)
 	meth.Deprecated = x.deprecated(m.Attrs, d)
 	meth.NoDiscard = x.noDiscard(m.Attrs)
 	key := strings.ToLower(meth.Name)
