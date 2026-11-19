@@ -31,6 +31,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   type is reported.
 - The `Documented*` type rules compare callable signatures: return type,
   parameter types and the number of required parameters.
+- The `typeCheck` setting of `custos.json` (`off`, `proven`, `documented`)
+  enables the type-checking rules as a group; a rule's own `enabled` wins.
 
 ### Fixed
 

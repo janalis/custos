@@ -79,6 +79,7 @@ func TestExplainCommand(t *testing.T) {
 		{[]string{"a", "b"}, 2, "usage: custos explain"},
 		{[]string{"Nope"}, 2, `unknown rule "Nope"`},
 		{[]string{"CompactCanBeUsed"}, 0, "disabled by default"},
+		{[]string{"InvalidArgumentType"}, 0, "on with typeCheck: proven"},
 		{[]string{"NullPointerException"}, 0, ", experimental"},
 		{[]string{"AlterInForeach"}, 0, "\nOptions:\n"},
 		{[]string{"NestedNotOperators"}, 0, "has a quick-fix"},

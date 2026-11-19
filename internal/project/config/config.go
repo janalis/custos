@@ -47,6 +47,7 @@ type File struct {
 	Flow            *FlowSettings           `json:"flow,omitempty"`
 	PHP             string                  `json:"php,omitempty"`
 	ComparisonStyle string                  `json:"comparisonStyle,omitempty"` // regular | yoda
+	TypeCheck       string                  `json:"typeCheck,omitempty"`       // off | proven | documented
 	ShortOpenTag    *bool                   `json:"shortOpenTag,omitempty"`
 	ParseOnce       *bool                   `json:"parseOnce,omitempty"`
 	Paths           []string                `json:"paths,omitempty"`
@@ -68,6 +69,7 @@ type Config struct {
 	PHP             phpversion.Version
 	PHPSource       string // where PHP came from: config | composer | .php-version | default
 	ComparisonStyle analysis.ComparisonStyle
+	TypeCheck       analysis.TypeCheck
 	ShortOpenTag    bool
 	Paths           []string
 	Exclude         []string
@@ -140,6 +142,15 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 		c.ComparisonStyle = analysis.StyleYoda
 	default:
 		return nil, fmt.Errorf("config: comparisonStyle must be regular or yoda, got %q", f.ComparisonStyle)
+	}
+	switch strings.ToLower(f.TypeCheck) {
+	case "", "off":
+	case "proven":
+		c.TypeCheck = analysis.TypeCheckProven
+	case "documented":
+		c.TypeCheck = analysis.TypeCheckDocumented
+	default:
+		return nil, fmt.Errorf("config: typeCheck must be off, proven or documented, got %q", f.TypeCheck)
 	}
 	if f.Flow != nil && f.Flow.Assertions != nil {
 		c.Flow.Assertions = *f.Flow.Assertions
@@ -266,7 +277,7 @@ func insideRoot(p string) bool {
 
 // Analysis returns the analysis.Config view.
 func (c *Config) Analysis() analysis.Config {
-	return analysis.Config{Flow: c.Flow, PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, Rules: c.Rules}
+	return analysis.Config{Flow: c.Flow, PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, TypeCheck: c.TypeCheck, Rules: c.Rules}
 }
 
 func findRoot(dir string) (string, error) {

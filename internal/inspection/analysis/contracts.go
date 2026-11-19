@@ -32,6 +32,27 @@ const (
 	StyleYoda                           // null === $x
 )
 
+// TypeCheck is how much type checking the typeCheck setting turns on.
+type TypeCheck uint8
+
+const (
+	TypeCheckOff        TypeCheck = iota // only the rules enabled on their own
+	TypeCheckProven                      // mismatches the code alone proves
+	TypeCheckDocumented                  // also those against PHPDoc contracts
+)
+
+// Includes reports whether the level enables the rules of group, a rule's
+// meta.Rule.TypeCheck.
+func (l TypeCheck) Includes(group string) bool {
+	switch group {
+	case "proven":
+		return l >= TypeCheckProven
+	case "documented":
+		return l >= TypeCheckDocumented
+	}
+	return false
+}
+
 // RuleConfig overrides catalogue defaults for one rule.
 type RuleConfig struct {
 	Enabled  *bool
@@ -44,6 +65,7 @@ type Config struct {
 	Flow            flow.Options
 	PHP             phpversion.Version // target version for rule gating
 	ComparisonStyle ComparisonStyle
+	TypeCheck       TypeCheck             // rule groups enabled together
 	Rules           map[string]RuleConfig // keyed by rule ID
 	// Only, when non-empty, enables exactly these rule IDs (overrides defaults).
 	Only []string

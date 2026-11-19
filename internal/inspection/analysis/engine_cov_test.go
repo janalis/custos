@@ -155,3 +155,45 @@ func TestFunctionName(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestTypeCheckEnablesItsGroups(t *testing.T) {
+	off := false
+	for _, c := range []struct {
+		level TypeCheck
+		group string
+		want  bool
+	}{
+		{TypeCheckOff, "proven", false},
+		{TypeCheckOff, "documented", false},
+		{TypeCheckProven, "proven", true},
+		{TypeCheckProven, "documented", false},
+		{TypeCheckDocumented, "proven", true},
+		{TypeCheckDocumented, "documented", true},
+		{TypeCheckDocumented, "", false},
+	} {
+		if got := c.level.Includes(c.group); got != c.want {
+			t.Errorf("level %d, group %q: %v", c.level, c.group, got)
+		}
+	}
+	proven, documented := patternRule{"InvalidArgumentType"}, patternRule{"DocumentedArgumentType"}
+	active := func(cfg Config) int {
+		e, err := NewEngine([]Rule{proven, documented}, cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(e.rules)
+	}
+	for want, cfg := range map[int]Config{
+		0: {},
+		1: {TypeCheck: TypeCheckProven},
+		2: {TypeCheck: TypeCheckDocumented},
+	} {
+		if got := active(cfg); got != want {
+			t.Errorf("%+v: %d rules, want %d", cfg, got, want)
+		}
+	}
+	explicit := Config{TypeCheck: TypeCheckDocumented, Rules: map[string]RuleConfig{"InvalidArgumentType": {Enabled: &off}}}
+	if got := active(explicit); got != 1 {
+		t.Errorf("an explicit false: %d rules, want 1", got)
+	}
+}

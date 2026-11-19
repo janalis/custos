@@ -41,7 +41,7 @@ Editors may override settings with `initializationOptions`, or later with
 the `settings` of `workspace/didChangeConfiguration`, which replace them.
 Both take the shape of [`custos.json`](./configuration) with these limits:
 
-- `php`, `comparisonStyle`, `shortOpenTag` and `flow` replace the project
+- `php`, `comparisonStyle`, `typeCheck`, `shortOpenTag` and `flow` replace the project
   values;
 - a `rules` entry overrides the project's entry for that rule field by
   field: `{"severity": "error"}` keeps the project's `enabled` and options;

@@ -13,7 +13,7 @@ import (
 // baseline) stays the project's; a rule entry overrides the project's
 // field by field.
 func Overlay(base *Config, over File) (*Config, error) {
-	f := File{Flow: &FlowSettings{}, PHP: over.PHP, ComparisonStyle: over.ComparisonStyle, ShortOpenTag: over.ShortOpenTag, Rules: over.Rules}
+	f := File{Flow: &FlowSettings{}, PHP: over.PHP, ComparisonStyle: over.ComparisonStyle, TypeCheck: over.TypeCheck, ShortOpenTag: over.ShortOpenTag, Rules: over.Rules}
 	if f.PHP == "" {
 		f.PHP = base.PHP.String()
 	}
@@ -35,6 +35,9 @@ func Overlay(base *Config, over File) (*Config, error) {
 	merged, err := Resolve(base.Root, f)
 	if err != nil {
 		return nil, err
+	}
+	if over.TypeCheck == "" {
+		merged.TypeCheck = base.TypeCheck
 	}
 	// What to analyze stays the project's choice.
 	merged.Paths, merged.Exclude, merged.Baseline = base.Paths, base.Exclude, base.Baseline

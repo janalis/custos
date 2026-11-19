@@ -28,6 +28,9 @@ func explainRule(stdout io.Writer, m *meta.Rule) {
 	if m.Experimental {
 		def += ", experimental"
 	}
+	if m.TypeCheck != "" {
+		def += ", on with typeCheck: " + m.TypeCheck
+	}
 	fix := ""
 	if d, ok := meta.Describe(m.ID); ok && d.Fix {
 		fix = ", has a quick-fix"

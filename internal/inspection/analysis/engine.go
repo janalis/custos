@@ -78,13 +78,13 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 		rc := cfg.Rules[m.ID]
 		enabled := m.EnabledByDefault
 		// Naming rules beats the config; the config's explicit choice
-		// beats enabling everything.
+		// beats the typeCheck group and enabling everything.
 		switch {
 		case len(only) > 0:
 			enabled = only[m.ID]
 		case rc.Enabled != nil:
 			enabled = *rc.Enabled
-		case cfg.EnableAll:
+		case cfg.EnableAll, cfg.TypeCheck.Includes(m.TypeCheck):
 			enabled = true
 		}
 		if !enabled {

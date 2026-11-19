@@ -32,6 +32,9 @@ type Rule struct {
 	HasFix           bool                `json:"hasFix"`
 	Experimental     bool                `json:"experimental,omitempty"` // disabled upstream; off by default
 	Options          []Option            `json:"options,omitempty"`
+	// TypeCheck is the group of the typeCheck setting that enables this rule:
+	// "proven" or "documented"; "" for a rule outside it.
+	TypeCheck string `json:"typeCheck,omitempty"`
 	// SuppressedBy names rules whose suppressions also suppress this
 	// rule's findings: rules that leave to this one what both would report.
 	SuppressedBy []string `json:"suppressedBy,omitempty"`
