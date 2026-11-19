@@ -39,7 +39,8 @@ custos reads these declarations, whichever tool they were written for.
 | Type aliases | `@phpstan-type`, `@psalm-type`, `@phpstan-import-type`, `@psalm-import-type` |
 | Assertions | `@phpstan-assert`, `@psalm-assert`, and their `-if-true` and `-if-false` forms |
 | Magic members | `@method`, `@property`, `@property-read`, `@property-write`, each also with the `@phpstan-` and `@psalm-` prefix |
-| Mixins | `@mixin`, `@phpstan-mixin`, `@psalm-mixin` |
+| Mixins | `@mixin`, `@phpstan-mixin`, `@psalm-mixin`: members of the named class are typed as members of this one |
+| Receiver after a call | `@phpstan-self-out`, `@phpstan-this-out`, `@psalm-self-out`, `@psalm-this-out` |
 
 When several tags describe the same thing, `@phpstan-` wins over `@psalm-`,
 which wins over the plain tag.
@@ -84,9 +85,10 @@ tag that already has a shape keeps priority over the attribute.
 
 - `#[ExpectedValues]` only uses literal values: constants, `valuesFromClass`
   and `flagsFromClass` are ignored.
-- `#[Pure]`, `#[Immutable]`, `@throws` and `@phpstan-self-out` do not affect
-  any check, and `@mixin` only keeps members of the class from being reported
-  as undefined.
+- `#[Pure]`, `#[Immutable]` and `@throws` do not affect any check.
+- `@mixin` works with named classes: `@mixin T` on a template adds no members.
+- `@phpstan-self-out` applies to a local variable the method is called on, not
+  to a property.
 - A closure is compared by its written signature: what its body was inferred
   to return is not checked against a callable type.
 - Generic arguments are not mapped from a subclass to its parent's templates.

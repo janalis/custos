@@ -104,6 +104,9 @@ var builtinOut = map[string]map[int]outKind{
 // collectOutArgs records the variables call (a function, method or static
 // call, or `new`) defines through out parameters.
 func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
+	if method, ok := call.(*syntax.MethodCall); ok {
+		e.collectSelfOut(method, sv)
+	}
 	var al *syntax.ArgList
 	switch c := call.(type) {
 	case *syntax.FuncCall:
@@ -572,6 +575,56 @@ func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
 		arg := &mutation{span: call.Span(), kind: mutCallArg, call: call, arg: a, idx: i}
 		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ, arg: arg})
 	}
+}
+
+// collectSelfOut records the type a method documents its receiver to have
+// after the call (@phpstan-self-out and its kin) as a definition of the local
+// variable it is called on. PHPDoc alone says so: native types ignore it.
+func (e *Env) collectSelfOut(call *syntax.MethodCall, sv *scopeVars) {
+	id, named := call.Name.(*syntax.Identifier)
+	v, local := call.Var.(*syntax.Variable)
+	if e.native || !named || !local || v.Name == "" || v.Name == "this" || !e.Index.HasSelfOut(id.Value) {
+		return
+	}
+	kill := unconditionalBlock(call)
+	if arrow := e.arrowDefinitionSpan(call); arrow.Len() > 0 {
+		kill = arrow
+	}
+	typ := func() types.Type {
+		prior := e.TypeOf(v)
+		out := e.selfOutType(prior, id.Value)
+		if out.IsUnknown() {
+			return prior
+		}
+		if call.NullSafe {
+			return types.Union(out, prior)
+		}
+		return out
+	}
+	sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ})
+}
+
+// selfOutType is the type receiver has after a call of method; unknown unless
+// every class of receiver documents one that names a type.
+func (e *Env) selfOutType(receiver types.Type, method string) types.Type {
+	var out []types.Type
+	for _, cls := range receiver.Classes() {
+		c := strings.TrimPrefix(cls, `\`)
+		m := e.Index.FindMethod(c, method, e.PHP)
+		if m == nil || m.SelfOut == "" {
+			return types.Unknown
+		}
+		key := strings.ToLower(strings.TrimPrefix(m.Class, `\`))
+		t, _ := substTemplateText(m.SelfOut, nil, e.genBindings(c, receiver.TypeArgs(cls))[key], e.Index.Class(m.Class, e.PHP))
+		if t.IsUnknown() || t.HasAny("mixed", "self", "static") {
+			return types.Unknown
+		}
+		out = append(out, t)
+	}
+	if len(out) == 0 {
+		return types.Unknown
+	}
+	return types.Union(out...)
 }
 
 // definedType types read v by the definitions reaching it, without the

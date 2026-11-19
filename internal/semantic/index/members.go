@@ -53,7 +53,7 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 	}
 	c.Conditional = n.Name != nil && conditionalDeclaration(n)
 	if d := x.doc(n); d != nil {
-		c.Mixin = d.Has("mixin") || d.Has("phpstan-mixin") || d.Has("psalm-mixin")
+		x.mixins(c, d, at)
 		c.Deprecated = d.Has("deprecated")
 		c.Avail = x.avail(n.Attrs, d)
 		x.magicMembers(c, d, at)
@@ -713,6 +713,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	if d != nil {
 		meth.DocReturn = voidDoc(x.docTypeStr(d.EffectiveReturnType(), at), m.Body)
 		meth.GenReturn = x.genReturn(d, at)
+		meth.SelfOut = x.selfOut(c.FQN, d, at)
 		meth.CondReturn = x.condReturn(d, at)
 		meth.Asserts = x.assertions(d, m.Params, !meth.Static, at)
 		meth.Tpl = x.funcTemplates(d, m.Params, meth.Asserts, at)

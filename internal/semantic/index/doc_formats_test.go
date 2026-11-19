@@ -60,3 +60,63 @@ class Magic {}
 		}
 	}
 }
+
+func TestMixinClasses(t *testing.T) {
+	fs := extract(t, "mixins.php", `<?php
+namespace App;
+use Domain\Item;
+/**
+ * @template T
+ * @mixin Item
+ * @mixin Item
+ * @phpstan-mixin \Other\Thing<int>
+ * @psalm-mixin T
+ */
+class Host {}
+/** @mixin */
+class Bare {}
+class Plain {}
+`)
+	host := fs.Classes[0]
+	if !host.Mixin || !reflect.DeepEqual(host.Mixins, []string{`Domain\Item`, `Other\Thing`}) {
+		t.Errorf("Host: mixin=%v mixins=%v", host.Mixin, host.Mixins)
+	}
+	if c := fs.Classes[1]; !c.Mixin || c.Mixins != nil {
+		t.Errorf("bare @mixin: mixin=%v mixins=%v", c.Mixin, c.Mixins)
+	}
+	if c := fs.Classes[2]; c.Mixin || c.Mixins != nil {
+		t.Errorf("no tag: mixin=%v mixins=%v", c.Mixin, c.Mixins)
+	}
+}
+
+func TestSelfOut(t *testing.T) {
+	fs := extract(t, "self_out.php", `<?php
+namespace App;
+/** @template T */
+class Box {
+	/** @phpstan-self-out self<int> */
+	function a() {}
+	/** @psalm-this-out Box<T> */
+	function b() {}
+	/** @this-out static */
+	function c() {}
+	/**
+	 * @self-out Box<string>
+	 * @phpstan-this-out Box<int>
+	 */
+	function d() {}
+	/** @return int */
+	function e() {}
+	/** @psalm-self-out $this<string> */
+	function f() {}
+}
+`)
+	ms := fs.Classes[0].Methods
+	for name, want := range map[string]string{
+		"a": `\App\Box<int>`, "b": `\App\Box<\~T>`, "c": "static", "d": `\App\Box<int>`, "e": "", "f": `\App\Box<string>`,
+	} {
+		if got := ms[name].SelfOut; got != want {
+			t.Errorf("%s: SelfOut = %q, want %q", name, got, want)
+		}
+	}
+}

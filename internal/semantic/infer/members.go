@@ -325,7 +325,11 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 		c := strings.TrimPrefix(cls, `\`)
 		p := e.Index.FindProperty(c, id.Value, e.PHP)
 		if p == nil {
-			return types.Unknown
+			mixin := e.mixinWith(c, func(m string) bool { return e.Index.FindProperty(m, id.Value, e.PHP) != nil })
+			if mixin == "" {
+				return types.Unknown
+			}
+			p = e.Index.FindProperty(mixin, id.Value, e.PHP)
 		}
 		ts = append(ts, e.propType(p, c))
 	}
@@ -333,6 +337,37 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 		return types.Unknown
 	}
 	return types.Union(ts...)
+}
+
+// maxMixinClasses bounds the classes one member lookup visits through @mixin
+// tags, which analyzed code may chain or make cyclic.
+const maxMixinClasses = 32
+
+// mixinWith returns the first class that class documents through @mixin,
+// directly, by inheritance or through another mixin, for which has holds; ""
+// when there is none. Mixins are PHPDoc: native types do not see them.
+func (e *Env) mixinWith(class string, has func(string) bool) string {
+	if e.native {
+		return ""
+	}
+	seen := map[string]bool{strings.ToLower(class): true}
+	queue := []string{class}
+	for len(queue) > 0 && len(seen) <= maxMixinClasses {
+		for _, c := range e.Index.Ancestors(queue[0], e.PHP) {
+			for _, mixin := range c.Mixins {
+				if seen[strings.ToLower(mixin)] {
+					continue
+				}
+				if has(mixin) {
+					return mixin
+				}
+				seen[strings.ToLower(mixin)] = true
+				queue = append(queue, mixin)
+			}
+		}
+		queue = queue[1:]
+	}
+	return ""
 }
 
 // memberClasses lists the classes of receiver type recv whose member a
@@ -489,7 +524,12 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 	var ts []types.Type
 	for _, cls := range e.memberClasses(recv, func(c string) bool { return e.Index.FindMethod(c, id.Value, e.PHP) != nil }) {
 		c := strings.TrimPrefix(cls, `\`)
-		t := e.methodReturn(c, id.Value, true, c, recv.TypeArgs(cls), n.Args)
+		owner := c
+		if e.Index.FindMethod(c, id.Value, e.PHP) == nil {
+			owner = e.mixinWith(c, func(m string) bool { return e.Index.FindMethod(m, id.Value, e.PHP) != nil })
+		}
+		// A mixin's fluent method returns the object it was called on.
+		t := e.methodReturn(owner, id.Value, true, c, recv.TypeArgs(cls), n.Args)
 		if t.IsUnknown() {
 			return types.Unknown
 		}

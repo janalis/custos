@@ -27,7 +27,10 @@ type Index struct {
 	// children (lower parent/interface FQN -> child FQNs) and aliasedBy
 	// (lower original FQN -> the aliases class_alias() gives it) are built on
 	// first use and dropped by Add and Remove (see table).
-	children  atomic.Pointer[map[string][]string]
+	children atomic.Pointer[map[string][]string]
+	// selfOut (lower method name -> classes declaring it with a documented
+	// receiver type after the call).
+	selfOut   atomic.Pointer[map[string][]string]
 	aliasedBy atomic.Pointer[map[string][]string]
 	// extending caches Extending by name, valid for the generation stored.
 	extending sync.Map
@@ -757,6 +760,26 @@ func (ix *Index) Children(fqn string) []string {
 	return ix.table(&ix.children, ix.buildChildren)[key(fqn)]
 }
 
+// HasSelfOut reports whether a class of the project documents the receiver's
+// type after a call of a method named name (see Method.SelfOut).
+func (ix *Index) HasSelfOut(name string) bool {
+	return len(ix.table(&ix.selfOut, ix.buildSelfOut)[key(name)]) > 0
+}
+
+func (ix *Index) buildSelfOut() map[string][]string {
+	out := map[string][]string{}
+	for _, cs := range ix.classes {
+		for _, c := range cs {
+			for name, m := range c.Methods {
+				if m.SelfOut != "" {
+					out[key(name)] = append(out[key(name)], c.FQN)
+				}
+			}
+		}
+	}
+	return out
+}
+
 func (ix *Index) buildChildren() map[string][]string {
 	children := map[string][]string{}
 	for _, cs := range ix.classes {
@@ -808,6 +831,7 @@ func (ix *Index) table(p *atomic.Pointer[map[string][]string], build func() map[
 // dropTables runs under the index write lock, after a change.
 func (ix *Index) dropTables() {
 	ix.children.Store(nil)
+	ix.selfOut.Store(nil)
 	ix.aliasedBy.Store(nil)
 }
 

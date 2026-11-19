@@ -1,6 +1,7 @@
 package index
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -62,6 +63,51 @@ func (x *extractor) generics(c *Class, d *phpdoc.Doc, at uint32) {
 		c.Templates = append(c.Templates, Template{Name: p.Name, Bound: x.docTypeStr(p.Bound, at), Default: x.docTypeStr(p.Default, at), Variance: p.Variance})
 	}
 	x.supers(c, d, at, false)
+}
+
+// mixinTags name the classes whose members a class documents as its own.
+var mixinTags = [...]string{"mixin", "phpstan-mixin", "psalm-mixin"}
+
+// mixins records the @mixin tags of d: whether there is any, and the classes
+// they name (generic arguments dropped, templates skipped).
+func (x *extractor) mixins(c *Class, d *phpdoc.Doc, at uint32) {
+	for _, tag := range mixinTags {
+		for _, t := range d.All(tag) {
+			c.Mixin = true
+			typ, _ := phpdoc.SplitType(t.Text)
+			for _, class := range types.FromDoc(typ, x.genResolver(at)).Classes() {
+				if name := strings.TrimPrefix(class, `\`); !strings.HasPrefix(name, "~") && !slices.Contains(c.Mixins, name) {
+					c.Mixins = append(c.Mixins, name)
+				}
+			}
+		}
+	}
+}
+
+// selfOutTags document the receiver's type after a call, most specific first.
+var selfOutTags = [...]string{
+	"phpstan-self-out", "phpstan-this-out", "psalm-self-out", "psalm-this-out", "self-out", "this-out",
+}
+
+// selfOut returns the doc type the receiver of a method of class has after a
+// call, as documented by d; class templates stay `\~T` atoms. `self<int>`
+// names the class with new arguments.
+func (x *extractor) selfOut(class string, d *phpdoc.Doc, at uint32) string {
+	for _, tag := range selfOutTags {
+		t, ok := d.Tag(tag)
+		if !ok {
+			continue
+		}
+		typ, _ := phpdoc.SplitType(t.Text)
+		for _, own := range [...]string{"self<", "static<", "$this<"} {
+			if len(typ) > len(own) && strings.EqualFold(typ[:len(own)], own) {
+				typ = `\` + class + typ[len(own)-1:]
+				break
+			}
+		}
+		return types.FromDoc(typ, x.genResolver(at)).DocString()
+	}
+	return ""
 }
 
 // requireTags name the requirements of a trait; superTags give generic
