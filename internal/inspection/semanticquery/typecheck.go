@@ -94,6 +94,9 @@ func (d docConstants) typeOf(text string, plain types.Type, nullable bool) types
 // ancestors lists all its constants for `*`.
 func (d docConstants) constant(expr string) types.Type {
 	owner, member, _ := strings.Cut(strings.TrimPrefix(expr, `\`), "::")
+	if owner == "" {
+		return d.globalConstant(member)
+	}
 	if member != "*" {
 		if k := d.ix.FindConst(owner, member, d.ver); k != nil {
 			return literalValue(k.Value)
@@ -113,6 +116,19 @@ func (d docConstants) constant(expr string) types.Type {
 		values = append(values, v)
 	}
 	return types.Union(values...)
+}
+
+// globalConstant is the type of a global constant written unqualified: the
+// one of its namespace, else the global one.
+func (d docConstants) globalConstant(fqn string) types.Type {
+	k := d.ix.Constant(fqn, d.ver)
+	if k == nil {
+		k = d.ix.Constant(fqn[strings.LastIndexByte(fqn, '\\')+1:], d.ver)
+	}
+	if k == nil {
+		return types.Unknown
+	}
+	return literalValue(k.Value)
 }
 
 // literalValue is the exact type of int or plain string literal source text.

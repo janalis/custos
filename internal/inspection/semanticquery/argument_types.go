@@ -489,6 +489,10 @@ func typeName(t types.Type) string {
 func declaredTypeName(text string) string {
 	var b strings.Builder
 	for i := 0; i < len(text); i++ {
+		if strings.HasPrefix(text[i:], `\::`) && (i == 0 || !isNameByte(text[i-1])) {
+			i += 2 // a global constant
+			continue
+		}
 		if text[i] == '\\' && (i == 0 || !isNameByte(text[i-1])) {
 			continue
 		}

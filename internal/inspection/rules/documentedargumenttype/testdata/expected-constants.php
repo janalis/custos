@@ -25,6 +25,37 @@ class Extended extends Mode
     const OWN = 5;
 }
 
+const LEVEL_LOW = 1;
+const LEVEL_HIGH = 2;
+const LEVEL_COMPUTED = LEVEL_LOW + 1;
+
+class Base
+{
+    const PARENT_VALUE = 7;
+}
+
+class Owner extends Base
+{
+    const OWN_VALUE = 3;
+
+    public function own(#[ExpectedValues([self::OWN_VALUE, static::OWN_VALUE])] int $value) {}
+
+    public function inherited(#[ExpectedValues([parent::PARENT_VALUE])] int $value) {}
+}
+
+class Orphan
+{
+    public function noParent(#[ExpectedValues([parent::NOTHING])] int $value) {}
+}
+
+function levels(#[ExpectedValues([LEVEL_LOW, LEVEL_HIGH])] int $level) {}
+
+function computedLevel(#[ExpectedValues([LEVEL_COMPUTED])] int $level) {}
+
+function noSuchLevel(#[ExpectedValues([LEVEL_MISSING])] int $level) {}
+
+function keyword(#[ExpectedValues([null])] ?int $level) {}
+
 function listed(#[ExpectedValues([Mode::FAST, 4])] int $mode) {}
 
 function fromClass(#[ExpectedValues(valuesFromClass: Mode::class)] int $mode) {}
@@ -56,6 +87,18 @@ function calls(int $any)
     flagsFromClass(<warning descr="Pass int-mask-of<Mode::*> to $mask of flagsFromClass(), not 8.">8</warning>);
     optional(<warning descr="Pass Mode::FAST|null to $mode of optional(), not 2.">2</warning>);
 
+    levels(<warning descr="Pass LEVEL_LOW|LEVEL_HIGH to $level of levels(), not 3.">3</warning>);
+    (new Owner())->own(<warning descr="Pass Owner::OWN_VALUE|Owner::OWN_VALUE to $value of Owner::own(), not 9.">9</warning>);
+    (new Owner())->inherited(<warning descr="Pass Base::PARENT_VALUE to $value of Owner::inherited(), not 9.">9</warning>);
+
+    levels(1);
+    levels(LEVEL_HIGH);
+    (new Owner())->own(3);
+    (new Owner())->inherited(7);
+    (new Orphan())->noParent(9);
+    computedLevel(9);
+    noSuchLevel(9);
+    keyword(9);
     listed(Mode::FAST);
     listed(1);
     listed(4);

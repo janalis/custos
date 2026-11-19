@@ -83,9 +83,9 @@ tag that already has a shape keeps priority over the attribute.
 
 ## Limits
 
-- `#[ExpectedValues]` does not read global constants or `self::` constants,
-  and class constants count only when declared with a literal value. A class
-  named by `valuesFromClass` must have no parent, interface or trait.
+- `#[ExpectedValues]` counts a constant only when it is declared with a
+  literal value. A class named by `valuesFromClass` must have no parent,
+  interface or trait.
 - `#[Pure]`, `#[Immutable]` and `@throws` do not affect any check.
 - `@mixin` works with named classes: `@mixin T` on a template adds no members.
 - `@phpstan-self-out` applies to a local variable the method is called on, not

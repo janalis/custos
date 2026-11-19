@@ -216,6 +216,39 @@ func (x *extractor) expectedValuesText(a *syntax.Attribute, at uint32) string {
 	return ""
 }
 
+// constantRef is the doc text of constant expression e written as text: a
+// class constant, or a global one as `\\::NAME`; "" for anything else.
+func (x *extractor) constantRef(e syntax.Expr, text string, at uint32) string {
+	if !strings.Contains(text, "::") {
+		if !isIdentifier(text) || isKeywordConstant(text) {
+			return ""
+		}
+		fqn, _ := x.r.Const(text, at)
+		return `\::` + strings.TrimPrefix(fqn, `\`)
+	}
+	owner, member, _ := strings.Cut(text, "::")
+	if cl := syntax.EnclosingClass(e); cl != nil && cl.Name != nil {
+		switch strings.ToLower(owner) {
+		case "self", "static":
+			return x.classConstantRef(`\`+x.r.SymbolFQN(cl)+"::"+member, at)
+		case "parent":
+			if parent := x.r.ParentFQN(cl); parent != "" {
+				return x.classConstantRef(`\`+strings.TrimPrefix(parent, `\`)+"::"+member, at)
+			}
+		}
+	}
+	return x.classConstantRef(text, at)
+}
+
+// isKeywordConstant reports true, false and null, which name no constant.
+func isKeywordConstant(s string) bool {
+	switch strings.ToLower(s) {
+	case "true", "false", "null":
+		return true
+	}
+	return false
+}
+
 // classConstants is the doc text of every constant of the class `Foo::class`
 // names; "" for any other expression.
 func (x *extractor) classConstants(e syntax.Expr, at uint32) string {
@@ -264,7 +297,7 @@ func (x *extractor) expectedList(arr *syntax.Array, at uint32) []string {
 		}
 		text := x.text(it.Value)
 		if _, err := strconv.ParseInt(text, 0, 64); err != nil && !isQuoted(text) {
-			if text = x.classConstantRef(text, at); text == "" {
+			if text = x.constantRef(it.Value, text, at); text == "" {
 				return nil
 			}
 		}

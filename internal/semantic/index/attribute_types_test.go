@@ -134,6 +134,7 @@ class P {
 	want := map[string]string{
 		"ints": "int<1, 2>", "strs": "'a'|'b'", "nullable": "int<1, 1>|null", "flags": "int<0, 1>|int<4, 5>",
 		"fromClass": `\App\Mode::*`, "maskFromClass": `int-mask-of<\App\Mode::*>`, "constant": `\App\Mode::A|4`,
+		"global":          `\::App\SOME_GLOBAL`,
 		"maskOfConstants": `int-mask<\App\Mode::A,\App\Mode::B>`, "nullableConstant": `\App\Mode::A|null`,
 	}
 	for _, p := range fs.Functions[0].Params {
