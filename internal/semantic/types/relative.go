@@ -130,7 +130,7 @@ func (r *relativeBinding) bind(t Type, depth int) (Type, bool) {
 			if args == nil {
 				args = g.args
 			}
-			gens[i] = genEntry{atom: atom, args: args}
+			gens[i] = genEntry{atom: atom, args: args, sig: t.gen[i].sig}
 		}
 	}
 	if gens != nil {

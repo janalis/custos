@@ -45,6 +45,15 @@ func (t Type) Encode(w *wire.Writer) {
 	for _, g := range t.gen {
 		w.String(g.atom)
 		encodeTypes(w, g.args)
+		w.Bool(g.sig != nil)
+		if g.sig != nil {
+			w.Int(int64(g.sig.required))
+			w.Uint(g.sig.byRef)
+			w.Bool(g.sig.rest != nil)
+			if g.sig.rest != nil {
+				g.sig.rest.Encode(w)
+			}
+		}
 	}
 	if t.inter != nil {
 		w.Strings(*t.inter)
@@ -84,6 +93,14 @@ func DecodeType(r *wire.Reader) Type {
 		t.gen = wire.Make[genEntry](r, n)
 		for i := range t.gen {
 			t.gen[i] = genEntry{atom: r.String(), args: decodeTypes(r)}
+			if r.Bool() {
+				sig := &callSig{required: int(r.Int()), byRef: r.Uint()}
+				if r.Bool() {
+					rest := DecodeType(r)
+					sig.rest = &rest
+				}
+				t.gen[i].sig = sig
+			}
 		}
 	}
 	if held&wireInter != 0 {

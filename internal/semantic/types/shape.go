@@ -416,7 +416,7 @@ func (t Type) ShapeString() string {
 		for i, a := range t.atoms {
 			parts[i] = a
 			if args := t.TypeArgs(a); args != nil {
-				parts[i] = genString(a, args)
+				parts[i] = genString(a, args, t.callSigOf(a))
 			}
 			if a == "int" && t.ints != nil {
 				parts[i] = intsString(t.ints)
@@ -521,7 +521,7 @@ func (t Type) DocString() string {
 	parts := make([]string, len(t.atoms))
 	for i, a := range t.atoms {
 		if args := t.TypeArgs(a); args != nil {
-			parts[i] = genString(a, args)
+			parts[i] = genString(a, args, t.callSigOf(a))
 			continue
 		}
 		parts[i] = docAtom(a, t.arr)

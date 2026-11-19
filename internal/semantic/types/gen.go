@@ -13,6 +13,41 @@ import (
 type genEntry struct {
 	atom string
 	args []Type
+	sig  *callSig // what a written callable signature says of its parameters
+}
+
+// callSig is the shape of the parameters a callable signature was written
+// with, beside their types in genEntry.args. A callable without one (no
+// signature, or one rebuilt from its types alone) has an unknown arity.
+//
+// A variadic parameter stays out of genEntry.args, whose positions each take
+// one argument: its type is rest.
+type callSig struct {
+	required int    // leading parameters that must be passed
+	rest     *Type  // the variadic parameter's type; nil when there is none
+	byRef    uint64 // bit i: parameter i is by reference (the first 64)
+}
+
+// sameSig reports two signatures saying the same of their parameters.
+func sameSig(a, b *callSig) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.required != b.required || a.byRef != b.byRef || (a.rest == nil) != (b.rest == nil) {
+		return false
+	}
+	return a.rest == nil || a.rest.DocString() == b.rest.DocString()
+}
+
+// withCallSig returns t, whose atom carries generic arguments, with sig on
+// that atom.
+func (t Type) withCallSig(atom string, sig *callSig) Type {
+	for i := range t.gen {
+		if t.gen[i].atom == atom {
+			t.gen[i].sig = sig
+		}
+	}
+	return t
 }
 
 // TypeArgs returns the generic arguments of atom (nil when none are known).
@@ -21,6 +56,16 @@ func (t Type) TypeArgs(atom string) []Type {
 	for _, g := range t.gen {
 		if g.atom == atom {
 			return g.args
+		}
+	}
+	return nil
+}
+
+// callSigOf returns the signature shape written for atom, nil when unknown.
+func (t Type) callSigOf(atom string) *callSig {
+	for _, g := range t.gen {
+		if g.atom == atom {
+			return g.sig
 		}
 	}
 	return nil
@@ -97,18 +142,19 @@ func unionGen(u Type, ts []Type) []genEntry {
 	var out []genEntry
 	for _, a := range u.atoms {
 		var args []Type
+		var sig *callSig
 		ok := true
 		for _, t := range ts {
 			if !t.Has(a) {
 				continue
 			}
-			ta := t.TypeArgs(a)
+			ta, shape := t.TypeArgs(a), t.callSigOf(a)
 			switch {
 			case ta == nil:
 				ok = false
 			case args == nil:
-				args = ta
-			case !sameArgs(args, ta):
+				args, sig = ta, shape
+			case !sameArgs(args, ta) || !sameSig(sig, shape):
 				ok = false
 			}
 			if !ok {
@@ -116,7 +162,7 @@ func unionGen(u Type, ts []Type) []genEntry {
 			}
 		}
 		if ok && args != nil {
-			out = append(out, genEntry{atom: a, args: args})
+			out = append(out, genEntry{atom: a, args: args, sig: sig})
 		}
 	}
 	return out
@@ -133,7 +179,7 @@ func mergeGen(lists ...[]genEntry) []genEntry {
 			for _, o := range out {
 				if o.atom == g.atom {
 					found = true
-					if !sameArgs(o.args, g.args) {
+					if !sameArgs(o.args, g.args) || !sameSig(o.sig, g.sig) {
 						drop[g.atom] = true
 					}
 				}
@@ -250,6 +296,26 @@ func WithCallableReturn(t Type, atom string, ret Type) Type {
 // signature: its return type, then its parameter types.
 func isCallableAtom(atom string) bool { return atom == "callable" || atom == `\Closure` }
 
+// refMark is `&` when parameter i is by reference.
+func (s *callSig) refMark(i int) string {
+	if i < 64 && s.byRef&(1<<i) != 0 {
+		return "&"
+	}
+	return ""
+}
+
+// paramSuffix is the doc syntax after the type of parameter i: `&` for by
+// reference, then `=` for an optional one.
+func (s *callSig) paramSuffix(i int) string {
+	if s == nil {
+		return ""
+	}
+	if i >= s.required {
+		return s.refMark(i) + "="
+	}
+	return s.refMark(i)
+}
+
 // docOrMixed is the doc syntax of t, mixed when unknown.
 func docOrMixed(t Type) string {
 	if t.IsUnknown() {
@@ -260,7 +326,7 @@ func docOrMixed(t Type) string {
 
 // genString renders atom with its generic arguments (doc syntax); the
 // signature of a callable as `callable(P1, P2): (R)`.
-func genString(atom string, args []Type) string {
+func genString(atom string, args []Type, sig *callSig) string {
 	var b strings.Builder
 	if isCallableAtom(atom) {
 		b.WriteString(atom)
@@ -270,6 +336,15 @@ func genString(atom string, args []Type) string {
 				b.WriteString(", ")
 			}
 			b.WriteString(docOrMixed(p))
+			b.WriteString(sig.paramSuffix(i))
+		}
+		if sig != nil && sig.rest != nil {
+			if len(args) > 1 {
+				b.WriteString(", ")
+			}
+			b.WriteString(docOrMixed(*sig.rest))
+			b.WriteString(sig.refMark(len(args) - 1))
+			b.WriteString("...")
 		}
 		b.WriteString("): (")
 		b.WriteString(docOrMixed(args[0]))

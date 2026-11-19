@@ -13,6 +13,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Doc types keep the value of integer literals (`0|1`, `0x1F`, `1_000`) and
   understand `int-mask<…>`, `int-mask-of<…>` and `enum-string<T>`;
   `new<T>` and `template-type<…>` no longer read as a class of that name.
+- Callable doc types keep which parameters are optional, by reference or
+  variadic (`callable(int, string=, float ...$rest): void`).
 
 ## [0.1.16] - 2026-11-18
 

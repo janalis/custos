@@ -289,7 +289,8 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		if low == "callable" || low == "pure-callable" {
 			atom = "callable"
 		}
-		return Of(atom).WithTypeArgs(atom, p.callableSignature(args, resolve, depth))
+		sig, shape := p.callableSignature(args, resolve, depth)
+		return Of(atom).WithTypeArgs(atom, sig).withCallSig(atom, shape)
 	case "int":
 		if r, ok := intRange(args); ok {
 			return Ints(r)
@@ -362,41 +363,52 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 }
 
 // callableSignature parses a callable signature `(params): R` (args is the
-// text after `callable` / `Closure`) into its generic arguments: the return
-// type R, then the type of each parameter before a variadic one, unknown
-// for a missing, unknown or mixed type. Nil when it tells nothing: neither
-// R nor a parameter type is known.
-func (p *docParser) callableSignature(args string, resolve Resolver, depth int) []Type {
+// text after `callable` / `Closure`) into its generic arguments, the return
+// type R and then the type of each parameter before a variadic one (unknown
+// for a missing, unknown or mixed type), and the shape of the parameters.
+// Nil when it tells nothing: no type is known and every parameter is plainly
+// required.
+func (p *docParser) callableSignature(args string, resolve Resolver, depth int) ([]Type, *callSig) {
 	if !strings.HasPrefix(args, "(") {
-		return nil
+		return nil, nil
 	}
 	end := matchingClose(args)
 	if end < 0 {
-		return nil
+		return nil, nil
 	}
 	sig := []Type{Unknown}
 	if rest := strings.TrimSpace(args[end+1:]); strings.HasPrefix(rest, ":") {
 		sig[0] = known(p.union(rest[1:], resolve, depth+1))
 	}
 	informative := !sig[0].IsUnknown()
+	shape := &callSig{}
+	leading := true
 	if inner := strings.TrimSpace(args[1:end]); inner != "" {
-		for _, part := range splitTop(inner, ',') {
-			text, variadic := callableParam(part)
-			if variadic {
+		for i, part := range splitTop(inner, ',') {
+			param := callableParam(part)
+			t := Unknown
+			if param.text != "" {
+				t = known(p.union(param.text, resolve, depth+1))
+			}
+			if param.byRef && i < 64 {
+				shape.byRef |= 1 << i
+			}
+			leading = leading && !param.optional && !param.variadic
+			if leading {
+				shape.required++
+			}
+			informative = informative || !t.IsUnknown() || !leading || param.byRef
+			if param.variadic {
+				shape.rest = &t
 				break
 			}
-			t := Unknown
-			if text != "" {
-				t = known(p.union(text, resolve, depth+1))
-			}
-			informative = informative || !t.IsUnknown()
 			sig = append(sig, t)
 		}
 	}
 	if !informative {
-		return nil
+		return nil, nil
 	}
-	return sig
+	return sig, shape
 }
 
 // known is t, or unknown when t is mixed: a signature type that says nothing.
@@ -407,25 +419,32 @@ func known(t Type) Type {
 	return t
 }
 
-// callableParam returns the type text of one parameter of a callable
-// signature (`int`, `Foo $x`, `int=`, `string &...$rest`, also with the
-// blanks squashed: `Foo$x`), "" when it has none, and whether the
-// parameter is variadic.
-func callableParam(s string) (string, bool) {
+// signatureParam is one parameter of a written callable signature.
+type signatureParam struct {
+	text                      string // its type, "" when it has none
+	optional, byRef, variadic bool
+}
+
+// callableParam reads one parameter of a callable signature (`int`, `Foo $x`,
+// `int=`, `string &...$rest`, also with the blanks squashed: `Foo$x`).
+func callableParam(s string) signatureParam {
 	s = strings.TrimSpace(s)
 	if i := strings.LastIndexByte(s, '$'); i >= 0 && validClassName(s[i+1:]) {
 		s = s[:i]
 	}
-	variadic := false
+	var out signatureParam
 	for {
-		trimmed := strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(s, "="), "&"))
-		if t, ok := strings.CutSuffix(trimmed, "..."); ok {
-			trimmed, variadic = strings.TrimSpace(t), true
+		s = strings.TrimSpace(s)
+		if t, ok := strings.CutSuffix(s, "="); ok {
+			s, out.optional = t, true
+		} else if t, ok := strings.CutSuffix(s, "&"); ok {
+			s, out.byRef = t, true
+		} else if t, ok := strings.CutSuffix(s, "..."); ok {
+			s, out.variadic = t, true
+		} else {
+			out.text = s
+			return out
 		}
-		if trimmed == s {
-			return s, variadic
-		}
-		s = trimmed
 	}
 }
 
