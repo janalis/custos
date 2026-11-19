@@ -936,6 +936,14 @@
     "hasFix": false
   },
   {
+    "id": "ForeachOverNonIterable",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "typeCheck": "proven"
+  },
+  {
     "id": "ForeachReferenceSurvivesLoop",
     "group": "Probable bugs",
     "severity": "warning",
@@ -1455,6 +1463,14 @@
     "severity": "warning",
     "enabledByDefault": false,
     "hasFix": false
+  },
+  {
+    "id": "MemberAccessOnNonObject",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "typeCheck": "proven"
   },
   {
     "id": "MillisecondsUsedAsUnixSeconds",
@@ -2994,6 +3010,14 @@
     "enabledByDefault": false,
     "hasFix": false,
     "typeCheck": "documented"
+  },
+  {
+    "id": "InvalidOperandType",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "typeCheck": "proven"
   },
   {
     "id": "InvalidPropertyAssignment",

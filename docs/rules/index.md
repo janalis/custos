@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **593 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **596 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -306,6 +306,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [FileWriteResultUnchecked](./probable-bugs/FileWriteResultUnchecked) | native | warning | on |  | any |
 | [FilteredListJsonShape](./probable-bugs/FilteredListJsonShape) | native | warning | off | ✓ | any |
 | [FinallyThrowMasksException](./probable-bugs/FinallyThrowMasksException) | native | warning | off |  | PHP ≥ 5.5 |
+| [ForeachOverNonIterable](./probable-bugs/ForeachOverNonIterable) | native | warning | off |  | any |
 | [ForeachReferenceSurvivesLoop](./probable-bugs/ForeachReferenceSurvivesLoop) | native | warning | on |  | any |
 | [ForgottenDebugOutput](./probable-bugs/ForgottenDebugOutput) | EA | error | on |  | any |
 | [ForkChildFallsIntoParentWork](./probable-bugs/ForkChildFallsIntoParentWork) | native | warning | off |  | any |
@@ -354,6 +355,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [IntlTimezoneOffsetMillisecondsUsedAsSeconds](./probable-bugs/IntlTimezoneOffsetMillisecondsUsedAsSeconds) | native | warning | on | ✓ | PHP ≥ 5.5 |
 | [IntlTwelveHourFieldUsedForTwentyFourHourTime](./probable-bugs/IntlTwelveHourFieldUsedForTwentyFourHourTime) | native | warning | on | ✓ | PHP ≥ 5.5 |
 | [InvalidArgumentType](./probable-bugs/InvalidArgumentType) | native | error | off |  | any |
+| [InvalidOperandType](./probable-bugs/InvalidOperandType) | native | error | off |  | PHP ≥ 8.0 |
 | [InvalidPropertyAssignment](./probable-bugs/InvalidPropertyAssignment) | native | error | off |  | any |
 | [InvalidReturnType](./probable-bugs/InvalidReturnType) | native | error | off |  | any |
 | [InverseTrigInvalidRealDomain](./probable-bugs/InverseTrigInvalidRealDomain) | native | warning | on |  | any |
@@ -376,6 +378,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [LogarithmInvalidRealDomain](./probable-bugs/LogarithmInvalidRealDomain) | native | warning | on |  | any |
 | [LoopClosureCapturesReference](./probable-bugs/LoopClosureCapturesReference) | native | warning | off |  | any |
 | [MagicMethodsValidity](./probable-bugs/MagicMethodsValidity) | EA | error | on |  | any |
+| [MemberAccessOnNonObject](./probable-bugs/MemberAccessOnNonObject) | native | error | off |  | any |
 | [MillisecondsUsedAsUnixSeconds](./probable-bugs/MillisecondsUsedAsUnixSeconds) | native | warning | off |  | any |
 | [MissingArrayInitialization](./probable-bugs/MissingArrayInitialization) | EA | warning | on |  | any |
 | [MissingIssetImplementation](./probable-bugs/MissingIssetImplementation) | EA | error | on |  | any |

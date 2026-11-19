@@ -33,6 +33,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   parameter types and the number of required parameters.
 - The `typeCheck` setting of `custos.json` (`off`, `proven`, `documented`)
   enables the type-checking rules as a group; a rule's own `enabled` wins.
+- New rules, off by default and part of `typeCheck: proven`:
+  `MemberAccessOnNonObject`, `ForeachOverNonIterable` and `InvalidOperandType`.
 
 ### Fixed
 

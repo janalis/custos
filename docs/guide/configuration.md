@@ -91,7 +91,7 @@ group, and a rule's own `enabled` setting still wins:
 
 | Level | Rules it enables |
 |---|---|
-| `proven` | `InvalidArgumentType`, `InvalidReturnType`, `InvalidPropertyAssignment`, `ArgumentCountMismatch`, `UndefinedFunction`, `UndefinedClass`, `UndefinedMethod`, `UndefinedProperty`, `ImpossibleTypeComparison` |
+| `proven` | `InvalidArgumentType`, `InvalidReturnType`, `InvalidPropertyAssignment`, `ArgumentCountMismatch`, `UndefinedFunction`, `UndefinedClass`, `UndefinedMethod`, `UndefinedProperty`, `ImpossibleTypeComparison`, `MemberAccessOnNonObject`, `ForeachOverNonIterable`, `InvalidOperandType` |
 | `documented` | Everything in `proven`, plus `DocumentedArgumentType`, `DocumentedReturnType`, `DocumentedPropertyAssignment`, `PossiblyNullAccess`, `PossiblyNullArgument`, `RedundantTypeCheck` |
 
 ## Excluded directories

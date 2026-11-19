@@ -186,6 +186,7 @@ import (
 	"custos/internal/inspection/rules/fixedtimestartwith"
 	"custos/internal/inspection/rules/fopenbinaryunsafeusage"
 	"custos/internal/inspection/rules/foreachinvariants"
+	"custos/internal/inspection/rules/foreachovernoniterable"
 	"custos/internal/inspection/rules/foreachreferencesurvivesloop"
 	"custos/internal/inspection/rules/forgottendebugoutput"
 	"custos/internal/inspection/rules/forkchildfallsintoparentwork"
@@ -247,6 +248,7 @@ import (
 	"custos/internal/inspection/rules/intltimezoneoffsetmillisecondsusedasseconds"
 	"custos/internal/inspection/rules/intltwelvehourfieldusedfortwentyfourhourtime"
 	"custos/internal/inspection/rules/invalidargumenttype"
+	"custos/internal/inspection/rules/invalidoperandtype"
 	"custos/internal/inspection/rules/invalidpropertyassignment"
 	"custos/internal/inspection/rules/invalidreturntype"
 	"custos/internal/inspection/rules/inversetriginvalidrealdomain"
@@ -278,6 +280,7 @@ import (
 	"custos/internal/inspection/rules/loopclosurecapturesreference"
 	"custos/internal/inspection/rules/loopwhichdoesnotloop"
 	"custos/internal/inspection/rules/magicmethodsvalidity"
+	"custos/internal/inspection/rules/memberaccessonnonobject"
 	"custos/internal/inspection/rules/millisecondsusedasunixseconds"
 	"custos/internal/inspection/rules/misorderedmodifiers"
 	"custos/internal/inspection/rules/missingarrayinitialization"
@@ -851,6 +854,7 @@ func All() []analysis.Rule {
 		filewriteresultunchecked.New(),
 		filteredlistjsonshape.New(),
 		finallythrowmasksexception.New(),
+		foreachovernoniterable.New(),
 		foreachreferencesurvivesloop.New(),
 		forgottendebugoutput.New(),
 		forkchildfallsintoparentwork.New(),
@@ -899,6 +903,7 @@ func All() []analysis.Rule {
 		intltimezoneoffsetmillisecondsusedasseconds.New(),
 		intltwelvehourfieldusedfortwentyfourhourtime.New(),
 		invalidargumenttype.New(),
+		invalidoperandtype.New(),
 		invalidpropertyassignment.New(),
 		invalidreturntype.New(),
 		inversetriginvalidrealdomain.New(),
@@ -921,6 +926,7 @@ func All() []analysis.Rule {
 		logarithminvalidrealdomain.New(),
 		loopclosurecapturesreference.New(),
 		magicmethodsvalidity.New(),
+		memberaccessonnonobject.New(),
 		millisecondsusedasunixseconds.New(),
 		missingarrayinitialization.New(),
 		missingissetimplementation.New(),

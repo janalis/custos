@@ -1070,6 +1070,10 @@
             "link": "/rules/probable-bugs/FinallyThrowMasksException"
           },
           {
+            "text": "ForeachOverNonIterable",
+            "link": "/rules/probable-bugs/ForeachOverNonIterable"
+          },
+          {
             "text": "ForeachReferenceSurvivesLoop",
             "link": "/rules/probable-bugs/ForeachReferenceSurvivesLoop"
           },
@@ -1268,6 +1272,10 @@
             "link": "/rules/probable-bugs/InvalidArgumentType"
           },
           {
+            "text": "InvalidOperandType",
+            "link": "/rules/probable-bugs/InvalidOperandType"
+          },
+          {
             "text": "InvalidPropertyAssignment",
             "link": "/rules/probable-bugs/InvalidPropertyAssignment"
           },
@@ -1360,6 +1368,10 @@
           {
             "text": "MagicMethodsValidity",
             "link": "/rules/probable-bugs/MagicMethodsValidity"
+          },
+          {
+            "text": "MemberAccessOnNonObject",
+            "link": "/rules/probable-bugs/MemberAccessOnNonObject"
           },
           {
             "text": "MillisecondsUsedAsUnixSeconds",
