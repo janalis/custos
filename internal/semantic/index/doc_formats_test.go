@@ -1,7 +1,9 @@
 package index
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"custos/internal/php/phpdoc"
@@ -118,5 +120,16 @@ class Box {
 		if got := ms[name].SelfOut; got != want {
 			t.Errorf("%s: SelfOut = %q, want %q", name, got, want)
 		}
+	}
+}
+
+func TestMixinsAreCapped(t *testing.T) {
+	var doc strings.Builder
+	for i := range maxClassMixins + 5 {
+		fmt.Fprintf(&doc, " * @mixin M%d\n", i)
+	}
+	fs := extract(t, "many.php", "<?php\n/**\n"+doc.String()+" */\nclass Many {}\n")
+	if c := fs.Classes[0]; !c.Mixin || len(c.Mixins) != maxClassMixins {
+		t.Errorf("mixin=%v, %d mixins kept", c.Mixin, len(c.Mixins))
 	}
 }

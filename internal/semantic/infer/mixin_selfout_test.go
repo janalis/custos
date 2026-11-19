@@ -1,6 +1,8 @@
 package infer_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"custos/internal/php/syntax"
@@ -48,6 +50,19 @@ function f(Builder $b, Child $c, LoopA $l) {
 		"method": "int", "property": "int", "own": "float", "fluent": `\Builder`, "fluentThis": `\Builder`,
 		"inherited": "int", "chained": "string", "missing": "?unknown", "missingProp": "?unknown", "cycle": "?unknown",
 	})
+}
+
+// A chain of mixins longer than the lookup budget ends the search.
+func TestMixinLookupIsBounded(t *testing.T) {
+	var src strings.Builder
+	src.WriteString("<?php\n")
+	const links = 40
+	for i := range links {
+		fmt.Fprintf(&src, "/** @mixin C%d */\nclass C%d {}\n", i+1, i)
+	}
+	fmt.Fprintf(&src, "class C%d { public function far(): int {} }\n", links)
+	src.WriteString("function f(C38 $near, C0 $start) {\n    t('near', $near->far());\n    t('far', $start->far());\n}\n")
+	checkAnywhere(t, src.String(), map[string]string{"near": "int", "far": "?unknown"})
 }
 
 // PHPDoc alone documents a mixin or a receiver's new type.

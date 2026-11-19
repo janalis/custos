@@ -352,11 +352,14 @@ func (e *Env) mixinWith(class string, has func(string) bool) string {
 	}
 	seen := map[string]bool{strings.ToLower(class): true}
 	queue := []string{class}
-	for len(queue) > 0 && len(seen) <= maxMixinClasses {
+	for len(queue) > 0 {
 		for _, c := range e.Index.Ancestors(queue[0], e.PHP) {
 			for _, mixin := range c.Mixins {
 				if seen[strings.ToLower(mixin)] {
 					continue
+				}
+				if len(seen) > maxMixinClasses {
+					return ""
 				}
 				if has(mixin) {
 					return mixin

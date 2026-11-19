@@ -68,6 +68,10 @@ func (x *extractor) generics(c *Class, d *phpdoc.Doc, at uint32) {
 // mixinTags name the classes whose members a class documents as its own.
 var mixinTags = [...]string{"mixin", "phpstan-mixin", "psalm-mixin"}
 
+// maxClassMixins caps the mixins kept for one class: analyzed code may list
+// any number of them.
+const maxClassMixins = 32
+
 // mixins records the @mixin tags of d: whether there is any, and the classes
 // they name (generic arguments dropped, templates skipped).
 func (x *extractor) mixins(c *Class, d *phpdoc.Doc, at uint32) {
@@ -76,7 +80,7 @@ func (x *extractor) mixins(c *Class, d *phpdoc.Doc, at uint32) {
 			c.Mixin = true
 			typ, _ := phpdoc.SplitType(t.Text)
 			for _, class := range types.FromDoc(typ, x.genResolver(at)).Classes() {
-				if name := strings.TrimPrefix(class, `\`); !strings.HasPrefix(name, "~") && !slices.Contains(c.Mixins, name) {
+				if name := strings.TrimPrefix(class, `\`); len(c.Mixins) < maxClassMixins && !strings.HasPrefix(name, "~") && !slices.Contains(c.Mixins, name) {
 					c.Mixins = append(c.Mixins, name)
 				}
 			}
