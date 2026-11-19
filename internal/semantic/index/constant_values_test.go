@@ -70,10 +70,18 @@ func TestConstantValuesCutHierarchy(t *testing.T) {
 }
 
 func TestLiteralType(t *testing.T) {
-	for text, want := range map[string]string{
-		"1": "int<1, 1>", " 0x10 ": "int<16, 16>", "'a'": "'a'", `"b"`: "'b'",
-		`'a\'b'`: "", `"$x"`: "", "1.5": "", "FOO": "", "'": "",
+	for _, c := range [][2]string{
+		{"1", "int<1, 1>"},
+		{"\t0x10\n", "int<16, 16>"},
+		{"'a'", "'a'"},
+		{`"b"`, "'b'"},
+		{`'a\'b'`, ""},
+		{`"$x"`, ""},
+		{"1.5", ""},
+		{"FOO", ""},
+		{"'", ""},
 	} {
+		text, want := c[0], c[1]
 		got := LiteralType(text)
 		text2 := got.ValueDocString()
 		if got.IsUnknown() {
