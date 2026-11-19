@@ -1,6 +1,7 @@
 package index
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -59,9 +60,45 @@ func (x *extractor) typeAliases(c *Class, d *phpdoc.Doc, at uint32) {
 // given to the parents, interfaces and traits (@extends Base<Foo> …).
 func (x *extractor) generics(c *Class, d *phpdoc.Doc, at uint32) {
 	for _, p := range d.TemplateParams() {
-		c.Templates = append(c.Templates, Template{Name: p.Name, Bound: x.docTypeStr(p.Bound, at), Default: x.docTypeStr(p.Default, at)})
+		c.Templates = append(c.Templates, Template{Name: p.Name, Bound: x.docTypeStr(p.Bound, at), Default: x.docTypeStr(p.Default, at), Variance: p.Variance})
 	}
 	x.supers(c, d, at, false)
+}
+
+// mixinTags name the classes whose members a class documents as its own.
+var mixinTags = [...]string{"mixin", "phpstan-mixin", "psalm-mixin"}
+
+// mixins records the @mixin tags of d: whether there is any, and the classes
+// they name (generic arguments dropped, templates skipped).
+func (x *extractor) mixins(c *Class, d *phpdoc.Doc, at uint32) {
+	for _, tag := range mixinTags {
+		for _, t := range d.All(tag) {
+			c.Mixin = true
+			typ, _ := phpdoc.SplitType(t.Text)
+			for _, class := range types.FromDoc(typ, x.genResolver(at)).Classes() {
+				if name := strings.TrimPrefix(class, `\`); !strings.HasPrefix(name, "~") && !slices.Contains(c.Mixins, name) {
+					c.Mixins = append(c.Mixins, name)
+				}
+			}
+		}
+	}
+}
+
+// selfOutTags document the receiver's type after a call, most specific first.
+var selfOutTags = [...]string{
+	"phpstan-self-out", "phpstan-this-out", "psalm-self-out", "psalm-this-out", "self-out", "this-out",
+}
+
+// selfOut returns the doc type the receiver has after a call of the method
+// documented by d; class templates stay `\~T` atoms.
+func (x *extractor) selfOut(d *phpdoc.Doc, at uint32) string {
+	for _, tag := range selfOutTags {
+		if t, ok := d.Tag(tag); ok {
+			typ, _ := phpdoc.SplitType(t.Text)
+			return types.FromDoc(typ, x.genResolver(at)).DocString()
+		}
+	}
+	return ""
 }
 
 // requireTags name the requirements of a trait; superTags give generic
@@ -133,36 +170,44 @@ func (x *extractor) genReturn(d *phpdoc.Doc, at uint32) string {
 	return ""
 }
 
+// magicTagPrefixes order the variants of a magic member tag: the first to
+// declare a name wins, as in the effective @param and @return types.
+var magicTagPrefixes = [...]string{"phpstan-", "psalm-", ""}
+
 func (x *extractor) magicMembers(c *Class, d *phpdoc.Doc, at uint32) {
-	for _, tagName := range []string{"property", "property-read", "property-write"} {
-		for _, t := range d.All(tagName) {
-			typ, rest := phpdoc.SplitType(t.Text)
-			name := phpdoc.VarName(rest)
-			if name == "" {
-				continue
-			}
-			if _, exists := c.Props[name]; !exists {
-				c.Props[name] = &Property{Name: name, Class: c.FQN, DocType: x.docTypeStr(typ, at), Magic: true, Readonly: tagName == "property-read"}
+	for _, prefix := range magicTagPrefixes {
+		for _, tagName := range []string{"property", "property-read", "property-write"} {
+			for _, t := range d.All(prefix + tagName) {
+				typ, rest := phpdoc.SplitType(t.Text)
+				name := phpdoc.VarName(rest)
+				if name == "" {
+					continue
+				}
+				if _, exists := c.Props[name]; !exists {
+					c.Props[name] = &Property{Name: name, Class: c.FQN, DocType: x.docTypeStr(typ, at), Magic: true, Readonly: tagName == "property-read"}
+				}
 			}
 		}
 	}
-	for _, t := range d.All("method") {
-		sig, ok := phpdoc.ParseMethod(t.Text)
-		if !ok {
-			continue
-		}
-		key := strings.ToLower(sig.Name)
-		if _, exists := c.Methods[key]; !exists {
-			var params []Param
-			for _, p := range sig.Params {
-				params = append(params, Param{
-					Name: p.Name, DocType: x.docTypeStr(p.Type, at), Default: p.Default,
-					Optional: p.Optional, ByRef: p.ByRef, Variadic: p.Variadic,
-				})
+	for _, prefix := range magicTagPrefixes {
+		for _, t := range d.All(prefix + "method") {
+			sig, ok := phpdoc.ParseMethod(t.Text)
+			if !ok {
+				continue
 			}
-			c.Methods[key] = &Method{
-				Name: sig.Name, Class: c.FQN, Static: sig.Static,
-				DocReturn: x.docTypeStr(sig.Return, at), Params: params, Magic: true,
+			key := strings.ToLower(sig.Name)
+			if _, exists := c.Methods[key]; !exists {
+				var params []Param
+				for _, p := range sig.Params {
+					params = append(params, Param{
+						Name: p.Name, DocType: x.docTypeStr(p.Type, at), Default: p.Default,
+						Optional: p.Optional, ByRef: p.ByRef, Variadic: p.Variadic,
+					})
+				}
+				c.Methods[key] = &Method{
+					Name: sig.Name, Class: c.FQN, Static: sig.Static,
+					DocReturn: x.docTypeStr(sig.Return, at), Params: params, Magic: true,
+				}
 			}
 		}
 	}

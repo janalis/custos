@@ -17,6 +17,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   variadic (`callable(int, string=, float ...$rest): void`).
 - Object shapes (`object{a: int, b?: string}`) keep their properties instead
   of reading as a plain `object`.
+- `@phpstan-method`, `@psalm-method` and the prefixed `@property`,
+  `@property-read` and `@property-write` tags declare magic members, and win
+  over the unprefixed tag of the same name.
 
 ## [0.1.16] - 2026-11-18
 

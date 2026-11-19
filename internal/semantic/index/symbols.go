@@ -5,6 +5,7 @@ package index
 import (
 	"strings"
 
+	"custos/internal/php/phpdoc"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
@@ -126,14 +127,17 @@ type Method struct {
 	Final      bool       `json:"final,omitempty"`
 	// Attrs are the FQNs of the method's attributes, in source order (none
 	// for stubs, whose attributes describe the stub).
-	Attrs      []string  `json:"attrs,omitempty"`
-	ByRef      bool      `json:"byRef,omitempty"`
-	Params     []Param   `json:"params,omitempty"`
-	Return     string    `json:"ret,omitempty"`
-	RetVer     []VerType `json:"rv,omitempty"` // older versions' return types (see Function.RetVer)
-	DocReturn  string    `json:"dret,omitempty"`
-	Inferred   string    `json:"iret,omitempty"` // body-derived return type (see Function.Inferred)
-	CondReturn string    `json:"cret,omitempty"` // conditional return type (see Function.CondReturn)
+	Attrs     []string  `json:"attrs,omitempty"`
+	ByRef     bool      `json:"byRef,omitempty"`
+	Params    []Param   `json:"params,omitempty"`
+	Return    string    `json:"ret,omitempty"`
+	RetVer    []VerType `json:"rv,omitempty"` // older versions' return types (see Function.RetVer)
+	DocReturn string    `json:"dret,omitempty"`
+	// SelfOut is the doc type of the receiver after the call
+	// (@phpstan-self-out, @psalm-this-out…); "" when not documented.
+	SelfOut    string `json:"sout,omitempty"`
+	Inferred   string `json:"iret,omitempty"` // body-derived return type (see Function.Inferred)
+	CondReturn string `json:"cret,omitempty"` // conditional return type (see Function.CondReturn)
 	// GenReturn is the documented return type when it mentions class
 	// templates, which appear as `\~T` atoms (see Class.Templates); bound
 	// per receiver by infer. Empty otherwise.
@@ -310,6 +314,9 @@ type Class struct {
 	// phpstan- or psalm- variant): its objects document members of
 	// another class, which they usually forward through magic methods.
 	Mixin bool `json:"mixin,omitempty"`
+	// Mixins are the classes those tags name (FQNs without the leading
+	// backslash); a template or an unresolvable type names none.
+	Mixins []string `json:"mixins,omitempty"`
 	// Conditional is set for a named class-like declared inside a function,
 	// a condition, a loop or a try block rather than at the top level of
 	// its file (namespaces, declare statements and plain braces aside): it
@@ -356,6 +363,8 @@ type Template struct {
 	Name    string `json:"n"`
 	Bound   string `json:"b,omitempty"`   // doc type string; "" when unbounded
 	Default string `json:"def,omitempty"` // `= T` default, doc type string; "" when none
+	// Variance is what the declaring tag says of the template's arguments.
+	Variance phpdoc.Variance `json:"var,omitempty"`
 }
 
 // FuncTemplates describes the @template parameters declared on a function
