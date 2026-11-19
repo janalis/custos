@@ -59,7 +59,7 @@ func neverObject(t types.Type) bool {
 // isset() or empty(), or on the left of `??`, at any depth of the chain.
 func quietRead(n syntax.Node) bool {
 	child := n
-	for p := n.Parent(); p != nil; child, p = p, p.Parent() {
+	for p := n.Parent(); ; child, p = p, p.Parent() {
 		switch parent := p.(type) {
 		case *syntax.PropertyFetch, *syntax.ArrayDimFetch, *syntax.Paren:
 		case *syntax.Isset, *syntax.Empty:
@@ -70,5 +70,4 @@ func quietRead(n syntax.Node) bool {
 			return false
 		}
 	}
-	return false
 }
