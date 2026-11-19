@@ -36,3 +36,22 @@ function vivified(int $n)
     $list[] = 1;
     return $n;
 }
+
+class Rebound
+{
+    public function bind()
+    {
+        return function () {
+            return $this + 1;
+        };
+    }
+}
+
+class Plain {}
+
+function contradicted()
+{
+    /** @var Plain $amount */
+    $amount = 5;
+    return $amount + 1;
+}

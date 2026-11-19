@@ -34,3 +34,9 @@ function documented($id, $name, $row, $either, Holder $holder)
     $rate = load();
     <warning descr="Access this member on an object, not float.">$rate</warning>->value;
 }
+
+function narrowedUnion(int|Holder $value)
+{
+    /** @var int $value */
+    <warning descr="Access this member on an object, not int.">$value</warning>->run();
+}

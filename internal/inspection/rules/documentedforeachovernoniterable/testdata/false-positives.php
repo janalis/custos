@@ -44,3 +44,11 @@ function vivified()
     foreach ($list as $v) {
     }
 }
+
+function contradicted()
+{
+    /** @var string $bag */
+    $bag = new Bag();
+    foreach ($bag as $v) {
+    }
+}

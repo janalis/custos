@@ -27,9 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ctx.PHP.AtLeast(phpversion.PHP80) {
 		return
 	}
-	for _, m := range semanticquery.InvalidOperands(ctx, n) {
-		if !m.Proven {
-			ctx.ReportNode(m.Operand, m.Message())
-		}
+	for _, m := range semanticquery.InvalidOperands(ctx, n, true) {
+		ctx.ReportNode(m.Operand, m.Message())
 	}
 }

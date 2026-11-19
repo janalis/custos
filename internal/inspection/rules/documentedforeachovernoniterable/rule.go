@@ -24,7 +24,7 @@ func (rule) Semantic() {}
 // ForeachOverNonIterable's).
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	loop := n.(*syntax.Foreach)
-	if j, ok := semanticquery.NonIterableSubject(ctx, loop); ok && !j.Proven {
-		ctx.ReportNode(loop.Expr, "Iterate over an array or an object, not "+j.Type.String()+".")
+	if t, ok := semanticquery.NonIterableSubject(ctx, loop, true); ok {
+		ctx.ReportNode(loop.Expr, "Iterate over an array or an object, not "+t.String()+".")
 	}
 }

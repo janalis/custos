@@ -10,62 +10,70 @@ import (
 
 // Value checks shared by a rule that judges proven types and its twin that
 // judges PHPDoc-aware ones: member access on a non-object, foreach over a
-// non-iterable, and operands of arithmetic.
+// non-iterable, and operands of arithmetic. Each check takes the view it
+// judges. The documented view reports only what the proven view does not,
+// and only where the PHPDoc-aware type does not contradict a known proven
+// type (a tag the code disproves is stale, not a contract the value breaks)
+// and the value is not `$this` in a closure, which may be rebound.
 
-// Judged is a value type a check rejects, and whether native declarations
-// alone give it (see infer.Env.ProvenTypeOf).
-type Judged struct {
-	Type   types.Type
-	Proven bool
-}
-
-// documentedType returns the PHPDoc-aware type of x, or its proven type
-// where an array follows a write into an offset of false (see vivified).
-func documentedType(ctx *analysis.Context, x syntax.Expr) types.Type {
-	if proven := ctx.Types().ProvenTypeOf(x); vivified(ctx, x, proven) {
+// documentedType returns the PHPDoc-aware type of x, of proven type proven,
+// or its proven type where an array follows a write into an offset of false
+// (see vivified).
+func documentedType(ctx *analysis.Context, x syntax.Expr, proven types.Type) types.Type {
+	if vivified(ctx, x, proven) {
 		return proven
 	}
 	return ctx.TypeOf(x)
 }
 
-// judge returns the type of x reject turns into a reported one, judging the
-// proven type first and the PHPDoc-aware one next.
-func judge(ctx *analysis.Context, x syntax.Expr, reject func(types.Type) (types.Type, bool)) (Judged, bool) {
-	if t, ok := reject(ctx.Types().ProvenTypeOf(x)); ok {
-		return Judged{Type: t, Proven: true}, true
+// documentedTrusted reports whether the PHPDoc-aware type given of x may
+// stand for its value: x is not `$this` in a closure, and given does not
+// contradict proven, its known proven type.
+func documentedTrusted(ctx *analysis.Context, x syntax.Expr, proven, given types.Type) bool {
+	if reboundThis(x) {
+		return false
 	}
-	if t, ok := reject(documentedType(ctx, x)); ok {
-		return Judged{Type: t}, true
+	return proven.IsUnknown() || types.Accepts(proven, given, fileTypeCheck(ctx).strict) != types.No
+}
+
+// judge returns the type of x reject turns into a reported one in the view
+// documented selects (see the value checks above).
+func judge(ctx *analysis.Context, x syntax.Expr, documented bool, reject func(types.Type) (types.Type, bool)) (types.Type, bool) {
+	proven := ctx.Types().ProvenTypeOf(x)
+	if t, ok := reject(proven); ok || !documented {
+		return t, ok && !documented
 	}
-	return Judged{}, false
+	given := documentedType(ctx, x, proven)
+	t, ok := reject(given)
+	return t, ok && documentedTrusted(ctx, x, proven, given)
 }
 
 // NonObjectReceiver returns the receiver of property fetch or method call n
-// and its type without null when that type holds only scalars and arrays.
-// A receiver that can only be null is left to PossiblyNullAccess, and a
-// property read PHP evaluates quietly is skipped. n must be one of those
-// two kinds.
-func NonObjectReceiver(ctx *analysis.Context, n syntax.Node) (syntax.Expr, Judged, bool) {
+// and its type without null when, in the view documented selects, that
+// type holds only scalars and arrays. A receiver that can only be null is
+// left to PossiblyNullAccess, and a property read PHP evaluates quietly is
+// skipped. n must be one of those two kinds.
+func NonObjectReceiver(ctx *analysis.Context, n syntax.Node, documented bool) (syntax.Expr, types.Type, bool) {
 	var receiver syntax.Expr
 	if fetch, ok := n.(*syntax.PropertyFetch); ok {
-		if quietRead(fetch) {
-			return nil, Judged{}, false
+		if quietFetch(fetch, false) {
+			return nil, types.Unknown, false
 		}
 		receiver = fetch.Var
 	} else {
 		receiver = n.(*syntax.MethodCall).Var
 	}
-	j, ok := judge(ctx, receiver, func(t types.Type) (types.Type, bool) {
+	t, ok := judge(ctx, receiver, documented, func(t types.Type) (types.Type, bool) {
 		t = t.Without("null")
 		return t, !t.IsUnknown() && scalarsOr(t, types.IsArrayAtom)
 	})
-	return receiver, j, ok
+	return receiver, t, ok
 }
 
-// NonIterableSubject returns the subject of foreach n and its type when that
-// type holds only scalars and null.
-func NonIterableSubject(ctx *analysis.Context, n *syntax.Foreach) (Judged, bool) {
-	return judge(ctx, n.Expr, func(t types.Type) (types.Type, bool) {
+// NonIterableSubject returns the type of the subject of foreach n when, in
+// the view documented selects, it holds only scalars and null.
+func NonIterableSubject(ctx *analysis.Context, n *syntax.Foreach, documented bool) (types.Type, bool) {
+	return judge(ctx, n.Expr, documented, func(t types.Type) (types.Type, bool) {
 		return t, !t.IsUnknown() && scalarsOr(t, func(a string) bool { return a == "null" })
 	})
 }
@@ -85,35 +93,10 @@ func scalarsOr(t types.Type, also func(string) bool) bool {
 	return true
 }
 
-// quietRead reports a property read PHP evaluates without complaint: the
-// base of a chain inside isset() or empty(), or on the left of `??`.
-func quietRead(n syntax.Node) bool {
-	child := n
-	for p := n.Parent(); ; child, p = p, p.Parent() {
-		switch parent := p.(type) {
-		case *syntax.Paren:
-		case *syntax.PropertyFetch:
-			if parent.Var != child {
-				return false // a dynamic name is read as usual
-			}
-		case *syntax.ArrayDimFetch:
-			if parent.Var != child {
-				return false // an index is read as usual
-			}
-		case *syntax.Isset, *syntax.Empty:
-			return true
-		case *syntax.Binary:
-			return parent.Op.Kind == syntax.TCoalesce && parent.Left == child
-		default:
-			return false
-		}
-	}
-}
-
 // OperandMismatch is an operand of arithmetic that cannot take part in it.
 type OperandMismatch struct {
 	Operand syntax.Expr
-	Judged
+	Type    types.Type
 }
 
 // Message is the report text of m.
@@ -130,11 +113,20 @@ func (m OperandMismatch) Message() string {
 var overloading = [...]string{"gmp", `bcmath\number`, `ffi\cdata`, "simplexmlelement"}
 
 // InvalidOperands returns the operands of arithmetic or bitwise operation n
-// (or its compound assignment) that are only arrays (except both sides of
-// an array `+`) or only objects of plain, fully known classes. PHP throws a
-// TypeError on them from 8.0; the caller gates the version. n must be a
-// binary operation or an assignment.
-func InvalidOperands(ctx *analysis.Context, n syntax.Node) []OperandMismatch {
+// (or its compound assignment) that, in the view documented selects, are
+// only arrays (except both sides of an array `+`) or only objects of plain,
+// fully known classes. PHP throws a TypeError on them from 8.0; the caller
+// gates the version. n must be a binary operation or an assignment.
+func InvalidOperands(ctx *analysis.Context, n syntax.Node, documented bool) []OperandMismatch {
+	return ctx.Shared(operandsKey{n, documented}, func() any { return invalidOperands(ctx, n, documented) }).([]OperandMismatch)
+}
+
+type operandsKey struct {
+	n          syntax.Node
+	documented bool
+}
+
+func invalidOperands(ctx *analysis.Context, n syntax.Node, documented bool) []OperandMismatch {
 	var left, right syntax.Expr
 	var plus bool
 	if op, ok := n.(*syntax.Binary); ok {
@@ -149,35 +141,49 @@ func InvalidOperands(ctx *analysis.Context, n syntax.Node) []OperandMismatch {
 		}
 		left, right, plus = op.Var, op.Value, op.Op.Kind == syntax.TPlusEqual
 	}
+	var proven []OperandMismatch
+	if documented {
+		proven = InvalidOperands(ctx, n, false)
+	}
 	var out []OperandMismatch
 	for _, pair := range [2][2]syntax.Expr{{left, right}, {right, left}} {
-		if j, ok := operandMismatch(ctx, pair[0], pair[1], plus); ok {
-			out = append(out, OperandMismatch{Operand: pair[0], Judged: j})
+		operand, other := pair[0], pair[1]
+		if !documented {
+			if t := ctx.Types().ProvenTypeOf(operand); badOperand(ctx, t, func() types.Type { return ctx.Types().ProvenTypeOf(other) }, plus) {
+				out = append(out, OperandMismatch{Operand: operand, Type: t})
+			}
+			continue
+		}
+		if reported(proven, operand) {
+			continue
+		}
+		otherType := func() types.Type { return documentedType(ctx, other, ctx.Types().ProvenTypeOf(other)) }
+		t := ctx.Types().ProvenTypeOf(operand)
+		if given := documentedType(ctx, operand, t); badOperand(ctx, given, otherType, plus) && documentedTrusted(ctx, operand, t, given) {
+			out = append(out, OperandMismatch{Operand: operand, Type: given})
 		}
 	}
 	return out
 }
 
-// operandMismatch judges operand against other, both in the proven view
-// first and both in the PHPDoc-aware view next.
-func operandMismatch(ctx *analysis.Context, operand, other syntax.Expr, plus bool) (Judged, bool) {
-	if t := ctx.Types().ProvenTypeOf(operand); badOperand(ctx, t, ctx.Types().ProvenTypeOf(other), plus) {
-		return Judged{Type: t, Proven: true}, true
+// reported reports whether operand is among ms.
+func reported(ms []OperandMismatch, operand syntax.Expr) bool {
+	for _, m := range ms {
+		if m.Operand == operand {
+			return true
+		}
 	}
-	if t := documentedType(ctx, operand); badOperand(ctx, t, documentedType(ctx, other), plus) {
-		return Judged{Type: t}, true
-	}
-	return Judged{}, false
+	return false
 }
 
 // badOperand reports an operand of type t that cannot take part in the
-// operation with an operand of type other.
-func badOperand(ctx *analysis.Context, t, other types.Type, plus bool) bool {
+// operation with the other operand, whose type other gives.
+func badOperand(ctx *analysis.Context, t types.Type, other func() types.Type, plus bool) bool {
 	switch {
 	case t.IsUnknown():
 		return false
 	case onlyArrays(t):
-		return !plus || !mayBeArray(other)
+		return !plus || !mayBeArray(other())
 	default:
 		return onlyPlainObjects(ctx, t)
 	}

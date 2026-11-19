@@ -216,3 +216,15 @@ class Cart
         echo Item::class;
     }
 }
+
+class Customer
+{
+    public ?Customer $referrer = null;
+    public string $name = '';
+}
+
+function parenthesizedQuietReads(?Customer $customer)
+{
+    $a = ($customer->referrer) ?? null;
+    $b = isset(($customer->referrer)->name);
+}

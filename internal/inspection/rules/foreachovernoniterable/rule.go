@@ -22,7 +22,7 @@ func (rule) Semantic() {}
 // Check reports the subject of a loop when native declarations prove it holds only scalars or null.
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	loop := n.(*syntax.Foreach)
-	if j, ok := semanticquery.NonIterableSubject(ctx, loop); ok && j.Proven {
-		ctx.ReportNode(loop.Expr, "Iterate over an array or an object, not "+j.Type.String()+".")
+	if t, ok := semanticquery.NonIterableSubject(ctx, loop, false); ok {
+		ctx.ReportNode(loop.Expr, "Iterate over an array or an object, not "+t.String()+".")
 	}
 }

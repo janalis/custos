@@ -79,7 +79,7 @@ func nullAccessOf(ctx *analysis.Context, n syntax.Node) (NullAccess, bool) {
 	var recv syntax.Expr
 	switch a := n.(type) {
 	case *syntax.PropertyFetch:
-		if a.NullSafe || quietFetch(a) {
+		if a.NullSafe || quietFetch(a, true) {
 			return NullAccess{}, false
 		}
 		recv = a.Var
@@ -93,12 +93,12 @@ func nullAccessOf(ctx *analysis.Context, n syntax.Node) (NullAccess, bool) {
 	case *syntax.ClassConstFetch:
 		recv = a.Class
 	case *syntax.StaticPropertyFetch:
-		if quietFetch(a) {
+		if quietFetch(a, true) {
 			return NullAccess{}, false
 		}
 		recv = a.Class
 	case *syntax.ArrayDimFetch:
-		if ctx.PHP.Below(phpversion.PHP74) || a.Dim == nil || quietFetch(a) || elementWrite(ctx, a) {
+		if ctx.PHP.Below(phpversion.PHP74) || a.Dim == nil || quietFetch(a, true) || elementWrite(ctx, a) {
 			return NullAccess{}, false
 		}
 		recv = a.Var
@@ -294,7 +294,8 @@ func inNullsafeChain(x syntax.Expr) bool {
 }
 
 // fetchTop climbs from fetch x through the property and element fetches
-// it is the base of (`$x->a['k']->b`): a method call ends the climb.
+// it is the base of (`$x->a['k']->b`), and through parentheses: a method
+// call ends the climb.
 func fetchTop(x syntax.Expr) syntax.Expr {
 	for {
 		switch p := x.Parent().(type) {
@@ -308,6 +309,8 @@ func fetchTop(x syntax.Expr) syntax.Expr {
 				return x
 			}
 			x = p
+		case *syntax.Paren:
+			x = p
 		default:
 			return x
 		}
@@ -315,8 +318,9 @@ func fetchTop(x syntax.Expr) syntax.Expr {
 }
 
 // quietFetch reports whether fetch x is read where null raises nothing:
-// inside isset() or empty(), or on the left of `??` or `??=`.
-func quietFetch(x syntax.Expr) bool {
+// inside isset() or empty(), on the left of `??`, or, when coalesceAssign
+// is set, on the left of `??=` (which writes the fetch where it is null).
+func quietFetch(x syntax.Expr, coalesceAssign bool) bool {
 	top := fetchTop(x)
 	switch p := top.Parent().(type) {
 	case *syntax.Isset:
@@ -326,7 +330,7 @@ func quietFetch(x syntax.Expr) bool {
 	case *syntax.Binary:
 		return p.Left == top && p.Op.Kind == syntax.TCoalesce
 	case *syntax.Assign:
-		return p.Var == top && p.Op.Kind == syntax.TCoalesceEqual
+		return coalesceAssign && p.Var == top && p.Op.Kind == syntax.TCoalesceEqual
 	}
 	return false
 }

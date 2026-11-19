@@ -61,3 +61,21 @@ function staleTag(?object $flag)
 {
     $flag->run();
 }
+
+function contradicted()
+{
+    $made = new Box();
+    /** @var int $made */
+    $made->run();
+}
+
+class Rebound
+{
+    public function bind()
+    {
+        return function () {
+            /** @var int $this */
+            return $this->run();
+        };
+    }
+}

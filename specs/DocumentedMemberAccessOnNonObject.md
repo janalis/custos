@@ -31,6 +31,11 @@ never objects are MemberAccessOnNonObject's.
 - E3. A receiver that can only be null, which PossiblyNullAccess covers.
 - E4. A property read inside `isset()`, `empty()` or on the left of `??`,
   which PHP evaluates without complaint.
+- E5. A receiver whose PHPDoc type the code contradicts: when the code
+  alone gives the receiver a type that no value of the PHPDoc type fits
+  (`/** @var int $x */` over `$x = new Order()`), the tag is stale.
+- E6. `$this` inside a closure or an arrow function, which may be bound
+  to an object of another class.
 
 ## Report
 

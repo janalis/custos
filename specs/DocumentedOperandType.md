@@ -33,6 +33,11 @@ InvalidOperandType's.
 - E3. An operand that may also be null, a scalar or an unresolved class.
 - E4. An object of a class that takes part in arithmetic: `GMP`,
   `BcMath\Number`, `FFI\CData`, `SimpleXMLElement` and their subclasses.
+- E5. An operand whose PHPDoc type the code contradicts: when the code
+  alone gives the operand a type that no value of the PHPDoc type fits
+  (`/** @var int $x */` over `$x = new Order()`), the tag is stale.
+- E6. `$this` inside a closure or an arrow function, which may be bound
+  to an object of another class.
 
 ## Report
 

@@ -17,3 +17,8 @@ function plainBinary(int $id)
 {
     return <error descr="Access this member on an object, not int.">$id</error>->value + 1;
 }
+
+function coalesceAssign(int $id)
+{
+    <error descr="Access this member on an object, not int.">$id</error>->value ??= 1;
+}

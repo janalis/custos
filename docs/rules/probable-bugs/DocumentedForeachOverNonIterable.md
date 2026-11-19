@@ -45,6 +45,11 @@ Reported:
 - Subjects ForeachOverNonIterable reports.
 - A subject of unknown type, or one that may be an array, an object,
   `iterable`, `callable` or `mixed`.
+- A subject whose PHPDoc type the code contradicts: when the code
+  alone gives the subject a type that no value of the PHPDoc type fits
+  (`/** @var int $x */` over `$x = new Order()`), the tag is stale.
+- `$this` inside a closure or an arrow function, which may be bound
+  to an object of another class.
 
 ## Fix
 

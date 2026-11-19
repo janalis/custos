@@ -50,6 +50,11 @@ Reported:
 - An operand that may also be null, a scalar or an unresolved class.
 - An object of a class that takes part in arithmetic: `GMP`,
   `BcMath\Number`, `FFI\CData`, `SimpleXMLElement` and their subclasses.
+- An operand whose PHPDoc type the code contradicts: when the code
+  alone gives the operand a type that no value of the PHPDoc type fits
+  (`/** @var int $x */` over `$x = new Order()`), the tag is stale.
+- `$this` inside a closure or an arrow function, which may be bound
+  to an object of another class.
 
 ## Fix
 

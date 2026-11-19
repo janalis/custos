@@ -21,9 +21,10 @@ func (rule) Kinds() []syntax.NodeKind {
 
 func (rule) Semantic() {}
 
-// Check reports the receiver of a member access when native declarations prove it is never an object.
+// Check reports the receiver of a member access when native declarations
+// prove it is never an object.
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if receiver, j, ok := semanticquery.NonObjectReceiver(ctx, n); ok && j.Proven {
-		ctx.ReportNode(receiver, "Access this member on an object, not "+j.Type.String()+".")
+	if receiver, t, ok := semanticquery.NonObjectReceiver(ctx, n, false); ok {
+		ctx.ReportNode(receiver, "Access this member on an object, not "+t.String()+".")
 	}
 }

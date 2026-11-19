@@ -48,6 +48,11 @@ Reported:
 - A receiver that can only be null, which PossiblyNullAccess covers.
 - A property read inside `isset()`, `empty()` or on the left of `??`,
   which PHP evaluates without complaint.
+- A receiver whose PHPDoc type the code contradicts: when the code
+  alone gives the receiver a type that no value of the PHPDoc type fits
+  (`/** @var int $x */` over `$x = new Order()`), the tag is stale.
+- `$this` inside a closure or an arrow function, which may be bound
+  to an object of another class.
 
 ## Fix
 

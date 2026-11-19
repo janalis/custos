@@ -27,6 +27,11 @@ iterable are ForeachOverNonIterable's.
 - E1. Subjects ForeachOverNonIterable reports.
 - E2. A subject of unknown type, or one that may be an array, an object,
   `iterable`, `callable` or `mixed`.
+- E3. A subject whose PHPDoc type the code contradicts: when the code
+  alone gives the subject a type that no value of the PHPDoc type fits
+  (`/** @var int $x */` over `$x = new Order()`), the tag is stale.
+- E4. `$this` inside a closure or an arrow function, which may be bound
+  to an object of another class.
 
 ## Report
 

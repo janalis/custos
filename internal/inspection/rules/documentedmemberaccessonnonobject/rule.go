@@ -25,7 +25,7 @@ func (rule) Semantic() {}
 // show it is never an object and native declarations alone do not (those
 // are MemberAccessOnNonObject's).
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if receiver, j, ok := semanticquery.NonObjectReceiver(ctx, n); ok && !j.Proven {
-		ctx.ReportNode(receiver, "Access this member on an object, not "+j.Type.String()+".")
+	if receiver, t, ok := semanticquery.NonObjectReceiver(ctx, n, true); ok {
+		ctx.ReportNode(receiver, "Access this member on an object, not "+t.String()+".")
 	}
 }

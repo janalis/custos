@@ -13,6 +13,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   PHPDoc shows the mistake but native declarations alone do not. They are
   off by default and part of the `typeCheck: documented` level.
 
+### Fixed
+
+- PossiblyNullAccess no longer reports a fetch in parentheses that PHP
+  reads quietly, such as `($order->customer) ?? null` or
+  `isset(($order->customer)->name)`.
+
 ## [0.2.0] - 2026-11-19
 
 ### Added
