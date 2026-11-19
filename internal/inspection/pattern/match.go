@@ -3,6 +3,7 @@ package pattern
 import (
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/inspection/astquery"
@@ -171,35 +172,102 @@ func (m *matcher) match(p, t syntax.Node, role nameRole, foldIdent bool) bool {
 }
 
 // fields matches the exported fields of two nodes of the same type.
+// Fields holding a metavariable are matched last: the other fields reject
+// most candidates without binding anything.
 func (m *matcher) fields(pv, tv reflect.Value) bool {
-	typ := pv.Type()
+	plan := planOf(pv.Type())
+	deferred := false
+	for _, f := range plan {
+		if metaVarField(pv.Field(f.index)) {
+			deferred = true
+			continue
+		}
+		if !m.field(pv, tv, f) {
+			return false
+		}
+	}
+	for i := 0; deferred && i < len(plan); i++ {
+		if metaVarField(pv.Field(plan[i].index)) && !m.field(pv, tv, plan[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// fieldKind is how a field of a node compares.
+type fieldKind uint8
+
+const (
+	compareValue     fieldKind = iota // nodes, lists, tokens and plain values
+	compareStmts                      // a statement list, with wildcards
+	compareModifiers                  // modifiers, in any order
+	compareUses                       // a closure's use list, any when the pattern has none
+)
+
+// fieldPlan is one compared field of a node type.
+type fieldPlan struct {
+	index int
+	kind  fieldKind
+	role  nameRole
+	fold  bool
+}
+
+// plans caches the fields each node type compares (reflection on types is
+// slow, and every match walks them).
+var plans sync.Map // reflect.Type -> []fieldPlan
+
+// planOf returns the compared fields of node type typ.
+func planOf(typ reflect.Type) []fieldPlan {
+	if p, ok := plans.Load(typ); ok {
+		return p.([]fieldPlan)
+	}
+	var plan []fieldPlan
 	for i := range typ.NumField() {
 		f := typ.Field(i)
 		if f.Anonymous || !f.IsExported() || f.Type == spanType || spelling(typ.Name(), f.Name) {
 			continue
 		}
-		if typ.Name() == "Closure" && f.Name == "Uses" && pv.Field(i).Len() == 0 {
-			continue // a closure written without `use` stands for any
+		fp := fieldPlan{index: i}
+		switch {
+		case typ.Name() == "Closure" && f.Name == "Uses":
+			fp.kind = compareUses
+		case f.Type == stmtsType:
+			fp.kind = compareStmts
+		case f.Type == modifiersType:
+			fp.kind = compareModifiers
 		}
-		if f.Type == stmtsType {
-			if _, ok := m.stmts(pv.Field(i).Interface().([]syntax.Stmt), tv.Field(i).Interface().([]syntax.Stmt), false); !ok {
-				return false
-			}
-			continue
-		}
-		if f.Type == modifiersType {
-			// `public static` and `static public` are the same.
-			if !sameModifiers(pv.Field(i).Interface().(syntax.Modifiers), tv.Field(i).Interface().(syntax.Modifiers)) {
-				return false
-			}
-			continue
-		}
-		role, fold := fieldRole(typ.Name(), f.Name)
-		if !m.value(pv.Field(i), tv.Field(i), role, fold) {
-			return false
-		}
+		fp.role, fp.fold = fieldRole(typ.Name(), f.Name)
+		plan = append(plan, fp)
 	}
-	return true
+	plans.Store(typ, plan)
+	return plan
+}
+
+// field matches one field of two nodes of the same type.
+func (m *matcher) field(pv, tv reflect.Value, f fieldPlan) bool {
+	p, t := pv.Field(f.index), tv.Field(f.index)
+	switch f.kind {
+	case compareUses:
+		if p.Len() == 0 {
+			return true // a closure written without `use` stands for any
+		}
+	case compareStmts:
+		_, ok := m.stmts(p.Interface().([]syntax.Stmt), t.Interface().([]syntax.Stmt), false)
+		return ok
+	case compareModifiers:
+		// `public static` and `static public` are the same.
+		return sameModifiers(p.Interface().(syntax.Modifiers), t.Interface().(syntax.Modifiers))
+	}
+	return m.value(p, t, f.role, f.fold)
+}
+
+// metaVarField reports a field holding a metavariable.
+func metaVarField(v reflect.Value) bool {
+	if v.Kind() != reflect.Interface && v.Kind() != reflect.Pointer || v.IsNil() {
+		return false
+	}
+	n, ok := v.Interface().(syntax.Node)
+	return ok && metaVarName(n) != ""
 }
 
 // spelling reports fields that tell only how equivalent code is written:
