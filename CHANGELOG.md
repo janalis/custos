@@ -28,7 +28,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Builtin parameters whose type depends on the PHP version are checked
   against the type of the configured version.
 - The `Documented*` type rules compare generic arguments by the variance of
-  each template: `Box<string>` is reported where `Box<int>` is documented.
+  each template, through `@extends` and `@implements` too: `Box<string>` is
+  reported where `Box<int>` is documented.
 - The `Documented*` type rules compare array and object shapes: a missing
   required key, a key the sealed shape does not list, or a value of another
   type is reported.

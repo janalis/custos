@@ -1,6 +1,7 @@
 package semanticquery
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -38,22 +39,150 @@ func acceptContext(ctx *analysis.Context, internal bool) types.AcceptContext {
 }
 
 // declaredTypeArgs returns given, the type of value x, keeping the generic
-// arguments of its classes only when x is a parameter nothing has written:
-// those are the ones its declaration states. Elsewhere inference may have
-// filled them from a template's bound, which says what they could be and
-// not what they are, so they cannot prove a mismatch.
+// arguments of its classes only when a declaration states them for x. Elsewhere
+// inference may have filled them from a template's bound, which says what they
+// could be and not what they are, so they cannot prove a mismatch.
 func declaredTypeArgs(ctx *analysis.Context, x syntax.Expr, given types.Type) types.Type {
-	if variable, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok {
-		scope := syntax.EnclosingVariableScope(x)
-		params, _ := astquery.ScopeParts(scope)
-		for _, p := range params {
-			if p.Var != nil && p.Var.Name == variable.Name &&
-				nativeContractScope(ctx, scope).localWrites(ctx, scope).untouched(variable.Name, x.Span().Start) {
-				return given
-			}
-		}
+	if typeArgsDeclared(ctx, x, 0) {
+		return given
 	}
 	return given.WithoutClassTypeArgs()
+}
+
+// maxTypeArgSources bounds the assignments followed back from one value.
+const maxTypeArgSources = 4
+
+// typeArgsDeclared reports a value whose generic arguments come from a
+// declaration: a parameter nothing has written, a property of $this, a call
+// of a function or method whose documented return mentions no template, or a
+// local whose only assignment is one of those.
+func typeArgsDeclared(ctx *analysis.Context, x syntax.Expr, depth int) bool {
+	switch n := syntax.UnwrapParens(x).(type) {
+	case *syntax.Variable:
+		return localTypeArgsDeclared(ctx, n, depth)
+	case *syntax.PropertyFetch:
+		return ownPropertyTypeArgs(ctx, n)
+	case *syntax.FuncCall:
+		f := ctx.Types().ResolveFunction(n)
+		return f != nil && f.Tpl == nil && plainDocReturn(f.DocReturn)
+	case *syntax.MethodCall:
+		id, named := n.Name.(*syntax.Identifier)
+		classes := ctx.TypeOf(n.Var).Classes()
+		if !named || len(classes) == 0 {
+			return false
+		}
+		for _, class := range classes {
+			if !plainMethodReturn(ctx.Index().FindMethod(strings.TrimPrefix(class, `\`), id.Value, ctx.PHP)) {
+				return false
+			}
+		}
+		return true
+	case *syntax.StaticCall:
+		id, named := n.Name.(*syntax.Identifier)
+		name, written := n.Class.(*syntax.Name)
+		if !named || !written {
+			return false
+		}
+		class := StaticCallClass(ctx, name)
+		return class != "" && plainMethodReturn(ctx.Index().FindMethod(class, id.Value, ctx.PHP))
+	}
+	return false
+}
+
+// localTypeArgsDeclared is typeArgsDeclared for a local variable.
+func localTypeArgsDeclared(ctx *analysis.Context, v *syntax.Variable, depth int) bool {
+	scope := syntax.EnclosingVariableScope(v)
+	params, _ := astquery.ScopeParts(scope)
+	untouched := nativeContractScope(ctx, scope).localWrites(ctx, scope).untouched(v.Name, v.Span().Start)
+	for _, p := range params {
+		if p.Var != nil && p.Var.Name == v.Name && untouched {
+			return true
+		}
+	}
+	origins, single := ctx.Flow().Reaching(v)
+	return single && depth < maxTypeArgSources && typeArgsDeclared(ctx, origins[0].Expr, depth+1)
+}
+
+// ownPropertyTypeArgs reports a property of $this documented without templates.
+func ownPropertyTypeArgs(ctx *analysis.Context, n *syntax.PropertyFetch) bool {
+	this, isVar := n.Var.(*syntax.Variable)
+	id, named := n.Name.(*syntax.Identifier)
+	class := syntax.EnclosingClass(n)
+	if !isVar || this.Name != "this" || !named || class == nil {
+		return false
+	}
+	p := ctx.Index().FindProperty(strings.TrimPrefix(ctx.Types().ClassFQN(class), `\`), id.Value, ctx.PHP)
+	return p != nil && plainDocReturn(p.DocType)
+}
+
+// plainMethodReturn reports a method whose documented return mentions no
+// template of its own or of its class.
+func plainMethodReturn(m *index.Method) bool {
+	return m != nil && m.Tpl == nil && m.GenReturn == "" && plainDocReturn(m.DocReturn)
+}
+
+// plainDocReturn reports a documented type that mentions no template.
+func plainDocReturn(doc string) bool {
+	return doc != "" && !strings.Contains(doc, `\~`)
+}
+
+// maxTypeArgClasses bounds the classes one walk up a hierarchy visits.
+const maxTypeArgClasses = 64
+
+// TypeArgsAs returns the generic arguments class a, instantiated with args,
+// gives its ancestor through @extends, @implements and @use tags; nil when it
+// gives none. A template of a that args does not bind reads as mixed.
+func (r *indexRelations) TypeArgsAs(a string, args []types.Type, ancestor string) []types.Type {
+	seen := map[string]bool{}
+	var walk func(fqn string, args []types.Type) []types.Type
+	walk = func(fqn string, args []types.Type) []types.Type {
+		k := strings.ToLower(strings.TrimPrefix(fqn, `\`))
+		if strings.EqualFold(k, strings.TrimPrefix(ancestor, `\`)) {
+			return args
+		}
+		c := r.class(fqn)
+		if c == nil || seen[k] || len(seen) >= maxTypeArgClasses {
+			return nil
+		}
+		seen[k] = true
+		for _, s := range c.Supers {
+			given := make([]types.Type, len(s.Args))
+			for i, text := range s.Args {
+				given[i] = types.FromDoc(text, boundTemplates(c, args))
+			}
+			if found := walk(s.Class, given); found != nil {
+				return found
+			}
+		}
+		for _, next := range slices.Concat([]string{c.Parent}, c.Interfaces, c.Traits) {
+			if next == "" {
+				continue
+			}
+			if found := walk(next, nil); found != nil {
+				return found
+			}
+		}
+		return nil
+	}
+	return walk(a, args)
+}
+
+// boundTemplates resolves the templates of c in a doc type to args, by
+// position; a template without an argument reads as mixed.
+func boundTemplates(c *index.Class, args []types.Type) types.Resolver {
+	return func(written string) string {
+		name := strings.TrimPrefix(written, `\`)
+		template, isTemplate := strings.CutPrefix(name, "~")
+		if !isTemplate {
+			return name
+		}
+		for i, tp := range c.Templates {
+			if tp.Name == template && i < len(args) && !args[i].IsUnknown() {
+				return "=" + args[i].DocString()
+			}
+		}
+		return ""
+	}
 }
 
 // docConstants resolves the class constants a doc type names to their values.

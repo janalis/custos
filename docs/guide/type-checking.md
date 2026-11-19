@@ -76,7 +76,7 @@ tag that already has a shape keeps priority over the attribute.
 
 | Comparison | Reported when |
 |---|---|
-| Generic arguments | An argument has nothing in common with the expected one, following the template's declared variance. Arguments are trusted on parameters that the function does not reassign. |
+| Generic arguments | An argument has nothing in common with the expected one, following the template's declared variance, including through `@extends` and `@implements`. Arguments count when a declaration states them: an unmodified parameter, a property of `$this`, or a function or method whose documented return mentions no template. |
 | Array shapes | A required key is missing, a required key's value has another type, or a sealed shape does not list a required key. |
 | Object shapes | A property required on both sides has another type. |
 | Callables | The return type or a parameter type has nothing in common, or the callable requires more arguments than it receives. |
@@ -92,6 +92,5 @@ tag that already has a shape keeps priority over the attribute.
   to a property.
 - A closure is compared by its written signature: what its body was inferred
   to return is not checked against a callable type.
-- Generic arguments are not mapped from a subclass to its parent's templates.
 - Extra arguments to project functions are reported only with the
   `strictUserArgs` option of `ArgumentCountMismatch`.

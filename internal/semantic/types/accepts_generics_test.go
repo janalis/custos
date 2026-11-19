@@ -33,8 +33,10 @@ func TestAcceptsGenericArguments(t *testing.T) {
 		{`\A<\~T>`, `\A<string>`, Yes},
 		{`\A<int>`, `\A<\~T>`, Yes},
 		{`\A<\Missing>`, `\A<string>`, Yes},
-		// A subclass is not mapped onto its parent's templates.
-		{`\A<int>`, `\B<string>`, Yes},
+		// A subclass's arguments are mapped onto its parent's templates.
+		{`\A<int>`, `\B<string>`, No},
+		{`\A<int>`, `\B<int>`, Yes},
+		{`\A<int>`, `\B`, Yes},
 	} {
 		if got := Accepts(FromDoc(c.expected, nil), FromDoc(c.actual, nil), ctx); got != c.want {
 			t.Errorf("Accepts(%s, %s) = %v, want %v", c.expected, c.actual, got, c.want)

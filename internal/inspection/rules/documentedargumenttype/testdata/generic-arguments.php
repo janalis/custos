@@ -55,12 +55,106 @@ function fits(Box $box, Box $wide, Box $raw, Box $extra, $missing)
 /** @return Box<string> */
 function makeBox() {}
 
-/** @param Box<string> $box */
-function notTheDeclaredArguments(Box $box)
+/**
+ * @template T
+ * @param T $value
+ * @return Box<T>
+ */
+function boxOf($value) {}
+
+/** @extends Box<string> */
+class StringBox extends Box {}
+
+class DeepStringBox extends StringBox {}
+
+/**
+ * @template U
+ * @extends Box<U>
+ */
+class Wrapper extends Box {}
+
+/** @implements Iterator<int, string> */
+abstract class Lines implements Iterator {}
+
+class Factory
 {
-    takesBox(makeBox());
+    /** @var Box<string> */
+    public $stored;
+
+    /** @return Box<string> */
+    public function make() {}
+
+    /** @return Box<string> */
+    public static function build() {}
+
+    public function run()
+    {
+        takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">$this->stored</warning>);
+        takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">$this->make()</warning>);
+        takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">self::build()</warning>);
+    }
+}
+
+/**
+ * @template T
+ */
+class Holder
+{
+    /** @var Box<T> */
+    public $held;
+
+    /** @return Box<T> */
+    public function get() {}
+
+    public function run()
+    {
+        takesBox($this->held);
+        takesBox($this->get());
+    }
+}
+
+function declaredSources(Factory $factory)
+{
+    takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">makeBox()</warning>);
+    takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">$factory->make()</warning>);
+    takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">Factory::build()</warning>);
     $local = makeBox();
-    takesBox($local);
-    $box = makeBox();
-    takesBox($box);
+    takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">$local</warning>);
+    $again = $local;
+    takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Box<string>.">$again</warning>);
+}
+
+/**
+ * @param StringBox $sub
+ * @param DeepStringBox $deep
+ * @param Wrapper<string> $wrapped
+ * @param Wrapper $raw
+ */
+function subclasses(StringBox $sub, DeepStringBox $deep, Wrapper $wrapped, Wrapper $raw)
+{
+    takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not StringBox.">$sub</warning>);
+    takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not DeepStringBox.">$deep</warning>);
+    takesBox(<warning descr="Pass Box<int> to $box of takesBox(), not Wrapper<string>.">$wrapped</warning>);
+    takesBox($raw);
+}
+
+/** @param Box<int> $box */
+function notDeclared(bool $flag, Factory $factory, Box $box, $unknown)
+{
+    takesBox(boxOf('text'));
+    $picked = $flag ? makeBox() : $box;
+    takesBox($picked);
+    if ($flag) {
+        $branch = makeBox();
+    } else {
+        $branch = $box;
+    }
+    takesBox($branch);
+    takesBox($unknown->make());
+    takesBox($factory->missing());
+    takesBox($factory->{$unknown}());
+    takesBox($unknown::build());
+    takesBox(Missing::build());
+    takesBox($factory->stored);
+    takesBox(missingFunction());
 }

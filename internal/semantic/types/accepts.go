@@ -49,6 +49,9 @@ type ClassRelations interface {
 	// TemplateVariance returns the variance class declares for its template
 	// at position i; false when it declares none there.
 	TemplateVariance(class string, i int) (Variance, bool)
+	// TypeArgsAs returns the generic arguments class, instantiated with args,
+	// gives its ancestor; nil when it gives none.
+	TypeArgsAs(class string, args []Type, ancestor string) []Type
 }
 
 // Variance is how a generic argument may differ between a type and the type
@@ -575,7 +578,7 @@ func elemVerdict(want, have Type, ctx AcceptContext) Verdict {
 func acceptByClass(expected Type, e string, actual Type, a string, ctx AcceptContext) Verdict {
 	if IsClassAtom(a) {
 		v := acceptClass(e, a, ctx)
-		if v == Yes && a == e && typeArgsRejected(expected, actual, e, ctx) {
+		if v == Yes && typeArgsRejected(expected, actual, e, a, ctx) {
 			return No
 		}
 		if v == Yes {
@@ -601,13 +604,21 @@ func acceptByClass(expected Type, e string, actual Type, a string, ctx AcceptCon
 	return No
 }
 
-// typeArgsRejected reports generic arguments of class that cannot fit: both
-// sides list the same number of them and one, compared as its template's
-// variance says, has no value in common with the accepting one. Arguments
-// that are unknown, templates or merely different in width decide nothing.
-func typeArgsRejected(expected, actual Type, class string, ctx AcceptContext) bool {
-	want, have := expected.TypeArgs(class), actual.TypeArgs(class)
-	if ctx.Classes == nil || ctx.nested >= maxTypeArgDepth || len(want) == 0 || len(want) != len(have) {
+// typeArgsRejected reports generic arguments that cannot fit class, which
+// member of actual is or extends: both sides list the same number of them and
+// one, compared as its template's variance says, has no value in common with
+// the accepting one. Arguments that are unknown, templates or merely different
+// in width decide nothing.
+func typeArgsRejected(expected, actual Type, class, member string, ctx AcceptContext) bool {
+	want := expected.TypeArgs(class)
+	if ctx.Classes == nil || ctx.nested >= maxTypeArgDepth || len(want) == 0 {
+		return false
+	}
+	have := actual.TypeArgs(member)
+	if member != class {
+		have = ctx.Classes.TypeArgsAs(member, have, class)
+	}
+	if len(want) != len(have) {
 		return false
 	}
 	for i := range want {

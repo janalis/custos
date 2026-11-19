@@ -52,6 +52,14 @@ func (fakeClasses) TemplateVariance(c string, i int) (Variance, bool) {
 	return vs[i], true
 }
 
+// TypeArgsAs hands a subclass's arguments to its parents unchanged.
+func (f fakeClasses) TypeArgsAs(c string, args []Type, ancestor string) []Type {
+	if f.IsSubtype(c, ancestor) == Yes {
+		return args
+	}
+	return nil
+}
+
 func doc(s string) Type { return FromDoc(s, func(w string) string { return w }) }
 
 func TestAccepts(t *testing.T) {
