@@ -126,14 +126,20 @@ func plainDocReturn(doc string) bool {
 	return doc != "" && !strings.Contains(doc, `\~`)
 }
 
-// maxTypeArgClasses bounds the classes one walk up a hierarchy visits.
-const maxTypeArgClasses = 64
+// Limits on one walk up a hierarchy, which analyzed code controls: each
+// @extends tag may repeat a template, doubling the text of its arguments.
+const (
+	maxTypeArgClasses = 64
+	maxTypeArgWork    = 16 * types.MaxDocTypeLen // bytes of arguments rendered
+)
 
 // TypeArgsAs returns the generic arguments class a, instantiated with args,
 // gives its ancestor through @extends, @implements and @use tags; nil when it
-// gives none. A template of a that args does not bind reads as mixed.
+// gives none or the walk runs out of budget. A template of a that args does
+// not bind, or binds to an overlong type, reads as mixed.
 func (r *indexRelations) TypeArgsAs(a string, args []types.Type, ancestor string) []types.Type {
 	seen := map[string]bool{}
+	work := maxTypeArgWork
 	var walk func(fqn string, args []types.Type) []types.Type
 	walk = func(fqn string, args []types.Type) []types.Type {
 		k := strings.ToLower(strings.TrimPrefix(fqn, `\`))
@@ -145,10 +151,14 @@ func (r *indexRelations) TypeArgsAs(a string, args []types.Type, ancestor string
 			return nil
 		}
 		seen[k] = true
+		bound := boundTemplates(c, args, &work)
 		for _, s := range c.Supers {
+			if work < 0 {
+				return nil
+			}
 			given := make([]types.Type, len(s.Args))
 			for i, text := range s.Args {
-				given[i] = types.FromDoc(text, boundTemplates(c, args))
+				given[i] = types.FromDoc(text, bound)
 			}
 			if found := walk(s.Class, given); found != nil {
 				return found
@@ -168,20 +178,26 @@ func (r *indexRelations) TypeArgsAs(a string, args []types.Type, ancestor string
 }
 
 // boundTemplates resolves the templates of c in a doc type to args, by
-// position; a template without an argument reads as mixed.
-func boundTemplates(c *index.Class, args []types.Type) types.Resolver {
+// position, each rendered once and charged to work; a template without a
+// usable argument reads as mixed.
+func boundTemplates(c *index.Class, args []types.Type, work *int) types.Resolver {
+	rendered := make(map[string]string, len(args))
+	for i, tp := range c.Templates {
+		if i >= len(args) || args[i].IsUnknown() {
+			continue
+		}
+		text := args[i].DocString()
+		*work -= len(text)
+		if len(text) <= types.MaxDocTypeLen {
+			rendered[tp.Name] = "=" + text
+		}
+	}
 	return func(written string) string {
 		name := strings.TrimPrefix(written, `\`)
-		template, isTemplate := strings.CutPrefix(name, "~")
-		if !isTemplate {
-			return name
+		if template, isTemplate := strings.CutPrefix(name, "~"); isTemplate {
+			return rendered[template]
 		}
-		for i, tp := range c.Templates {
-			if tp.Name == template && i < len(args) && !args[i].IsUnknown() {
-				return "=" + args[i].DocString()
-			}
-		}
-		return ""
+		return name
 	}
 }
 
