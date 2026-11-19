@@ -49,6 +49,8 @@ func TestDocIntMask(t *testing.T) {
 		{"int-mask-of<Foo::F_*>", "int<0, 1>|int<4, 5>"},
 		{"int-mask<1, 2, 4, 8, 16, 32, 64, 128, 256>", "int<0, 511>"},
 		{"int-mask-of<1|2|4>", "int<0, 7>"},
+		{"int-mask<9223372036854775807>", "int<0, 0>|int<9223372036854775807, max>"},
+		{"int-mask-of<int<9223372036854775807, max>>", "int<0, 0>|int<9223372036854775807, max>"},
 		{"int-mask-of<int<0, max>>", "int"},
 		{"int-mask<-1>", "int"},
 		{"int-mask<int>", "int"},

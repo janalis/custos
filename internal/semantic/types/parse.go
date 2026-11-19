@@ -838,8 +838,9 @@ func (p *docParser) intMask(low, args string, resolve Resolver, depth int) Type 
 			if r.Lo < 0 || r.Hi-r.Lo >= maxMaskRange {
 				return false
 			}
-			for v := r.Lo; v <= r.Hi; v++ {
-				flags = append(flags, v)
+			// Counted by offset: a value may be the largest int.
+			for i := int64(0); i <= r.Hi-r.Lo; i++ {
+				flags = append(flags, r.Lo+i)
 			}
 		}
 		return true
