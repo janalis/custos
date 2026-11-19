@@ -3,7 +3,8 @@ name: perf-isolated
 # --ref <branch> -f base=<ref>. It times the branch against base, alternating
 # the two binaries, without the cache and with a warm one, checks that every
 # run gives the same output, and uploads CPU and allocation profiles of the
-# branch.
+# branch. A branch meant to change findings passes -f output=own: each binary
+# must then give the same output on every run, not the same as the other.
 on:
   workflow_dispatch:
     inputs:
@@ -11,6 +12,11 @@ on:
         description: Branch, tag or commit to compare against
         required: true
         default: develop
+      output:
+        description: Whether both binaries must give the same output (same) or each its own (own)
+        type: choice
+        options: [same, own]
+        default: same
 permissions:
   contents: read
 jobs:
@@ -47,6 +53,7 @@ jobs:
       - name: Compare baseline and candidate
         env:
           GOMAXPROCS: "4"
+          OUTPUT: ${{ inputs.output }}
         run: |
           python3 - <<'PY'
           import hashlib, json, os, pathlib, shutil, statistics, subprocess, tempfile, time
@@ -98,7 +105,8 @@ jobs:
                           digest = hashlib.sha256(data).hexdigest()
                           error_digest = hashlib.sha256(errors).hexdigest()
                           (output / f'{corpus}-{mode}-{name}-{run}.stderr').write_bytes(errors)
-                          expected = outputs.setdefault(command, (digest, error_digest))
+                          key = (command, name) if os.environ.get('OUTPUT') == 'own' else command
+                          expected = outputs.setdefault(key, (digest, error_digest))
                           if (digest, error_digest) != expected:
                               raise RuntimeError((corpus, mode, name, run, 'output changed'))
                           results.append(dict(corpus=corpus, mode=mode, run=run, binary=name, wall=wall, cpu=usage.ru_utime+usage.ru_stime, rss=usage.ru_maxrss*1024, sha256=digest, stderr_sha256=error_digest, load=os.getloadavg()))
