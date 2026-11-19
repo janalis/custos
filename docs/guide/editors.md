@@ -45,8 +45,11 @@ Both take the shape of [`custos.json`](./configuration) with these limits:
   values;
 - a `rules` entry overrides the project's entry for that rule field by
   field: `{"severity": "error"}` keeps the project's `enabled` and options;
-- `paths`, `exclude` and `baseline` are ignored: what to analyze stays the
-  project's choice.
+- `paths`, `exclude`, `baseline` and the custom rules are ignored: they stay
+  the project's choice.
+
+When the client watches files for the server, editing `custos.json` or a
+custom rule file takes effect without a restart.
 
 When a document's [analysis status](./cli#analysis-status) changes (complete,
 or incomplete with other reasons), the server sends an informational

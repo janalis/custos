@@ -5,6 +5,26 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Custom rules: `customRules` in `custos.json` (and `customRuleFiles`)
+  declare a project's own rules as PHP code patterns with metavariables,
+  matched on resolved names, optionally constrained by inferred type,
+  regular expression or excluded patterns, with an optional quick-fix
+  template. They run in `analyse`, `fix`, the language server and the MCP
+  server, and appear in `custos rules`, `custos explain` and SARIF output.
+- Custom rule patterns can span several statements, use statement
+  metavariables (`$S;` for one statement, `$_;` for any run of them) and
+  require or exclude enclosing code (`inside`, `notInside`).
+- `custos test-rules` runs rules over marked-up fixtures in `custos-tests/`
+  (`customRuleTests`) and compares their findings and quick-fixes.
+- The language server applies edits to `custos.json` and to custom rule
+  files without a restart, when the editor watches files for it.
+- Go API for rules written in Go: `github.com/janalis/custos/pkg/custos`
+  builds a custos binary with extra rules (`custos.Main`, `custos.NewRule`,
+  `custos.Pattern`), and `pkg/custos/ast` exposes the syntax tree. It is
+  unstable until 1.0.
+
 ### Changed
 
 - The Go module path is now `github.com/janalis/custos`.

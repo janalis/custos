@@ -47,9 +47,16 @@ func Write(w io.Writer, format string, items []diagnostic.Item, files int) error
 	return fmt.Errorf("unknown format %q (want one of %s)", format, strings.Join(Formats, ", "))
 }
 
+// RuleDoc documents a rule outside the catalogue (a custom rule) for the
+// SARIF rule descriptors.
+type RuleDoc struct {
+	ID, Group, Summary string
+}
+
 // WriteWithAnalysis adds independent completion metadata to JSON and SARIF.
-// Other formats retain their established diagnostic encoding.
-func WriteWithAnalysis(w io.Writer, format string, items []diagnostic.Item, files int, status diagnostic.AnalysisStatus) error {
+// Other formats retain their established diagnostic encoding. custom
+// documents the rules the catalogue does not hold.
+func WriteWithAnalysis(w io.Writer, format string, items []diagnostic.Item, files int, status diagnostic.AnalysisStatus, custom ...RuleDoc) error {
 	switch format {
 	case "json":
 		if items == nil {
@@ -59,7 +66,7 @@ func WriteWithAnalysis(w io.Writer, format string, items []diagnostic.Item, file
 		enc.SetIndent("", "  ")
 		return enc.Encode(map[string]any{"files": files, "findings": items, "analysis": status})
 	case "sarif":
-		return writeSARIFStatus(w, items, &status)
+		return writeSARIFStatus(w, items, &status, custom...)
 	default:
 		return Write(w, format, items, files)
 	}
@@ -136,7 +143,11 @@ func writeSARIF(w io.Writer, items []diagnostic.Item) error {
 	return writeSARIFStatus(w, items, nil)
 }
 
-func writeSARIFStatus(w io.Writer, items []diagnostic.Item, status *diagnostic.AnalysisStatus) error {
+func writeSARIFStatus(w io.Writer, items []diagnostic.Item, status *diagnostic.AnalysisStatus, custom ...RuleDoc) error {
+	docs := map[string]RuleDoc{}
+	for _, d := range custom {
+		docs[d.ID] = d
+	}
 	level := map[string]string{"error": "error", "warning": "warning", "info": "note"}
 	ruleIdx := map[string]int{}
 	var rules []map[string]any
@@ -148,6 +159,11 @@ func writeSARIFStatus(w io.Writer, items []diagnostic.Item, status *diagnostic.A
 			if m, ok := meta.Lookup(it.Rule); ok {
 				r["properties"] = map[string]any{"tags": []string{m.Group}}
 				if d, ok := meta.Describe(m.ID); ok && d.Summary != "" {
+					r["shortDescription"] = map[string]any{"text": strings.SplitN(d.Summary, "\n\n", 2)[0]}
+				}
+			} else if d, ok := docs[it.Rule]; ok {
+				r["properties"] = map[string]any{"tags": []string{d.Group}}
+				if d.Summary != "" {
 					r["shortDescription"] = map[string]any{"text": strings.SplitN(d.Summary, "\n\n", 2)[0]}
 				}
 			}

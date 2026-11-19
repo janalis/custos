@@ -5,6 +5,7 @@ custos analyse [flags] [paths...]   # report problems
 custos fix [flags] [paths...]       # apply quick-fixes
 custos explain <rule>               # describe a rule and its options
 custos rules [--json]               # list rules
+custos test-rules [dir]             # run custom rules over their fixtures
 custos lsp                          # language server over stdio
 custos mcp [flags]                  # MCP server for AI agents (stdio or HTTP)
 custos self-update [--check]        # update to the latest release
@@ -195,7 +196,19 @@ custos rules --json                     # the full catalogue, for tooling
 
 `rules --json` lists one object per rule with `id`, `legacyId` (the PhpStorm
 name of EA rules), `group`, `severity`, `enabledByDefault`, `hasFix`,
-`implemented`, and, when set, `experimental` and `options`.
+`implemented`, and, when set, `experimental` and `options`. Both list and
+explain the project's [custom rules](./custom-rules) too.
+
+## test-rules
+
+```sh
+custos test-rules                       # fixtures under custos-tests/ (customRuleTests)
+custos test-rules path/to/fixtures      # another directory
+```
+
+Runs each rule alone over its fixtures and compares findings and quick-fixes
+with what they expect (see [Testing rules](./custom-rules#testing-rules)).
+`--config` names the directory to look for `custos.json` from.
 
 ## lsp
 
@@ -255,7 +268,7 @@ parallel runs, set `GOMEMLIMIT` to each process's share, or `GOGC=100`.
 | Code | Meaning |
 |---|---|
 | `0` | Success; no finding at or above `--fail-on`. |
-| `1` | Findings at or above `--fail-on`; with `self-update --check`, a newer release exists. |
+| `1` | Findings at or above `--fail-on`; with `self-update --check`, a newer release exists; with `test-rules`, a fixture failed. |
 | `2` | Usage error (including no or an unknown command), [configuration](./configuration#validation) error, files `fix` could not process, or a failed update. |
 
 `--fail-on` only applies to `analyse`.

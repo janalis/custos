@@ -7,7 +7,6 @@ import (
 	"github.com/janalis/custos/internal/diagnostic"
 	"github.com/janalis/custos/internal/fixing"
 	"github.com/janalis/custos/internal/inspection/analysis"
-	"github.com/janalis/custos/internal/inspection/meta"
 	"github.com/janalis/custos/internal/php/syntax"
 	"github.com/janalis/custos/internal/project/baseline"
 )
@@ -198,7 +197,7 @@ func (s *Server) executeCommand(p executeCommandParams) (any, *rpcError) {
 	s.mu.Unlock()
 	opt := fixing.Options{Parse: cfg.Parse()}
 	if only != "" {
-		m, ok := meta.Lookup(only)
+		m, ok := analysis.Lookup(cfg.Registry(s.extra), only)
 		if !ok {
 			return nil, &rpcError{Code: codeInvalidParams, Message: "unknown rule " + only}
 		}

@@ -10,10 +10,10 @@ import (
 
 // Overlay applies settings a client supplies (an editor's) on top of the
 // project configuration base. What to analyze (paths, exclusions, the
-// baseline) stays the project's; a rule entry overrides the project's
+// baseline) and the custom rules stay the project's; a rule entry overrides the project's
 // field by field.
 func Overlay(base *Config, over File) (*Config, error) {
-	f := File{Flow: &FlowSettings{}, PHP: over.PHP, ComparisonStyle: over.ComparisonStyle, TypeCheck: over.TypeCheck, ShortOpenTag: over.ShortOpenTag, Rules: over.Rules}
+	f := File{Flow: &FlowSettings{}, PHP: over.PHP, ComparisonStyle: over.ComparisonStyle, TypeCheck: over.TypeCheck, ShortOpenTag: over.ShortOpenTag, Rules: over.Rules, CustomRules: base.Definitions}
 	if f.PHP == "" {
 		f.PHP = base.PHP.String()
 	}
@@ -41,6 +41,7 @@ func Overlay(base *Config, over File) (*Config, error) {
 	}
 	// What to analyze stays the project's choice.
 	merged.Paths, merged.Exclude, merged.Baseline = base.Paths, base.Exclude, base.Baseline
+	merged.CustomRuleFiles = base.CustomRuleFiles
 	// A client rule entry overrides the project's field by field.
 	for id, rc := range base.Rules {
 		over, ok := merged.Rules[id]

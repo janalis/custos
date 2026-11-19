@@ -5,6 +5,7 @@ import (
 	"context"
 	"maps"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -132,8 +133,17 @@ type fileChange struct {
 // Changes arriving while the initial index is built are queued and replayed.
 func (s *Server) watchedFilesChanged(changes []fileChange) {
 	s.mu.Lock()
-	cfg := s.cfg
+	cfg, root := s.cfg, s.root
 	s.mu.Unlock()
+	if touches(configInputs(cfg, root), changes) {
+		if err := s.configure(); err != nil {
+			s.logf("configuration: %v", err)
+		}
+		s.reanalyzeAll()
+		s.mu.Lock()
+		cfg = s.cfg
+		s.mu.Unlock()
+	}
 	bl := baselinePath(cfg)
 	for _, ch := range changes {
 		if bl != "" && filepath.Clean(uriToPath(ch.URI)) == bl {
@@ -187,6 +197,16 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 		s.refreshFlow()
 		s.reanalyzeAll()
 	}
+}
+
+// touches reports whether changes name one of paths.
+func touches(paths []string, changes []fileChange) bool {
+	for _, ch := range changes {
+		if slices.Contains(paths, filepath.Clean(uriToPath(ch.URI))) {
+			return true
+		}
+	}
+	return false
 }
 
 // worldChanged reports whether changes touch what the index world reads:

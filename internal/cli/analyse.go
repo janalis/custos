@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/output/report"
 	"github.com/janalis/custos/internal/project/baseline"
 )
@@ -80,7 +81,14 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 		}
 	}
 	status := diagnostic.Status(results)
-	if err := report.WriteWithAnalysis(stdout, *format, items, len(s.project.Files), status); err != nil {
+	var docs []report.RuleDoc
+	own := s.cfg.Registry(extra)
+	for _, r := range own {
+		m, _ := analysis.FactsOf(r)
+		d, _ := analysis.Describe(own, m.ID)
+		docs = append(docs, report.RuleDoc{ID: m.ID, Group: m.Group, Summary: d.Summary})
+	}
+	if err := report.WriteWithAnalysis(stdout, *format, items, len(s.project.Files), status, docs...); err != nil {
 		return 2, err
 	}
 	if !status.Complete {

@@ -5,22 +5,34 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 func cmdExplain(args []string, stdout io.Writer) error {
 	if len(args) != 1 {
 		return errors.New("usage: custos explain <rule>")
 	}
-	m, ok := meta.Lookup(args[0])
+	custom := extra
+	if _, ok := analysis.Lookup(custom, args[0]); !ok {
+		// Not a built-in rule: maybe a custom rule of the project here.
+		cfg, err := config.Load(".")
+		if err != nil {
+			return err
+		}
+		custom = cfg.Registry(extra)
+	}
+	m, ok := analysis.Lookup(custom, args[0])
 	if !ok {
 		return fmt.Errorf("unknown rule %q", args[0])
 	}
-	explainRule(stdout, m)
+	d, described := analysis.Describe(custom, m.ID)
+	explainRule(stdout, m, d, described)
 	return nil
 }
 
-func explainRule(stdout io.Writer, m *meta.Rule) {
+func explainRule(stdout io.Writer, m *meta.Rule, d meta.Description, described bool) {
 	def := "enabled by default"
 	if !m.EnabledByDefault {
 		def = "disabled by default"
@@ -32,7 +44,7 @@ func explainRule(stdout io.Writer, m *meta.Rule) {
 		def += ", on with typeCheck: " + m.TypeCheck
 	}
 	fix := ""
-	if d, ok := meta.Describe(m.ID); ok && d.Fix {
+	if described && d.Fix {
 		fix = ", has a quick-fix"
 	}
 	name, suppression := m.ID, "@custos-ignore "+m.ID
@@ -41,7 +53,7 @@ func explainRule(stdout io.Writer, m *meta.Rule) {
 		suppression = "@noinspection " + m.LegacyID
 	}
 	fmt.Fprintf(stdout, "%s\n  group: %s, severity: %s, %s%s\n  suppress with: %s\n\n", name, m.Group, m.Severity, def, fix, suppression)
-	if d, ok := meta.Describe(m.ID); ok {
+	if described {
 		fmt.Fprintln(stdout, d.Summary)
 		if d.Options != "" {
 			fmt.Fprintf(stdout, "\nOptions:\n%s\n", d.Options)

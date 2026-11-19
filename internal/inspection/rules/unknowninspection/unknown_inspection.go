@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/janalis/custos/internal/inspection/analysis"
-	"github.com/janalis/custos/internal/inspection/meta"
 	"github.com/janalis/custos/internal/php/syntax"
 )
 
@@ -59,7 +58,7 @@ func (unknownInspection) CheckFile(ctx *analysis.Context) {
 			if j := strings.Index(value, "*/"); j >= 0 {
 				value = value[:j]
 			}
-			if unknown := unknownInspectionNames(value); len(unknown) > 0 {
+			if unknown := unknownInspectionNames(ctx, value); len(unknown) > 0 {
 				s := t.Start + uint32(tagStart)
 				ctx.Report(syntax.Span{Start: s, End: s + uint32(len(unknownInspectionTag))},
 					"Suppressed inspection not recognized: "+strings.Join(unknown, ", ")+".")
@@ -70,7 +69,7 @@ func (unknownInspection) CheckFile(ctx *analysis.Context) {
 
 // unknownInspectionNames returns the relevant but unknown inspection names
 // of a tag value (D3–D5), in source order without duplicates.
-func unknownInspectionNames(value string) []string {
+func unknownInspectionNames(ctx *analysis.Context, value string) []string {
 	var out []string
 	for i := 0; i < len(value); {
 		if !unknownInspectionWordStart(value[i]) {
@@ -86,7 +85,7 @@ func unknownInspectionNames(value string) []string {
 		if !strings.HasPrefix(word, "Php") && !strings.HasSuffix(word, "Inspection") && !strings.HasSuffix(word, "Inspector") {
 			continue // D4
 		}
-		if knownInspection(word) || knownInspection(word+"Inspection") {
+		if knownInspection(ctx, word) || knownInspection(ctx, word+"Inspection") {
 			continue
 		}
 		dup := false
@@ -100,8 +99,8 @@ func unknownInspectionNames(value string) []string {
 	return out
 }
 
-func knownInspection(name string) bool {
-	if _, ok := meta.Lookup(name); ok {
+func knownInspection(ctx *analysis.Context, name string) bool {
+	if ctx.KnownRule(name) {
 		return true
 	}
 	return phpstormInspections()[name]

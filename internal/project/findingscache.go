@@ -109,11 +109,12 @@ func (c *SymbolCache) findings(files []string, in findingsInputs, snapshot *flow
 	cfg := in.engine.Config()
 	engine, _ := json.Marshal(struct {
 		Rules    []string
+		Custom   []string
 		PHP      int
 		Style    analysis.ComparisonStyle
 		Settings map[string]analysis.RuleConfig
 		Flow     string
-	}{in.engine.Rules(), int(cfg.PHP), cfg.ComparisonStyle, cfg.Rules, cfg.Flow.String()})
+	}{in.engine.Rules(), in.engine.Fingerprints(), int(cfg.PHP), cfg.ComparisonStyle, cfg.Rules, cfg.Flow.String()})
 	cwd, _ := os.Getwd()
 	h := sha256.New()
 	fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\x00%t\x00%s\x00%s\n", c.key, cwd, absolute(in.root), engine, in.parseOnce, in.recorded, in.world())

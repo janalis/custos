@@ -52,6 +52,8 @@ type document struct {
 type Server struct {
 	// ctx ends when the server stops: background builds stop with it.
 	ctx context.Context
+	// extra holds the rules added to the catalogue (see ServeWith).
+	extra []analysis.Rule
 	// indexCancel stops the index build in progress, flowCancel the flow
 	// build or update in progress (flowCtx): a later one supersedes it.
 	indexCtx    context.Context
@@ -102,9 +104,14 @@ type Server struct {
 
 // Serve runs the server on r/w until exit.
 func Serve(ctx context.Context, r io.Reader, w io.Writer) error {
+	return ServeWith(ctx, r, w, nil)
+}
+
+// ServeWith is Serve with rules added to the catalogue (see cli.RunWith).
+func ServeWith(ctx context.Context, r io.Reader, w io.Writer, extra []analysis.Rule) error {
 	ctx, stop := context.WithCancel(ctx)
 	defer stop()
-	s := &Server{ctx: ctx, c: newConn(r, w), docs: map[string]*document{}, sem: make(chan struct{}, runtime.GOMAXPROCS(0))}
+	s := &Server{ctx: ctx, c: newConn(r, w), docs: map[string]*document{}, sem: make(chan struct{}, runtime.GOMAXPROCS(0)), extra: extra}
 	for {
 		m, err := s.c.read()
 		if err != nil {

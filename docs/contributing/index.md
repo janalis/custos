@@ -38,7 +38,8 @@ code compiles.
 
 | Target | What it does |
 |---|---|
-| `make verify` | **Definition of done**, run by CI: `architecture`, `lint`, `test`, `fixtures`, `coverage` and `cleanroom`. |
+| `make examples` | Vet and build the example programs that use the public Go API (`examples/`, their own modules). |
+| `make verify` | **Definition of done**, run by CI: `architecture`, `lint`, `test`, `examples`, `fixtures`, `coverage` and `cleanroom`. |
 | `make architecture` | Check production dependencies, inspection catalogue completeness, rule package comments and fixture names. |
 | `make build` | Build `bin/custos`. |
 | `make test` | `go test ./...` |

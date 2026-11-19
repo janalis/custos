@@ -139,7 +139,7 @@ func capture(ctx context.Context, root *os.Root, rules []analysis.Rule, paths []
 		_, err := root.Stat(name)
 		return err == nil
 	}, ".")
-	engine, err := analysis.NewEngine(rules, acfg)
+	engine, err := analysis.NewEngine(cfg.Registry(rules), acfg)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func capture(ctx context.Context, root *os.Root, rules []analysis.Rule, paths []
 		s.Hashes[name] = Fingerprint(b)
 		return nil
 	}
-	for _, name := range configInputs {
+	for _, name := range append(configInputs[:len(configInputs):len(configInputs)], cfg.CustomRuleFiles...) {
 		if err := read(name, config.MaxFileSize); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
@@ -341,7 +341,7 @@ func (s *Snapshot) Source(name string) ([]byte, error) {
 // modified within racyWindow of the capture; every other file is hashed.
 func ChangedInputs(ctx context.Context, s *Snapshot) ([]string, error) {
 	var changed []string
-	for _, name := range append(append([]string{}, configInputs...), s.Baseline) {
+	for _, name := range append(append(append([]string{}, configInputs...), s.Config.CustomRuleFiles...), s.Baseline) {
 		if name == "" {
 			continue
 		}

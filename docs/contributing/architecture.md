@@ -19,6 +19,7 @@ summarize the same responsibilities.
 | `internal/inspection/astquery` | Lexical queries over nodes and tokens, plus exact source-edit builders. Written names do not imply resolved symbols. |
 | `internal/inspection/flowquery` | Local reachability, assignments, variable accesses, side effects and possible values. |
 | `internal/inspection/semanticquery` | Resolved calls, classes, hierarchies, types, native-function contracts and inspection fix decisions. |
+| `internal/inspection/pattern` | Custom rules a project declares: pattern compilation, matching on resolved names, constraints and fix templates. |
 | `internal/inspection/phpunit` | Shared assertion-call shapes, method spelling and PHPUnit version detection. |
 | `internal/diagnostic` | Severity, findings, lazy fixes, edits, file results and positioned items. |
 | `internal/fixing` | Conflict detection, edit application and bounded iterative fixing. |
@@ -123,6 +124,28 @@ context-dependent member lookup.
 
 Source positions remain `uint32` byte offsets; diagnostic items use rune
 columns and LSP uses UTF-16 columns.
+
+### Custom rules
+
+A rule outside the embedded catalogue implements `analysis.Described`: it
+carries its own facts and description, and its ID must not name a catalogue
+rule (`NewEngine` refuses it, and duplicate IDs). Lookups that accept such
+rules take the rule list (`analysis.Lookup`, `analysis.Describe`); the bare
+`meta` lookups know the catalogue only. A rule whose behavior depends on
+data outside the binary implements `analysis.Fingerprinted`, which the
+findings cache key includes.
+
+The project's custom rules come from its configuration: `config` compiles
+`customRules` and `customRuleFiles` with `internal/inspection/pattern`, and
+`Config.Registry` appends them to the catalogue rules each adapter runs. The
+MCP snapshot captures the rule files with the other configuration inputs.
+
+The public Go API (`pkg/custos`, `pkg/custos/ast`) wraps these contracts for
+programs that build their own binary: `cli.RunWith` and `lsp.ServeWith` take
+the rules such a program adds. `pkg/` may use the internals it wraps;
+nothing under `internal/` may import `pkg/`. `pkg/custos/ast` holds type
+aliases of the syntax tree, which a test keeps complete
+(`go test ./pkg/custos/ast -update` rewrites them after a syntax change).
 
 ### The index world
 

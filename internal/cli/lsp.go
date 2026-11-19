@@ -14,5 +14,5 @@ func cmdLSP(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 		return err
 	}
 	lsp.Version = version
-	return lsp.Serve(context.Background(), stdin, stdout)
+	return lsp.ServeWith(context.Background(), stdin, stdout, extra)
 }

@@ -25,6 +25,10 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 			if p := baselinePath(s.cfg); p != "" {
 				watchers = append(watchers, map[string]any{"globPattern": "**/" + filepath.Base(p)})
 			}
+			// Configuration edits take effect without a restart.
+			for _, p := range configInputs(s.cfg, s.root) {
+				watchers = append(watchers, map[string]any{"globPattern": "**/" + filepath.Base(p)})
+			}
 			s.mu.Unlock()
 			_ = s.c.request("client/registerCapability", map[string]any{"registrations": []any{map[string]any{
 				"id": "custos-php-watch", "method": "workspace/didChangeWatchedFiles",

@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/janalis/custos/internal/inspection/analysis"
-	"github.com/janalis/custos/internal/inspection/meta"
 	phpversion "github.com/janalis/custos/internal/php/version"
 	"github.com/janalis/custos/internal/project"
 	"github.com/janalis/custos/internal/project/config"
@@ -31,9 +30,9 @@ type common struct {
 	noCache   bool
 	flowOrder bool
 	parseOnce bool
-	// rules lists the rules the command may run; nil runs every registered
-	// rule.
-	rules func() []analysis.Rule
+	// rules narrows the registered rules (custom ones included) to those
+	// the command may run; nil runs every one.
+	rules func([]analysis.Rule) []analysis.Rule
 }
 
 // cacheDir is where declarations of dependencies are kept between runs
@@ -114,7 +113,7 @@ func (c *common) prepare(args []string) (*setup, error) {
 	acfg.ProjectPath = project.DiskProjectPaths(cfg.Root)
 	if c.only != "" {
 		for _, id := range strings.Split(c.only, ",") {
-			m, ok := meta.Lookup(strings.TrimSpace(id))
+			m, ok := analysis.Lookup(cfg.Registry(extra), strings.TrimSpace(id))
 			if !ok {
 				return nil, fmt.Errorf("unknown rule %q", id)
 			}
@@ -132,11 +131,11 @@ func (c *common) prepare(args []string) (*setup, error) {
 	if c.exclude != "" {
 		exclude = append(exclude, strings.Split(c.exclude, ",")...)
 	}
-	rules := registry
+	rules := cfg.Registry(rulesWithExtra())
 	if c.rules != nil {
-		rules = c.rules
+		rules = c.rules(rules)
 	}
-	p, err := project.Open(rules(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Cache: c.cacheDir(), FlowOrder: c.flowOrder || cfg.FlowOrder, ParseOnce: c.parseOnce || cfg.ParseOnce, Analysis: acfg, Parse: cfg.Parse()})
+	p, err := project.Open(rules, project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Cache: c.cacheDir(), FlowOrder: c.flowOrder || cfg.FlowOrder, ParseOnce: c.parseOnce || cfg.ParseOnce, Analysis: acfg, Parse: cfg.Parse()})
 	if err != nil {
 		return nil, err
 	}

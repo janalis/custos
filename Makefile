@@ -9,7 +9,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
 
-.PHONY: architecture coverage fixcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
+.PHONY: architecture examples coverage fixcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -147,7 +147,11 @@ typecov:
 architecture:
 	$(GO) run ./tools/architecture
 
-verify: architecture lint test fixtures coverage cleanroom
+# Example programs using the public Go API (their own modules).
+examples:
+	cd examples/custom-binary && $(GO) vet . && $(GO) build -o /dev/null .
+
+verify: architecture lint test examples fixtures coverage cleanroom
 
 # Coverage gates (the EA run and local corpora do not count):
 # - every statement of internal/inspection/rules is covered by own fixtures and the rule

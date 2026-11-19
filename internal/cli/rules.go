@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 func cmdRules(args []string, stdout, stderr io.Writer) error {
@@ -18,9 +20,20 @@ func cmdRules(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	cfg, err := config.Load(".")
+	if err != nil {
+		return err
+	}
 	implemented := map[string]bool{}
 	for _, r := range registry() {
 		implemented[r.ID()] = true
+	}
+	own := cfg.Registry(extra)
+	all = all[:len(all):len(all)]
+	for _, r := range own {
+		m, _ := analysis.FactsOf(r)
+		all = append(all, *m)
+		implemented[m.ID] = true
 	}
 	if *asJSON {
 		type row struct {
@@ -29,7 +42,7 @@ func cmdRules(args []string, stdout, stderr io.Writer) error {
 		}
 		var out []row
 		for _, r := range all {
-			d, _ := meta.Describe(r.ID)
+			d, _ := analysis.Describe(own, r.ID)
 			r.HasFix = d.Fix // what custos offers, not the upstream catalogue
 			out = append(out, row{r, implemented[r.ID]})
 		}

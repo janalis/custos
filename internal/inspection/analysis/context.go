@@ -65,6 +65,10 @@ func (c *Context) ProjectPath() string {
 	return c.engine.cfg.ProjectPath(c.File.Path)
 }
 
+// KnownRule reports whether id names a rule custos knows: a catalogue rule
+// or a custom rule registered with the engine.
+func (c *Context) KnownRule(id string) bool { return c.engine.Known(id) }
+
 // MaxGaps bounds the analysis gaps a file records from its queries.
 const MaxGaps = 128
 

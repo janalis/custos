@@ -19,9 +19,41 @@ import (
 	"github.com/janalis/custos/internal/semantic/names"
 )
 
-// canonicalRule resolves a rule or legacy ID regardless of case.
-func canonicalRule(id string) (string, error) {
+// customRules returns the rules outside the catalogue that the server runs
+// in w: those its program adds, then the workspace configuration's (none
+// when it does not load: the analysis itself reports that).
+func (s *Server) customRules(w *workspace) []analysis.Rule {
+	var own []analysis.Rule
+	for _, r := range s.rules {
+		if _, catalogue := meta.Lookup(r.ID()); !catalogue {
+			own = append(own, r)
+		}
+	}
+	cfg, err := config.LoadConfined(w.root)
+	if err != nil {
+		return own
+	}
+	return cfg.Registry(own)
+}
+
+// facts returns the catalogue facts followed by those of custom.
+func facts(custom []analysis.Rule) ([]meta.Rule, error) {
 	rules, err := ruleCatalogue()
+	if err != nil {
+		return nil, err
+	}
+	rules = rules[:len(rules):len(rules)]
+	for _, r := range custom {
+		m, _ := analysis.FactsOf(r)
+		rules = append(rules, *m)
+	}
+	return rules, nil
+}
+
+// canonicalRule resolves a rule or legacy ID regardless of case, among the
+// catalogue and the workspace's custom rules.
+func (s *Server) canonicalRule(w *workspace, id string) (string, error) {
+	rules, err := facts(s.customRules(w))
 	if err != nil {
 		return "", err
 	}
@@ -88,18 +120,19 @@ func settingsView(cfg *config.Config) Output {
 }
 
 func (s *Server) ruleInfo(ctx context.Context, w *workspace, in Input) (Output, error) {
-	rules, err := ruleCatalogue()
+	cfg, err := config.LoadConfined(w.root)
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := config.LoadConfined(w.root)
+	own := s.customRules(w)
+	rules, err := facts(own)
 	if err != nil {
 		return nil, err
 	}
 	query := strings.Fields(strings.ToLower(in.Query))
 	var items []any
 	for _, r := range rules {
-		d, _ := meta.Describe(r.ID)
+		d, _ := analysis.Describe(own, r.ID)
 		if in.Rule != "" && !strings.EqualFold(in.Rule, r.ID) && !strings.EqualFold(in.Rule, r.LegacyID) {
 			continue
 		}
@@ -111,7 +144,11 @@ func (s *Server) ruleInfo(ctx context.Context, w *workspace, in Input) (Output, 
 		if !matched {
 			continue
 		}
-		item := Output{"rule": r, "explanation": d, "targetPHP": cfg.PHP.String(), "suppressions": []string{"@custos-ignore " + r.ID, "@noinspection " + r.LegacyID}}
+		suppressions := []string{"@custos-ignore " + r.ID}
+		if r.LegacyID != "" {
+			suppressions = append(suppressions, "@noinspection "+r.LegacyID)
+		}
+		item := Output{"rule": r, "explanation": d, "targetPHP": cfg.PHP.String(), "suppressions": suppressions}
 		if view := overrideView(cfg.Rules[r.ID]); len(view) > 0 {
 			item["override"] = view
 		}

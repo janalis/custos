@@ -252,7 +252,7 @@ func TestFixEdgeCases(t *testing.T) {
 
 func TestExplainNativeRule(t *testing.T) {
 	var out bytes.Buffer
-	explainRule(&out, &meta.Rule{ID: "NativeExample", Native: true, Group: "Correctness"})
+	explainRule(&out, &meta.Rule{ID: "NativeExample", Native: true, Group: "Correctness"}, meta.Description{}, false)
 	if !strings.Contains(out.String(), "@custos-ignore NativeExample") || strings.Contains(out.String(), "@noinspection") || strings.Contains(out.String(), "()") {
 		t.Fatalf("native explanation: %s", out.String())
 	}

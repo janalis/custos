@@ -83,7 +83,7 @@ func cmdMCP(version string, args []string, stdin io.Reader, stdout, stderr io.Wr
 			options.Hosts = []string{*listen}
 		}
 	}
-	server, err := mcp.New(options, registry())
+	server, err := mcp.New(options, rulesWithExtra())
 	if err != nil {
 		return err
 	}

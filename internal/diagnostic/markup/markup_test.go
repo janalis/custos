@@ -1,4 +1,4 @@
-package conformance
+package markup
 
 import (
 	"testing"
@@ -6,12 +6,12 @@ import (
 	"github.com/janalis/custos/internal/diagnostic"
 )
 
-func TestParseMarkup(t *testing.T) {
+func TestParse(t *testing.T) {
 	src := []byte(`<?php
 $a = <warning descr="outer &quot;x&quot;">foo(<weak_warning descr="inner">$b</weak_warning>)</warning>;
 if ($x <error>< 1</error>) {}<caret>
 echo "<b>";`)
-	clean, exp, err := ParseMarkup(src)
+	clean, exp, err := Parse(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ echo "<b>";`)
 
 func TestParseMarkupUnbalanced(t *testing.T) {
 	for _, src := range []string{"<warning>x", "x</warning>", "<warning>x</error>"} {
-		if _, _, err := ParseMarkup([]byte(src)); err == nil {
+		if _, _, err := Parse([]byte(src)); err == nil {
 			t.Errorf("%q: expected error", src)
 		}
 	}
@@ -44,7 +44,7 @@ func TestParseMarkupUnbalanced(t *testing.T) {
 
 func TestDiffCountsDuplicates(t *testing.T) {
 	a := Expectation{diagnostic.SeverityWarning, "m", 1, 2}
-	missing, unexpected := diff([]Expectation{a, a}, []Expectation{a}, true)
+	missing, unexpected := Diff([]Expectation{a, a}, []Expectation{a}, true)
 	if len(missing) != 1 || len(unexpected) != 0 {
 		t.Fatalf("missing=%v unexpected=%v", missing, unexpected)
 	}

@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -87,7 +88,10 @@ func check(root string) ([]string, error) {
 		}
 		users[name][user] = true
 	}
-	for _, base := range []string{"internal", "cmd"} {
+	for _, base := range []string{"internal", "cmd", "pkg"} {
+		if _, err := os.Stat(filepath.Join(root, base)); base == "pkg" && errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
 		err := filepath.WalkDir(filepath.Join(root, base), func(path string, entry fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
@@ -115,7 +119,7 @@ func check(root string) ([]string, error) {
 					report("%s: analysis code cannot use %s; adapters own system access", rel, target)
 				}
 				target = strings.TrimPrefix(target, "github.com/janalis/custos/")
-				if strings.HasPrefix(target, "internal/") && !allowed(from, target) {
+				if (strings.HasPrefix(target, "internal/") || strings.HasPrefix(target, "pkg/")) && !allowed(from, target) {
 					report("%s: forbidden dependency on %s", rel, target)
 				}
 			}
@@ -500,13 +504,22 @@ var specMechanics = regexp.MustCompile(`(?i)\banalysis[- ]budgets?\b|\bbudget ex
 
 func allowed(from, to string) bool {
 	within := func(prefix string) bool { return to == prefix || strings.HasPrefix(to, prefix+"/") }
+	if within("pkg") && !strings.HasPrefix(from, "pkg/") {
+		return false // the public API wraps the internals, never the reverse
+	}
 	switch {
+	case from == "pkg/custos/ast":
+		return within("internal/php/syntax")
+	case strings.HasPrefix(from, "pkg/"):
+		return within("internal/cli") || within("internal/inspection/analysis") || within("internal/inspection/meta") || within("internal/inspection/pattern") || within("internal/diagnostic") || within("internal/php") || within("pkg/custos/ast")
 	case strings.HasPrefix(from, "internal/php/"):
 		return within("internal/php")
 	case strings.HasPrefix(from, "internal/semantic/"):
 		return within("internal/php") || within("internal/semantic")
 	case from == "internal/diagnostic":
 		return within("internal/php")
+	case from == "internal/diagnostic/markup":
+		return within("internal/diagnostic") && to != "internal/diagnostic/markup"
 	case from == "internal/fixing":
 		return within("internal/php") || within("internal/diagnostic")
 	case from == "internal/inspection/meta":
@@ -519,6 +532,9 @@ func allowed(from, to string) bool {
 		return within("internal/php") || within("internal/inspection/astquery")
 	case strings.HasPrefix(from, "internal/inspection/rules/"):
 		return within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/inspection/analysis") || within("internal/inspection/meta") || within("internal/inspection/astquery") || within("internal/inspection/flowquery") || within("internal/inspection/semanticquery") || within("internal/inspection/phpunit")
+	case from == "internal/inspection/pattern":
+		// Custom rules resolve names and types as the rules do.
+		return within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/inspection/analysis") || within("internal/inspection/meta") || within("internal/inspection/astquery") || within("internal/inspection/semanticquery")
 	case from == "internal/inspection/catalogue":
 		return within("internal/inspection/analysis") || within("internal/inspection/rules")
 	case strings.HasPrefix(from, "internal/inspection/"):

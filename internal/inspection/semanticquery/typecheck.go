@@ -37,6 +37,12 @@ func fileRelations(ctx *analysis.Context) *indexRelations {
 	return r
 }
 
+// AcceptContext returns the acceptance context of a value passed in the file
+// of ctx, for types.Accepts (see acceptContext).
+func AcceptContext(ctx *analysis.Context, internal bool) types.AcceptContext {
+	return acceptContext(ctx, internal)
+}
+
 // acceptContext returns the acceptance context of a value passed in the file
 // of ctx: its strict_types mode and the class relations of its index;
 // internal marks a parameter of a builtin function.

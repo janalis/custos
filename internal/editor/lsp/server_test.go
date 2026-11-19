@@ -38,13 +38,26 @@ type client struct {
 
 func startServer(t *testing.T) *client {
 	t.Helper()
+	return startServerWith(t, nil)
+}
+
+// startServerWith starts a server running extra rules too (nil: Serve).
+func startServerWith(t *testing.T, extra []analysis.Rule) *client {
+	t.Helper()
 	if registryOverride == nil {
 		registry = func() []analysis.Rule { return []analysis.Rule{testRule{}} }
 	}
 	Debounce = 5 * time.Millisecond
 	cr, sw := io.Pipe()
 	sr, cw := io.Pipe()
-	go func() { _ = Serve(context.Background(), sr, sw); sw.Close() }()
+	go func() {
+		if extra == nil {
+			_ = Serve(context.Background(), sr, sw)
+		} else {
+			_ = ServeWith(context.Background(), sr, sw, extra)
+		}
+		sw.Close()
+	}()
 	cl := &client{t: t, c: newConn(cr, cw), out: make(chan *message, 64)}
 	go func() {
 		for {

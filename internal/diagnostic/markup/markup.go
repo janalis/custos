@@ -1,13 +1,13 @@
-// Package conformance checks rule implementations against annotated fixtures.
-//
-// Fixtures embed expectations as inline tags around the highlighted code:
+// Package markup reads the expected findings that rule fixtures embed as
+// inline tags around the highlighted code:
 //
 //	<warning descr="message">highlighted code</warning>
 //
 // Supported tags: error, warning, weak_warning (reported as info) and info.
 // Tags may nest. A <caret> marker is accepted and removed. Both custos' own
-// fixtures and the local EA checkout use this format.
-package conformance
+// fixtures, the local EA checkout and the fixtures of a project's custom
+// rules (custos test-rules) use this format.
+package markup
 
 import (
 	"bytes"
@@ -43,9 +43,9 @@ type openTag struct {
 	start int
 }
 
-// ParseMarkup strips expectation tags from src and returns the clean source
+// Parse strips expectation tags from src and returns the clean source
 // together with the expectations, sorted by position.
-func ParseMarkup(src []byte) ([]byte, []Expectation, error) {
+func Parse(src []byte) ([]byte, []Expectation, error) {
 	clean := make([]byte, 0, len(src))
 	var stack []openTag
 	var out []Expectation
@@ -84,12 +84,12 @@ func ParseMarkup(src []byte) ([]byte, []Expectation, error) {
 	if len(stack) > 0 {
 		return nil, nil, fmt.Errorf("unclosed <%s> at clean offset %d", stack[len(stack)-1].name, stack[len(stack)-1].start)
 	}
-	SortExpectations(out)
+	Sort(out)
 	return clean, out, nil
 }
 
-// SortExpectations orders by start, end, severity, message.
-func SortExpectations(e []Expectation) {
+// Sort orders by start, end, severity, message.
+func Sort(e []Expectation) {
 	sort.Slice(e, func(i, j int) bool {
 		a, b := e[i], e[j]
 		if a.Start != b.Start {
@@ -158,4 +158,49 @@ func matchOpen(b []byte) (name, descr string, n int, ok bool) {
 		return tag, descr, len(p) + i + 1, true
 	}
 	return "", "", 0, false
+}
+
+func key(e Expectation, withMsg bool) string {
+	k := fmt.Sprintf("%s|%d|%d", e.Severity, e.Start, e.End)
+	if withMsg {
+		k += "|" + e.Message
+	}
+	return k
+}
+
+// Diff returns the expectations of want that got lacks and those of got
+// that want lacks, counting duplicates; messages are compared when withMsg
+// is set.
+func Diff(want, got []Expectation, withMsg bool) (missing, unexpected []Expectation) {
+	count := map[string]int{}
+	for _, g := range got {
+		count[key(g, withMsg)]++
+	}
+	for _, w := range want {
+		k := key(w, withMsg)
+		if count[k] > 0 {
+			count[k]--
+			continue
+		}
+		missing = append(missing, w)
+	}
+	seen := map[string]int{}
+	for _, w := range want {
+		seen[key(w, withMsg)]++
+	}
+	for _, g := range got {
+		k := key(g, withMsg)
+		if seen[k] > 0 {
+			seen[k]--
+			continue
+		}
+		unexpected = append(unexpected, g)
+	}
+	return missing, unexpected
+}
+
+// NormalizeWS collapses whitespace runs and trims, so fix comparisons
+// ignore formatting differences.
+func NormalizeWS(b []byte) []byte {
+	return bytes.Join(bytes.Fields(b), []byte{' '})
 }

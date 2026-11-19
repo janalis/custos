@@ -1,3 +1,5 @@
+// Package conformance checks rule implementations against annotated fixtures
+// (see package markup for their format).
 package conformance
 
 import (
@@ -9,6 +11,17 @@ import (
 	"strings"
 
 	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/diagnostic/markup"
+)
+
+// Expectation is one expected finding of a fixture (see package markup).
+type Expectation = markup.Expectation
+
+var (
+	// ParseMarkup strips the expectation tags of a fixture.
+	ParseMarkup = markup.Parse
+	// SortExpectations orders expectations by position.
+	SortExpectations = markup.Sort
 )
 
 // Request is one analysis run over a fixture.
@@ -138,7 +151,7 @@ func Check(engine Engine, req Request, marked, fixed []byte, opt CompareOptions)
 	}
 	SortExpectations(got)
 	var res Result
-	res.Missing, res.Unexpected = diff(want, got, opt.Messages)
+	res.Missing, res.Unexpected = markup.Diff(want, got, opt.Messages)
 	if fixed == nil && opt.NoFixWithoutFixed && len(got) > 0 {
 		out, err := engine.Fix(req)
 		if err != nil {
@@ -153,7 +166,7 @@ func Check(engine Engine, req Request, marked, fixed []byte, opt CompareOptions)
 		if err != nil {
 			return res, err
 		}
-		if g, w := normalizeWS(out), normalizeWS(fixed); !bytes.Equal(g, w) {
+		if g, w := markup.NormalizeWS(out), markup.NormalizeWS(fixed); !bytes.Equal(g, w) {
 			if opt.HideExpected {
 				// Clean room: never reveal upstream fixture text to implementers;
 				// only say where custos' (whitespace-collapsed) output diverges.
@@ -168,48 +181,6 @@ func Check(engine Engine, req Request, marked, fixed []byte, opt CompareOptions)
 		}
 	}
 	return res, nil
-}
-
-func key(e Expectation, withMsg bool) string {
-	k := fmt.Sprintf("%s|%d|%d", e.Severity, e.Start, e.End)
-	if withMsg {
-		k += "|" + e.Message
-	}
-	return k
-}
-
-func diff(want, got []Expectation, withMsg bool) (missing, unexpected []Expectation) {
-	count := map[string]int{}
-	for _, g := range got {
-		count[key(g, withMsg)]++
-	}
-	for _, w := range want {
-		k := key(w, withMsg)
-		if count[k] > 0 {
-			count[k]--
-			continue
-		}
-		missing = append(missing, w)
-	}
-	seen := map[string]int{}
-	for _, w := range want {
-		seen[key(w, withMsg)]++
-	}
-	for _, g := range got {
-		k := key(g, withMsg)
-		if seen[k] > 0 {
-			seen[k]--
-			continue
-		}
-		unexpected = append(unexpected, g)
-	}
-	return missing, unexpected
-}
-
-// normalizeWS collapses whitespace runs and trims, so fix comparisons ignore
-// formatting differences between IDE reformatting and custos' text edits.
-func normalizeWS(b []byte) []byte {
-	return bytes.Join(bytes.Fields(b), []byte{' '})
 }
 
 // ReadEA reads a file of the EA checkout (never copied into the repo).

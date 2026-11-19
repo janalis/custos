@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/janalis/custos/internal/inspection/analysis"
-	"github.com/janalis/custos/internal/inspection/meta"
 	"github.com/janalis/custos/internal/output/diff"
 	"github.com/janalis/custos/internal/project"
 )
@@ -70,10 +69,10 @@ func cmdFix(args []string, stdout, stderr io.Writer) (int, error) {
 // fixableRules are the registered rules that offer a quick-fix. fix applies
 // nothing else, so running the others would only cost time; the fixture
 // tests check that no other rule reports a quick-fix.
-func fixableRules() []analysis.Rule {
+func fixableRules(rules []analysis.Rule) []analysis.Rule {
 	var out []analysis.Rule
-	for _, r := range registry() {
-		if d, _ := meta.Describe(r.ID()); d.Fix {
+	for _, r := range rules {
+		if d, _ := analysis.Describe(rules, r.ID()); d.Fix {
 			out = append(out, r)
 		}
 	}

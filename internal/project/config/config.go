@@ -6,14 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/janalis/custos/internal/diagnostic"
 	"github.com/janalis/custos/internal/inspection/analysis"
-	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/inspection/pattern"
 	phpversion "github.com/janalis/custos/internal/php/version"
 	"github.com/janalis/custos/internal/platform/safeio"
 	"github.com/janalis/custos/internal/semantic/flow"
@@ -54,7 +56,17 @@ type File struct {
 	Exclude         []string                `json:"exclude,omitempty"`
 	Baseline        string                  `json:"baseline,omitempty"` // baseline file, relative to the root
 	Rules           map[string]RuleSettings `json:"rules,omitempty"`
+	// CustomRules declares the project's own pattern rules; CustomRuleFiles
+	// names JSON files, relative to the root, each holding a list of them.
+	CustomRules     []pattern.Definition `json:"customRules,omitempty"`
+	CustomRuleFiles []string             `json:"customRuleFiles,omitempty"`
+	// CustomRuleTests is the directory of the rules' fixtures (custos
+	// test-rules), relative to the root; default DefaultRuleTests.
+	CustomRuleTests string `json:"customRuleTests,omitempty"`
 }
+
+// DefaultRuleTests is where custos test-rules looks for rule fixtures.
+const DefaultRuleTests = "custos-tests"
 
 // Config is the resolved configuration.
 type Config struct {
@@ -75,6 +87,12 @@ type Config struct {
 	Exclude         []string
 	Baseline        string
 	Rules           map[string]analysis.RuleConfig
+	// Custom holds the compiled custom rules, declared in Definitions
+	// (inline ones first, then those of CustomRuleFiles, in order).
+	Custom          []analysis.Rule `json:"-"`
+	Definitions     []pattern.Definition
+	CustomRuleFiles []string
+	CustomRuleTests string // fixtures directory, relative to the root
 }
 
 // DefaultExclude are directory names skipped during discovery.
@@ -112,6 +130,15 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 			return nil, fmt.Errorf("config: paths entry %q leaves the project root", p)
 		}
 	}
+	c.CustomRuleTests = DefaultRuleTests
+	if f.CustomRuleTests != "" {
+		if !insideRoot(f.CustomRuleTests) {
+			return nil, fmt.Errorf("config: customRuleTests %q leaves the project root", f.CustomRuleTests)
+		}
+		c.CustomRuleTests = f.CustomRuleTests
+	}
+	// Rule fixtures hold markup, not project code.
+	c.Exclude = slices.Insert(c.Exclude, len(DefaultExclude), path.Clean(filepath.ToSlash(c.CustomRuleTests)))
 	if f.Baseline != "" && !insideRoot(f.Baseline) {
 		return nil, fmt.Errorf("config: baseline %q leaves the project root", f.Baseline)
 	}
@@ -164,8 +191,11 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 	if f.ParseOnce != nil {
 		c.ParseOnce = *f.ParseOnce
 	}
+	if err := c.compileCustom(f, read); err != nil {
+		return nil, err
+	}
 	for id, rs := range f.Rules {
-		m, ok := meta.Lookup(id)
+		m, ok := analysis.Lookup(c.Custom, id)
 		if !ok {
 			return nil, fmt.Errorf("config: unknown rule %q", id)
 		}
@@ -199,6 +229,52 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 		c.Paths = []string{"."}
 	}
 	return c, nil
+}
+
+// compileCustom compiles the custom rules f declares, inline and in its
+// rule files.
+func (c *Config) compileCustom(f File, read func(string) ([]byte, error)) error {
+	defs := append([]pattern.Definition{}, f.CustomRules...)
+	var files []string
+	for _, name := range f.CustomRuleFiles {
+		if !insideRoot(name) {
+			return fmt.Errorf("config: customRuleFiles entry %q leaves the project root", name)
+		}
+		// One spelling per file: snapshots capture the files by this name.
+		name = path.Clean(filepath.ToSlash(name))
+		files = append(files, name)
+		b, err := read(name)
+		if err != nil {
+			return fmt.Errorf("config: customRuleFiles entry %q: %w", name, err)
+		}
+		var more []pattern.Definition
+		if err := json.Unmarshal(b, &more); err != nil {
+			return fmt.Errorf("config: %s: %w", name, err)
+		}
+		defs = append(defs, more...)
+	}
+	seen := map[string]bool{}
+	for _, d := range defs {
+		r, err := pattern.Compile(d)
+		if err != nil {
+			return fmt.Errorf("config: %w", err)
+		}
+		if seen[d.ID] {
+			return fmt.Errorf("config: custom rule %s declared twice", d.ID)
+		}
+		seen[d.ID] = true
+		c.Custom = append(c.Custom, r)
+	}
+	if len(defs) > 0 {
+		c.Definitions = defs
+	}
+	c.CustomRuleFiles = files
+	return nil
+}
+
+// Registry returns the rules to run: base, then the project's custom rules.
+func (c *Config) Registry(base []analysis.Rule) []analysis.Rule {
+	return append(base[:len(base):len(base)], c.Custom...)
 }
 
 // composerPHPUnit returns the lowest PHPUnit version composer.json allows

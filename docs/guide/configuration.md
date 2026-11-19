@@ -37,6 +37,9 @@ custos reads `custos.json` from the project root. Every key is optional.
 | `exclude` | Extra directories to skip. See [Excluded directories](#excluded-directories). |
 | `baseline` | Baseline file used by `analyse`, relative to the root (see [Baseline](./suppressing#baseline)). |
 | `rules` | Per-rule settings, keyed by rule ID or PhpStorm name. |
+| `customRules` | The project's own pattern rules. See [Custom rules](./custom-rules). |
+| `customRuleFiles` | JSON files, relative to the root, each holding a list of custom rules. |
+| `customRuleTests` | Directory of the rules' fixtures for `custos test-rules`, relative to the root; `analyse` and `fix` skip it. Default `custos-tests`. |
 
 Each `rules` entry accepts:
 

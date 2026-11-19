@@ -278,13 +278,24 @@ func TestSystemAccess(t *testing.T) {
 	}
 }
 
+// The public API may wrap the internals; nothing internal may use it.
+func TestPublicAPIBoundaries(t *testing.T) {
+	root := layout(t)
+	write(t, root, "pkg/custos/api.go", "package custos\nimport \"github.com/janalis/custos/internal/project\"\nvar _ = project.Open\n")
+	write(t, root, "internal/project/api.go", "package project\nimport \"github.com/janalis/custos/pkg/custos\"\nvar _ = custos.Run\n")
+	problems, err := check(root)
+	if err != nil || len(problems) != 2 || !strings.Contains(problems[0]+problems[1], "internal/project/api.go: forbidden dependency on pkg/custos") || !strings.Contains(problems[0]+problems[1], "pkg/custos/api.go: forbidden dependency on internal/project") {
+		t.Fatalf("%v: %v", problems, err)
+	}
+}
+
 func TestAdapterBoundaries(t *testing.T) {
-	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/inspection/catalogue"}, {"internal/cli", "internal/editor/mcp"}, {"internal/testing/conformance", "internal/project"}} {
+	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/inspection/catalogue"}, {"internal/cli", "internal/editor/mcp"}, {"internal/testing/conformance", "internal/project"}, {"internal/inspection/pattern", "internal/inspection/semanticquery"}, {"pkg/custos", "internal/cli"}, {"pkg/custos", "pkg/custos/ast"}, {"pkg/custos/ast", "internal/php/syntax"}, {"internal/diagnostic/markup", "internal/diagnostic"}} {
 		if !allowed(pair[0], pair[1]) {
 			t.Error(pair)
 		}
 	}
-	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/editor/mcp"}, {"internal/editor/lsp", "internal/cli"}, {"internal/cli", "internal/testing/testbudget"}, {"internal/testing/conformance", "internal/editor/lsp"}, {"internal/unlisted", "internal/php/syntax"}} {
+	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/editor/mcp"}, {"internal/editor/lsp", "internal/cli"}, {"internal/cli", "internal/testing/testbudget"}, {"internal/testing/conformance", "internal/editor/lsp"}, {"internal/unlisted", "internal/php/syntax"}, {"internal/inspection/pattern", "internal/project"}, {"internal/project", "pkg/custos"}, {"pkg/custos/ast", "internal/cli"}, {"pkg/custos", "internal/project"}, {"internal/diagnostic/markup", "internal/php/syntax"}} {
 		if allowed(pair[0], pair[1]) {
 			t.Error(pair)
 		}

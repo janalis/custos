@@ -63,6 +63,8 @@ internal/diagnostic/ internal/fixing/  findings and edits; fix application
 internal/project/                   discovery, indexing, analysis, prepared fixes; config, baseline
 internal/output/ internal/cli/ internal/editor/{lsp,mcp}/  adapters
 internal/platform/safeio/ internal/testing/  bounded IO; conformance harness, test budgets
+pkg/custos/ pkg/custos/ast/         public Go API: rules written in Go, custom binaries (custos.Main)
+examples/custom-binary/             example program using the public API (own module)
 tools/                              generators, architecture, coverage, clean-room checks
 specs/                              clean-room behavioral spec per rule ID
 bench/                              competitor benchmark: tools, versions, configs, results (tools/benchcmp)
@@ -87,7 +89,8 @@ make cleanroom      # forbidden upstream tokens; verbatim EA text when the check
 make docs / docs-dev # build / serve the docs site (Node 20+, docs/package.json)
 make coverage       # 100% gates: internal/inspection/rules from own fixtures + rule and catalogue tests; cmd/ + internal/ + tools/ from the whole suite
 make architecture   # package boundaries, complete inspection catalogue, rule package comments, fixture names
-make verify         # definition of done: architecture + lint + test + fixtures + coverage + cleanroom
+make examples       # build the example programs using the public Go API (pkg/custos)
+make verify         # definition of done: architecture + lint + test + examples + fixtures + coverage + cleanroom
 make stubs          # rebuild embedded PHP stubs index
 make corpus-baseline / corpus-diff  # record every rule's findings on the pinned bench corpora / fail on any change (CORPORA= filter)
 make typecov        # share of unknown inferred types on the bench corpora, by kind and cause (.cache/typecov/)

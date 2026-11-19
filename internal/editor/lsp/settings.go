@@ -69,7 +69,8 @@ func (s *Server) configure() error {
 	}
 	acfg := cfg.Analysis()
 	acfg.ProjectPath = project.DiskProjectPaths(cfg.Root)
-	e, err := analysis.NewEngine(registry(), acfg)
+	base := registry()
+	e, err := analysis.NewEngine(cfg.Registry(append(base[:len(base):len(base)], s.extra...)), acfg)
 	if err != nil {
 		return err
 	}
@@ -106,6 +107,21 @@ func (s *Server) configure() error {
 
 // baselinePath returns the absolute path of cfg's baseline, "" without one
 // (or without a configuration, when the project's failed to load).
+// configInputs returns the files the configuration reads: custos.json at
+// the root of cfg (root while none loaded) and its custom rule files.
+func configInputs(cfg *config.Config, root string) []string {
+	if cfg != nil {
+		root = cfg.Root
+	}
+	out := []string{filepath.Join(root, config.FileName)}
+	if cfg != nil {
+		for _, name := range cfg.CustomRuleFiles {
+			out = append(out, filepath.Join(root, filepath.FromSlash(name)))
+		}
+	}
+	return out
+}
+
 func baselinePath(cfg *config.Config) string {
 	if cfg == nil || cfg.Baseline == "" {
 		return ""

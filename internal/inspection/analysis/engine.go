@@ -29,9 +29,12 @@ type Engine struct {
 	cfg   Config
 	rules []activeRule
 	// ids maps the ID of each enabled rule to its index in rules.
-	ids    map[string]int
+	ids map[string]int
+	// custom holds the IDs of the registered rules outside the catalogue.
+	custom map[string]bool
 	byKind [syntax.NumNodeKinds][]int32
 	files  []int32 // indices of FileRule implementations
+	walk   bool    // an enabled rule subscribes to a node kind
 	index  *index.Index
 	flow   *flow.Snapshot
 	// recorded tells which findings a baseline hides (see WithRecorded).
@@ -70,8 +73,24 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 		only[id] = true
 	}
 	e := &Engine{cfg: cfg, ids: map[string]int{}}
+	seen := map[string]bool{}
 	for _, r := range registered {
+		if seen[r.ID()] {
+			return nil, fmt.Errorf("analysis: rule %s registered twice", r.ID())
+		}
+		seen[r.ID()] = true
 		m, ok := meta.Lookup(r.ID())
+		if d, own := r.(Described); own {
+			if ok {
+				return nil, fmt.Errorf("analysis: rule %s is already a catalogue rule", r.ID())
+			}
+			facts := d.Facts()
+			m, ok = &facts, true
+			if e.custom == nil {
+				e.custom = map[string]bool{}
+			}
+			e.custom[m.ID] = true
+		}
 		if !ok {
 			return nil, fmt.Errorf("analysis: rule %s missing from catalogue", r.ID())
 		}
@@ -113,6 +132,7 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 		e.ids[m.ID] = int(idx)
 		for _, k := range r.Kinds() {
 			e.byKind[k] = append(e.byKind[k], idx)
+			e.walk = true
 		}
 		if ar.file {
 			e.files = append(e.files, idx)
@@ -128,6 +148,27 @@ func (e *Engine) Rules() []string {
 		ids[i] = r.meta.ID
 	}
 	return ids
+}
+
+// Fingerprints returns, per enabled rule that has one, its ID and
+// fingerprint (see Fingerprinted).
+func (e *Engine) Fingerprints() []string {
+	var out []string
+	for _, r := range e.rules {
+		if f, ok := r.rule.(Fingerprinted); ok {
+			out = append(out, r.meta.ID+"="+f.Fingerprint())
+		}
+	}
+	return out
+}
+
+// Known reports whether id names a rule of the catalogue (by ID or legacy
+// name) or one registered with its own facts.
+func (e *Engine) Known(id string) bool {
+	if _, ok := meta.Lookup(id); ok {
+		return true
+	}
+	return e.custom[id]
 }
 
 // Config returns the engine configuration.
@@ -244,7 +285,7 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 			rule.CheckFile(ctx)
 		}
 	}
-	if len(e.rules) > len(e.files) || len(e.files) == 0 {
+	if e.walk {
 		e.unlabel()
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			subscribed := e.byKind[n.Kind()]
