@@ -418,6 +418,9 @@ func (t Type) ShapeString() string {
 			if args := t.TypeArgs(a); args != nil {
 				parts[i] = genString(a, args, t.callSigOf(a))
 			}
+			if doc := t.objectShapeDoc(a); doc != "" {
+				parts[i] = doc
+			}
 			if a == "int" && t.ints != nil {
 				parts[i] = intsString(t.ints)
 			}
@@ -524,9 +527,38 @@ func (t Type) DocString() string {
 			parts[i] = genString(a, args, t.callSigOf(a))
 			continue
 		}
+		if doc := t.objectShapeDoc(a); doc != "" {
+			parts[i] = doc
+			continue
+		}
 		parts[i] = docAtom(a, t.arr)
 	}
 	return t.joinParts(parts)
+}
+
+// writeShapeBody writes the entries of a shape: `a:int,b?:string,...`.
+func writeShapeBody(b *strings.Builder, keys []ShapeKey, sealed bool) {
+	for j, k := range keys {
+		if j > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(docKey(k.Name))
+		if k.Optional {
+			b.WriteByte('?')
+		}
+		b.WriteByte(':')
+		if k.Type.IsUnknown() {
+			b.WriteString("mixed")
+		} else {
+			b.WriteString(k.Type.DocString())
+		}
+	}
+	if !sealed {
+		if len(keys) > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString("...")
+	}
 }
 
 func docAtom(atom string, a *arrayInfo) string {
@@ -552,27 +584,7 @@ func docAtom(atom string, a *arrayInfo) string {
 			b.WriteString("non-empty-")
 		}
 		b.WriteString("array{")
-		for j, k := range a.keys {
-			if j > 0 {
-				b.WriteByte(',')
-			}
-			b.WriteString(docKey(k.Name))
-			if k.Optional {
-				b.WriteByte('?')
-			}
-			b.WriteByte(':')
-			if k.Type.IsUnknown() {
-				b.WriteString("mixed")
-			} else {
-				b.WriteString(k.Type.DocString())
-			}
-		}
-		if !a.sealed {
-			if len(a.keys) > 0 {
-				b.WriteByte(',')
-			}
-			b.WriteString("...")
-		}
+		writeShapeBody(&b, a.keys, a.sealed)
 		b.WriteByte('}')
 		return b.String()
 	}

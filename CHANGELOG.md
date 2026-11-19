@@ -15,6 +15,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `new<T>` and `template-type<…>` no longer read as a class of that name.
 - Callable doc types keep which parameters are optional, by reference or
   variadic (`callable(int, string=, float ...$rest): void`).
+- Object shapes (`object{a: int, b?: string}`) keep their properties instead
+  of reading as a plain `object`.
 
 ## [0.1.16] - 2026-11-18
 

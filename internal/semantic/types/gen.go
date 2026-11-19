@@ -14,6 +14,48 @@ type genEntry struct {
 	atom string
 	args []Type
 	sig  *callSig // what a written callable signature says of its parameters
+	// props is the shape of an `object{a: int, b?: string}` atom.
+	props *objectShape
+}
+
+// objectShape is the properties an object shape lists. Unlike an array
+// shape it describes a contract on any object, so it only ever adds to the
+// `object` atom it sits on.
+type objectShape struct {
+	keys   []ShapeKey
+	sealed bool
+}
+
+// sameProps reports two object shapes listing the same properties.
+func sameProps(a, b *objectShape) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.sealed != b.sealed || len(a.keys) != len(b.keys) {
+		return false
+	}
+	for i, k := range a.keys {
+		o := b.keys[i]
+		if k.Name != o.Name || k.Optional != o.Optional || k.Type.DocString() != o.Type.DocString() {
+			return false
+		}
+	}
+	return true
+}
+
+// sameEntry reports two entries saying the same of their atom.
+func sameEntry(a, b *genEntry) bool {
+	return sameArgs(a.args, b.args) && sameSig(a.sig, b.sig) && sameProps(a.props, b.props)
+}
+
+// genOf returns the entry of atom, nil when t has none.
+func (t Type) genOf(atom string) *genEntry {
+	for i := range t.gen {
+		if t.gen[i].atom == atom {
+			return &t.gen[i]
+		}
+	}
+	return nil
 }
 
 // callSig is the shape of the parameters a callable signature was written
@@ -63,12 +105,23 @@ func (t Type) TypeArgs(atom string) []Type {
 
 // callSigOf returns the signature shape written for atom, nil when unknown.
 func (t Type) callSigOf(atom string) *callSig {
-	for _, g := range t.gen {
-		if g.atom == atom {
-			return g.sig
-		}
+	if e := t.genOf(atom); e != nil {
+		return e.sig
 	}
 	return nil
+}
+
+// objectShapeDoc is the doc syntax of atom's object shape, "" without one.
+func (t Type) objectShapeDoc(atom string) string {
+	e := t.genOf(atom)
+	if e == nil || e.props == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("object{")
+	writeShapeBody(&b, e.props.keys, e.props.sealed)
+	b.WriteByte('}')
+	return b.String()
 }
 
 // WithTypeArgs returns t with generic arguments args on atom (which t must
@@ -107,7 +160,7 @@ func (t Type) withGen(gen []genEntry) Type {
 	}
 	var out []genEntry
 	for _, g := range gen {
-		if !t.Has(g.atom) || len(g.args) == 0 {
+		if !t.Has(g.atom) || len(g.args) == 0 && g.props == nil {
 			continue
 		}
 		dup := false
@@ -141,28 +194,27 @@ func unionGen(u Type, ts []Type) []genEntry {
 	}
 	var out []genEntry
 	for _, a := range u.atoms {
-		var args []Type
-		var sig *callSig
+		var first *genEntry
 		ok := true
 		for _, t := range ts {
 			if !t.Has(a) {
 				continue
 			}
-			ta, shape := t.TypeArgs(a), t.callSigOf(a)
+			e := t.genOf(a)
 			switch {
-			case ta == nil:
+			case e == nil:
 				ok = false
-			case args == nil:
-				args, sig = ta, shape
-			case !sameArgs(args, ta) || !sameSig(sig, shape):
+			case first == nil:
+				first = e
+			case !sameEntry(first, e):
 				ok = false
 			}
 			if !ok {
 				break
 			}
 		}
-		if ok && args != nil {
-			out = append(out, genEntry{atom: a, args: args, sig: sig})
+		if ok && first != nil {
+			out = append(out, *first)
 		}
 	}
 	return out
@@ -179,7 +231,7 @@ func mergeGen(lists ...[]genEntry) []genEntry {
 			for _, o := range out {
 				if o.atom == g.atom {
 					found = true
-					if !sameArgs(o.args, g.args) || !sameSig(o.sig, g.sig) {
+					if !sameEntry(&o, &g) {
 						drop[g.atom] = true
 					}
 				}

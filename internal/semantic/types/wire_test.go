@@ -55,15 +55,16 @@ func TestWireRoundTrip(t *testing.T) {
 // this test until the codec writes it and the list below names it.
 func TestWireFields(t *testing.T) {
 	want := map[string][]string{
-		"types.Type":      {"card", "atoms", "arr", "element", "gen", "inter", "ints", "lens", "cases", "strs"},
-		"types.arraySize": {"minimum", "maximum"},
-		"types.arrayInfo": {"shape", "sealed", "nonEmpty", "key", "keys", "keyPattern", "elem"},
-		"types.ShapeKey":  {"Name", "Type", "Optional"},
-		"types.genEntry":  {"atom", "args", "sig"},
-		"types.callSig":   {"required", "rest", "byRef"},
-		"types.IntRange":  {"Lo", "Hi"},
-		"types.enumCases": {"class", "names"},
-		"types.strFacts":  {"only", "not"},
+		"types.Type":        {"card", "atoms", "arr", "element", "gen", "inter", "ints", "lens", "cases", "strs"},
+		"types.arraySize":   {"minimum", "maximum"},
+		"types.arrayInfo":   {"shape", "sealed", "nonEmpty", "key", "keys", "keyPattern", "elem"},
+		"types.ShapeKey":    {"Name", "Type", "Optional"},
+		"types.genEntry":    {"atom", "args", "sig", "props"},
+		"types.callSig":     {"required", "rest", "byRef"},
+		"types.objectShape": {"keys", "sealed"},
+		"types.IntRange":    {"Lo", "Hi"},
+		"types.enumCases":   {"class", "names"},
+		"types.strFacts":    {"only", "not"},
 	}
 	got := wiretest.Fields(reflect.TypeFor[Type](), nil, func(reflect.Type) bool { return false })
 	if !reflect.DeepEqual(got, want) {

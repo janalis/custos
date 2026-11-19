@@ -284,6 +284,8 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		return Mixed
 	case "array", "list", "non-empty-array", "non-empty-list", "iterable":
 		return p.arrayPart(low, args, resolve, depth)
+	case "object":
+		return p.objectPart(args, resolve, depth)
 	case "callable", "pure-callable", "closure", "\\closure", "pure-closure":
 		atom := `\Closure`
 		if low == "callable" || low == "pure-callable" {
@@ -534,6 +536,26 @@ func (p *docParser) arrayPart(low, args string, resolve Resolver, depth int) Typ
 		a.key = 1
 	}
 	return Array.withInfo(&a)
+}
+
+// objectPart parses `object` with an optional shape `{a: int, b?: string}`.
+// A shape that cannot describe properties (a duplicate or integer key, too
+// many keys) leaves the plain object.
+func (p *docParser) objectPart(args string, resolve Resolver, depth int) Type {
+	t := Of("object")
+	if !strings.HasPrefix(args, "{") || matchingClose(args) != len(args)-1 {
+		return t
+	}
+	keys, sealed, ok := p.shape(args[1:len(args)-1], resolve, depth+1)
+	if !ok || len(keys) > MaxShapeKeys {
+		return t
+	}
+	for _, k := range keys {
+		if IsIntKey(k.Name) {
+			return t
+		}
+	}
+	return t.withGen([]genEntry{{atom: "object", props: &objectShape{keys: keys, sealed: sealed}}})
 }
 
 // shape parses the body of a doc shape: `k: T, 'k2'?: U, 0: V, ...`

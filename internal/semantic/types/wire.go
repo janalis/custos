@@ -54,6 +54,16 @@ func (t Type) Encode(w *wire.Writer) {
 				g.sig.rest.Encode(w)
 			}
 		}
+		w.Bool(g.props != nil)
+		if g.props != nil {
+			w.Bool(g.props.sealed)
+			w.Len(len(g.props.keys), g.props.keys == nil)
+			for _, k := range g.props.keys {
+				w.String(k.Name)
+				k.Type.Encode(w)
+				w.Bool(k.Optional)
+			}
+		}
 	}
 	if t.inter != nil {
 		w.Strings(*t.inter)
@@ -100,6 +110,16 @@ func DecodeType(r *wire.Reader) Type {
 					sig.rest = &rest
 				}
 				t.gen[i].sig = sig
+			}
+			if r.Bool() {
+				props := &objectShape{sealed: r.Bool()}
+				if n, isNil := r.Len(); !isNil {
+					props.keys = wire.Make[ShapeKey](r, n)
+					for j := range props.keys {
+						props.keys[j] = ShapeKey{Name: r.String(), Type: DecodeType(r), Optional: r.Bool()}
+					}
+				}
+				t.gen[i].props = props
 			}
 		}
 	}
