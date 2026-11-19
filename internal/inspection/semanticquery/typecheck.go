@@ -1,6 +1,7 @@
 package semanticquery
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -53,6 +54,77 @@ func declaredTypeArgs(ctx *analysis.Context, x syntax.Expr, given types.Type) ty
 		}
 	}
 	return given.WithoutClassTypeArgs()
+}
+
+// docConstants resolves the class constants a doc type names to their values.
+type docConstants struct {
+	ix     *index.Index
+	ver    phpversion.Version
+	parsed map[string]types.Type
+}
+
+// typeOf is doc type text with its class constants read as their values,
+// nullable when asked; plain when one of them has no value known from its
+// declaration.
+func (d docConstants) typeOf(text string, plain types.Type, nullable bool) types.Type {
+	t, ok := d.parsed[text]
+	if !ok {
+		known := true
+		t = types.FromDocResolved(text, nil, func(expr string) types.Type {
+			v := d.constant(expr)
+			known = known && !v.IsUnknown()
+			return v
+		})
+		if !known {
+			t = types.Unknown
+		}
+		d.parsed[text] = t
+	}
+	if t.IsUnknown() {
+		return plain
+	}
+	if nullable {
+		return types.Union(t, types.Of("null"))
+	}
+	return t
+}
+
+// constant is the type of `\Foo::BAR` or `\Foo::*`; unknown unless every
+// constant it names is declared with a literal value. Only a class without
+// ancestors lists all its constants for `*`.
+func (d docConstants) constant(expr string) types.Type {
+	owner, member, _ := strings.Cut(strings.TrimPrefix(expr, `\`), "::")
+	if member != "*" {
+		if k := d.ix.FindConst(owner, member, d.ver); k != nil {
+			return literalValue(k.Value)
+		}
+		return types.Unknown
+	}
+	c := d.ix.Class(owner, d.ver)
+	if c == nil || c.Parent != "" || len(c.Interfaces) > 0 || len(c.Traits) > 0 || len(c.Consts) == 0 {
+		return types.Unknown
+	}
+	values := make([]types.Type, 0, len(c.Consts))
+	for _, k := range c.Consts {
+		v := literalValue(k.Value)
+		if v.IsUnknown() {
+			return types.Unknown
+		}
+		values = append(values, v)
+	}
+	return types.Union(values...)
+}
+
+// literalValue is the exact type of int or plain string literal source text.
+func literalValue(text string) types.Type {
+	text = strings.TrimSpace(text)
+	if v, err := strconv.ParseInt(text, 0, 64); err == nil {
+		return types.IntValue(v)
+	}
+	if len(text) >= 2 && (text[0] == '\'' || text[0] == '"') && text[len(text)-1] == text[0] && !strings.ContainsAny(text[1:len(text)-1], `\$'"`) {
+		return types.StringLiteral(text[1 : len(text)-1])
+	}
+	return types.Unknown
 }
 
 // class returns the class-like named by class atom a (nil when unknown).

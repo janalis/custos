@@ -65,7 +65,7 @@ which wins over the plain tag.
 | Attribute | Effect |
 |---|---|
 | `#[ArrayShape]`, `#[ObjectShape]` | Describe the array or object member of the type. Their keys count as optional and the shape as open, because PhpStorm's syntax cannot say otherwise. |
-| `#[ExpectedValues]` | Limits an int or string parameter or property to the listed literal values or flags. |
+| `#[ExpectedValues]` | Limits an int or string parameter or property to the listed literals and class constants, the flags it lists, or the constants of the class named by `valuesFromClass` or `flagsFromClass`. |
 | `#[NoReturn]` | Without arguments, the function never returns. With arguments it names only some calls, and is ignored. |
 | `#[LanguageLevelTypeAware]` | Gives a parameter or return type per PHP version. |
 
@@ -83,8 +83,9 @@ tag that already has a shape keeps priority over the attribute.
 
 ## Limits
 
-- `#[ExpectedValues]` only uses literal values: constants, `valuesFromClass`
-  and `flagsFromClass` are ignored.
+- `#[ExpectedValues]` does not read global constants or `self::` constants,
+  and class constants count only when declared with a literal value. A class
+  named by `valuesFromClass` must have no parent, interface or trait.
 - `#[Pure]`, `#[Immutable]` and `@throws` do not affect any check.
 - `@mixin` works with named classes: `@mixin T` on a template adds no members.
 - `@phpstan-self-out` applies to a local variable the method is called on, not

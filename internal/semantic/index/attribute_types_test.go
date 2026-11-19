@@ -108,6 +108,13 @@ function f(
 	#[ExpectedValues(valuesFromClass: Mode::class)] int $fromClass,
 	#[ExpectedValues(flagsFromClass: Mode::class)] int $maskFromClass,
 	#[ExpectedValues([Mode::A, 4])] int $constant,
+	#[ExpectedValues(flags: [Mode::A, Mode::B])] int $maskOfConstants,
+	#[ExpectedValues([Mode::A])] ?int $nullableConstant,
+	#[ExpectedValues(flags: [Mode::A])] string $maskOnString,
+	#[ExpectedValues([self::A])] int $relative,
+	#[ExpectedValues([Mode::class])] int $className,
+	#[ExpectedValues([Mode::A | Mode::B])] int $expression,
+	#[ExpectedValues(valuesFromClass: 'Mode')] int $notClassConstant,
 	#[ExpectedValues([SOME_GLOBAL])] int $global,
 	#[ExpectedValues(['a'])] int $wrongKind,
 	#[ExpectedValues([1])] array $notScalar,
@@ -126,6 +133,8 @@ class P {
 `)
 	want := map[string]string{
 		"ints": "int<1, 2>", "strs": "'a'|'b'", "nullable": "int<1, 1>|null", "flags": "int<0, 1>|int<4, 5>",
+		"fromClass": `\App\Mode::*`, "maskFromClass": `int-mask-of<\App\Mode::*>`, "constant": `\App\Mode::A|4`,
+		"maskOfConstants": `int-mask<\App\Mode::A,\App\Mode::B>`, "nullableConstant": `\App\Mode::A|null`,
 	}
 	for _, p := range fs.Functions[0].Params {
 		if p.DocValues != want[p.Name] {

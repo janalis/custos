@@ -172,39 +172,91 @@ func (x *extractor) expectedValues(doc, native string, attrs []*syntax.Attribute
 		}
 		kind = "string"
 	}
-	text := x.expectedValuesText(a)
+	text := x.expectedValuesText(a, at)
 	if text == "" {
 		return ""
 	}
-	t := x.docType(text, at)
-	if !t.OnlyOf(kind) {
+	values := text
+	// A class constant has its value only once every file is indexed: the
+	// text keeps naming it, for the checks to resolve.
+	if !strings.Contains(text, "::") {
+		t := x.docType(text, at)
+		if !t.OnlyOf(kind) {
+			return ""
+		}
+		values = t.ValueDocString()
+	} else if kind != "int" && strings.HasPrefix(text, "int-mask") {
 		return ""
 	}
-	values := t.ValueDocString()
 	if values != "" && declared.Has("null") {
 		return values + "|null"
 	}
 	return values
 }
 
-// expectedValuesText is the doc type text of the literal values a
-// #[ExpectedValues] lists: its values, or any combination of its flags. ""
-// for anything else: constants have no known value while a file is indexed.
-func (x *extractor) expectedValuesText(a *syntax.Attribute) string {
+// expectedValuesText is the doc type text of the values a #[ExpectedValues]
+// lists: literals and class constants, any combination of its flags, or the
+// constants of the class it names. "" for anything else.
+func (x *extractor) expectedValuesText(a *syntax.Attribute, at uint32) string {
 	if arr, ok := attrArg(a, "values", 0).(*syntax.Array); ok {
-		return strings.Join(x.expectedList(arr), "|")
+		return strings.Join(x.expectedList(arr, at), "|")
 	}
 	if arr, ok := attrArg(a, "flags", 1).(*syntax.Array); ok {
-		if parts := x.expectedList(arr); len(parts) > 0 {
+		if parts := x.expectedList(arr, at); len(parts) > 0 {
 			return "int-mask<" + strings.Join(parts, ",") + ">"
 		}
+		return ""
+	}
+	if all := x.classConstants(attrArg(a, "valuesFromClass", 2), at); all != "" {
+		return all
+	}
+	if all := x.classConstants(attrArg(a, "flagsFromClass", 3), at); all != "" {
+		return "int-mask-of<" + all + ">"
 	}
 	return ""
 }
 
+// classConstants is the doc text of every constant of the class `Foo::class`
+// names; "" for any other expression.
+func (x *extractor) classConstants(e syntax.Expr, at uint32) string {
+	class, ok := strings.CutSuffix(x.text(e), "::class")
+	if !ok {
+		return ""
+	}
+	return x.classConstantRef(class+"::*", at)
+}
+
+// classConstantRef is the fully qualified doc text of class constant text
+// `Foo::BAR` or `Foo::*`; "" for anything else, and for a class named
+// relatively (`self`), which the index does not resolve here.
+func (x *extractor) classConstantRef(text string, at uint32) string {
+	owner, member, ok := strings.Cut(text, "::")
+	if !ok || owner == "" || strings.EqualFold(member, "class") {
+		return ""
+	}
+	if member != "*" && !isIdentifier(member) {
+		return ""
+	}
+	switch strings.ToLower(owner) {
+	case "self", "static", "parent":
+		return ""
+	}
+	return `\` + strings.TrimPrefix(x.r.Class(owner, at), `\`) + "::" + member
+}
+
+// isIdentifier reports a plain PHP name.
+func isIdentifier(s string) bool {
+	for i, c := range s {
+		if c != '_' && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (i == 0 || c < '0' || c > '9') && c < 0x80 {
+			return false
+		}
+	}
+	return s != ""
+}
+
 // expectedList is the doc text of each entry of arr; nil when one of them is
-// not a literal.
-func (x *extractor) expectedList(arr *syntax.Array) []string {
+// neither a literal nor a class constant.
+func (x *extractor) expectedList(arr *syntax.Array, at uint32) []string {
 	parts := make([]string, 0, len(arr.Items))
 	for _, it := range arr.Items {
 		if it == nil || it.Value == nil {
@@ -212,7 +264,9 @@ func (x *extractor) expectedList(arr *syntax.Array) []string {
 		}
 		text := x.text(it.Value)
 		if _, err := strconv.ParseInt(text, 0, 64); err != nil && !isQuoted(text) {
-			return nil
+			if text = x.classConstantRef(text, at); text == "" {
+				return nil
+			}
 		}
 		parts = append(parts, text)
 	}

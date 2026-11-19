@@ -21,7 +21,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `@property-read` and `@property-write` tags declare magic members, and win
   over the unprefixed tag of the same name.
 - PhpStorm attributes document types: `#[ArrayShape]`, `#[ObjectShape]`,
-  `#[NoReturn]` and the literal values of `#[ExpectedValues]`.
+  `#[NoReturn]` and `#[ExpectedValues]`, with literals, class constants,
+  `valuesFromClass` and `flagsFromClass`.
+- A doc type naming class constants (`@param Mode::FAST|Mode::SLOW $m`) rejects
+  an exact value that none of them holds.
 - Builtin parameters whose type depends on the PHP version are checked
   against the type of the configured version.
 - The `Documented*` type rules compare generic arguments by the variance of

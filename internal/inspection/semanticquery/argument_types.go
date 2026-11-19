@@ -190,9 +190,10 @@ func fileTypeCheck(ctx *analysis.Context) *argumentCheck {
 	return ctx.Shared(argumentCheckKey{}, func() any {
 		classes := newIndexRelations(ctx.Index(), ctx.PHP)
 		return &argumentCheck{
-			weak:     types.AcceptContext{Classes: classes, Strict: syntax.StrictTypes(ctx.File)},
-			strict:   types.AcceptContext{Classes: classes, Strict: true},
-			declared: map[declaredKey]types.Type{},
+			weak:      types.AcceptContext{Classes: classes, Strict: syntax.StrictTypes(ctx.File)},
+			strict:    types.AcceptContext{Classes: classes, Strict: true},
+			declared:  map[declaredKey]types.Type{},
+			constants: docConstants{ix: ctx.Index(), ver: ctx.PHP, parsed: map[string]types.Type{}},
 		}
 	}).(*argumentCheck)
 }
@@ -301,6 +302,7 @@ func bindParam(t CallTarget, b boundArg) (index.Param, bool) {
 type argumentCheck struct {
 	weak, strict types.AcceptContext
 	declared     map[declaredKey]types.Type
+	constants    docConstants
 }
 
 // declaredKey is a declared type and whether its default is null.
@@ -371,6 +373,9 @@ func (c *argumentCheck) docTypeRejects(text, def string, native, given types.Typ
 		return false
 	}
 	doc := c.declaredType(text, def)
+	if strings.Contains(text, "::") && exactValues(given) {
+		doc = c.constants.typeOf(text, doc, strings.EqualFold(strings.TrimPrefix(def, `\`), "null"))
+	}
 	if !native.IsUnknown() && types.AllRejected(native, doc, c.strict) {
 		return false
 	}
