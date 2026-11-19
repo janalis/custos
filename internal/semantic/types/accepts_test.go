@@ -39,6 +39,19 @@ func (fakeClasses) IsFinal(c string) bool {
 
 func (fakeClasses) IsInterface(c string) bool { return c == `\I` || c == `\J` || c == `\Traversable` }
 
+// fakeVariances declares the templates of the generic classes of the tests.
+var fakeVariances = map[string][]Variance{
+	`\A`: {Invariant}, `\B`: {Covariant}, `\C`: {Contravariant}, `\F`: {Invariant, Covariant},
+}
+
+func (fakeClasses) TemplateVariance(c string, i int) (Variance, bool) {
+	vs := fakeVariances[c]
+	if i >= len(vs) {
+		return Invariant, false
+	}
+	return vs[i], true
+}
+
 func doc(s string) Type { return FromDoc(s, func(w string) string { return w }) }
 
 func TestAccepts(t *testing.T) {

@@ -80,7 +80,7 @@ func returnTypeMismatch(ctx *analysis.Context, n syntax.Node) (ReturnMismatch, b
 	if c.skip {
 		return ReturnMismatch{}, false
 	}
-	given := ctx.TypeOf(value)
+	given := declaredTypeArgs(ctx, value, ctx.TypeOf(value))
 	if given.IsUnknown() {
 		return ReturnMismatch{}, false
 	}

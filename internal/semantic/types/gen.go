@@ -143,6 +143,22 @@ func (t Type) WithTypeArgs(atom string, args []Type) Type {
 	return t.withGen(out)
 }
 
+// WithoutClassTypeArgs returns t without the generic arguments of its class
+// atoms, at any depth of element types. A closure keeps its signature.
+func (t Type) WithoutClassTypeArgs() Type {
+	if t.element != nil {
+		element := t.element.WithoutClassTypeArgs()
+		t.element = &element
+	}
+	kept := make([]genEntry, 0, len(t.gen))
+	for _, g := range t.gen {
+		if !IsClassAtom(g.atom) || g.atom == `\Closure` {
+			kept = append(kept, g)
+		}
+	}
+	return t.withGen(kept)
+}
+
 // WithTypeArgsFrom copies the generic arguments src has on atoms of t.
 func (t Type) WithTypeArgsFrom(src Type) Type {
 	if len(src.gen) == 0 {

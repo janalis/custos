@@ -133,6 +133,7 @@ func argumentTypeMismatches(ctx *analysis.Context, call syntax.Node) []ArgumentM
 		if vivified(ctx, b.arg.Value, proven) {
 			given = proven
 		}
+		given = declaredTypeArgs(ctx, b.arg.Value, given)
 		expected, native, ok := check.rejected(targets, params, given)
 		if !ok {
 			continue
@@ -454,12 +455,16 @@ func valueName(t types.Type) string {
 }
 
 // typeName prints t coarsely: its atoms, without value facts or the
-// leading backslash of class names.
+// leading backslash of class names. A class keeps its generic arguments,
+// which may be all that tells it from the type it was given for.
 func typeName(t types.Type) string {
 	atoms := t.Atoms()
 	names := make([]string, len(atoms))
 	for i, a := range atoms {
 		names[i] = strings.TrimPrefix(a, `\`)
+		if args := t.TypeArgs(a); len(args) > 0 && types.IsClassAtom(a) && a != `\Closure` {
+			names[i] = declaredTypeName(types.Of(a).WithTypeArgs(a, args).DocString())
+		}
 	}
 	return strings.Join(names, "|")
 }

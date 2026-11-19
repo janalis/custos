@@ -46,7 +46,23 @@ type ClassRelations interface {
 	IsFinal(class string) bool
 	// IsInterface reports an interface (false when unknown).
 	IsInterface(class string) bool
+	// TemplateVariance returns the variance class declares for its template
+	// at position i; false when it declares none there.
+	TemplateVariance(class string, i int) (Variance, bool)
 }
+
+// Variance is how a generic argument may differ between a type and the type
+// accepting it.
+type Variance uint8
+
+const (
+	// Invariant arguments must be the same type.
+	Invariant Variance = iota
+	// Covariant arguments may be narrower than the accepting type's.
+	Covariant
+	// Contravariant arguments may be wider than the accepting type's.
+	Contravariant
+)
 
 // AcceptContext is where a value is accepted.
 type AcceptContext struct {
@@ -456,6 +472,9 @@ func elemVerdict(want, have Type, ctx AcceptContext) Verdict {
 func acceptByClass(expected Type, e string, actual Type, a string, ctx AcceptContext) Verdict {
 	if IsClassAtom(a) {
 		v := acceptClass(e, a, ctx)
+		if v == Yes && a == e && typeArgsRejected(expected, actual, e, ctx) {
+			return No
+		}
 		if v == Yes {
 			if want, ok := expected.EnumCaseNames(e); ok {
 				have, ok := actual.EnumCaseNames(a)
@@ -477,6 +496,29 @@ func acceptByClass(expected Type, e string, actual Type, a string, ctx AcceptCon
 		return Maybe // a Closure, an invokable object
 	}
 	return No
+}
+
+// typeArgsRejected reports generic arguments of class that cannot fit: both
+// sides list the same number of them and one, compared as its template's
+// variance says, has no value in common with the accepting one. Arguments
+// that are unknown, templates or merely different in width decide nothing.
+func typeArgsRejected(expected, actual Type, class string, ctx AcceptContext) bool {
+	want, have := expected.TypeArgs(class), actual.TypeArgs(class)
+	if ctx.Classes == nil || len(want) == 0 || len(want) != len(have) {
+		return false
+	}
+	for i := range want {
+		variance, declared := ctx.Classes.TemplateVariance(class, i)
+		if !declared {
+			continue
+		}
+		forward := variance != Contravariant && elemVerdict(want[i], have[i], ctx) == No
+		backward := variance != Covariant && elemVerdict(have[i], want[i], ctx) == No
+		if forward || backward {
+			return true
+		}
+	}
+	return false
 }
 
 // acceptClass judges class a against class e.

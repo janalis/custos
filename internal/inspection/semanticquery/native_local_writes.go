@@ -355,6 +355,19 @@ func (w *nativeLocalWrites) rewritten(name string, from, read uint32, content bo
 	return w.reached(name, from, read)
 }
 
+// untouched reports that nothing writes name before offset read, in any form.
+func (w *nativeLocalWrites) untouched(name string, read uint32) bool {
+	if !w.known {
+		return false
+	}
+	for _, write := range w.writes {
+		if (write.name == name || write.name == "") && write.at < read {
+			return false
+		}
+	}
+	return !w.reached(name, 0, read)
+}
+
 // reached reports that storage shared under name may have been written
 // between two offsets without naming it: through another shared name, or by a
 // call that can run code holding a reference.

@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
+	"custos/internal/php/phpdoc"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
@@ -32,6 +34,25 @@ func acceptContext(ctx *analysis.Context, internal bool) types.AcceptContext {
 		Strict:   syntax.StrictTypes(ctx.File),
 		Internal: internal,
 	}
+}
+
+// declaredTypeArgs returns given, the type of value x, keeping the generic
+// arguments of its classes only when x is a parameter nothing has written:
+// those are the ones its declaration states. Elsewhere inference may have
+// filled them from a template's bound, which says what they could be and
+// not what they are, so they cannot prove a mismatch.
+func declaredTypeArgs(ctx *analysis.Context, x syntax.Expr, given types.Type) types.Type {
+	if variable, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok {
+		scope := syntax.EnclosingVariableScope(x)
+		params, _ := astquery.ScopeParts(scope)
+		for _, p := range params {
+			if p.Var != nil && p.Var.Name == variable.Name &&
+				nativeContractScope(ctx, scope).localWrites(ctx, scope).untouched(variable.Name, x.Span().Start) {
+				return given
+			}
+		}
+	}
+	return given.WithoutClassTypeArgs()
 }
 
 // class returns the class-like named by class atom a (nil when unknown).
@@ -74,4 +95,20 @@ func (r *indexRelations) IsFinal(a string) bool {
 func (r *indexRelations) IsInterface(a string) bool {
 	c := r.class(a)
 	return c != nil && c.Kind == syntax.KindInterface
+}
+
+// TemplateVariance returns the variance of the template of class a at
+// position i; false when a is unknown or declares none there.
+func (r *indexRelations) TemplateVariance(a string, i int) (types.Variance, bool) {
+	c := r.class(a)
+	if c == nil || i >= len(c.Templates) {
+		return types.Invariant, false
+	}
+	switch c.Templates[i].Variance {
+	case phpdoc.Covariant:
+		return types.Covariant, true
+	case phpdoc.Contravariant:
+		return types.Contravariant, true
+	}
+	return types.Invariant, true
 }

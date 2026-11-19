@@ -75,7 +75,7 @@ func propertyAssignmentMismatch(ctx *analysis.Context, n syntax.Node) (PropertyM
 		stored = a.Value
 	}
 	w := propertyStore{target: a.Var, at: a, report: a.Value, modifies: !plain}
-	return judgeStore(ctx, w, func(env *infer.Env) types.Type { return env.TypeOf(stored) })
+	return judgeStore(ctx, w, func(env *infer.Env) types.Type { return declaredTypeArgs(ctx, stored, env.TypeOf(stored)) })
 }
 
 // propertyStore is one value stored in the property target names, by the

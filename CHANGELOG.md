@@ -24,6 +24,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `#[NoReturn]` and the literal values of `#[ExpectedValues]`.
 - Builtin parameters whose type depends on the PHP version are checked
   against the type of the configured version.
+- The `Documented*` type rules compare generic arguments by the variance of
+  each template: `Box<string>` is reported where `Box<int>` is documented.
 
 ## [0.1.16] - 2026-11-18
 
