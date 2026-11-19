@@ -1,7 +1,7 @@
 package flow
 
 import (
-	"custos/internal/semantic/wire"
+	"github.com/janalis/custos/internal/semantic/wire"
 )
 
 // Decoder reads what an Encoder wrote, giving every file and snapshot

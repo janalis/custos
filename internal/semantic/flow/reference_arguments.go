@@ -3,8 +3,8 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // invalidateReferences discards values a callee may replace through reference

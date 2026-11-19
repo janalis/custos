@@ -1,7 +1,7 @@
 package astquery
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // IsEmptyNeedsParens reports whether a comparison replacing n would bind

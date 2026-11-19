@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/meta"
 )
 
 func fake(t *testing.T, rules []meta.Rule, err error, descs map[string]meta.Description) {

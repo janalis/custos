@@ -1,6 +1,6 @@
 package infer
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // ClassRef resolves the class part of a static access (`X::`, `self::`,
 // `static::`, `parent::`, or an expression via its inferred type) to a FQN

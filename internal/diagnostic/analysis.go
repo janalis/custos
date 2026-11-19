@@ -1,6 +1,6 @@
 package diagnostic
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // AnalysisIssue describes a proof the enabled checks could not complete.
 // Reasons are stable identifiers; the span identifies the affected expression

@@ -4,10 +4,10 @@ package overrideattributewithouttarget
 import (
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 const message = "Apply Override to an inherited member."

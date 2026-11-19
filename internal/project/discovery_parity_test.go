@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/rules/nestednotoperators"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/rules/nestednotoperators"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 // The command line walks the disk and the MCP server a captured root: both

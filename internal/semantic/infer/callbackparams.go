@@ -3,9 +3,9 @@ package infer
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // callbackSlot is the parameter position of the callback each builtin with a

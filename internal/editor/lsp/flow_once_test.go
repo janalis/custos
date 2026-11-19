@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/inspection/rules/unescapedhtmloutput"
-	"custos/internal/php/syntax"
-	"custos/internal/project"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/inspection/rules/unescapedhtmloutput"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func TestIndexBuildComposesFlowOnce(t *testing.T) {

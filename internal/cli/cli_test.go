@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	inspections "custos/internal/inspection/catalogue"
-	"custos/internal/inspection/meta"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	inspections "github.com/janalis/custos/internal/inspection/catalogue"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func lspFrame(body string) string {

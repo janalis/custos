@@ -3,8 +3,8 @@ package failedclosurebindinginvoked
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // The flow analysis answers every guard of a plain variable in a scope it

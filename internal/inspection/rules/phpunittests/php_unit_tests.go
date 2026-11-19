@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/phpunit"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/phpunit"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // phpUnitTests validates PHPUnit docblock tags (@covers, @depends,

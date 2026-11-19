@@ -3,9 +3,9 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // accepted records what a call proves by returning. Since PHP 8 a PHP

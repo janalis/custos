@@ -3,9 +3,9 @@ package nonexhaustiveenummatch_test
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	rule "custos/internal/inspection/rules/nonexhaustiveenummatch"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	rule "github.com/janalis/custos/internal/inspection/rules/nonexhaustiveenummatch"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // TestReviewNarrowingAndAliases pins the review findings: comparisons that

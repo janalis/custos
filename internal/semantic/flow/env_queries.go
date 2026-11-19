@@ -3,7 +3,7 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Value returns the joined value of an expression at its execution point.

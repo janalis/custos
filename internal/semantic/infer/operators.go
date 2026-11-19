@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 func (e *Env) constType(n *syntax.ConstFetch) types.Type {

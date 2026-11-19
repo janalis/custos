@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 func kill(target syntax.Expr, f *frame, r *scopeResult) {
 	// A property written, or an element of one, leaves the variable the

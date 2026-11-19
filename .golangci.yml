@@ -12,12 +12,10 @@ formatters:
     - goimports
   settings:
     gofumpt:
-      # The module path has no dot: without this, gofumpt takes custos/...
-      # for standard library imports.
-      module-path: custos
+      module-path: github.com/janalis/custos
     goimports:
       local-prefixes:
-        - custos
+        - github.com/janalis/custos
   exclusions:
     paths:
       - docs/node_modules
@@ -68,7 +66,7 @@ linters:
       # local `version` or a one-letter alias.
       no-unaliased: true
       alias:
-        - pkg: custos/internal/php/version
+        - pkg: github.com/janalis/custos/internal/php/version
           alias: phpversion
     staticcheck:
       checks:

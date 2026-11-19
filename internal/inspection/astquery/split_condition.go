@@ -3,7 +3,7 @@ package astquery
 import (
 	"slices"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // SplitCondition flattens condition c into the operands of its chain of

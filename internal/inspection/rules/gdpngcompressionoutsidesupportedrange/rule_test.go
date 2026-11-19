@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/diagnostic"
-	"custos/internal/fixing"
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/testing/conformance"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/testing/conformance"
 )
 
 func TestContracts(t *testing.T) {

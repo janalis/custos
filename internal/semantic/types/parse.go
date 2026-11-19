@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 // Resolver resolves a class name as written to its FQN (no leading backslash).

@@ -3,8 +3,8 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // Limits bound hostile scopes and recursive wrapper queries. MaxRetained

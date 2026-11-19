@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/editor/mcp"
-	"custos/internal/project"
+	"github.com/janalis/custos/internal/editor/mcp"
+	"github.com/janalis/custos/internal/project"
 )
 
 func TestMCPCommand(t *testing.T) {

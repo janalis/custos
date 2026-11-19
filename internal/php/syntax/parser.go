@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"unsafe"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // Memo returns the value cached on the file under key, computing it with fn

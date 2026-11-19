@@ -30,16 +30,16 @@ func layout(t *testing.T) string {
 		"internal/inspection/meta/native-rules.json": `[]`,
 		"internal/inspection/rules/example/rule.go": `// Package example implements the Example inspection. It says more here.
 package example
-import "custos/internal/inspection/analysis"
+import "github.com/janalis/custos/internal/inspection/analysis"
 type rule struct{}
 func (rule) ID() string { return "Example" }
 func New() analysis.Rule { return rule{} }
 `,
 		"internal/inspection/catalogue/catalogue.go": `package catalogue
-import inspection "custos/internal/inspection/rules/example"
+import inspection "github.com/janalis/custos/internal/inspection/rules/example"
 func All() []any { return []any{inspection.New()} }
 `,
-		"cmd/custos/main.go": "package main\nimport \"custos/internal/cli\"\nfunc main(){cli.Run()}",
+		"cmd/custos/main.go": "package main\nimport \"github.com/janalis/custos/internal/cli\"\nfunc main(){cli.Run()}",
 		"specs/Example.md":   "---\nkind: syntax\n---\n# Example\n\n## Options\n\nNone.\n",
 		"internal/inspection/rules/example/testdata/basic.php":                       "<?php\n",
 		"internal/inspection/rules/example/testdata/old.json":                        `{"php": "7.4", "options": {"STRICT": true}}`,
@@ -65,15 +65,15 @@ func TestCheck(t *testing.T) {
 
 func TestViolations(t *testing.T) {
 	cases := []struct{ name, path, src, want string }{
-		{"dependency", "internal/semantic/types/bad.go", "package types\nimport \"custos/internal/output/report\"", "forbidden dependency"},
-		{"cross rule", "internal/inspection/rules/example/bad.go", "package example\nimport \"custos/internal/inspection/rules/other\"", "forbidden dependency"},
+		{"dependency", "internal/semantic/types/bad.go", "package types\nimport \"github.com/janalis/custos/internal/output/report\"", "forbidden dependency"},
+		{"cross rule", "internal/inspection/rules/example/bad.go", "package example\nimport \"github.com/janalis/custos/internal/inspection/rules/other\"", "forbidden dependency"},
 		{"init", "internal/inspection/rules/example/init.go", "package example\nfunc init(){}", "cannot register"},
 		{"duplicate ID", "internal/inspection/rules/other/rule.go", "package other\ntype rule struct{}\nfunc (rule) ID()string{return \"Example\"}", "duplicate inspection ID"},
 		{"unknown ID", "internal/inspection/rules/other/rule.go", "package other\ntype rule struct{}\nfunc (rule) ID()string{return \"Other\"}", "unknown inspection ID"},
 		{"wrong directory", "internal/inspection/rules/wrong/rule.go", "package wrong\ntype rule struct{}\nfunc (rule) ID()string{return \"Odd\"}", "directory must be lowercase"},
 		{"missing constructor", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()string{return \"Example\"}", "New constructor missing"},
 		{"missing registration", "internal/inspection/catalogue/catalogue.go", "package catalogue\nfunc All() []any{return nil}", "exactly once (got 0)"},
-		{"duplicate registration", "internal/inspection/catalogue/catalogue.go", "package catalogue\nimport \"custos/internal/inspection/rules/example\"\nfunc All() []any{return []any{example.New(),example.New()}}", "exactly once (got 2)"},
+		{"duplicate registration", "internal/inspection/catalogue/catalogue.go", "package catalogue\nimport \"github.com/janalis/custos/internal/inspection/rules/example\"\nfunc All() []any{return []any{example.New(),example.New()}}", "exactly once (got 2)"},
 		{"missing implementation", "internal/inspection/meta/rules.json", `[{"id":"Missing"}]`, "implementation missing"},
 		{"empty ID", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()string{ return \"\" }\nfunc New()any{return rule{}}", "unknown inspection ID"},
 		{"spec budget", "specs/Example.md", "# Example\nStops at the analysis budget.\n", "move \"analysis budget\""},
@@ -82,7 +82,7 @@ func TestViolations(t *testing.T) {
 		{"missing fixture", "internal/inspection/rules/example/testdata/basic.php", "fixture", ""},
 		{"opaque ID", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()string{ if true {return}; return name }\nfunc (rule) OtherID()int{return 1}", "implementation missing"},
 		{"numeric ID", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()int{return 123}", "implementation missing"},
-		{"missing package comment", "internal/inspection/rules/example/rule.go", "package example\nimport \"custos/internal/inspection/analysis\"\ntype rule struct{}\nfunc (rule) ID() string { return \"Example\" }\nfunc New() analysis.Rule { return rule{} }", "package comment missing"},
+		{"missing package comment", "internal/inspection/rules/example/rule.go", "package example\nimport \"github.com/janalis/custos/internal/inspection/analysis\"\ntype rule struct{}\nfunc (rule) ID() string { return \"Example\" }\nfunc New() analysis.Rule { return rule{} }", "package comment missing"},
 		{"free package comment", "internal/inspection/rules/example/doc.go", "// Package example checks things.\npackage example", "package comment must start with \"Package example implements the Example inspection.\""},
 		{"native package comment on EA rule", "internal/inspection/rules/example/doc.go", "// Package example implements the native Example inspection.\npackage example", "package comment must start with"},
 		{"run-on package comment", "internal/inspection/rules/example/doc.go", "// Package example implements the Example inspection.More.\npackage example", "package comment must start with"},
@@ -95,7 +95,7 @@ func TestViolations(t *testing.T) {
 		{"default PHP", "internal/inspection/rules/example/testdata/old.json", `{"php": "8.4", "options": {"STRICT": true}}`, `testdata/old.json: php "8.4" is the default; remove the key`},
 		{"invalid sidecar", "internal/inspection/rules/example/testdata/old.json", `{"php":`, "testdata/old.json: invalid sidecar"},
 		{"empty manifest settings", "internal/inspection/rules/example/testdata/configured/composer.config.json", "{}", "testdata/configured/composer.config.json: empty sidecar"},
-		{"catalogue expression", "internal/inspection/catalogue/catalogue.go", "package catalogue\nimport \"custos/internal/inspection/rules/example\"\nfunc All() []any { f(); example.Other(); factory.New().New(); return nil }", "exactly once"},
+		{"catalogue expression", "internal/inspection/catalogue/catalogue.go", "package catalogue\nimport \"github.com/janalis/custos/internal/inspection/rules/example\"\nfunc All() []any { f(); example.Other(); factory.New().New(); return nil }", "exactly once"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -159,7 +159,7 @@ func TestRun(t *testing.T) {
 	if got := run([]string{"-root", root}, &out, &stderr); got != 0 {
 		t.Fatalf("%d: %s", got, stderr.String())
 	}
-	write(t, root, "internal/php/syntax/bad.go", "package syntax\nimport \"custos/internal/cli\"")
+	write(t, root, "internal/php/syntax/bad.go", "package syntax\nimport \"github.com/janalis/custos/internal/cli\"")
 	if got := run([]string{"-root", root}, &out, &stderr); got != 1 {
 		t.Fatal(got)
 	}
@@ -201,7 +201,7 @@ func TestConstructor(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := constructor(file.Decls[0].(*ast.FuncDecl), map[string]string{"analysis": "custos/internal/inspection/analysis"})
+		got := constructor(file.Decls[0].(*ast.FuncDecl), map[string]string{"analysis": "github.com/janalis/custos/internal/inspection/analysis"})
 		if got != (src == "func New() analysis.Rule{return nil}") {
 			t.Fatalf("%s: %v", src, got)
 		}
@@ -225,7 +225,7 @@ func TestNativeCatalogue(t *testing.T) {
 		t.Fatalf("native catalogue without native comment: %v, %v", problems, err)
 	}
 	write(t, root, "internal/inspection/rules/example/doc.go", "// Package example implements the native Example inspection.\npackage example\n")
-	write(t, root, "internal/inspection/rules/example/rule.go", "package example\nimport \"custos/internal/inspection/analysis\"\ntype rule struct{}\nfunc (rule) ID() string { return \"Example\" }\nfunc New() analysis.Rule { return rule{} }\n")
+	write(t, root, "internal/inspection/rules/example/rule.go", "package example\nimport \"github.com/janalis/custos/internal/inspection/analysis\"\ntype rule struct{}\nfunc (rule) ID() string { return \"Example\" }\nfunc New() analysis.Rule { return rule{} }\n")
 	if problems, err := check(root); err != nil || len(problems) != 0 {
 		t.Fatalf("native catalogue: %v, %v", problems, err)
 	}
@@ -305,7 +305,7 @@ func helper() { Inner() }
 func (Kind) Method() {}
 `)
 	write(t, root, "internal/inspection/rules/example/query.go", `package example
-import sq "custos/internal/inspection/semanticquery"
+import sq "github.com/janalis/custos/internal/inspection/semanticquery"
 func use() { sq.Single(); sq.Inner(); _ = sq.Limit; _ = local.Field }
 `)
 	problems, err := check(root)
@@ -335,13 +335,13 @@ func Walk() {}
 `)
 	write(t, root, "internal/inspection/rules/one/use.go", `package one
 import (
-	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/inspection/flowquery"
 )
 func use() { astquery.Walk(); flowquery.Walk() }
 `)
 	write(t, root, "internal/inspection/rules/two/use.go", `package two
-import "custos/internal/inspection/flowquery"
+import "github.com/janalis/custos/internal/inspection/flowquery"
 func use() { flowquery.Walk() }
 `)
 	problems, err := check(root)
@@ -362,7 +362,7 @@ func use() { flowquery.Walk() }
 // A spec's kind follows the marker methods of the type declaring the
 // rule's ID; markers on another type of the package do not count.
 func TestSpecKind(t *testing.T) {
-	const rule = "// Package example implements the Example inspection.\npackage example\nimport \"custos/internal/inspection/analysis\"\ntype rule struct{}\ntype other struct{}\nfunc New() analysis.Rule { return rule{} }\nfunc (other) Flow() {}\n"
+	const rule = "// Package example implements the Example inspection.\npackage example\nimport \"github.com/janalis/custos/internal/inspection/analysis\"\ntype rule struct{}\ntype other struct{}\nfunc New() analysis.Rule { return rule{} }\nfunc (other) Flow() {}\n"
 	cases := []struct{ name, methods, kind, want string }{
 		{"syntax", "func (rule) ID() string { return \"Example\" }\n", "syntax", ""},
 		{"semantic", "func (rule) ID() string { return \"Example\" }\nfunc (rule) Semantic() {}\n", "semantic", ""},
@@ -411,7 +411,7 @@ func TestSpecOptions(t *testing.T) {
 func TestVersionOrdering(t *testing.T) {
 	root := layout(t)
 	write(t, root, "internal/inspection/rules/example/gate.go", `package example
-import phpversion "custos/internal/php/version"
+import phpversion "github.com/janalis/custos/internal/php/version"
 var v phpversion.Version
 var (
 	_ = v < phpversion.PHP80
@@ -420,7 +420,7 @@ var (
 	_ = other.Limit > v
 )
 `)
-	write(t, root, "internal/semantic/infer/gate.go", "package infer\nimport phpversion \"custos/internal/php/version\"\nvar _ = 1 < phpversion.PHP80\n")
+	write(t, root, "internal/semantic/infer/gate.go", "package infer\nimport phpversion \"github.com/janalis/custos/internal/php/version\"\nvar _ = 1 < phpversion.PHP80\n")
 	problems, err := check(root)
 	if err != nil {
 		t.Fatal(err)

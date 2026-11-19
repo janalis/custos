@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/analysis"
 )
 
 // TestMagoStyle: without a comparisonStyle in custos.json or a PHP-CS-Fixer

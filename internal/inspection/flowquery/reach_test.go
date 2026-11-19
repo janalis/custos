@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 func TestReachable(t *testing.T) {

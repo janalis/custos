@@ -3,7 +3,7 @@ package astquery
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // CallName splits the name of a plain function call as written into its

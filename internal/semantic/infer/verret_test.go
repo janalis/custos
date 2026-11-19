@@ -3,7 +3,7 @@ package infer_test
 import (
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // Builtin return types follow the target PHP version (phpstorm-stubs

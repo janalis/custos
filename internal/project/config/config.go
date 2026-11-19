@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/meta"
-	phpversion "custos/internal/php/version"
-	"custos/internal/platform/safeio"
-	"custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/meta"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/semantic/flow"
 )
 
 // FileName is the project configuration file.

@@ -15,7 +15,7 @@ import (
 	"html"
 	"sort"
 
-	"custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/diagnostic"
 )
 
 // Expectation is one highlighted range expected in the clean source.

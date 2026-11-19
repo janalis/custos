@@ -5,8 +5,8 @@ import (
 	"slices"
 	"sync"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 // Sink describes an external operation reached inside a project wrapper.

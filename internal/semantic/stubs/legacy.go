@@ -3,8 +3,8 @@ package stubs
 import (
 	"strings"
 
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // pre80Failure lists builtins that returned false (or null) on invalid

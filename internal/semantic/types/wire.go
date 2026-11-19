@@ -1,6 +1,6 @@
 package types
 
-import "custos/internal/semantic/wire"
+import "github.com/janalis/custos/internal/semantic/wire"
 
 // The binary form of a type (see package wire). Every field is written, and
 // nil slices stay distinct from empty ones, so that a decoded type is

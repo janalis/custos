@@ -3,8 +3,8 @@ package aeaddecryptiontaglengthunchecked
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // TestReviewSafety pins the accepted spellings of the exact-length proof and

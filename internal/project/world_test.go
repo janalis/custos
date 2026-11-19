@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 // worldFiles are the files of a project whose world is complete.

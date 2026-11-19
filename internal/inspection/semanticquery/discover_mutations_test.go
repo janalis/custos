@@ -3,7 +3,7 @@ package semanticquery
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestResolvedValueDiscoveryArgumentEffects(t *testing.T) {

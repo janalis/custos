@@ -3,10 +3,10 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
-	"custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 // sinkSummaryName accepts method bodies only when inheritance cannot replace

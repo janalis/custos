@@ -4,10 +4,10 @@ package recursivetraversalomitsdirectories
 import (
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/flowquery"
-	"custos/internal/inspection/semanticquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/flowquery"
+	"github.com/janalis/custos/internal/inspection/semanticquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 const message = "Include parent nodes when traversing directories."

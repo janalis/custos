@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func (c *pureCompiler) stringTransform(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {

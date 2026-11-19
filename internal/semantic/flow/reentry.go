@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // leaving checks, where the function can be entered again or ends, what is
 // assumed of its static variables: each is not false once the function

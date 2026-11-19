@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // Callback bindings use the shared runtime-role binder. An expanded pack must
 // also retain every captured entry; a sealed type alone cannot prove that.

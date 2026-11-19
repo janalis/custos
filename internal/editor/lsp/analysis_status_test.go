@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/rules/filereadfailureunchecked"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/rules/filereadfailureunchecked"
 )
 
 func TestAnalysisStatusReasonsAreStable(t *testing.T) {

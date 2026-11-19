@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // invalidateEscaped separates operation histories across calls with unknown effects.
 // escapeSet is what one call let escape: the identities reachable from its

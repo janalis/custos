@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"custos/internal/platform/selfupdate"
-	"custos/internal/project"
+	"github.com/janalis/custos/internal/platform/selfupdate"
+	"github.com/janalis/custos/internal/project"
 )
 
 // Seams for tests.

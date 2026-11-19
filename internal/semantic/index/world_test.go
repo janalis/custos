@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/stubs"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/stubs"
 )
 
 func TestClassWord(t *testing.T) {

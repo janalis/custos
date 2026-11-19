@@ -1,6 +1,6 @@
 package astquery
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // PlainVariableName returns the name of a simple `$name` variable.
 func PlainVariableName(e syntax.Node) (string, bool) {

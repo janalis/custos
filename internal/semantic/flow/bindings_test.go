@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/php/syntax"
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // A switch runs its subject once, then the body of the first matching case

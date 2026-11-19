@@ -1,9 +1,9 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func (c *pureCompiler) native(node *syntax.FuncCall, name string, params []index.Param) *pureExpr {

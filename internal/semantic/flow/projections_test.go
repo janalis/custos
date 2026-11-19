@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func projectionEnvironment(t testing.TB, src string) (*Env, *syntax.File, *File) {

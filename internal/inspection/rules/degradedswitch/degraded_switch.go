@@ -1,8 +1,8 @@
 package degradedswitch
 
 import (
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // degradedSwitch reports switch statements with a single case and/or only a

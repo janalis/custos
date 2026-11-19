@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func producerSwitch(count int, producer, guard func(int) string) string {

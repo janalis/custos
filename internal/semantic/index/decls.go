@@ -1,6 +1,6 @@
 package index
 
-import phpversion "custos/internal/php/version"
+import phpversion "github.com/janalis/custos/internal/php/version"
 
 // ClassDecls returns every declaration of the class-like fqn (matched
 // case-insensitively) available at ver (0 = any), across all layers. A file

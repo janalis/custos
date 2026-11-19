@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // BuiltinArguments returns source expressions in the resolved native function's

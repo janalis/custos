@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // phpLint reports whether the given PHP version accepts src (php -l with

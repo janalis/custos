@@ -1,6 +1,6 @@
 package index
 
-import phpversion "custos/internal/php/version"
+import phpversion "github.com/janalis/custos/internal/php/version"
 
 // addEnumMembers describes members PHP supplies for every enum. It runs
 // after extraction so a permissively parsed explicit declaration wins.

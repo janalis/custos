@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 func TestDeclarationFallbackChanges(t *testing.T) {

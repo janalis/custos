@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/catalogue"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/catalogue"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 // The command line (Open, AnalyzeReport) and the MCP server (a snapshot

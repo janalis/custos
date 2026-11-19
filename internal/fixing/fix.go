@@ -5,8 +5,8 @@ import (
 	"context"
 	"sort"
 
-	"custos/internal/diagnostic"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Analyzer supplies findings for a parsed source file.

@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // ParameterRead reports whether evaluating the scope reads a parameter's entry
 // value. A negative answer is proof only when known is true. The CFG accounts

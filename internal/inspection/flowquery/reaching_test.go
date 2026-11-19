@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestReachingAssignments(t *testing.T) {

@@ -3,8 +3,8 @@ package index
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // methodLookup bounds both recursion and total work on incomplete or cyclic

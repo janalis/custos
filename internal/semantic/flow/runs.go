@@ -3,7 +3,7 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // This file is the one place that says which code of PHP itself runs code of

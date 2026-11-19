@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // valueExt holds the references and facts a Value rarely carries; most
 // values carry none and leave Value.ext nil, which keeps a Value small to

@@ -3,12 +3,12 @@ package semanticquery
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/names"
-	"custos/internal/semantic/stubs"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/semantic/stubs"
 )
 
 func TestTestContext(t *testing.T) {

@@ -3,10 +3,10 @@ package unsetconstructscanbemerged
 import (
 	"testing"
 
-	"custos/internal/fixing"
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestReviewSafety(t *testing.T) {

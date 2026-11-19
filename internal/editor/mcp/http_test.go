@@ -12,7 +12,7 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"custos/internal/project"
+	"github.com/janalis/custos/internal/project"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

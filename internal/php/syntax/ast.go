@@ -3,7 +3,7 @@ package syntax
 import (
 	"sync"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 //go:generate go run ../../../tools/genkinds

@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // comparison is a test without effects that decides the same way again
 // while the variables it reads are not written: the truth of a variable, or

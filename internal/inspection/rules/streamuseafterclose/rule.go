@@ -2,9 +2,9 @@
 package streamuseafterclose
 
 import (
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/semanticquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/semanticquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 const message = "Use an open stream for this operation."

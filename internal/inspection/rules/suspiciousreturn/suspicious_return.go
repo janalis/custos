@@ -1,8 +1,8 @@
 package suspiciousreturn
 
 import (
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // suspiciousReturn reports a `return` in a `finally` block whose `try` block

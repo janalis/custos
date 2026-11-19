@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"custos/internal/php/syntax"
-	"custos/internal/platform/safeio"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // SymbolCache keeps, between runs, the declarations of the files a run

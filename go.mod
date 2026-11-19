@@ -1,4 +1,4 @@
-module custos
+module github.com/janalis/custos
 
 go 1.27.2
 

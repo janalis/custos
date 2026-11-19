@@ -3,8 +3,8 @@ package transliterationfailureconsumed
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // A result computed from a project call is not completely known, yet the

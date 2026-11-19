@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // describe renders accesses as e.g. "w r e c" (write, read, elem write, compound).

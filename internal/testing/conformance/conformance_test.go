@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/inspection/meta"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 var ruleFilter = flag.String("rule", "", "only run cases for this rule ID")

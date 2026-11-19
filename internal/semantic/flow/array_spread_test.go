@@ -3,7 +3,7 @@ package flow
 import (
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestArraySpreadCompleteness(t *testing.T) {

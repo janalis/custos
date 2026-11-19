@@ -1,7 +1,7 @@
 package flowquery
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // VarAccess is one occurrence of a named variable inside a scope.

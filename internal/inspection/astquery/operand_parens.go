@@ -1,7 +1,7 @@
 package astquery
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // NeedsParensAsEqualityOperand reports whether e must be parenthesised when

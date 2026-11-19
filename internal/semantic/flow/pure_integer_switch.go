@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 func (c *pureCompiler) integerSwitch(node *syntax.Switch) *pureExpr {
 	subject := c.expression(node.Cond)

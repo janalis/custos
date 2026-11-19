@@ -5,8 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	"custos/internal/semantic/wire"
-	"custos/internal/semantic/wire/wiretest"
+	"github.com/janalis/custos/internal/semantic/wire"
+	"github.com/janalis/custos/internal/semantic/wire/wiretest"
 )
 
 // roundTrip encodes t and decodes it again.

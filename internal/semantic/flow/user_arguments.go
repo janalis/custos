@@ -1,8 +1,8 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // PHP user functions may ignore surplus positional arguments. Keep native APIs

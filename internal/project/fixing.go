@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"custos/internal/fixing"
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // PreparedFix is the result of fixing one file; out is nil when nothing

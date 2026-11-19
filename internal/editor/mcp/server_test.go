@@ -16,11 +16,11 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/rules/nestednotoperators"
-	"custos/internal/php/syntax"
-	"custos/internal/project"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/rules/nestednotoperators"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
 )
 
 func fixture(t testing.TB) (*Server, context.Context, string) {

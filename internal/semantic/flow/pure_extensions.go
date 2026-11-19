@@ -5,8 +5,8 @@ import (
 	"math"
 	"strconv"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func pureNode(kind uint8, left, right, other *pureExpr) *pureExpr {

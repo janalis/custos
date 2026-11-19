@@ -3,7 +3,7 @@ package curlresponsezerorejected
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestReviewCurlResponseZeroRejected(t *testing.T) {

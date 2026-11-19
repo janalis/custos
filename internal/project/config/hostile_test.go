@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // TestHostileConfig checks that malicious custos.json / composer.json files

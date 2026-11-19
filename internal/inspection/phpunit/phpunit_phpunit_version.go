@@ -1,7 +1,7 @@
 package phpunit
 
 import (
-	"custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/analysis"
 )
 
 // DetectedPHPUnitVersion infers the project's PHPUnit version from the

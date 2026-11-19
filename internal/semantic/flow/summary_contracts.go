@@ -3,7 +3,7 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 // begin starts recording the contracts a result computed while summaries

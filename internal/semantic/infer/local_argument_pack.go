@@ -1,6 +1,6 @@
 package infer
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // Follow one unaliased reaching assignment at the read point. Declaration
 // annotations, reference bindings, element mutations and loop-carried producers

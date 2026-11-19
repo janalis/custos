@@ -3,8 +3,8 @@ package flow
 import (
 	"strconv"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // leaves returns the finally blocks a jump to label runs: those of the try

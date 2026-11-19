@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func parse(t *testing.T, src string, v phpversion.Version) *File {

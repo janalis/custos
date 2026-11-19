@@ -14,14 +14,14 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/meta"
-	"custos/internal/inspection/rules/possiblynullaccess"
-	"custos/internal/php/syntax"
-	"custos/internal/project"
-	"custos/internal/project/baseline"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/inspection/rules/possiblynullaccess"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/project/baseline"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 func TestStartupFailClosed(t *testing.T) {

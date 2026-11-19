@@ -3,7 +3,7 @@ package index
 import (
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // Stub return types vary by PHP version (#[LanguageLevelTypeAware]): the

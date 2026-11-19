@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // constantScalar deliberately omits PHP's version-dependent mixed coercions.

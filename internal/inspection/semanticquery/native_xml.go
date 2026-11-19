@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // ParseLiteralXML parses bounded literal XML without resolving external entities.

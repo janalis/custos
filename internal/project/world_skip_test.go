@@ -8,11 +8,11 @@ import (
 	"sort"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/rules/undefinedclass"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/rules/undefinedclass"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // What discovery and indexing leave out is unseen by the world: the

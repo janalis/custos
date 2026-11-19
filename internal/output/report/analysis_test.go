@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/diagnostic"
 )
 
 func TestMachineReportsAnalysisStatus(t *testing.T) {

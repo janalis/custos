@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // elements returns the tracked elements of the array a plain assignment

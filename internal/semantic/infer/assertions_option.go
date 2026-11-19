@@ -3,8 +3,8 @@ package infer
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // BuiltinAssert identifies a direct named invocation of PHP's assertion

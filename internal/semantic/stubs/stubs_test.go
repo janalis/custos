@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestBuiltins(t *testing.T) {

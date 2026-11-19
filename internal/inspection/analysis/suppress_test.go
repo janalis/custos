@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/diagnostic"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 func analyseOK(t *testing.T, src string) []diagnostic.Finding {

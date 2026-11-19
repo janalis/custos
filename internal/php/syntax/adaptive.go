@@ -1,6 +1,6 @@
 package syntax
 
-import phpversion "custos/internal/php/version"
+import phpversion "github.com/janalis/custos/internal/php/version"
 
 // ParseBest parses src at opt.Version and, when that yields syntax errors,
 // re-parses with the newest grammar (permissive) and keeps the result with

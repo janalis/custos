@@ -3,7 +3,7 @@ package infer
 import (
 	"testing"
 
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // A stub doc type sharing no member with the declared type refines

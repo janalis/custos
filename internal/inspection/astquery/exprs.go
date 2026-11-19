@@ -3,7 +3,7 @@ package astquery
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // FuncNamePart returns the name node of a call to a named function and its

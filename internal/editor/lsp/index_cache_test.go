@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // TestWorkspaceIndexUsesCache: a second index build of an unchanged

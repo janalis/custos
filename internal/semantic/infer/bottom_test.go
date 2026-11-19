@@ -3,7 +3,7 @@ package infer
 import (
 	"testing"
 
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 func TestNarrowingJoinKeepsUnknown(t *testing.T) {

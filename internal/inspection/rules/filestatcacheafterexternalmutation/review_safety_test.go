@@ -3,9 +3,9 @@ package filestatcacheafterexternalmutation
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // exec and system clear the stat cache themselves from PHP 8.3 on, so the

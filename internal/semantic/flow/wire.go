@@ -3,7 +3,7 @@ package flow
 import (
 	"errors"
 
-	"custos/internal/semantic/wire"
+	"github.com/janalis/custos/internal/semantic/wire"
 )
 
 // The binary form of summaries (see package wire), which a cache kept

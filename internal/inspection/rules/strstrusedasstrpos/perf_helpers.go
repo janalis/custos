@@ -1,7 +1,7 @@
 package strstrusedasstrpos
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // perfIsFalse reports whether e is the unqualified constant false (any case).

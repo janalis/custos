@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"strings"
 
-	"custos/internal/diagnostic"
-	"custos/internal/fixing"
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/meta"
-	"custos/internal/php/syntax"
-	"custos/internal/project/baseline"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project/baseline"
 )
 
 // actionData identifies a fix for lazy resolution.

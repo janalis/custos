@@ -1,9 +1,9 @@
 package nonsecureparsestrusage
 
 import (
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // nonSecureParseStrUsage reports one-argument parse_str()/mb_parse_str()

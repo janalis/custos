@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 // ProjectPaths returns analysis.Config.ProjectPath: a file path relative to

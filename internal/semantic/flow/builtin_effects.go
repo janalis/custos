@@ -3,7 +3,7 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // importBindings applies extract() and parse_str(): each key of the array

@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // evalArray evaluates an array literal, its keys and values in order.
 func (e *Env) evalArray(n *syntax.Array, f *frame, r *scopeResult, depth int) Value {

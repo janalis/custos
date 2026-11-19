@@ -10,14 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/project"
-	"custos/internal/project/baseline"
-	"custos/internal/project/config"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/project/baseline"
+	"github.com/janalis/custos/internal/project/config"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // Debounce is the delay between the last edit and re-analysis.

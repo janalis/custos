@@ -3,7 +3,7 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // refineFuncCall refines what a PHP predicate or check settles about its

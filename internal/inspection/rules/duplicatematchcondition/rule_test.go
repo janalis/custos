@@ -3,10 +3,10 @@ package duplicatematchcondition_test
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	rule "custos/internal/inspection/rules/duplicatematchcondition"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	rule "github.com/janalis/custos/internal/inspection/rules/duplicatematchcondition"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestContracts(t *testing.T) {

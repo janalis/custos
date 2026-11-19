@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // StringLiteralValue decodes a quoted PHP string literal without interpolation.

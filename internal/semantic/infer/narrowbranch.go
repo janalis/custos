@@ -4,8 +4,8 @@ import (
 	"cmp"
 	"slices"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // Multi-way branches: elseif chains (narrow.go), match arms and switch

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/analysis"
 )
 
 // startRaw starts a server and returns a client plus the raw stream to it,

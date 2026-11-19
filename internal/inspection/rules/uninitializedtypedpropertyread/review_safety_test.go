@@ -3,10 +3,10 @@ package uninitializedtypedpropertyread_test
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	rule "custos/internal/inspection/rules/uninitializedtypedpropertyread"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	rule "github.com/janalis/custos/internal/inspection/rules/uninitializedtypedpropertyread"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestReviewSafety(t *testing.T) {

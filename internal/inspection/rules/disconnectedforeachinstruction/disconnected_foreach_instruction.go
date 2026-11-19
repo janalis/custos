@@ -3,11 +3,11 @@ package disconnectedforeachinstruction
 import (
 	"strings"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // disconnectedForeachInstruction reports foreach body statements that do not

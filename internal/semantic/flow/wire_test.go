@@ -6,13 +6,13 @@ import (
 	"slices"
 	"testing"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/stubs"
-	"custos/internal/semantic/types"
-	"custos/internal/semantic/wire"
-	"custos/internal/semantic/wire/wiretest"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/stubs"
+	"github.com/janalis/custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/semantic/wire"
+	"github.com/janalis/custos/internal/semantic/wire/wiretest"
 )
 
 // wireSkipped names the fields the codec does not write: options, which a

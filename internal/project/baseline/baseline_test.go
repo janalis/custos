@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/diagnostic"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestRoundTrip(t *testing.T) {

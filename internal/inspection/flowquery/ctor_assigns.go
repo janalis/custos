@@ -3,7 +3,7 @@ package flowquery
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // CtorAssignsProperty reports whether class c's own constructor assigns

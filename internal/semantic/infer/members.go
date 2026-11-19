@@ -4,9 +4,9 @@ import (
 	"slices"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // ClassFQN returns the semantic identity of a class declaration.

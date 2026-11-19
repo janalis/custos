@@ -4,8 +4,8 @@ import (
 	"slices"
 	"strings"
 
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // Generic templates: a receiver typed `Collection<int, Foo>` (a class atom

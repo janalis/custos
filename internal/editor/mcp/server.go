@@ -18,9 +18,9 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/platform/safeio"
-	"custos/internal/project"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/project"
 )
 
 const (

@@ -3,9 +3,9 @@ package infer
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // Assertion annotations: `@phpstan-assert T $x` (and `@psalm-assert`) on a

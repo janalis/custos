@@ -4,7 +4,7 @@ package main
 import (
 	"os"
 
-	"custos/internal/cli"
+	"github.com/janalis/custos/internal/cli"
 )
 
 var version = "dev"

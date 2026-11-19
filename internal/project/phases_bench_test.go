@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/catalogue"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/catalogue"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // benchProject writes a synthetic project: n source files whose classes

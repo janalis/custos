@@ -7,10 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/meta"
-	"custos/internal/output/diff"
-	"custos/internal/project"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/output/diff"
+	"github.com/janalis/custos/internal/project"
 )
 
 func cmdFix(args []string, stdout, stderr io.Writer) (int, error) {

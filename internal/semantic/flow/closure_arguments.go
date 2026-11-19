@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 func (e *Env) closureDefault(expr syntax.Expr, owner *scopeResult) (Value, bool) {
 	fuel := 256

@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/php/syntax"
-	"custos/internal/project"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 func TestDeclarationShadowsThroughWorkspaceChanges(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"io"
 	"runtime"
 
-	inspections "custos/internal/inspection/catalogue"
-	"custos/internal/inspection/meta"
+	inspections "github.com/janalis/custos/internal/inspection/catalogue"
+	"github.com/janalis/custos/internal/inspection/meta"
 )
 
 const usage = `custos — PHP inspections and fixes

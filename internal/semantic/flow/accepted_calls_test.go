@@ -3,7 +3,7 @@ package flow
 import (
 	"testing"
 
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func TestResourceOnly(t *testing.T) {

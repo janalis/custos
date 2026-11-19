@@ -3,8 +3,8 @@ package flow
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestPureRecordProgramRefusals(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // exercise runs every accessor on a parsed doc comment.

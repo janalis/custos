@@ -3,11 +3,11 @@ package semanticquery
 import (
 	"strings"
 
-	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/inspection/flowquery"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // DiscoverValues is the index-aware PossibleValues, returning nil when the

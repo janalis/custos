@@ -1,7 +1,7 @@
 package astquery
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // KeywordSpan returns the span of n's first token (a statement's leading

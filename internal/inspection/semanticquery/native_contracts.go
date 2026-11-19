@@ -4,11 +4,11 @@ import (
 	"slices"
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // stringOnly reports a parameter declared exactly `string` that null cannot

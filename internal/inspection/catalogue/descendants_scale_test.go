@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/stubs"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/stubs"
 )
 
 // TestDescendantWalkLinear guards the per-class memo of descendant methods:

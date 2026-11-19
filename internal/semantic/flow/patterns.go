@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // EmptylessPattern reports whether x is a literal PCRE pattern that can

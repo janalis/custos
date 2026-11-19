@@ -3,9 +3,9 @@ package parameterdefaultvalueisnotnull
 import (
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // parameterDefaultValueIsNotNull flags optional parameters whose default is

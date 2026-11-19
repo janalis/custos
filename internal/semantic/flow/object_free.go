@@ -3,8 +3,8 @@ package flow
 import (
 	"slices"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // keyed reports a PHP function whose result holds no object whatever it is

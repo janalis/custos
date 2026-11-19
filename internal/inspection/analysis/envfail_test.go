@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 // usesNames reports the file after resolving names, which the test makes

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestLowestVersion(t *testing.T) {

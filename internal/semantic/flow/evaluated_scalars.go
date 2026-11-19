@@ -3,7 +3,7 @@ package flow
 import (
 	"math"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Operands are read from the evaluation snapshot, not reevaluated from their

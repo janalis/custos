@@ -1,8 +1,8 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {

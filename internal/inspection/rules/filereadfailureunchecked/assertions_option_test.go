@@ -3,9 +3,9 @@ package filereadfailureunchecked
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/flow"
 )
 
 func TestAssertionAssumption(t *testing.T) {

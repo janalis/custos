@@ -3,9 +3,9 @@ package infer
 import (
 	"strconv"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // requiredShape admits only arrays whose keys are all known and present.

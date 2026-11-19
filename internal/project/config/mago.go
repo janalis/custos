@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/analysis"
 )
 
 // magoFiles are the Mago configuration files, in the order Mago reads them.

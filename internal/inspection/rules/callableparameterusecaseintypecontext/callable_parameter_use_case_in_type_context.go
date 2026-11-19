@@ -5,15 +5,15 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
-	"custos/internal/inspection/semanticquery"
-	"custos/internal/php/phpdoc"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/inspection/flowquery"
+	"github.com/janalis/custos/internal/inspection/semanticquery"
+	"github.com/janalis/custos/internal/php/phpdoc"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // callableParameterUseCaseInTypeContext reports is_*() checks that

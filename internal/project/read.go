@@ -1,8 +1,8 @@
 package project
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/platform/safeio"
 )
 
 // ReadSource reads a source file, but never more than syntax.MaxFileSize+1

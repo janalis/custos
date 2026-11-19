@@ -1,7 +1,7 @@
 package astquery
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // PatternHasTarget reports whether a destructuring pattern assigns anything

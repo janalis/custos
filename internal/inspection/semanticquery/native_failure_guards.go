@@ -1,10 +1,10 @@
 package semanticquery
 
 import (
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // NativeFailureExcluded proves that the failure value sentinel (`null`,

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // extField sets one field of a value's extension and reads it back.

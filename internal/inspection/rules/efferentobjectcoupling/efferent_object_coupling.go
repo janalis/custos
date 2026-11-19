@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 // efferentObjectCoupling reports class-likes referring to many distinct

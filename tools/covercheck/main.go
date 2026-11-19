@@ -26,7 +26,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("covercheck", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	what := fs.String("what", "packages", "name of the measured code, for messages")
-	module := fs.String("module", "custos", "module path (profile entries are module-relative)")
+	module := fs.String("module", "github.com/janalis/custos", "module path (profile entries are module-relative)")
 	root := fs.String("root", ".", "module root directory")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 1 {
 		fmt.Fprintln(stderr, "usage: covercheck [-what name] [-module path] [-root dir] profile")

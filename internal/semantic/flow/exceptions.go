@@ -3,7 +3,7 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // exceptionProof caches the syntax of a block once. Entry checks are repeated

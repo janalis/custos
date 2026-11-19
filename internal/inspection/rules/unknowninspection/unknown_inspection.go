@@ -5,9 +5,9 @@ import (
 	"strings"
 	"sync"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/meta"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // unknownInspection reports `@noinspection` tags naming inspections that

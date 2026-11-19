@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/phpdoc"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/phpdoc"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // Visibility of a member.

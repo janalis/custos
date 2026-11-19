@@ -3,7 +3,7 @@ package analysis
 import (
 	"testing"
 
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func TestWithIndexDoesNotChangeOriginal(t *testing.T) {

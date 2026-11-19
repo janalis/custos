@@ -3,8 +3,8 @@ package unicodenormalizationfailureconsumed
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // A result normalized from a project call or a property is guarded by the

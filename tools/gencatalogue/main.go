@@ -41,7 +41,7 @@ var groups = []string{
 // output is the generated file, relative to the repository root.
 const output = "internal/inspection/catalogue/catalogue.go"
 
-const modulePrefix = "custos/"
+const modulePrefix = "github.com/janalis/custos/"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 

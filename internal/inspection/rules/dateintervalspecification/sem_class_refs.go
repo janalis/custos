@@ -1,7 +1,7 @@
 package dateintervalspecification
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // semArgValue returns the value of a plain argument entry.

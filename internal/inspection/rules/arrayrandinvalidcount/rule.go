@@ -2,9 +2,9 @@
 package arrayrandinvalidcount
 
 import (
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/semanticquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/semanticquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 const message = "Request a count within the array size."

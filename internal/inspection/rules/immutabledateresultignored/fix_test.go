@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/fixing"
-	"custos/internal/inspection/analysis"
-	rule "custos/internal/inspection/rules/immutabledateresultignored"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	rule "github.com/janalis/custos/internal/inspection/rules/immutabledateresultignored"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestFixSafety(t *testing.T) {

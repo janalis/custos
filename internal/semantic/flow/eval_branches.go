@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // evalTernary evaluates a ternary, the short form included, on both paths.
 func (e *Env) evalTernary(n *syntax.Ternary, f *frame, r *scopeResult, depth int) Value {

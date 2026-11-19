@@ -1,8 +1,8 @@
 package analysis
 
 import (
-	"custos/internal/diagnostic"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // SuppressEdit returns the edit that suppresses rule for the finding at span:

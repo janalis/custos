@@ -1,7 +1,7 @@
 package astquery
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func InNamedNamespace(n syntax.Node) bool {

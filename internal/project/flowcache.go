@@ -13,10 +13,10 @@ import (
 	"slices"
 	"strings"
 
-	"custos/internal/platform/safeio"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/wire"
+	"github.com/janalis/custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/wire"
 )
 
 // The flow steps cache keeps, between runs, every summary the last flow

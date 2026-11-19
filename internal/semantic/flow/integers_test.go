@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestIntegerRanges(t *testing.T) {

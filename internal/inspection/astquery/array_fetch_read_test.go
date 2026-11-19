@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestArrayFetchRequiresRead(t *testing.T) {

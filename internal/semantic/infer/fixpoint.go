@@ -3,8 +3,8 @@ package infer
 import (
 	"reflect"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // maxFixpoints bounds the recursive inferences an Env re-runs under an

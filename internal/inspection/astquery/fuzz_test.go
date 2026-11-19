@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // FuzzStringLiteralValue checks escape decoding never panics and that a

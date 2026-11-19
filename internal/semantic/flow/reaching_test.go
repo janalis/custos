@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // A variable read can have several producers: across a loop back-edge, or

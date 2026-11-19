@@ -2,10 +2,10 @@
 package attributetargetmismatch
 
 import (
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/semanticquery"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/semanticquery"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 const message = "Use the attribute on a permitted target."

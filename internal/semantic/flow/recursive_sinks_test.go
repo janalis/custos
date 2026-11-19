@@ -3,7 +3,7 @@ package flow
 import (
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // A callable calling itself reads its own sinks back from its summary: the

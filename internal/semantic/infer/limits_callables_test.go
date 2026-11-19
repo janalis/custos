@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // The inference added for closures, out parameters, conditional return

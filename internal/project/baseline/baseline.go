@@ -19,10 +19,10 @@ import (
 	"sync"
 	"unsafe"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/meta"
-	"custos/internal/php/syntax"
-	"custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/platform/safeio"
 )
 
 // Entry is one baseline key with an occurrence count.

@@ -6,10 +6,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/names"
-	"custos/internal/semantic/readmap"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/semantic/readmap"
 )
 
 // Index holds symbols keyed by lower-case FQN (constants: exact case, with

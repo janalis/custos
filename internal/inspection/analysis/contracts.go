@@ -1,10 +1,10 @@
 package analysis
 
 import (
-	"custos/internal/diagnostic"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/flow"
 )
 
 // Rule is one inspection. Implementations must be stateless and safe for

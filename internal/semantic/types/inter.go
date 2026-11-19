@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Intersections: `A&B` (PHPDoc or native, also `(A&B)|null`) keeps its

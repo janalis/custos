@@ -1,8 +1,8 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/wire"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/wire"
 )
 
 func encodeFlags(w *wire.Writer, m map[string]bool) {

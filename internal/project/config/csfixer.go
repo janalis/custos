@@ -3,8 +3,8 @@ package config
 import (
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // csFixerFiles are the PHP-CS-Fixer configuration files, in the order the

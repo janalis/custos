@@ -3,8 +3,8 @@ package infinityloop
 import (
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // infinityLoop reports a method whose only statement calls itself on

@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // evalClosure binds the captures of a closure. The body executes only on
 // invocation, where it can write these names.

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func kinds(src string, v phpversion.Version) []TokenKind {

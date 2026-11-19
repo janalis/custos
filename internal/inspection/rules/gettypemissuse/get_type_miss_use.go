@@ -1,11 +1,11 @@
 package gettypemissuse
 
 import (
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/semanticquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/inspection/semanticquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // getTypeMissUse reports `gettype($x) === 'type'` comparisons replaceable by

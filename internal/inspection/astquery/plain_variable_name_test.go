@@ -3,7 +3,7 @@ package astquery
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestVariableName(t *testing.T) {

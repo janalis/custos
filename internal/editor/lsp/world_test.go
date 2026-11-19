@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // TestComposerChangeRebuildsWorld: a change to composer.json or to the

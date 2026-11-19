@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/fixing"
-	"custos/internal/inspection/analysis"
-	rule "custos/internal/inspection/rules/ambiguousreplacementbackreference"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	rule "github.com/janalis/custos/internal/inspection/rules/ambiguousreplacementbackreference"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestCompleteLiteralFix(t *testing.T) {

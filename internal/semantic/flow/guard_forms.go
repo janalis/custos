@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // refineVariable refines a variable tested for truth, or an assignment

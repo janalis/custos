@@ -4,10 +4,10 @@ import (
 	"os"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/catalogue"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/catalogue"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // BenchmarkEditAllocations complements the latency gate with warmed per-edit

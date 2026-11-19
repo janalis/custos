@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func (s *Server) open(p didOpenParams) {

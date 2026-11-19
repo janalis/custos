@@ -3,9 +3,9 @@ package suspiciousloop
 import (
 	"slices"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // sideEffectsFirst reports whether every condition expression before the

@@ -3,13 +3,13 @@ package analysis
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
-	"custos/internal/semantic/names"
-	"custos/internal/semantic/stubs"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/semantic/stubs"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // SemanticRule marks rules that need the project symbol index (classes and

@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestHTMLQuoteSafety(t *testing.T) {

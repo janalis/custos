@@ -1,6 +1,6 @@
 package astquery
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // NullsafeShortCircuits reports whether a null-safe step in the member
 // chain of e can make the whole chain evaluate to null without reaching

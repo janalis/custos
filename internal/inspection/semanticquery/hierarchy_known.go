@@ -1,8 +1,8 @@
 package semanticquery
 
 import (
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // HierarchyResolved reports whether every parent, interface and trait of

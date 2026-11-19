@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"custos/internal/diagnostic"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // optRule reads every option accessor once per file and records the values.

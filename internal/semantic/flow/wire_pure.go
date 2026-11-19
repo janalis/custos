@@ -1,9 +1,9 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
-	"custos/internal/semantic/wire"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/semantic/wire"
 )
 
 func encodePure(w *wire.Writer, c *pureContract) {

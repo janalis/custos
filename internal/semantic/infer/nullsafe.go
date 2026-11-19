@@ -1,8 +1,8 @@
 package infer
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // nullsafeFact separates a skipped chain from the value produced when its

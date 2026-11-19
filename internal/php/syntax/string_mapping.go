@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // DecodedString pairs a constant PHP string with the source range of each

@@ -5,14 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
-	"custos/internal/semantic/names"
-	"custos/internal/semantic/stubs"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/inspection/flowquery"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/semantic/stubs"
 )
 
 func discoverOf(t *testing.T, src string) string {

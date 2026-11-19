@@ -17,8 +17,8 @@ import (
 	"strconv"
 	"strings"
 
-	phpversion "custos/internal/php/version"
-	"custos/tools/internal/specmd"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/tools/internal/specmd"
 )
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -114,7 +114,7 @@ func check(root string) ([]string, error) {
 				if analysisLayer(from) && systemPackage(target) {
 					report("%s: analysis code cannot use %s; adapters own system access", rel, target)
 				}
-				target = strings.TrimPrefix(target, "custos/")
+				target = strings.TrimPrefix(target, "github.com/janalis/custos/")
 				if strings.HasPrefix(target, "internal/") && !allowed(from, target) {
 					report("%s: forbidden dependency on %s", rel, target)
 				}
@@ -155,8 +155,8 @@ func check(root string) ([]string, error) {
 			}
 			ast.Inspect(file, func(node ast.Node) bool {
 				if sel, ok := node.(*ast.SelectorExpr); ok {
-					if x, ok := sel.X.(*ast.Ident); ok && sharedPackages[strings.TrimPrefix(imports[x.Name], "custos/")] {
-						use(strings.TrimPrefix(imports[x.Name], "custos/")+"."+sel.Sel.Name, from)
+					if x, ok := sel.X.(*ast.Ident); ok && sharedPackages[strings.TrimPrefix(imports[x.Name], "github.com/janalis/custos/")] {
+						use(strings.TrimPrefix(imports[x.Name], "github.com/janalis/custos/")+"."+sel.Sel.Name, from)
 					}
 				}
 				if strings.HasPrefix(from, "internal/inspection/") && versionOrdering(node, imports) {
@@ -229,7 +229,7 @@ func check(root string) ([]string, error) {
 						if !ok {
 							return true
 						}
-						target := strings.TrimPrefix(imports[name.Name], "custos/")
+						target := strings.TrimPrefix(imports[name.Name], "github.com/janalis/custos/")
 						if strings.HasPrefix(target, "internal/inspection/rules/") {
 							listed[target]++
 						}
@@ -460,7 +460,7 @@ func versionOrdering(node ast.Node, imports map[string]string) bool {
 	}
 	for _, side := range []ast.Expr{bin.X, bin.Y} {
 		if sel, ok := side.(*ast.SelectorExpr); ok {
-			if x, ok := sel.X.(*ast.Ident); ok && imports[x.Name] == "custos/internal/php/version" {
+			if x, ok := sel.X.(*ast.Ident); ok && imports[x.Name] == "github.com/janalis/custos/internal/php/version" {
 				return true
 			}
 		}
@@ -578,5 +578,5 @@ func constructor(fn *ast.FuncDecl, imports map[string]string) bool {
 		return false
 	}
 	qualifier, ok := result.X.(*ast.Ident)
-	return ok && imports[qualifier.Name] == "custos/internal/inspection/analysis"
+	return ok && imports[qualifier.Name] == "github.com/janalis/custos/internal/inspection/analysis"
 }

@@ -1,6 +1,6 @@
 package infer
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // skippedExpressionAt identifies optional coalescing RHSs and side
 // expressions of a nullsafe chain. Receiver evaluation itself always runs.

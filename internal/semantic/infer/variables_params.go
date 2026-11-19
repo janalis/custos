@@ -4,9 +4,9 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/php/phpdoc"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/phpdoc"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // Types of parameters, inline @var documentation and branch assignments.

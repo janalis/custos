@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"slices"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // bindings seeds the names of a scope that code outside it can replace: a

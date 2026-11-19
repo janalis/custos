@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/catalogue"
-	"custos/internal/php/syntax"
-	"custos/internal/project"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/catalogue"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 // The language server indexes and summarizes the workspace its own way; an

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/inspection/rules/possiblynullaccess"
-	"custos/internal/project/baseline"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/inspection/rules/possiblynullaccess"
+	"github.com/janalis/custos/internal/project/baseline"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 // TestBaselineHidesKnownFindings: the project baseline hides the findings

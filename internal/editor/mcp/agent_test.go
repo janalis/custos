@@ -13,10 +13,10 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/meta"
-	"custos/internal/inspection/rules/nestednotoperators"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/inspection/rules/nestednotoperators"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 const declarations = `<?php

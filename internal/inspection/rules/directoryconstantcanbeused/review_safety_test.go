@@ -3,7 +3,7 @@ package directoryconstantcanbeused
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/analysis"
 )
 
 // The project index is only built for semantic rules; without the marker a

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // bindingShape exposes dynamic-name ownership rather than merely source text.

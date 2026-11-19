@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // evalDynamicCode gives up on the rest of the scope at `eval` or an include,
 // whose code is not known.

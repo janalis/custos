@@ -1,6 +1,6 @@
 package flowquery
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // SteppedBefore reports whether use may observe an increment, a decrement or
 // a write through a by-reference closure capture of its variable. Local

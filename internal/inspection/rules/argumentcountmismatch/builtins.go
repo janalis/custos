@@ -3,8 +3,8 @@ package argumentcountmismatch
 import (
 	"strings"
 
-	"custos/internal/inspection/semanticquery"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/semanticquery"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // driftedStubs lists the builtins of bundled directories whose stub

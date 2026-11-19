@@ -14,15 +14,15 @@ import (
 	"strings"
 	"time"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/platform/safeio"
-	"custos/internal/project/baseline"
-	"custos/internal/project/config"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
-	"custos/internal/semantic/stubs"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/project/baseline"
+	"github.com/janalis/custos/internal/project/config"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/semantic/stubs"
 )
 
 // Snapshot is immutable after construction. Its input manifest covers every

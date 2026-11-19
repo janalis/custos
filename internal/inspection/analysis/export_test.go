@@ -1,10 +1,10 @@
 package analysis
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/infer"
-	"custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 // FailNamesForTest injects a shared-data failure for integration tests.

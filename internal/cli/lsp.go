@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"custos/internal/editor/lsp"
+	"github.com/janalis/custos/internal/editor/lsp"
 )
 
 func cmdLSP(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {

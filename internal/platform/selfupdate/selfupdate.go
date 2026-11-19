@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/platform/safeio"
 )
 
 // releasesURL is the GitHub releases page; tests point it at a local server.

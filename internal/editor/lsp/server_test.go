@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/catalogue"
-	"custos/internal/php/syntax"
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/catalogue"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // testRule flags every `;` empty statement, with a fix deleting it. It uses

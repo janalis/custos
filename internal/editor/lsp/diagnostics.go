@@ -4,9 +4,9 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/diagnostic"
-	"custos/internal/php/syntax"
-	"custos/internal/project"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
 )
 
 func (s *Server) reanalyzeAll() {

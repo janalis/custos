@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/project"
-	"custos/internal/project/config"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/project/config"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // beginIndexing reports whether an enabled rule needs cross-file symbols

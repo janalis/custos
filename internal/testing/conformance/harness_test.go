@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/diagnostic"
 )
 
 // fakeEngine returns canned results, to exercise Check without rules.

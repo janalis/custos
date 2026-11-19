@@ -1,8 +1,8 @@
 package astquery
 
 import (
-	"custos/internal/diagnostic"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func ReplaceFix(span syntax.Span, repl string) diagnostic.Fix {

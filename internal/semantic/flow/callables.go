@@ -3,8 +3,8 @@ package flow
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func (e *Env) captureCallable(at syntax.Node, receiver Value, f *frame, r *scopeResult) {

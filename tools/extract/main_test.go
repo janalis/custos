@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/meta"
 )
 
 // Everything below is an invented plugin layout with made-up rule names.

@@ -15,10 +15,10 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/meta"
-	"custos/internal/testing/conformance"
-	"custos/tools/internal/specmd"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/testing/conformance"
+	"github.com/janalis/custos/tools/internal/specmd"
 )
 
 const (

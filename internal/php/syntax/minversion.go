@@ -1,6 +1,6 @@
 package syntax
 
-import phpversion "custos/internal/php/version"
+import phpversion "github.com/janalis/custos/internal/php/version"
 
 // MinVersion returns the minimum supported PHP version for selected modern
 // syntax features. Other nodes return the engine's baseline version. This is

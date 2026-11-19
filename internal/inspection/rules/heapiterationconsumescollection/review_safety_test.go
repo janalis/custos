@@ -3,8 +3,8 @@ package heapiterationconsumescollection
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // TestReviewLocalClone covers iteration over a local that holds a clone: only

@@ -3,8 +3,8 @@ package flow
 import (
 	"strconv"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // padding compiles array_pad and integer range construction.

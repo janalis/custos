@@ -1,8 +1,8 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // A resource contract contains no local identity, source position or syntax.

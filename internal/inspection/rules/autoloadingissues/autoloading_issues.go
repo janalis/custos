@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // autoloadingIssues reports a file whose single class-like declaration is not

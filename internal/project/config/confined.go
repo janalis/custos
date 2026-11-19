@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 
-	"custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/platform/safeio"
 )
 
 // LoadConfined loads settings at exactly root, without ancestor discovery or

@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 const fixpointChain = `class Base { public function next(): Base { return $this; } } final class Q extends Base {} final class P extends Base { public function next(): Q { return new Q(); } } `

@@ -1,6 +1,6 @@
 package astquery
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // ArrayFetchRequiresRead distinguishes ordinary reads from guarded probes and
 // slot creation. Only the value chain carries an isset/empty/coalesce guard;

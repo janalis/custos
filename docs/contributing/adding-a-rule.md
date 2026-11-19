@@ -80,7 +80,7 @@ or, for larger rules, in `<rule_snake>.go`:
 // Package unnecessarysemicolon implements the UnnecessarySemicolon inspection.
 package unnecessarysemicolon
 
-import "custos/internal/inspection/analysis"
+import "github.com/janalis/custos/internal/inspection/analysis"
 
 // New returns the UnnecessarySemicolon inspection.
 func New() analysis.Rule { return unnecessarySemicolon{} }

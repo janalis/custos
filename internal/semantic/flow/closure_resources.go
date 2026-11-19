@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // Only identities in captures/arguments and a proven freshly returned resource
 // cross an invocation boundary. Other callee-local states remain private.

@@ -5,8 +5,8 @@ import (
 	"math"
 	"strconv"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 const message = "Use a string key to preserve the fractional value."

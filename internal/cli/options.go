@@ -10,11 +10,11 @@ import (
 	"runtime/pprof"
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/meta"
-	phpversion "custos/internal/php/version"
-	"custos/internal/project"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/meta"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 // common holds flags shared by analyse and fixing.

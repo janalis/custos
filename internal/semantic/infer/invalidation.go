@@ -3,7 +3,7 @@ package infer
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // assigns reports whether statement s writes variable name at its top level.

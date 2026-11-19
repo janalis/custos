@@ -3,10 +3,10 @@ package readonlypropertyreassignment_test
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	rule "custos/internal/inspection/rules/readonlypropertyreassignment"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	rule "github.com/janalis/custos/internal/inspection/rules/readonlypropertyreassignment"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestContracts(t *testing.T) {

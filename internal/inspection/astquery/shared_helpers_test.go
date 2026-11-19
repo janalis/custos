@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // ProbeArg returns the first argument of the last call to probe() in f.

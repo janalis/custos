@@ -9,13 +9,13 @@ import (
 	"sync"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/rules/untrustedshellcommand"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/rules/untrustedshellcommand"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // Every summary computed again in compose comes out as a full summary of

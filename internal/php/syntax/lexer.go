@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 type keyword struct {

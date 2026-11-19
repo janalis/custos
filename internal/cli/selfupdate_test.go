@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/platform/selfupdate"
+	"github.com/janalis/custos/internal/platform/selfupdate"
 )
 
 // fakeUpdate replaces the self-update seams for one test.

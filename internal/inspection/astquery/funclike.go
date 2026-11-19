@@ -3,7 +3,7 @@ package astquery
 import (
 	"bytes"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Equivalent reports whether a and b are the same expression: same node

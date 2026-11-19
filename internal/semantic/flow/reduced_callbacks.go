@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // Reductions preserve runtime order, but carry values and possible sinks only;
 // callback operations never establish unconditional caller resource state.

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"custos/internal/diagnostic"
-	"custos/internal/output/report"
-	"custos/internal/project/baseline"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/output/report"
+	"github.com/janalis/custos/internal/project/baseline"
 )
 
 func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {

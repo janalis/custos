@@ -11,14 +11,14 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/diagnostic"
-	"custos/internal/fixing"
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/project"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // TestFixesKeepCodeParsable applies every quick-fix offered on a real-world

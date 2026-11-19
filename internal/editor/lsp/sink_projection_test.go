@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/inspection/rules/untrustedshellcommand"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/rules/untrustedshellcommand"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestUnsavedSinkProjectionsAndDispatchRefresh(t *testing.T) {

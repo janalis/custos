@@ -1,6 +1,6 @@
 package astquery
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // NextEcho returns the expression echoed by the statement right after s
 // when that statement echoes exactly one, without parentheses; nil

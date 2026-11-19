@@ -3,8 +3,8 @@ package flowquery
 import (
 	"strings"
 
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // PossibleValuesComplete is a conservative variant of PossibleValues for

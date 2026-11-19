@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/rules/nestednotoperators"
-	"custos/internal/inspection/rules/securityadvisories"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
-	"custos/internal/semantic/stubs"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/rules/nestednotoperators"
+	"github.com/janalis/custos/internal/inspection/rules/securityadvisories"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/semantic/stubs"
 )
 
 // vendorProject writes a project whose inputs are old enough to be trusted

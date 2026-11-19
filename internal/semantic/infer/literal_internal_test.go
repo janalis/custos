@@ -3,10 +3,10 @@ package infer
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 // An integer literal Go cannot read (an invalid octal PHP 5 accepts) types

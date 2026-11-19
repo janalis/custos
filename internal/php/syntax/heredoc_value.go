@@ -3,7 +3,7 @@ package syntax
 import (
 	"strings"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // staticHeredocValue decodes only a complete noninterpolated heredoc/nowdoc.

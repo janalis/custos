@@ -4,7 +4,7 @@ import (
 	"maps"
 	"slices"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Recognize only an initialized carry, a single assignment, and its final

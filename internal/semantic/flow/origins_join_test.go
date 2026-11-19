@@ -3,7 +3,7 @@ package flow
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Joining producers with a path whose value has an unknown producer the set

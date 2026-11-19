@@ -1,8 +1,8 @@
 package flowquery
 
 import (
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // ReachingAssignments returns the plain `=` assignments (by value, as in

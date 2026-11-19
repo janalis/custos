@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/php/syntax"
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // Every member lookup walks the ancestors: they are cached per class and

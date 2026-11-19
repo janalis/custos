@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestDeclarationListGrammar(t *testing.T) {

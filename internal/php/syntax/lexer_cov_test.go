@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // lexSnippets are edge cases of the scanner. Each one is lexed with PHP 8.5

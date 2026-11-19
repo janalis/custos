@@ -3,7 +3,7 @@ package nonvoidfunctionfallsthrough
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestMissingExpression(t *testing.T) {

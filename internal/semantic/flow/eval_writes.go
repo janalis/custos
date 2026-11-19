@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // rebind handles a statement that makes a variable name stand for other
 // storage (`unset`, `static`, `global`). Anything but a plain variable is a

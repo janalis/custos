@@ -4,7 +4,7 @@ import (
 	"html"
 	"strings"
 
-	"custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/flow"
 )
 
 // attributeName returns the name of the attribute whose `=` is at eq, in

@@ -4,8 +4,8 @@ import (
 	"slices"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // never reports a call that does not return: its callee is declared `never`,

@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // arrayBuiltins are the array-returning builtins arrayBuiltinType types

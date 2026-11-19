@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // intInterval is immutable. Literal singleton bounds need no allocation.

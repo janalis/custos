@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/inspection/meta"
 )
 
 func cmdRules(args []string, stdout, stderr io.Writer) error {

@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/phpunit"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/phpunit"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // phpUnitDeprecations reports PHPUnit assertion APIs deprecated in the

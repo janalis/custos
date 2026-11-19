@@ -5,10 +5,10 @@ import (
 	"slices"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/stubs"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/stubs"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // ---- array shapes ---------------------------------------------------------------------

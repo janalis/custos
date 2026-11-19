@@ -3,7 +3,7 @@ package astquery
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // LineIndent returns the leading spaces and tabs of the line containing

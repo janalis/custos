@@ -3,7 +3,7 @@ package catalogue
 import (
 	"testing"
 
-	"custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/inspection/meta"
 )
 
 func TestRegistryConsistency(t *testing.T) {

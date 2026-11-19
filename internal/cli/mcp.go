@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"custos/internal/editor/mcp"
-	"custos/internal/platform/safeio"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/editor/mcp"
+	"github.com/janalis/custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 func cmdMCP(version string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {

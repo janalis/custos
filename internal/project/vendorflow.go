@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/platform/safeio"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // WithVendorFlow returns options whose snapshots answer the contracts of

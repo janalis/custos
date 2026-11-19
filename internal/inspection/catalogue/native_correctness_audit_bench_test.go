@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/testing/conformance"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/testing/conformance"
 )
 
 func BenchmarkNativeCorrectnessAudit(b *testing.B) {

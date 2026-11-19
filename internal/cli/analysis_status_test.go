@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/diagnostic"
 )
 
 func TestAnalysisIncompleteDoesNotChangeFindingExitPolicy(t *testing.T) {

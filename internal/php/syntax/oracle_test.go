@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // phpTokenKinds maps PHP's token_name() output to our kinds.

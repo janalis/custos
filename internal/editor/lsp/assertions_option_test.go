@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/rules/unescapedhtmloutput"
-	"custos/internal/php/syntax"
-	"custos/internal/project/config"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/rules/unescapedhtmloutput"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project/config"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 func TestAssertionOverrideFalse(t *testing.T) {

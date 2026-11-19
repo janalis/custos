@@ -3,7 +3,7 @@ package flow
 import (
 	"slices"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func singlePureStatement(stmt syntax.Stmt) syntax.Stmt {

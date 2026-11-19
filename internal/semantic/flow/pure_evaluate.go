@@ -3,7 +3,7 @@ package flow
 import (
 	"math"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func scalarValue(value constantScalar) Value {

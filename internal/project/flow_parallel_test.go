@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/rules/untrustedshellcommand"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/rules/untrustedshellcommand"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // A chain of wrappers across more files than compose checks one by one

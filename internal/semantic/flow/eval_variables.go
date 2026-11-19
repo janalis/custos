@@ -1,8 +1,8 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // evalVariable reads a variable, named or computed.

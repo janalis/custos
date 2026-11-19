@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // recorder is a testing.TB that keeps failures instead of stopping.

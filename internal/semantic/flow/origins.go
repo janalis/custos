@@ -1,7 +1,7 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Origin is one expression that may have produced the value read, with the

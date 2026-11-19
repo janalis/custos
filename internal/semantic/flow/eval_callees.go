@@ -1,7 +1,7 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // callOutcome is what finishCall establishes about a call while the handler

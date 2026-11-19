@@ -3,12 +3,12 @@ package classmethodnamematchesfieldname
 import (
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/phpdoc"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/phpdoc"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // classMethodNameMatchesFieldName reports methods sharing their name with a

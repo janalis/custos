@@ -1,7 +1,7 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {

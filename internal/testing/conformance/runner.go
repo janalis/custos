@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/diagnostic"
 )
 
 // Request is one analysis run over a fixture.

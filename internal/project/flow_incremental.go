@@ -8,9 +8,9 @@ import (
 	"slices"
 	"sync"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // Incremental updates: a build summarizes again only what an edit reaches.

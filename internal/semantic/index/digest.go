@@ -3,7 +3,7 @@ package index
 import (
 	"hash/maphash"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // digestSeed keys Digest for the life of the process: digests are compared

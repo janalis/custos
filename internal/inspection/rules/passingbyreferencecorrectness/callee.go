@@ -1,8 +1,8 @@
 package passingbyreferencecorrectness
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // callArgs returns the argument list of a function, method or static call.

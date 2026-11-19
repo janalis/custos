@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 // Discovery of a captured root's inputs, confined to the root.

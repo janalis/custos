@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"slices"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 var spanType = reflect.TypeFor[syntax.Span]()

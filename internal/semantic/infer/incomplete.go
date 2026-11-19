@@ -4,8 +4,8 @@ import (
 	"cmp"
 	"slices"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // Gap identifies a limit encountered by an evaluated type query. It retains no AST.

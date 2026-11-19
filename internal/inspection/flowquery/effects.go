@@ -1,7 +1,7 @@
 package flowquery
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // MayHaveSideEffects reports whether evaluating e may do more than compute a

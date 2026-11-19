@@ -3,9 +3,9 @@ package config
 import (
 	"maps"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // Overlay applies settings a client supplies (an editor's) on top of the

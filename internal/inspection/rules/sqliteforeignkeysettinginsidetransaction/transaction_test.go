@@ -3,7 +3,7 @@ package sqliteforeignkeysettinginsidetransaction
 import (
 	"testing"
 
-	"custos/internal/inspection/semanticquery"
+	"github.com/janalis/custos/internal/inspection/semanticquery"
 )
 
 // TestTransactionState follows BEGIN, END and ROLLBACK through a script and

@@ -1,8 +1,8 @@
 package semanticquery
 
 import (
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // SameOperand reports whether a and b are known to hold the same value:

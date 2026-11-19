@@ -3,7 +3,7 @@ package flow
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // A second reader of a cached overrides answer depends on the subclass

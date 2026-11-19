@@ -3,8 +3,8 @@ package semanticquery
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // ArgBindsByRef reports whether an argument of list binds to a by-reference

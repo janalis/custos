@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/php/phpdoc"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/phpdoc"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // genResolver resolves names like resolver, but keeps the class templates

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestAnalysisStatusPositionsIssues(t *testing.T) {

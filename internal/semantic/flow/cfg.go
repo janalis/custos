@@ -1,7 +1,7 @@
 package flow
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Compact successor indices can represent every permitted block ID.

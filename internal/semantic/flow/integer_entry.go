@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // IntEntry returns an exact integer at a read on a concrete, acyclic entry
 // prefix. Unknown branches and side effects end this proof. Its environment

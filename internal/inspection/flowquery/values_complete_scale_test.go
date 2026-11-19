@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // TestPossibleValuesCompletePropertiesLinear guards the per-class index of

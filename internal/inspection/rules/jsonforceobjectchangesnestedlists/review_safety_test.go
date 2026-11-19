@@ -3,8 +3,8 @@ package jsonforceobjectchangesnestedlists
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // TestReviewSafety pins list-order detection and the scope constructs that

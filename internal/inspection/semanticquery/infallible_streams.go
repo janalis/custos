@@ -3,7 +3,7 @@ package semanticquery
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // infallibleStreams are the PHP streams an fopen() cannot fail to open:

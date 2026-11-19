@@ -5,7 +5,7 @@ import (
 	"math"
 	"sort"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Reachable reports whether node n (inside scope's body) can be reached

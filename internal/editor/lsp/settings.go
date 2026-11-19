@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/catalogue"
-	"custos/internal/project"
-	"custos/internal/project/baseline"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/catalogue"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/project/baseline"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 func (s *Server) initialize(raw json.RawMessage) (any, *rpcError) {

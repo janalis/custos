@@ -5,7 +5,7 @@ import (
 	"os"
 	"runtime/debug"
 
-	"custos/internal/platform/sysmem"
+	"github.com/janalis/custos/internal/platform/sysmem"
 )
 
 // gcPercent is the garbage collector target (GOGC) of the batch commands,

@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // A finite filter invokes callbacks for sinks, but never replaces an entry with

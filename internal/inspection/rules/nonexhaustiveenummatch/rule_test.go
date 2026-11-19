@@ -3,10 +3,10 @@ package nonexhaustiveenummatch_test
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	rule "custos/internal/inspection/rules/nonexhaustiveenummatch"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	rule "github.com/janalis/custos/internal/inspection/rules/nonexhaustiveenummatch"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestContracts(t *testing.T) {

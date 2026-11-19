@@ -3,9 +3,9 @@ package phpunit
 import (
 	"strings"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // PuCall is the shape shared by instance (`->`, `?->`) and static (`::`)

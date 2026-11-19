@@ -7,7 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/diagnostic"
 )
 
 // parallel runs work(i) for every i below n on up to workers goroutines (one

@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // maxAliasDepth bounds the imports a type alias is followed through, as a

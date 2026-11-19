@@ -3,9 +3,9 @@ package isoweekcalendaryearmismatch_test
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	rule "custos/internal/inspection/rules/isoweekcalendaryearmismatch"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	rule "github.com/janalis/custos/internal/inspection/rules/isoweekcalendaryearmismatch"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestContracts(t *testing.T) {

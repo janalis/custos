@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // wideClass declares a class implementing more interfaces than the index

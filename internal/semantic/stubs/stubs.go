@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 //go:embed stubs.gob.gz

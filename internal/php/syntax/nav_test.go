@@ -3,7 +3,7 @@ package syntax
 import (
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestNavHelpers(t *testing.T) {

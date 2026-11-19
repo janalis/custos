@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // valueStore keeps expression values in small, lazily allocated blocks. Hash
 // slots contain bounded 32-bit indices; hints for unreachable expressions do not reserve

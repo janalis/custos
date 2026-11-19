@@ -3,8 +3,8 @@ package analysis
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func TestUnchangedFileReadsTheProjectIndex(t *testing.T) {

@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/inspection/rules/untrustedshellcommand"
-	"custos/internal/php/syntax"
-	"custos/internal/project"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/inspection/rules/untrustedshellcommand"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func (s *Server) setFlowBuilder(builder flowBuilder) {

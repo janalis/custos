@@ -1,6 +1,6 @@
 package flow
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // evalBinary evaluates a binary operator, logical, null-coalescing or other.
 func (e *Env) evalBinary(n *syntax.Binary, f *frame, r *scopeResult, depth int) Value {

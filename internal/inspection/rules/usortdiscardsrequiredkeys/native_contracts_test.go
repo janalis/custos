@@ -3,7 +3,7 @@ package usortdiscardsrequiredkeys
 import (
 	"testing"
 
-	"custos/internal/testing/ruletest"
+	"github.com/janalis/custos/internal/testing/ruletest"
 )
 
 func TestNativeContracts(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/analysis"
 )
 
 func TestTypeCheckSetting(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // phpStormAttr returns the attribute of attrs named name in PhpStorm's

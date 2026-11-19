@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // Doc types come from analyzed code: pathological input must parse fast.

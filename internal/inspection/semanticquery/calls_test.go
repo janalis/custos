@@ -3,9 +3,9 @@ package semanticquery
 import (
 	"testing"
 
-	"custos/internal/inspection/astquery"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/inspection/astquery"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func TestCallHelperEdges(t *testing.T) {

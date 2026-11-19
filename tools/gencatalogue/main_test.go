@@ -77,11 +77,11 @@ func TestRun(t *testing.T) {
 package catalogue
 
 import (
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/rules/kettle"
-	cup "custos/internal/inspection/rules/mug"
-	"custos/internal/inspection/rules/saucer"
-	"custos/internal/inspection/rules/teapot"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/rules/kettle"
+	cup "github.com/janalis/custos/internal/inspection/rules/mug"
+	"github.com/janalis/custos/internal/inspection/rules/saucer"
+	"github.com/janalis/custos/internal/inspection/rules/teapot"
 )
 
 // All returns inspections in stable group and identifier order.

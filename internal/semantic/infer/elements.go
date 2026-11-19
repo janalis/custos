@@ -3,8 +3,8 @@ package infer
 import (
 	"slices"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // sealedComputedDim types an element read with a computed key on a sealed

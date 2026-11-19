@@ -3,7 +3,7 @@ package semanticquery
 import (
 	"strings"
 
-	"custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/analysis"
 )
 
 // StringCallableFunction spells the function named by a string callable fn

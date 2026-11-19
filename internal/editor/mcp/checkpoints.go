@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"custos/internal/diagnostic"
-	"custos/internal/project"
-	"custos/internal/project/config"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/project/config"
 )
 
 type evidence struct {

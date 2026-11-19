@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 func TestDependencyMetadataOwnsNames(t *testing.T) {

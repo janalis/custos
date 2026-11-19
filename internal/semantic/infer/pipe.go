@@ -1,8 +1,8 @@
 package infer
 
 import (
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // pipeType invokes a callable with the left operand. Detached shallow call

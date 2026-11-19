@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // flowStepsProject is a project of three analyzed files and a dependency,

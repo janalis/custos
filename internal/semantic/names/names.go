@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Scope is one namespace region with its imports.

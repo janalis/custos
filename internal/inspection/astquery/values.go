@@ -3,7 +3,7 @@ package astquery
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // AssignedValue follows `$a = $b = v` chains (plain `=` only) to v.

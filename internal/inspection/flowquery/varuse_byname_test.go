@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // TestVarAccessesByNameMatches checks the one-walk variant against the

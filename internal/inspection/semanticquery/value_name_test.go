@@ -3,7 +3,7 @@ package semanticquery
 import (
 	"testing"
 
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 // A finding decided by exact values prints them; other members print as

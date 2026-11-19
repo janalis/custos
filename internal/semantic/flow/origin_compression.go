@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // originKey describes only contracts whose consumers do not distinguish the

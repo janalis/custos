@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // reaching returns the definitions among defs (one variable's, in source

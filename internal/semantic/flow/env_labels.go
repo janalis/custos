@@ -3,7 +3,7 @@ package flow
 import (
 	"sort"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Labeled reports that a jump to a `goto` label can land between what a

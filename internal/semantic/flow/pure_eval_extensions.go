@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func (e *Env) evalPureExtended(expr *pureExpr, slots []Value, r *scopeResult, depth int) (Value, bool) {

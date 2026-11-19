@@ -3,7 +3,7 @@ package astquery
 import (
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // ParentSkipParens returns the first ancestor of n that is not a Paren, and

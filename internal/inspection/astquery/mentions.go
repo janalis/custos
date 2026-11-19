@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 type mentionsKey struct{ word string }

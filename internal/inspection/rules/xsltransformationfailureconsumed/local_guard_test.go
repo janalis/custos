@@ -3,8 +3,8 @@ package xsltransformationfailureconsumed
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Each guard below is read twice. In a scope the flow follows, its facts

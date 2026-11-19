@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode"
 
-	"custos/internal/diagnostic"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/diagnostic"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 var noreClassEscape = regexp.MustCompile(`\\[\\dDwWsS]`)

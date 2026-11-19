@@ -3,8 +3,8 @@ package onlywritesonparameter
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // A read placed after a do-while counts unless the loop certainly never

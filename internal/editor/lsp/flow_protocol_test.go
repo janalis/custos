@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/inspection/rules/untrustedshellcommand"
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/inspection/rules/untrustedshellcommand"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 func TestOpenChangeAndCloseRefreshDependentFlowDiagnostics(t *testing.T) {

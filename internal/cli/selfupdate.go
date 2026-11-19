@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"custos/internal/platform/selfupdate"
+	"github.com/janalis/custos/internal/platform/selfupdate"
 )
 
 // Seams for tests: self-update reaches the network, the package managers

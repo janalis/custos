@@ -3,7 +3,7 @@ package flow
 import (
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // BenchmarkMixedValueStore stores what a scope records: mostly values

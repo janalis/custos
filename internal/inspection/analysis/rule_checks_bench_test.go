@@ -3,9 +3,9 @@ package analysis
 import (
 	"testing"
 
-	"custos/internal/inspection/meta"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/meta"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // idRule is a rule of the catalogue that checks nothing.

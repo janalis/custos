@@ -3,7 +3,7 @@ package infer_test
 import (
 	"testing"
 
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 func TestAssertions(t *testing.T) {

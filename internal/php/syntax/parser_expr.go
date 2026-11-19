@@ -1,6 +1,6 @@
 package syntax
 
-import phpversion "custos/internal/php/version"
+import phpversion "github.com/janalis/custos/internal/php/version"
 
 // Operator precedence levels (higher binds tighter), following
 // zend_language_parser.y.

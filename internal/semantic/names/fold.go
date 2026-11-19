@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"custos/internal/semantic/readmap"
+	"github.com/janalis/custos/internal/semantic/readmap"
 )
 
 // maxFolded bounds the names Fold remembers, and maxFoldedBytes their length,

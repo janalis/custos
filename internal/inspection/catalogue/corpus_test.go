@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/project"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/project"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // TestNoCrashOnCorpus runs every rule over a real-world corpus (CUSTOS_CORPUS,

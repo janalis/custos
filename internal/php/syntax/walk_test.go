@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	phpversion "custos/internal/php/version"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // largeCorpusFile is a large real-world file the walker tests and benchmark

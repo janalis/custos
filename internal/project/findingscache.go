@@ -13,11 +13,11 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"custos/internal/diagnostic"
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/platform/safeio"
-	"custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/platform/safeio"
+	"github.com/janalis/custos/internal/semantic/flow"
 )
 
 // The findings cache keeps, between runs of AnalyzeReport, what the

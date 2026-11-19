@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/platform/sysmem"
+	"github.com/janalis/custos/internal/platform/sysmem"
 )
 
 func TestPlanGC(t *testing.T) {

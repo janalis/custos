@@ -1,7 +1,7 @@
 package flowquery
 
 import (
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // assignIndex summarizes the writes under a root node (nested closures

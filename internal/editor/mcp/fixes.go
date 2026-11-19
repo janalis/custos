@@ -12,11 +12,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"custos/internal/diagnostic"
-	"custos/internal/fixing"
-	"custos/internal/output/diff"
-	"custos/internal/php/syntax"
-	"custos/internal/project"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/output/diff"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/project"
 )
 
 type Choice struct {

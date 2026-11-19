@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // SQLFacts is what ScanSQL reads in an SQL string: its named markers, the

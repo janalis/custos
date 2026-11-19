@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/semantic/types"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 func TestPureBindingStorage(t *testing.T) {

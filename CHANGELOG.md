@@ -5,6 +5,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The Go module path is now `github.com/janalis/custos`.
+
 ## [0.2.1] - 2026-11-19
 
 ### Added

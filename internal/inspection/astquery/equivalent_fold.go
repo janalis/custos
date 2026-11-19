@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // EquivalentFoldNames is Equivalent with PHP's case rules for names: keyword

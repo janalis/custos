@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"custos/internal/php/syntax"
-	"custos/internal/testing/testbudget"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // nestedLoops is a function of `depth` loops inside one another over

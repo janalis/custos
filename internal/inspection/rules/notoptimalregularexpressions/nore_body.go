@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/diagnostic"
 )
 
 // noreShortClasses lists the D14 keys and their shorthand, in report order.

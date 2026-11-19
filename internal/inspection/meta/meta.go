@@ -11,7 +11,7 @@ import (
 	"sort"
 	"sync"
 
-	"custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/diagnostic"
 )
 
 // Option describes one configurable rule option.

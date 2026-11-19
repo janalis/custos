@@ -3,8 +3,8 @@ package flow
 import (
 	"maps"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 type localSummaries struct {

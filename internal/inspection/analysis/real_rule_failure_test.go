@@ -4,14 +4,14 @@ import (
 	"slices"
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/rules/dommissingattributecheckedasnull"
-	"custos/internal/inspection/rules/impossibletypecomparison"
-	"custos/internal/inspection/rules/nestednotoperators"
-	"custos/internal/inspection/rules/redundanttypecheck"
-	"custos/internal/inspection/rules/xmlparsezerocomparedwithfalse"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/rules/dommissingattributecheckedasnull"
+	"github.com/janalis/custos/internal/inspection/rules/impossibletypecomparison"
+	"github.com/janalis/custos/internal/inspection/rules/nestednotoperators"
+	"github.com/janalis/custos/internal/inspection/rules/redundanttypecheck"
+	"github.com/janalis/custos/internal/inspection/rules/xmlparsezerocomparedwithfalse"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestSharedDataFailureWithRealRules(t *testing.T) {

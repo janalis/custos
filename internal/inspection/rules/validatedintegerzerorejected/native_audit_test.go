@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/fixing"
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestAuditFixPreservesValidationComment(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func TestReferenceArguments(t *testing.T) {

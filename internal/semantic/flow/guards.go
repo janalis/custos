@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func literalText(x syntax.Expr) (string, bool) {

@@ -3,9 +3,9 @@ package utf8bytetruncation_test
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
-	rule "custos/internal/inspection/rules/utf8bytetruncation"
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	rule "github.com/janalis/custos/internal/inspection/rules/utf8bytetruncation"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestContracts(t *testing.T) {

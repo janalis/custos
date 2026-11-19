@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestLocalClosureInvocation(t *testing.T) {

@@ -1,7 +1,7 @@
 // Package diagnostic defines findings, fixes and positioned results shared by adapters.
 package diagnostic
 
-import "custos/internal/php/syntax"
+import "github.com/janalis/custos/internal/php/syntax"
 
 // Severity is the default reporting level of a rule.
 type Severity string

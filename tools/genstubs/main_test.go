@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/types"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/types"
 )
 
 func writeFile(t *testing.T, path, body string) {

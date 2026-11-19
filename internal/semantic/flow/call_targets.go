@@ -4,8 +4,8 @@ import (
 	"slices"
 	"strings"
 
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // dispatched names the summary of the method a call runs, the given one

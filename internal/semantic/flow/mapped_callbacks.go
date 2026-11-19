@@ -3,7 +3,7 @@ package flow
 import (
 	"strconv"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Only a complete finite input can establish individual mapped values. Each

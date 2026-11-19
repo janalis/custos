@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"custos/internal/diagnostic"
-	"custos/internal/fixing"
-	"custos/internal/inspection/analysis"
-	"custos/internal/php/syntax"
-	"custos/internal/semantic/flow"
-	"custos/internal/semantic/infer"
+	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/fixing"
+	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/semantic/flow"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // Options contains resolved configuration; adapters own flags and settings.

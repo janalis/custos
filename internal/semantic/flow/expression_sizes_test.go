@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 func TestExpressionSizesMemo(t *testing.T) {

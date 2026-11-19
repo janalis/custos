@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strings"
 
-	"custos/tools/internal/specmd"
+	"github.com/janalis/custos/tools/internal/specmd"
 )
 
 type desc struct {

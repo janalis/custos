@@ -3,10 +3,10 @@ package index
 import (
 	"strings"
 
-	"custos/internal/php/phpdoc"
-	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/names"
+	"github.com/janalis/custos/internal/php/phpdoc"
+	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/names"
 )
 
 func (x *extractor) function(n *syntax.Function) {

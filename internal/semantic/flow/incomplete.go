@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"slices"
 
-	"custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // Gap describes a bounded analysis that could not establish its full contract.

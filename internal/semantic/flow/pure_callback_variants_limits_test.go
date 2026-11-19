@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
+	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 func TestPureCallbackVariantRefusals(t *testing.T) {

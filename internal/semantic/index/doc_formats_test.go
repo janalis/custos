@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/php/phpdoc"
+	"github.com/janalis/custos/internal/php/phpdoc"
 )
 
 func TestTemplateVarianceIsRecorded(t *testing.T) {
