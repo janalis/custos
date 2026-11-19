@@ -40,13 +40,24 @@ func TestAcceptsShapes(t *testing.T) {
 	}
 }
 
-// Keys alone reject nothing: a guard such as isset($a[0]) tells more about an
-// array than its declared key type does.
-func TestAcceptsArrayKeysDecideNothing(t *testing.T) {
+func TestAcceptsArrayKeys(t *testing.T) {
 	ctx := AcceptContext{Classes: fakeClasses{}, Strict: true}
-	want, have := FromDoc(`array<int, int>`, nil), FromDoc(`non-empty-array<string, int>`, nil)
-	if got := Accepts(want, have, ctx); got != Maybe {
-		t.Errorf("Accepts = %v, want maybe", got)
+	for _, c := range []struct {
+		expected, actual string
+		want             Verdict
+	}{
+		{`array<string, int>`, `non-empty-array<int, int>`, No},
+		{`array<int, int>`, `non-empty-array<string, int>`, No},
+		{`non-empty-array<string, int>`, `non-empty-list<int>`, No},
+		{`array<string, int>`, `array<int, int>`, Maybe},
+		{`array<string, int>`, `non-empty-array<string, int>`, Maybe},
+		{`array<int|string, int>`, `non-empty-array<int, int>`, Maybe},
+		{`array<string, int>`, `non-empty-array`, Maybe},
+		{`array<string, int>`, `array{}`, Yes},
+	} {
+		if got := Accepts(FromDoc(c.expected, nil), FromDoc(c.actual, nil), ctx); got != c.want {
+			t.Errorf("Accepts(%s, %s) = %v, want %v", c.expected, c.actual, got, c.want)
+		}
 	}
 }
 

@@ -343,6 +343,9 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 // tags, which analyzed code may chain or make cyclic.
 const maxMixinClasses = 32
 
+// maxMixinVisits bounds the classes, ancestors included, one lookup reads.
+const maxMixinVisits = 256
+
 // mixinWith returns the first class that class, instantiated with args,
 // documents through @mixin, directly, by inheritance or through another mixin,
 // for which has holds; "" when there is none. Mixins are PHPDoc: native types
@@ -357,10 +360,14 @@ func (e *Env) mixinWith(class string, args []types.Type, has func(string) bool) 
 	}
 	seen := map[string]bool{strings.ToLower(class): true}
 	queue := []receiver{{class, args}}
+	visits := 0
 	for len(queue) > 0 {
 		bindings := e.genBindings(queue[0].class, queue[0].args)
 		for _, c := range e.Index.Ancestors(queue[0].class, e.PHP) {
-			for _, mixin := range slices.Concat(c.Mixins, templateMixins(c, bindings[strings.ToLower(c.FQN)])) {
+			if visits++; visits > maxMixinVisits {
+				return ""
+			}
+			for _, mixin := range slices.Concat(c.Mixins, e.templateMixins(c, bindings[strings.ToLower(c.FQN)])) {
 				if seen[strings.ToLower(mixin)] {
 					continue
 				}
@@ -381,14 +388,14 @@ func (e *Env) mixinWith(class string, args []types.Type, has func(string) bool) 
 
 // templateMixins lists the classes the `@mixin T` tags of c stand for: what
 // the receiver binds T to, else T's bound.
-func templateMixins(c *index.Class, bound tplBindings) []string {
+func (e *Env) templateMixins(c *index.Class, bound tplBindings) []string {
 	var out []string
 	for _, name := range c.MixinTemplates {
 		t, ok := bound[name]
 		if !ok || t.IsUnknown() {
 			for _, tp := range c.Templates {
-				if tp.Name == name {
-					t = types.FromDoc(tp.Bound, nil)
+				if tp.Name == name && tp.Bound != "" {
+					t = e.parsedType(tp.Bound)
 				}
 			}
 		}

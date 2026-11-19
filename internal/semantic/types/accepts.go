@@ -427,7 +427,7 @@ func acceptArray(expected, actual Type, a string, ctx AcceptContext) Verdict {
 	switch {
 	case expected.IsNonEmptyArray() && actual.isEmptyArray():
 		return No
-	case shapeRejected(expected, actual, ctx):
+	case shapeRejected(expected, actual, ctx), arrayKeysRejected(expected, actual, ctx):
 		return No
 	case expected.IsNonEmptyArray() && !actual.IsNonEmptyArray(), expected.HasShape():
 		return Maybe
@@ -507,6 +507,13 @@ func requiresStringKey(t Type) bool {
 	})
 }
 
+// arrayKeysRejected reports a non-empty array whose keys have nothing in
+// common with the keys expected: an empty array fits any key type.
+func arrayKeysRejected(expected, actual Type, ctx AcceptContext) bool {
+	want, have := expected.ArrayKey(), actual.ArrayKey()
+	return !want.IsUnknown() && !have.IsUnknown() && actual.IsNonEmptyArray() && elemVerdict(want, have, ctx) == No
+}
+
 // objectShapeRejected reports a property required by both object shapes
 // whose values have nothing in common. A property the actual shape does not
 // list decides nothing: any object may have more than its shape says.
@@ -551,6 +558,9 @@ func acceptArrayElems(expected, elem, actual Type, a string, ctx AcceptContext) 
 	}
 	if actual.isEmptyArray() {
 		return Yes
+	}
+	if arrayKeysRejected(expected, actual, ctx) {
+		return No
 	}
 	v := elemVerdict(elem, actualElem(actual, a), ctx)
 	if v == Yes && (!expected.ArrayKey().IsUnknown() || expected.IsNonEmptyArray() || expected.HasShape()) {

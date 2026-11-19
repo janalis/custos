@@ -78,6 +78,7 @@ tag that already has a shape keeps priority over the attribute.
 |---|---|
 | Generic arguments | An argument has nothing in common with the expected one, following the template's declared variance, including through `@extends` and `@implements`. Arguments count when a declaration states them: an unmodified parameter, a property of `$this`, or a function or method whose documented return mentions no template. |
 | Array shapes | A required key is missing, a required key's value has another type, or a sealed shape does not list a required key. |
+| Array keys | A non-empty array's keys have nothing in common with the documented key type. A key the code proved present, such as with `isset($map[0])`, overrides a key type it contradicts. |
 | Object shapes | A property required on both sides has another type. |
 | Callables | The return type or a parameter type has nothing in common, or the callable requires more arguments than it receives. |
 

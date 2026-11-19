@@ -1036,6 +1036,7 @@ func keyPresent(t types.Type, k string, drop ...string) types.Type {
 	if nt := t.Without("null", "false"); len(nt.Atoms()) > 0 {
 		t = nt
 	}
+	t = admitKey(t, k)
 	if t.HasShape() {
 		t = t.MapShape(func(sk types.ShapeKey) types.ShapeKey {
 			if sk.Name != k {
@@ -1049,6 +1050,29 @@ func keyPresent(t types.Type, k string, drop ...string) types.Type {
 		})
 	}
 	return t.WithNonEmpty(true)
+}
+
+// admitKey returns t, whose arrays hold key k, without a documented key type
+// that k contradicts: the array is not what its declaration says (`isset($m[0])`
+// on an `array<string, …>` guards against a list passed instead).
+func admitKey(t types.Type, k string) types.Type {
+	key := t.ArrayKey()
+	if k == "" || key.IsUnknown() {
+		return t
+	}
+	if kind := keyKind(k); !key.Has(kind) {
+		return t.WithArrayKey(types.Unknown)
+	}
+	return t
+}
+
+// keyKind is the type of array key k as PHP stores it: an integer-like
+// string is an int key.
+func keyKind(k string) string {
+	if types.IsIntKey(k) {
+		return "int"
+	}
+	return "string"
 }
 
 // aliasCond returns the condition a boolean variable v stands for when it

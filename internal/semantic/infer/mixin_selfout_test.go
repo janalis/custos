@@ -104,6 +104,20 @@ func TestMixinLookupIsBounded(t *testing.T) {
 	checkAnywhere(t, src.String(), map[string]string{"near": "int", "far": "?unknown"})
 }
 
+// A deep hierarchy with no mixin ends the search at the visit budget.
+func TestMixinLookupCountsAncestors(t *testing.T) {
+	var src strings.Builder
+	src.WriteString("<?php\nclass A0 {}\n")
+	const depth = 300 // past the visit budget
+	for i := 1; i <= depth; i++ {
+		fmt.Fprintf(&src, "class A%d extends A%d {}\n", i, i-1)
+	}
+	src.WriteString("class Target { public function far(): int {} }\n/** @mixin Target */\nclass Top {}\n")
+	fmt.Fprintf(&src, "/** @mixin A%d */\nclass Start {}\n", depth)
+	src.WriteString("function f(Start $s, Top $t) {\n    t('budget', $s->far());\n    t('near', $t->far());\n}\n")
+	checkAnywhere(t, src.String(), map[string]string{"budget": "?unknown", "near": "int"})
+}
+
 // PHPDoc alone documents a mixin or a receiver's new type.
 func TestMixinAndSelfOutStayOutOfNativeTypes(t *testing.T) {
 	src := `<?php

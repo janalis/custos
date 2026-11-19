@@ -33,6 +33,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The `Documented*` type rules compare array and object shapes: a missing
   required key, a key the sealed shape does not list, or a value of another
   type is reported.
+- The `Documented*` type rules compare the key types of non-empty arrays.
 - The `Documented*` type rules compare callable signatures: return type,
   parameter types and the number of required parameters.
 - The `typeCheck` setting of `custos.json` (`off`, `proven`, `documented`)

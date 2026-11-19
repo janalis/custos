@@ -310,6 +310,13 @@ func (e *Env) keyExistsCond(t types.Type, c *syntax.FuncCall, nm *syntax.Name, n
 	if !ok || a.Name != nil || a.Unpack || !isVar(a.Value, name) {
 		return t, false
 	}
+	if k, ok := c.Args.Args[0].(*syntax.Arg); ok {
+		if key, literal := syntax.LiteralArrayKey(k.Value); literal {
+			t = admitKey(t, key)
+		} else {
+			t = t.WithArrayKey(types.Unknown)
+		}
+	}
 	if e.PHP.AtLeast(phpversion.PHP80) {
 		return narrowAtoms(t, typeChecks["is_array"], true).WithNonEmpty(true), true
 	}
