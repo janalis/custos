@@ -30,9 +30,14 @@ func (formatting) CheckFile(ctx *analysis.Context) {
 		return
 	}
 	var all []diagnostic.TextEdit
+	groups := map[int][]diagnostic.TextEdit{}
 	for _, c := range res.Changes {
 		if !c.Report {
-			all = append(all, diagnostic.TextEdit{Span: syntax.Span{Start: c.Start, End: c.End}, NewText: c.New})
+			edit := diagnostic.TextEdit{Span: syntax.Span{Start: c.Start, End: c.End}, NewText: c.New}
+			all = append(all, edit)
+			if c.Group != 0 {
+				groups[c.Group] = append(groups[c.Group], edit)
+			}
 		}
 	}
 	// F2: the whole layout at once. Callers may sort the edits they get.
@@ -43,8 +48,11 @@ func (formatting) CheckFile(ctx *analysis.Context) {
 			ctx.Report(span, c.Message())
 			continue
 		}
-		// D1, F1: this change alone.
+		// D1, F1: this change, with the changes it only works with.
 		edit := []diagnostic.TextEdit{{Span: span, NewText: c.New}}
+		if c.Group != 0 {
+			edit = groups[c.Group]
+		}
 		ctx.Report(span, c.Message(), diagnostic.Fix{Title: c.Message(), Edits: func() []diagnostic.TextEdit { return slices.Clone(edit) }}, whole)
 	}
 }

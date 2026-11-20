@@ -24,7 +24,7 @@ var keepAll = map[string]any{
 	"max_blank_lines": 0, "line_length": 0, "wrap": "off", "join_fitting_lists": false, "report_long_lines": false,
 	"class_brace": "keep", "function_brace": "keep", "closure_brace": "keep", "anonymous_class_brace": "keep", "control_brace": "keep",
 	"else_position": "keep", "catch_position": "keep", "empty_body": "keep", "single_line_closures": true,
-	"statement_per_line": false, "blank_line_after_namespace": false, "blank_line_after_imports": false,
+	"statement_per_line": false, "single_line_throw": false, "blank_line_after_namespace": false, "blank_line_after_imports": false,
 	"blank_line_between_import_groups": false, "class_open_blank_line": "keep", "class_close_blank_line": "keep",
 	"trim_block_blank_lines": false, "method_separation": "keep", "blank_line_after_trait_use": false, "property_separation": "keep",
 	"constant_separation": "keep", "blank_line_before": []string{},
@@ -83,7 +83,7 @@ var presets = map[string]preset{
 			"trailing_comma": []string{"arrays", "destructuring", "match", "parameters"},
 			"list_syntax":    "short", "standardize_not_equals": true, "hash_comment": true,
 			"operator_linebreak": "start_booleans", "import_order": "alpha", "trim_block_blank_lines": true,
-			"method_separation": "one", "blank_line_before": []string{"return"},
+			"method_separation": "one", "blank_line_before": []string{"return"}, "single_line_throw": true,
 		},
 		risky: map[string]any{
 			"yoda": "yoda", "single_quote": true, "remove_unused_imports": true, "increment_style": "pre",

@@ -70,3 +70,24 @@ func TestFormatFileFix(t *testing.T) {
 		t.Fatalf("Format the file gave %q (%d of %d applied), want %q", out, applied, len(edits), want.Output)
 	}
 }
+
+// TestGroupedFix: the quick-fix of a change that only works with others
+// applies them together, keeping the code valid.
+func TestGroupedFix(t *testing.T) {
+	src := []byte("<?php\n\n$a = array(\n    1,\n);\n")
+	got := analyze(t, nil, string(src))
+	found := false
+	for _, f := range got {
+		if f.Message != "Change the array syntax" {
+			continue
+		}
+		found = true
+		out, _ := fixing.Apply(src, f.Fixes[0].Edits())
+		if n := len(syntax.Parse("a.php", out, syntax.Options{}).Errors); n != 0 {
+			t.Fatalf("the fix alone breaks the code:\n%s", out)
+		}
+	}
+	if !found {
+		t.Fatalf("no array syntax finding: %+v", got)
+	}
+}

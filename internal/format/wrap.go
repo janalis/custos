@@ -76,7 +76,7 @@ func (e *engine) items(o int) []int {
 // item per line: a list bracket holding items, with no comment between them.
 func (e *engine) splittable(o int) bool {
 	b := e.br[e.sig[o]]
-	if !b.list() || b == brGroupUse || e.match[o] <= o+1 || e.frozenUnit(o) {
+	if !b.list() || b == brGroupUse || e.match[o] <= o+1 || e.frozenUnit(o) || e.inRegions(e.noWrap, e.toks[e.sig[o]].Start) {
 		return false
 	}
 	for k := o + 1; k <= e.match[o]; k++ {
@@ -121,10 +121,35 @@ func (e *engine) wrapPartial() {
 		return
 	}
 	for o := range e.sig {
-		if opener(e.kind(o)) && e.splittable(o) && e.partlySplit(o) {
+		switch {
+		case opener(e.kind(o)) && e.splittable(o) && e.partlySplit(o):
 			e.split(o, "wrap")
+		case e.kind(o) == syntax.TLParen && e.br[e.sig[o]] == brControl:
+			e.splitControl(o)
 		}
 	}
+}
+
+// splitControl gives a condition split over several lines lines of its
+// own: the first after the opening parenthesis, the closing one alone.
+func (e *engine) splitControl(o int) {
+	c := e.match[o]
+	broken := false
+	for k := o + 1; k <= c; k++ {
+		if e.gaps[k].comment || e.gaps[k].frozen {
+			return
+		}
+		if opener(e.kind(k)) && e.match[k] > k {
+			k = e.match[k] // inner brackets may span lines
+			continue
+		}
+		broken = broken || e.leadBreaks(&e.gaps[k]) > 0
+	}
+	if !broken || c <= o+1 {
+		return
+	}
+	e.setNL(o+1, 1, "wrap")
+	e.setNL(c, 1, "wrap")
 }
 
 // width returns the display width of s.

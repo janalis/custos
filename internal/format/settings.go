@@ -39,6 +39,7 @@ type Settings struct {
 	SingleLineClosures  bool
 
 	StatementPerLine             bool
+	SingleLineThrow              bool
 	BlankLineAfterNamespace      bool
 	BlankLineAfterImports        bool
 	BlankLineBetweenImportGroups bool
@@ -111,6 +112,7 @@ type Setting struct {
 	Group       string
 	Kind        Kind
 	Values      []string // allowed values (enum, list)
+	Max         int      // largest value (int)
 	Risky       bool
 	Description string
 	field       func(*Settings) any // pointer to the field
@@ -146,8 +148,8 @@ func (d *Setting) Set(s *Settings, v any) error {
 		*p = b
 	case *int:
 		n, ok := intValue(v)
-		if !ok || n < 0 {
-			return fmt.Errorf("%s: want a non-negative integer, got %v", d.ID, v)
+		if !ok || n < 0 || n > d.Max {
+			return fmt.Errorf("%s: want an integer from 0 to %d, got %v", d.ID, d.Max, v)
 		}
 		*p = n
 	case *string:
@@ -234,8 +236,8 @@ var (
 var registry = []*Setting{
 	// File.
 	{ID: "indent_style", Group: "file", Kind: KindEnum, Values: []string{"space", "tab", "keep"}, Description: "Indent with spaces or tabs; `keep` leaves indentation as written.", field: func(s *Settings) any { return &s.IndentStyle }},
-	{ID: "indent_size", Group: "file", Kind: KindInt, Description: "Columns per indentation level when indenting with spaces.", field: func(s *Settings) any { return &s.IndentSize }},
-	{ID: "tab_width", Group: "file", Kind: KindInt, Description: "Columns a tab counts for when measuring line length.", field: func(s *Settings) any { return &s.TabWidth }},
+	{ID: "indent_size", Group: "file", Kind: KindInt, Max: 16, Description: "Columns per indentation level when indenting with spaces.", field: func(s *Settings) any { return &s.IndentSize }},
+	{ID: "tab_width", Group: "file", Kind: KindInt, Max: 16, Description: "Columns a tab counts for when measuring line length.", field: func(s *Settings) any { return &s.TabWidth }},
 	{ID: "continuation_indent", Group: "file", Kind: KindEnum, Values: []string{"one", "keep"}, Description: "Indentation of a line continuing a statement or list item: one level more than its first line (deeper levels written for nested operands are kept), or `keep` the offset written, alignment included.", field: func(s *Settings) any { return &s.ContinuationIndent }},
 	{ID: "line_ending", Group: "file", Kind: KindEnum, Values: []string{"lf", "crlf", "cr", "keep"}, Description: "Line break written between lines outside strings; `keep` uses the file's first line break.", field: func(s *Settings) any { return &s.LineEnding }},
 	{ID: "final_newline", Group: "file", Kind: KindBool, Description: "End a file of PHP code with exactly one line break.", field: func(s *Settings) any { return &s.FinalNewline }},
@@ -244,8 +246,8 @@ var registry = []*Setting{
 	{ID: "closing_tag", Group: "file", Kind: KindEnum, Values: []string{"remove", "keep"}, Description: "Remove the `?>` that ends a file containing only PHP code.", field: func(s *Settings) any { return &s.ClosingTag }},
 	{ID: "open_tag_own_line", Group: "file", Kind: KindBool, Description: "Put the `<?php` that starts a PHP-only file on its own line.", field: func(s *Settings) any { return &s.OpenTagOwnLine }},
 	{ID: "blank_line_after_open_tag", Group: "file", Kind: KindBool, Description: "Leave one blank line between the opening `<?php` line and the code.", field: func(s *Settings) any { return &s.BlankLineAfterOpenTag }},
-	{ID: "max_blank_lines", Group: "file", Kind: KindInt, Description: "Most consecutive blank lines kept anywhere; 0 keeps any number.", field: func(s *Settings) any { return &s.MaxBlankLines }},
-	{ID: "line_length", Group: "file", Kind: KindInt, Description: "Target width of a line in columns; wrapping and the line length report use it. 0 disables both.", field: func(s *Settings) any { return &s.LineLength }},
+	{ID: "max_blank_lines", Group: "file", Kind: KindInt, Max: 100, Description: "Most consecutive blank lines kept anywhere; 0 keeps any number.", field: func(s *Settings) any { return &s.MaxBlankLines }},
+	{ID: "line_length", Group: "file", Kind: KindInt, Max: 1000, Description: "Target width of a line in columns; wrapping and the line length report use it. 0 disables both.", field: func(s *Settings) any { return &s.LineLength }},
 	{ID: "wrap", Group: "file", Kind: KindEnum, Values: []string{"long", "off"}, Description: "`long` puts one item per line in lists that exceed `line_length` or are partly split; `off` keeps line breaks as written.", field: func(s *Settings) any { return &s.Wrap }},
 	{ID: "report_long_lines", Group: "file", Kind: KindBool, Description: "Report the lines that stay wider than `line_length` after formatting; a check then fails on them.", field: func(s *Settings) any { return &s.ReportLongLines }},
 	{ID: "join_fitting_lists", Group: "file", Kind: KindBool, Description: "Join a multi-line list back on one line when it fits and holds no comment.", field: func(s *Settings) any { return &s.JoinFittingLists }},
@@ -263,6 +265,7 @@ var registry = []*Setting{
 
 	// Lines.
 	{ID: "statement_per_line", Group: "lines", Kind: KindBool, Description: "Start each statement on its own line.", field: func(s *Settings) any { return &s.StatementPerLine }},
+	{ID: "single_line_throw", Group: "lines", Kind: KindBool, Description: "Write a `throw` statement on one line, whatever its length, unless it holds a comment, a closure or a heredoc.", field: func(s *Settings) any { return &s.SingleLineThrow }},
 	{ID: "blank_line_after_namespace", Group: "lines", Kind: KindBool, Description: "One blank line after a `namespace` declaration.", field: func(s *Settings) any { return &s.BlankLineAfterNamespace }},
 	{ID: "blank_line_after_imports", Group: "lines", Kind: KindBool, Description: "One blank line after the last `use` import.", field: func(s *Settings) any { return &s.BlankLineAfterImports }},
 	{ID: "blank_line_between_import_groups", Group: "lines", Kind: KindBool, Description: "One blank line between class, function and constant imports.", field: func(s *Settings) any { return &s.BlankLineBetweenImportGroups }},

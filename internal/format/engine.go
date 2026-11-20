@@ -28,6 +28,7 @@ type engine struct {
 	regions  []region // lines indented one more level
 	bodies   []region // statement bodies without braces, indented when on their own line
 	kept     []region // lines keeping their indentation
+	noWrap   []region // statements kept on one line
 	destruct []bool   // per token: opening bracket of a destructuring list
 
 	// Per unit k.
@@ -42,6 +43,9 @@ type engine struct {
 	align    []int // columns of alignment after the indentation of unit k
 	lineOf   []int // indentation level of the line holding unit k
 	deleted  []bool
+	group    []int // per unit: the group of edits it belongs to, 0 alone
+	curGroup int   // the group rewrites now record
+	groups   int   // groups made so far
 	outPos   []int // output offset of unit k after the last emit
 
 	joinChecked map[[2]string]bool
@@ -379,4 +383,12 @@ func (e *engine) written(k int) int {
 func (e *engine) verbatim(k int) bool {
 	g := &e.gaps[k]
 	return g.frozen || e.inRegions(e.ignored, g.start) || (g.end > 0 && e.inRegions(e.ignored, g.end-1))
+}
+
+// newGroup starts a group of edits that only work together, such as the two
+// brackets of an array; the returned function ends it.
+func (e *engine) newGroup() func() {
+	e.groups++
+	e.curGroup = e.groups
+	return func() { e.curGroup = 0 }
 }

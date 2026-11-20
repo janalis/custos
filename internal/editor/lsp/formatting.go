@@ -53,9 +53,16 @@ func (s *Server) formatting(p formattingParams) []textEdit {
 	if r := p.Range; r != nil {
 		lo, hi = lineBounds(lines, r, hi)
 	}
+	// Only changes inside the lines, and a group of changes that only work
+	// together only when all of it is inside.
+	outside := map[int]bool{}
 	for _, c := range res.Changes {
-		// Changes never overlap: any subset of them applies cleanly.
-		if c.Report || c.Start > hi || c.End < lo {
+		if c.Group != 0 && (c.Start < lo || c.End > hi) {
+			outside[c.Group] = true
+		}
+	}
+	for _, c := range res.Changes {
+		if c.Report || c.Start < lo || c.End > hi || outside[c.Group] {
 			continue
 		}
 		edits = append(edits, textEdit{Range: toRange(lines, syntax.Span{Start: c.Start, End: c.End}), NewText: c.New})

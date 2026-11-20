@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/janalis/custos/internal/php/syntax"
+
 	"github.com/janalis/custos/internal/format"
 )
 
@@ -319,5 +321,13 @@ func TestFormatLongLinesOnly(t *testing.T) {
 	code, _, stderr = runStdin(t, long, append(append([]string{"format", "--check"}, args...), "-")...)
 	if code != 1 || !strings.HasSuffix(stderr, ", 1 with lines too long\n") {
 		t.Fatalf("stdin: %d %q", code, stderr)
+	}
+}
+
+func TestFormatStdinTooLarge(t *testing.T) {
+	big := "<?php\n" + strings.Repeat("$a = 1;\n", syntax.MaxFileSize/8+1)
+	code, out, stderr := runStdin(t, big, "format", "-")
+	if code != 2 || out != "" || !strings.Contains(stderr, "standard input exceeds") {
+		t.Fatalf("too large: %d %d bytes %q", code, len(out), stderr)
 	}
 }

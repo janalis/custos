@@ -287,12 +287,8 @@ func editorValues(s editorconfig.Settings) map[string]any {
 	if s.IndentStyle != nil {
 		v["indent_style"] = *s.IndentStyle
 	}
-	if s.IndentSize != nil {
-		v["indent_size"] = *s.IndentSize
-	}
-	if s.TabWidth != nil {
-		v["tab_width"] = *s.TabWidth
-	}
+	setInt(v, "indent_size", s.IndentSize)
+	setInt(v, "tab_width", s.TabWidth)
 	if s.EndOfLine != nil {
 		v["line_ending"] = *s.EndOfLine
 	}
@@ -302,10 +298,16 @@ func editorValues(s editorconfig.Settings) map[string]any {
 	if s.TrimTrailingWhitespace != nil {
 		v["trim_trailing_whitespace"] = *s.TrimTrailingWhitespace
 	}
-	if s.MaxLineLength != nil {
-		v["line_length"] = *s.MaxLineLength
-	}
+	setInt(v, "line_length", s.MaxLineLength)
 	return v
+}
+
+// setInt maps an EditorConfig number to setting id, ignoring a value the
+// setting does not accept, as other values custos does not understand.
+func setInt(v map[string]any, id string, n *int) {
+	if d, _ := format.Lookup(id); n != nil && *n <= d.Max {
+		v[id] = *n
+	}
 }
 
 // FormatExcluded reports whether the format exclude globs of custos.json
@@ -332,14 +334,29 @@ func (c *Config) FormatExcluded(path string) bool {
 }
 
 // confinedRead reads .editorconfig files, those outside within (when set)
-// counting as absent.
+// counting as absent, symbolic links resolved.
 func confinedRead(within string) func(string) ([]byte, error) {
+	root := within
+	if real, err := filepath.EvalSymlinks(within); err == nil {
+		root = real
+	}
 	return func(name string) ([]byte, error) {
 		if within != "" {
-			if rel, err := filepath.Rel(within, filepath.Dir(name)); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			real, err := filepath.EvalSymlinks(name)
+			if err != nil {
 				return nil, fs.ErrNotExist
 			}
+			if !inside(root, real) {
+				return nil, fs.ErrNotExist
+			}
+			name = real
 		}
 		return safeio.ReadFile(name, MaxFileSize)
 	}
+}
+
+// inside reports whether path lies in dir.
+func inside(dir, path string) bool {
+	rel, err := filepath.Rel(dir, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

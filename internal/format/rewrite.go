@@ -25,6 +25,9 @@ func (e *engine) rewrite(k int, text, rule string) {
 		return
 	}
 	e.text[k], e.textRule[k] = text, rule
+	if e.curGroup != 0 {
+		e.group[k] = e.curGroup
+	}
 }
 
 // remove deletes unit k and the whitespace after it.
@@ -33,6 +36,9 @@ func (e *engine) remove(k int, rule string) {
 		return
 	}
 	e.text[k], e.textRule[k], e.deleted[k] = "", rule, true
+	if e.curGroup != 0 {
+		e.group[k] = e.curGroup
+	}
 	if k+1 < len(e.gaps) && !e.gaps[k+1].comment {
 		e.gaps[k+1].drop = true
 	}
@@ -131,6 +137,7 @@ func (e *engine) syntaxRewrites(n syntax.Node) {
 
 // arraySyntax converts between array(...) and [...].
 func (e *engine) arraySyntax(sp syntax.Span, short bool, want string, min phpversion.Version, rule string) {
+	defer e.newGroup()()
 	k := e.unitAt(sp.Start)
 	switch {
 	case want == "short" && !short && e.php.AtLeast(min):
@@ -154,6 +161,7 @@ func (e *engine) arraySyntax(sp syntax.Span, short bool, want string, min phpver
 
 // elseIf writes `else if` as `elseif`.
 func (e *engine) elseIf(v *syntax.Else) {
+	defer e.newGroup()()
 	inner, ok := v.Body.(*syntax.If)
 	if !ok || !e.s.ElseIf || inner.Alt {
 		return
@@ -171,6 +179,7 @@ func (e *engine) elseIf(v *syntax.Else) {
 
 // newParens adds or removes the parentheses of `new` without arguments.
 func (e *engine) newParens(v *syntax.New) {
+	defer e.newGroup()()
 	switch e.s.NewParentheses {
 	case "add":
 		if v.Args != nil {
@@ -304,9 +313,11 @@ func (e *engine) fileEnds() {
 		}
 		if last > first && e.kind(last) == syntax.TCloseTag {
 			if p := e.kind(last - 1); p == syntax.TSemicolon || p == syntax.TRBrace && e.match[last-1] >= 0 && e.br[e.sig[e.match[last-1]]].block() {
+				end := e.newGroup()
 				for j := last; j < eof; j++ {
 					e.remove(j, "closing_tag")
 				}
+				end()
 				last--
 			} else {
 				last = eof - 1

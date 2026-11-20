@@ -45,7 +45,8 @@ func Match(glob, rel string) bool {
 	if !ok {
 		nodes, _ = compiled.LoadOrStore(glob, compile(glob))
 	}
-	return match(nodes.([]node), "/"+rel)
+	m := &matcher{}
+	return m.match(nodes.([]node), "/"+rel)
 }
 
 // compile translates glob into nodes matched against "/" + rel.
@@ -216,8 +217,19 @@ func (p *parser) braceBody(body string) (node, bool) {
 	return nd, true
 }
 
+// maxSteps bounds the work of one match: a hostile glob such as
+// "*a*a*a*a*b" against a long name would otherwise backtrack for an
+// exponential time. A match that exceeds it fails.
+const maxSteps = 1 << 16
+
+// matcher counts the steps of one match.
+type matcher struct{ steps int }
+
 // match reports whether nodes match all of s.
-func match(nodes []node, s string) bool {
+func (m *matcher) match(nodes []node, s string) bool {
+	if m.steps++; m.steps > maxSteps {
+		return false
+	}
 	for ; len(nodes) > 0; nodes = nodes[1:] {
 		nd, rest := nodes[0], nodes[1:]
 		switch nd.kind {
@@ -229,7 +241,7 @@ func match(nodes []node, s string) bool {
 			s = s[n:]
 		case kindStar, kindDeep:
 			for i := 0; ; {
-				if match(rest, s[i:]) {
+				if m.match(rest, s[i:]) {
 					return true
 				}
 				if i == len(s) || (nd.kind == kindStar && s[i] == '/') {
@@ -243,20 +255,20 @@ func match(nodes []node, s string) bool {
 				return false
 			}
 			for i := 0; i < len(s); i++ {
-				if s[i] == '/' && match(rest, s[i+1:]) {
+				if s[i] == '/' && m.match(rest, s[i+1:]) {
 					return true
 				}
 			}
 			return false
 		case kindAlt:
 			for _, alt := range nd.alts {
-				if match(append(append(make([]node, 0, len(alt)+len(rest)), alt...), rest...), s) {
+				if m.match(append(append(make([]node, 0, len(alt)+len(rest)), alt...), rest...), s) {
 					return true
 				}
 			}
 			return false
 		default: // kindRange
-			return nd.number(rest, s)
+			return m.number(&nd, rest, s)
 		}
 	}
 	return s == ""
@@ -283,14 +295,14 @@ func (nd *node) single(r rune) bool {
 
 // number reports whether s starts with an integer in the range followed by
 // text matching rest.
-func (nd *node) number(rest []node, s string) bool {
+func (m *matcher) number(nd *node, rest []node, s string) bool {
 	start := 0
 	if s != "" && (s[0] == '+' || s[0] == '-') {
 		start = 1
 	}
 	for end := start + 1; end <= len(s) && '0' <= s[end-1] && s[end-1] <= '9'; end++ {
 		v, err := strconv.ParseInt(s[:end], 10, 64)
-		if err == nil && nd.lo <= v && v <= nd.hi && match(rest, s[end:]) {
+		if err == nil && nd.lo <= v && v <= nd.hi && m.match(rest, s[end:]) {
 			return true
 		}
 	}

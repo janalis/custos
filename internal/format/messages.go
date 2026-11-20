@@ -25,6 +25,7 @@ var messages = map[string]string{
 	"empty_body":                       "Write the empty body as {}",
 	"brace_body":                       "Put the body on its own lines",
 	"statement_per_line":               "Put one statement per line",
+	"single_line_throw":                "Write the throw statement on one line",
 	"blank_line_after_namespace":       "Leave a blank line after the namespace",
 	"blank_line_after_imports":         "Leave a blank line after the imports",
 	"blank_line_between_import_groups": "Separate the import groups with one blank line",

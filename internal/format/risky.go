@@ -73,6 +73,7 @@ func constantOperand(x syntax.Expr) bool {
 
 // yoda puts the constant operand of an equality comparison first.
 func (e *engine) yoda(v *syntax.Binary) {
+	defer e.newGroup()()
 	switch v.Op.Kind {
 	case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical:
 	default:
@@ -155,6 +156,7 @@ func (e *engine) replaceUnits(a, b int, text, rule string) {
 // incrementStyle writes a standalone increment or decrement in the
 // configured position.
 func (e *engine) incrementStyle(v *syntax.IncDec) {
+	defer e.newGroup()()
 	want := e.s.IncrementStyle
 	if want == "keep" || (want == "pre") == v.Prefix {
 		return
@@ -228,9 +230,11 @@ func (e *engine) unusedImports() {
 			continue
 		}
 		keep := e.gaps[a].drop
+		end := e.newGroup()
 		for k := a; k <= b; k++ {
 			e.remove(k, "remove_unused_imports")
 		}
+		end()
 		after := &e.gaps[b+1] // b is never the last unit: EOF follows
 		switch {
 		case after.comment:

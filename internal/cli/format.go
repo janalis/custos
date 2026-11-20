@@ -316,6 +316,10 @@ func formatStdin(o formatOptions, cfg *config.Config, r *config.FormatResolver, 
 	if err != nil {
 		return 2, err
 	}
+	if len(src) > syntax.MaxFileSize {
+		// Writing back a cut text would lose the rest of the input.
+		return 2, fmt.Errorf("standard input exceeds %d bytes", syntax.MaxFileSize)
+	}
 	name := o.stdinPath
 	if name == "" {
 		name = "stdin.php"

@@ -24,6 +24,9 @@ type Change struct {
 	New   string
 	// Report marks a finding formatting cannot fix: it edits nothing.
 	Report bool
+	// Group, when not 0, links edits that only work together (the two
+	// brackets of an array, a rebuilt import block): apply all or none.
+	Group int
 }
 
 // Message returns the description of the change.
@@ -149,6 +152,7 @@ func (e *engine) prepare() {
 	e.text = make([]string, n)
 	e.textRule = make([]string, n)
 	e.deleted = make([]bool, n)
+	e.group = make([]int, n)
 	for k := range e.sig {
 		e.text[k] = e.orig(k)
 	}

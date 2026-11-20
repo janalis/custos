@@ -23,9 +23,9 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 			// metadata changes so the index world follows installs.
 			// JSON covers Composer's metadata, custos.json and the custom rule
 			// files, including those the configuration lists later.
-			// .editorconfig files set the format settings of the Formatting
-			// rule.
-			watchers := []any{map[string]any{"globPattern": "**/*.php"}, map[string]any{"globPattern": "**/*.json"}, map[string]any{"globPattern": "**/.editorconfig"}}
+			// .editorconfig files and the other formatters' configuration
+			// set the format settings.
+			watchers := []any{map[string]any{"globPattern": "**/*.php"}, map[string]any{"globPattern": "**/*.json"}, map[string]any{"globPattern": "**/.editorconfig"}, map[string]any{"globPattern": "**/.php-cs-fixer{,.dist}.php"}, map[string]any{"globPattern": "**/mago{,.dist}.toml"}}
 			s.mu.Lock()
 			if p := baselinePath(s.cfg); p != "" {
 				watchers = append(watchers, map[string]any{"globPattern": "**/" + filepath.Base(p)})

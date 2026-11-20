@@ -7,10 +7,12 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/janalis/custos/internal/format"
 	"github.com/janalis/custos/internal/inspection/rules/formatting"
 	"github.com/janalis/custos/internal/php/syntax"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 const unformatted = "<?php\n\nfunction total($a,$b){\n  return $a+$b;\n}\n\nfunction other($c){\n  return $c;\n}\n"
@@ -143,5 +145,60 @@ func writeTree(t *testing.T, dir string, files map[string]string) {
 		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+// Editing pint.json, which the auto preset imports, changes what
+// formatting writes.
+func TestFormattingFollowsPint(t *testing.T) {
+	dir := t.TempDir()
+	writeTree(t, dir, map[string]string{"composer.json": "{}", "pint.json": `{"preset": "per"}`})
+	cl := startServer(t)
+	cl.initialize(map[string]any{"rootUri": "file://" + dir, "capabilities": map[string]any{}})
+	_ = cl.c.notify("initialized", map[string]any{})
+	uri := "file://" + filepath.Join(dir, "a.php")
+	src := "<?php\n\n$a = $b.$c;\n"
+	cl.open(uri, src)
+	doc := map[string]any{"uri": uri}
+	if got := applyEdits(src, cl.formatEdits(2, "textDocument/formatting", map[string]any{"textDocument": doc})); !strings.Contains(got, "$b . $c") {
+		t.Fatalf("per: %s", got)
+	}
+	pint := filepath.Join(dir, "pint.json")
+	if err := os.WriteFile(pint, []byte(`{"preset": "laravel"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_ = cl.c.notify("workspace/didChangeWatchedFiles", map[string]any{"changes": []any{map[string]any{"uri": "file://" + pint, "type": 2}}})
+	deadline := time.Now().Add(testbudget.Of(5 * time.Second))
+	for id := 3; ; id++ {
+		got := applyEdits(src, cl.formatEdits(id, "textDocument/formatting", map[string]any{"textDocument": doc}))
+		if strings.Contains(got, "$b.$c") {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("laravel after the change: %s", got)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// A range holding one of the edits that only work together formats none
+// of them.
+func TestRangeFormattingKeepsGroups(t *testing.T) {
+	dir := t.TempDir()
+	writeTree(t, dir, map[string]string{"composer.json": "{}"})
+	cl := startServer(t)
+	cl.initialize(map[string]any{"rootUri": "file://" + dir, "capabilities": map[string]any{}})
+	uri := "file://" + filepath.Join(dir, "a.php")
+	src := "<?php\n\n$a = array(\n    1,\n);\n"
+	cl.open(uri, src)
+	doc := map[string]any{"uri": uri}
+	line := func(n int) map[string]any { return map[string]any{"line": n, "character": 0} }
+	got := applyEdits(src, cl.formatEdits(2, "textDocument/rangeFormatting", map[string]any{"textDocument": doc, "range": map[string]any{"start": line(2), "end": line(3)}}))
+	if got != src {
+		t.Fatalf("half an array rewritten:\n%s", got)
+	}
+	got = applyEdits(src, cl.formatEdits(3, "textDocument/rangeFormatting", map[string]any{"textDocument": doc, "range": map[string]any{"start": line(2), "end": line(5)}}))
+	if !strings.Contains(got, "$a = [\n    1,\n];") {
+		t.Fatalf("whole array:\n%s", got)
 	}
 }

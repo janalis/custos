@@ -1,7 +1,9 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/janalis/custos/internal/format"
@@ -51,5 +53,41 @@ func TestAnalysisFormatInvalid(t *testing.T) {
 	}}
 	if _, ok := c.AnalysisFormat("")(filepath.Join(c.Root, "a.php")); ok {
 		t.Fatal("invalid settings format files")
+	}
+}
+
+// BenchmarkAnalysisFormat measures the settings lookup each analyzed file
+// makes twice (cache key and rule) when a rule formats code.
+func BenchmarkAnalysisFormat(b *testing.B) {
+	dir := b.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".editorconfig"), []byte("root = true\n[*.php]\nindent_size = 2\n"), 0o644); err != nil {
+		b.Fatal(err)
+	}
+	cfg, err := Load(dir)
+	if err != nil {
+		b.Fatal(err)
+	}
+	lookup := cfg.AnalysisFormat("")
+	paths := make([]string, 64)
+	for i := range paths {
+		paths[i] = filepath.Join(dir, "src", strconv.Itoa(i)+".php")
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		for _, p := range paths {
+			lookup(p)
+			lookup(p)
+		}
+	}
+}
+
+func TestAnalysisFormatMemo(t *testing.T) {
+	c, dir := loadFormat(t, map[string]string{FileName: `{"format": {"settings": {"indent_size": 2}}}`})
+	lookup := c.AnalysisFormat("")
+	p := filepath.Join(dir, "a.php")
+	first, ok1 := lookup(p)
+	second, ok2 := lookup(p)
+	if !ok1 || !ok2 || first != second {
+		t.Fatalf("memo: %v %v %p %p", ok1, ok2, first, second)
 	}
 }

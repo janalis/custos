@@ -15,6 +15,7 @@ type chunk struct {
 	// starts its output line; k is the unit it precedes.
 	comment *piece
 	k       int
+	group   int
 }
 
 // emit renders the file and the edits it makes.
@@ -30,12 +31,12 @@ func (e *engine) emit() ([]byte, []Change) {
 		if c.text == string(e.src[c.start:c.end]) {
 			return
 		}
-		if n := len(changes); n > 0 && changes[n-1].End == c.start && changes[n-1].Rule == c.rule {
+		if n := len(changes); n > 0 && changes[n-1].End == c.start && changes[n-1].Rule == c.rule && changes[n-1].Group == c.group {
 			changes[n-1].End = c.end
 			changes[n-1].New += c.text
 			return
 		}
-		changes = append(changes, Change{Rule: c.rule, Start: c.start, End: c.end, New: c.text})
+		changes = append(changes, Change{Rule: c.rule, Start: c.start, End: c.end, New: c.text, Group: c.group})
 	}
 	e.outPos = make([]int, len(e.sig))
 	for k := range e.sig {
@@ -44,7 +45,7 @@ func (e *engine) emit() ([]byte, []Change) {
 		}
 		e.outPos[k] = out.Len()
 		t := e.toks[e.sig[k]]
-		add(chunk{start: t.Start, end: e.end[k], text: e.text[k], rule: e.textRule[k]})
+		add(chunk{start: t.Start, end: e.end[k], text: e.text[k], rule: e.textRule[k], group: e.group[k]})
 	}
 	return []byte(out.String()), changes
 }
@@ -61,13 +62,14 @@ func (e *engine) gapChunks(k int) []chunk {
 	case e.final == k:
 		return e.finalChunks(k)
 	case e.final >= 0 && k > e.final:
-		return []chunk{{start: g.start, end: g.end, text: "", rule: e.textRule[k-1]}}
+		return []chunk{{start: g.start, end: g.end, text: "", rule: e.textRule[k-1], group: e.group[k-1]}}
 	case g.drop:
-		rule := e.textRule[k]
-		if rule == "" && k > 0 {
-			rule = e.textRule[k-1]
+		// A dropped gap borders a removed unit, which carries the rule.
+		rule, group := e.textRule[k], e.group[k]
+		if k > 0 && e.deleted[k-1] {
+			rule, group = e.textRule[k-1], e.group[k-1]
 		}
-		return []chunk{{start: g.start, end: g.end, text: "", rule: rule}}
+		return []chunk{{start: g.start, end: g.end, text: "", rule: rule, group: group}}
 	}
 	prevNL := k > 0 && endsLine(e.text[k-1])
 	if !g.comment {

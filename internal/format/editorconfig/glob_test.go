@@ -1,6 +1,12 @@
 package editorconfig
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/janalis/custos/internal/testing/testbudget"
+)
 
 func TestMatch(t *testing.T) {
 	tests := []struct {
@@ -120,5 +126,22 @@ func TestMatch(t *testing.T) {
 func BenchmarkMatch(b *testing.B) {
 	for b.Loop() {
 		Match("{src,lib}/**/*.{php,phtml}", "src/a/b/c/d/e/file.php")
+	}
+}
+
+// TestMatchBudget: a glob that would backtrack for an exponential time
+// fails once it exhausts its budget, quickly.
+func TestMatchBudget(t *testing.T) {
+	glob := strings.Repeat("*a", 30) + "b"
+	name := strings.Repeat("a", 60)
+	done := make(chan bool, 1)
+	go func() { done <- Match(glob, name) }()
+	select {
+	case got := <-done:
+		if got {
+			t.Error("pathological glob matched")
+		}
+	case <-time.After(testbudget.Of(5 * time.Second)):
+		t.Fatal("pathological glob still running")
 	}
 }

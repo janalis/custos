@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 var update = flag.Bool("update", false, "rewrite the expected outputs of the golden tests")
@@ -55,6 +57,7 @@ func TestGolden(t *testing.T) {
 			}
 			if res.Skipped == "" {
 				checkResult(t, in+" "+p, src, res, &r.Settings)
+				checkGroups(t, in+" "+p, src, res)
 			}
 		}
 	}
@@ -127,4 +130,28 @@ func directives(t *testing.T, src string) ([]string, Layer, bool) {
 	}
 	sort.Strings(presets)
 	return presets, layer, risky
+}
+
+// checkGroups asserts that every change applied alone, or every group of
+// changes applied together, leaves code that still parses: what an editor
+// gets when it takes one quick-fix or formats a range.
+func checkGroups(t *testing.T, name string, src []byte, res Result) {
+	t.Helper()
+	before := len(syntax.ParseBest(name, src, syntax.Options{}).Errors)
+	groups := map[int][]Change{}
+	for i, c := range res.Changes {
+		key := c.Group
+		if key == 0 {
+			key = -1 - i
+		}
+		if !c.Report {
+			groups[key] = append(groups[key], c)
+		}
+	}
+	for key, cs := range groups {
+		out := apply(src, cs)
+		if n := len(syntax.ParseBest(name, out, syntax.Options{}).Errors); n > before {
+			t.Errorf("%s: applying group %d alone (%s) breaks the syntax:\n%s", name, key, cs[0].Rule, out)
+		}
+	}
 }

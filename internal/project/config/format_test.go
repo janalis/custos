@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/janalis/custos/internal/format"
+	"github.com/janalis/custos/internal/format/editorconfig"
 )
 
 func writeFiles(t *testing.T, dir string, files map[string]string) {
@@ -285,5 +286,37 @@ func TestFormatUnknownPresetFlag(t *testing.T) {
 	}
 	if _, err := cfg.FormatResolver(FormatFlags{Preset: "nope"}); err == nil || !strings.Contains(err.Error(), `unknown preset "nope" (want auto,`) {
 		t.Errorf("unknown preset: %v", err)
+	}
+}
+
+// TestConfinedReadSymlink: a link inside the workspace to a file outside it
+// reads as absent.
+func TestConfinedReadSymlink(t *testing.T) {
+	dir := t.TempDir()
+	inner := filepath.Join(dir, "ws")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(dir, "secret")
+	if err := os.WriteFile(outside, []byte("[*]\nindent_size = 2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(inner, ".editorconfig")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skip("symbolic links unavailable:", err)
+	}
+	if _, err := confinedRead(inner)(link); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("link outside: %v", err)
+	}
+	if _, err := confinedRead(inner)(filepath.Join(inner, "missing", ".editorconfig")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("missing: %v", err)
+	}
+}
+
+func TestEditorValuesBounds(t *testing.T) {
+	big, ok := 5000, 2
+	v := editorValues(editorconfig.Settings{MaxLineLength: &big, IndentSize: &ok})
+	if _, set := v["line_length"]; set || v["indent_size"] != 2 {
+		t.Errorf("values: %v", v)
 	}
 }

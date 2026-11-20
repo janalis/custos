@@ -134,10 +134,10 @@ type fileChange struct {
 func (s *Server) watchedFilesChanged(changes []fileChange) {
 	s.mu.Lock()
 	cfg, root := s.cfg, s.root
-	// The format settings a rule formatting code sees read .editorconfig.
-	formats := s.engine != nil && s.engine.NeedsFormat()
 	s.mu.Unlock()
-	if touches(configInputs(cfg, root), changes) || formats && editorConfigChanged(changes) {
+	// Formatting, and the rules formatting code, read the format settings:
+	// .editorconfig files and the files of the other tools custos imports.
+	if touches(configInputs(cfg, root), changes) || formatConfigChanged(changes) {
 		if err := s.configure(); err != nil {
 			s.logf("configuration: %v", err)
 		}
@@ -201,17 +201,19 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 	}
 }
 
-// touches reports whether changes name one of paths.
-// editorConfigChanged reports whether changes touch an .editorconfig file.
-func editorConfigChanged(changes []fileChange) bool {
+// formatConfigChanged reports whether changes touch a file the format
+// settings read: an .editorconfig, or another formatter's configuration.
+func formatConfigChanged(changes []fileChange) bool {
 	for _, ch := range changes {
-		if filepath.Base(uriToPath(ch.URI)) == ".editorconfig" {
+		switch filepath.Base(uriToPath(ch.URI)) {
+		case ".editorconfig", "pint.json", ".php-cs-fixer.php", ".php-cs-fixer.dist.php", "mago.toml", "mago.dist.toml":
 			return true
 		}
 	}
 	return false
 }
 
+// touches reports whether changes name one of paths.
 func touches(paths []string, changes []fileChange) bool {
 	for _, ch := range changes {
 		if slices.Contains(paths, filepath.Clean(uriToPath(ch.URI))) {

@@ -283,6 +283,10 @@ func (e *engine) walkLines(n syntax.Node) {
 		e.blankBefore(v.Stmts)
 	case *syntax.Namespace:
 		e.topLevel(v.Stmts)
+	case *syntax.ExprStmt:
+		if _, ok := v.Expr.(*syntax.Throw); ok && e.s.SingleLineThrow {
+			e.singleLine(v)
+		}
 	}
 	syntax.Children(n, e.walkLines)
 }
@@ -489,4 +493,27 @@ func (e *engine) inOneLineClosure(k int) bool {
 		}
 	}
 	return false
+}
+
+// singleLine writes statement st on one line when nothing in it needs a line
+// of its own: no comment, brace or heredoc.
+func (e *engine) singleLine(st syntax.Stmt) {
+	sp := st.Span()
+	a, b := e.unitAt(sp.Start), e.unitBefore(sp.End)
+	for k := a; k <= b; k++ {
+		switch e.kind(k) {
+		case syntax.TLBrace, syntax.TStartHeredoc:
+			return
+		}
+		if k > a && (e.gaps[k].comment || e.gaps[k].frozen) {
+			return
+		}
+	}
+	for k := a + 1; k <= b; k++ {
+		if e.leadBreaks(&e.gaps[k]) > 0 {
+			e.setNL(k, 0, "single_line_throw")
+			e.gaps[k].sp = -1
+		}
+	}
+	e.noWrap = append(e.noWrap, region{sp.Start, sp.End})
 }

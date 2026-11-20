@@ -102,6 +102,7 @@ Preset values:
 | Setting | Type | Values | Description |
 |---|---|---|---|
 | `statement_per_line` | bool | `true`, `false` | Start each statement on its own line. |
+| `single_line_throw` | bool | `true`, `false` | Write a `throw` statement on one line, whatever its length, unless it holds a comment, a closure or a heredoc. |
 | `blank_line_after_namespace` | bool | `true`, `false` | One blank line after a `namespace` declaration. |
 | `blank_line_after_imports` | bool | `true`, `false` | One blank line after the last `use` import. |
 | `blank_line_between_import_groups` | bool | `true`, `false` | One blank line between class, function and constant imports. |
@@ -119,6 +120,7 @@ Preset values:
 | Setting | `psr1` | `psr12` | `per` | `symfony` | `laravel` | `drupal` |
 |---|---|---|---|---|---|---|
 | `statement_per_line` | `false` | `true` | `true` | `true` | `true` | `true` |
+| `single_line_throw` | `false` | `false` | `false` | `true` | `false` | `false` |
 | `blank_line_after_namespace` | `false` | `true` | `true` | `true` | `true` | `true` |
 | `blank_line_after_imports` | `false` | `true` | `true` | `true` | `true` | `true` |
 | `blank_line_between_import_groups` | `false` | `true` | `true` | `true` | `true` | `true` |

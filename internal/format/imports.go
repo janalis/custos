@@ -72,6 +72,7 @@ type importEntry struct {
 // importRun rewrites a run of consecutive import statements when the
 // settings ask to split, strip, sort or group them.
 func (e *engine) importRun(run []*syntax.Use, lvl int) {
+	defer e.newGroup()()
 	s := e.s
 	if !s.NoLeadingImportSlash && !s.SingleImportPerStatement && s.ImportOrder == "none" && s.ImportGroups == "none" {
 		return

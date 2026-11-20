@@ -64,6 +64,7 @@ func TestSettingSetErrors(t *testing.T) {
 		{"final_newline", "maybe"},
 		{"final_newline", 3},
 		{"indent_size", -1},
+		{"indent_size", 17},
 		{"indent_size", 1.5},
 		{"indent_size", "x"},
 		{"indent_size", true},

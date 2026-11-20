@@ -10,6 +10,7 @@ func compose(first, second []Change, out []byte) []Change {
 	type span struct {
 		start, end int // intermediate offsets
 		rule       string
+		group      int
 	}
 	var spans []span
 	var reports []Change
@@ -21,7 +22,7 @@ func compose(first, second []Change, out []byte) []Change {
 		}
 		e1 = append(e1, c)
 		s := int(c.Start) + delta
-		spans = append(spans, span{s, s + len(c.New), c.Rule})
+		spans = append(spans, span{s, s + len(c.New), c.Rule, c.Group})
 		delta += len(c.New) - int(c.End-c.Start)
 	}
 	for _, c := range second {
@@ -30,13 +31,20 @@ func compose(first, second []Change, out []byte) []Change {
 			continue
 		}
 		e2 = append(e2, c)
-		spans = append(spans, span{int(c.Start), int(c.End), c.Rule})
+		group := c.Group
+		if group != 0 {
+			group += 1 << 20 // the second pass numbers its groups from 1 again
+		}
+		spans = append(spans, span{int(c.Start), int(c.End), c.Rule, group})
 	}
 	sort.SliceStable(spans, func(i, j int) bool { return spans[i].start < spans[j].start })
 	var merged []span
 	for _, s := range spans {
 		if n := len(merged); n > 0 && s.start <= merged[n-1].end {
 			merged[n-1].end = max(merged[n-1].end, s.end)
+			if merged[n-1].group == 0 {
+				merged[n-1].group = s.group
+			}
 			continue
 		}
 		merged = append(merged, s)
@@ -74,7 +82,13 @@ func compose(first, second []Change, out []byte) []Change {
 			Start: uint32(back(m.start, true)),
 			End:   uint32(back(m.end, false)),
 			New:   string(out[forward(m.start, true):forward(m.end, false)]),
+			Group: m.group,
 		})
 	}
-	return append(changes, reports...)
+	for _, r := range reports {
+		// A report of the second pass points into the intermediate text.
+		r.Start, r.End = uint32(back(int(r.Start), true)), uint32(back(int(r.End), false))
+		changes = append(changes, r)
+	}
+	return changes
 }
