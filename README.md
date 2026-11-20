@@ -82,16 +82,16 @@ custos reports and fixes problems, and does not format code.
 
 | Tool | Kind | Time | Peak memory |
 | :--- | :--- | ---: | ---: |
-| Mago analyze | analyzer | 0.81 s | 409 MB |
-| **custos analyse** | analyzer | 4.51 s | 695 MB |
-| Phan | analyzer | 14.5 s | 1.7 GB |
-| PHPStan | analyzer | 21.4 s | 1.6 GB |
-| Psalm | analyzer | 57.4 s | 2.5 GB |
-| Mago lint | linter | 0.23 s | 202 MB |
-| PHP_CodeSniffer | linter | 6.37 s | 131 MB |
-| **custos fix** | fixer | 4.55 s | 631 MB |
-| PHP-CS-Fixer | fixer | 9.03 s | 180 MB |
-| Rector | fixer | 26.3 s | 3.4 GB |
+| Mago analyze | analyzer | 0.69 s | 395 MB |
+| **custos analyse** | analyzer | 4.25 s | 762 MB |
+| Phan | analyzer | 13.2 s | 1.7 GB |
+| PHPStan | analyzer | 17.9 s | 1.6 GB |
+| Psalm | analyzer | 46.6 s | 2.5 GB |
+| Mago lint | linter | 0.19 s | 206 MB |
+| PHP_CodeSniffer | linter | 4.77 s | 131 MB |
+| **custos fix** | fixer | 3.63 s | 647 MB |
+| PHP-CS-Fixer | fixer | 6.99 s | 181 MB |
+| Rector | fixer | 23.3 s | 3.4 GB |
 
 **Features** (✓ yes, ◐ partial, — no):
 
