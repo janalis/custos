@@ -34,7 +34,7 @@ func cmdExplain(args []string, stdout io.Writer) error {
 
 func explainRule(stdout io.Writer, m *meta.Rule, d meta.Description, described bool) {
 	def := "enabled by default"
-	if !m.EnabledByDefault {
+	if !m.OnByDefault() {
 		def = "disabled by default"
 	}
 	if m.Experimental {

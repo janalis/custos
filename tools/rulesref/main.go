@@ -177,7 +177,7 @@ func page(r meta.Rule, slug string, d meta.Description, md string) string {
 	if r.Native {
 		badges = append(badges, `<Badge type="tip" text="native" />`)
 	}
-	if r.EnabledByDefault {
+	if r.OnByDefault() {
 		badges = append(badges, `<Badge type="tip" text="on by default" />`)
 	} else {
 		badges = append(badges, `<Badge type="info" text="off by default" />`)
@@ -288,7 +288,7 @@ func configure(b *strings.Builder, r meta.Rule) {
 		j, _ := json.Marshal(v)
 		opts = append(opts, fmt.Sprintf("        %q: %s", o.Name, j))
 	}
-	fmt.Fprintf(b, "\n## Configure\n\nIn [`custos.json`](/guide/configuration):\n\n```json\n{\n  \"rules\": {\n    %q: {\n      \"enabled\": %t", r.ID, !r.EnabledByDefault)
+	fmt.Fprintf(b, "\n## Configure\n\nIn [`custos.json`](/guide/configuration):\n\n```json\n{\n  \"rules\": {\n    %q: {\n      \"enabled\": %t", r.ID, !r.OnByDefault())
 	if len(opts) > 0 {
 		b.WriteString(",\n      \"options\": {\n" + strings.Join(opts, ",\n") + "\n      }")
 	}
@@ -318,7 +318,7 @@ func escape(s string) string {
 
 func onOff(r meta.Rule) string {
 	s := "off"
-	if r.EnabledByDefault {
+	if r.OnByDefault() {
 		s = "on"
 	}
 	if r.Experimental {

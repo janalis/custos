@@ -6,7 +6,7 @@ title: InvalidReturnType
 
 # InvalidReturnType
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -89,7 +89,7 @@ In [`custos.json`](/guide/configuration):
 {
   "rules": {
     "InvalidReturnType": {
-      "enabled": true
+      "enabled": false
     }
   }
 }

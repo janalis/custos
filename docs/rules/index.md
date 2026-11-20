@@ -178,7 +178,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [AbstractClassInstantiation](./probable-bugs/AbstractClassInstantiation) | native | error | on |  | any |
 | [AmbiguousReplacementBackreference](./probable-bugs/AmbiguousReplacementBackreference) | native | warning | off | ✓ | any |
 | [AppendModeSeekUsedForOverwrite](./probable-bugs/AppendModeSeekUsedForOverwrite) | native | warning | on |  | any |
-| [ArgumentCountMismatch](./probable-bugs/ArgumentCountMismatch) | native | error | off |  | any |
+| [ArgumentCountMismatch](./probable-bugs/ArgumentCountMismatch) | native | error | on |  | any |
 | [ArrayChunkInvalidSize](./probable-bugs/ArrayChunkInvalidSize) | native | error | on |  | any |
 | [ArrayColumnDuplicateIndexLoss](./probable-bugs/ArrayColumnDuplicateIndexLoss) | native | warning | on |  | any |
 | [ArrayColumnMissingField](./probable-bugs/ArrayColumnMissingField) | native | warning | off |  | PHP ≥ 5.5 |
@@ -309,7 +309,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [FileWriteResultUnchecked](./probable-bugs/FileWriteResultUnchecked) | native | warning | on |  | any |
 | [FilteredListJsonShape](./probable-bugs/FilteredListJsonShape) | native | warning | off | ✓ | any |
 | [FinallyThrowMasksException](./probable-bugs/FinallyThrowMasksException) | native | warning | off |  | PHP ≥ 5.5 |
-| [ForeachOverNonIterable](./probable-bugs/ForeachOverNonIterable) | native | warning | off |  | any |
+| [ForeachOverNonIterable](./probable-bugs/ForeachOverNonIterable) | native | warning | on |  | any |
 | [ForeachReferenceSurvivesLoop](./probable-bugs/ForeachReferenceSurvivesLoop) | native | warning | on |  | any |
 | [ForgottenDebugOutput](./probable-bugs/ForgottenDebugOutput) | EA | error | on |  | any |
 | [ForkChildFallsIntoParentWork](./probable-bugs/ForkChildFallsIntoParentWork) | native | warning | off |  | any |
@@ -343,7 +343,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ImagickResizeStatusUsedAsImage](./probable-bugs/ImagickResizeStatusUsedAsImage) | native | warning | on |  | any |
 | [ImagickSingleBlobDropsRequiredFrames](./probable-bugs/ImagickSingleBlobDropsRequiredFrames) | native | warning | off |  | any |
 | [ImmutableDateResultIgnored](./probable-bugs/ImmutableDateResultIgnored) | native | warning | on | ✓ | PHP ≥ 5.5 |
-| [ImpossibleTypeComparison](./probable-bugs/ImpossibleTypeComparison) | native | error | off |  | any |
+| [ImpossibleTypeComparison](./probable-bugs/ImpossibleTypeComparison) | native | error | on |  | any |
 | [IncorrectRandomRange](./probable-bugs/IncorrectRandomRange) | EA | error | on |  | any |
 | [IncrementalInflateEncodingMismatch](./probable-bugs/IncrementalInflateEncodingMismatch) | native | warning | on |  | PHP ≥ 7.0 |
 | [InfinityLoop](./probable-bugs/InfinityLoop) | EA | error | on |  | any |
@@ -357,10 +357,10 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [IntlGregorianMonthOffByOne](./probable-bugs/IntlGregorianMonthOffByOne) | native | warning | off |  | PHP ≥ 5.5 |
 | [IntlTimezoneOffsetMillisecondsUsedAsSeconds](./probable-bugs/IntlTimezoneOffsetMillisecondsUsedAsSeconds) | native | warning | on | ✓ | PHP ≥ 5.5 |
 | [IntlTwelveHourFieldUsedForTwentyFourHourTime](./probable-bugs/IntlTwelveHourFieldUsedForTwentyFourHourTime) | native | warning | on | ✓ | PHP ≥ 5.5 |
-| [InvalidArgumentType](./probable-bugs/InvalidArgumentType) | native | error | off |  | any |
-| [InvalidOperandType](./probable-bugs/InvalidOperandType) | native | error | off |  | PHP ≥ 8.0 |
-| [InvalidPropertyAssignment](./probable-bugs/InvalidPropertyAssignment) | native | error | off |  | any |
-| [InvalidReturnType](./probable-bugs/InvalidReturnType) | native | error | off |  | any |
+| [InvalidArgumentType](./probable-bugs/InvalidArgumentType) | native | error | on |  | any |
+| [InvalidOperandType](./probable-bugs/InvalidOperandType) | native | error | on |  | PHP ≥ 8.0 |
+| [InvalidPropertyAssignment](./probable-bugs/InvalidPropertyAssignment) | native | error | on |  | any |
+| [InvalidReturnType](./probable-bugs/InvalidReturnType) | native | error | on |  | any |
 | [InverseTrigInvalidRealDomain](./probable-bugs/InverseTrigInvalidRealDomain) | native | warning | on |  | any |
 | [IsoWeekCalendarYearMismatch](./probable-bugs/IsoWeekCalendarYearMismatch) | native | warning | on | ✓ | any |
 | [IssetArgumentExistence](./probable-bugs/IssetArgumentExistence) | EA | warning | on |  | any |
@@ -381,7 +381,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [LogarithmInvalidRealDomain](./probable-bugs/LogarithmInvalidRealDomain) | native | warning | on |  | any |
 | [LoopClosureCapturesReference](./probable-bugs/LoopClosureCapturesReference) | native | warning | off |  | any |
 | [MagicMethodsValidity](./probable-bugs/MagicMethodsValidity) | EA | error | on |  | any |
-| [MemberAccessOnNonObject](./probable-bugs/MemberAccessOnNonObject) | native | error | off |  | any |
+| [MemberAccessOnNonObject](./probable-bugs/MemberAccessOnNonObject) | native | error | on |  | any |
 | [MillisecondsUsedAsUnixSeconds](./probable-bugs/MillisecondsUsedAsUnixSeconds) | native | warning | off |  | any |
 | [MissingArrayInitialization](./probable-bugs/MissingArrayInitialization) | EA | warning | on |  | any |
 | [MissingIssetImplementation](./probable-bugs/MissingIssetImplementation) | EA | error | on |  | any |
@@ -553,10 +553,10 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [TruncationAssumedToRewind](./probable-bugs/TruncationAssumedToRewind) | native | warning | on |  | any |
 | [UmaskSetterReturnMisread](./probable-bugs/UmaskSetterReturnMisread) | native | warning | off |  | any |
 | [UndeclaredDynamicProperty](./probable-bugs/UndeclaredDynamicProperty) | native | warning | on |  | PHP ≥ 8.2 |
-| [UndefinedClass](./probable-bugs/UndefinedClass) | native | error | off |  | any |
-| [UndefinedFunction](./probable-bugs/UndefinedFunction) | native | error | off |  | any |
-| [UndefinedMethod](./probable-bugs/UndefinedMethod) | native | error | off |  | any |
-| [UndefinedProperty](./probable-bugs/UndefinedProperty) | native | error | off |  | any |
+| [UndefinedClass](./probable-bugs/UndefinedClass) | native | error | on |  | any |
+| [UndefinedFunction](./probable-bugs/UndefinedFunction) | native | error | on |  | any |
+| [UndefinedMethod](./probable-bugs/UndefinedMethod) | native | error | on |  | any |
+| [UndefinedProperty](./probable-bugs/UndefinedProperty) | native | error | on |  | any |
 | [UnicodeNormalizationFailureConsumed](./probable-bugs/UnicodeNormalizationFailureConsumed) | native | warning | on |  | any |
 | [UninitializedTypedPropertyRead](./probable-bugs/UninitializedTypedPropertyRead) | native | error | on |  | PHP ≥ 7.4 |
 | [UnitEnumJsonEncoding](./probable-bugs/UnitEnumJsonEncoding) | native | error | on |  | PHP ≥ 8.1 |

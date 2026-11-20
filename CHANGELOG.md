@@ -5,6 +5,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Type checking is on by default at the `proven` level: a project that sets
+  no `typeCheck` now gets the rules that report mistakes the code proves
+  (`InvalidArgumentType`, `UndefinedMethod`...). Set `"typeCheck": "off"` to
+  keep the previous behavior.
+
 ## [0.2.2] - 2026-11-20
 
 ### Added

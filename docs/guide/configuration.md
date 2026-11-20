@@ -28,7 +28,7 @@ custos reads `custos.json` from the project root. Every key is optional.
 |---|---|
 | `php` | Target PHP version: 5.3–5.6, 7.0–7.4, or 8.0–8.5. See [Target PHP version](#target-php-version). |
 | `comparisonStyle` | `"regular"` (`$x === null`) or `"yoda"` (`null === $x`): the operand order that comparison rules expect and that quick-fixes write. Without it, the project's PHP-CS-Fixer or Mago configuration decides (see [Comparison style](#comparison-style)); otherwise `"regular"`. |
-| `typeCheck` | Turn on the type-checking rules together: `"off"` (default), `"proven"` (mismatches the code alone proves) or `"documented"` (also mismatches against PHPDoc, PHPStan, Psalm and PhpStorm declarations). See [Type checking](#type-checking). |
+| `typeCheck` | Choose which type-checking rules run together: `"off"`, `"proven"` (default: mismatches the code alone proves) or `"documented"` (also mismatches against PHPDoc, PHPStan, Psalm and PhpStorm declarations). See [Type checking](#type-checking). |
 | `shortOpenTag` | Treat `<?` as an opening tag, as with PHP's `short_open_tag` setting. Default `false`. |
 | `flow.assertions` | Trust `assert()` calls as guards. Default `false`. See [Assertions](#assertions). |
 | `parseOnce` | Keep each analyzed file's syntax tree between phases, as [`--parse-once`](./cli#paths) does: faster, more memory. `custos fix` and the language server ignore it. Default `false`. |

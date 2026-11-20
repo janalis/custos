@@ -10,7 +10,7 @@ import (
 func TestTypeCheckSetting(t *testing.T) {
 	root := t.TempDir()
 	for in, want := range map[string]analysis.TypeCheck{
-		"": analysis.TypeCheckOff, "off": analysis.TypeCheckOff, "proven": analysis.TypeCheckProven,
+		"": analysis.TypeCheckProven, "off": analysis.TypeCheckOff, "OFF": analysis.TypeCheckOff, "proven": analysis.TypeCheckProven,
 		"documented": analysis.TypeCheckDocumented, "DOCUMENTED": analysis.TypeCheckDocumented,
 	} {
 		c, err := Resolve(root, File{TypeCheck: in})

@@ -1,7 +1,8 @@
 # Type checking
 
-custos can check types in the same run as its other rules. Type checking is
-off by default. Turn it on with `typeCheck` in `custos.json`:
+custos checks types in the same run as its other rules. By default it
+reports the mistakes the code proves (the `proven` level). Choose another
+level with `typeCheck` in `custos.json`:
 
 ```json
 {
@@ -16,8 +17,8 @@ off by default. Turn it on with `typeCheck` in `custos.json`:
 
 | Level | What it reports | Rules |
 |---|---|---|
-| `off` | Nothing beyond the rules you enable yourself. This is the default. | |
-| `proven` | Mistakes that native declarations and the code alone prove. | `InvalidArgumentType`, `InvalidReturnType`, `InvalidPropertyAssignment`, `ArgumentCountMismatch`, `UndefinedFunction`, `UndefinedClass`, `UndefinedMethod`, `UndefinedProperty`, `ImpossibleTypeComparison`, `MemberAccessOnNonObject`, `ForeachOverNonIterable`, `InvalidOperandType` |
+| `off` | Nothing beyond the rules you enable yourself. | |
+| `proven` | Mistakes that native declarations and the code alone prove. This is the default. | `InvalidArgumentType`, `InvalidReturnType`, `InvalidPropertyAssignment`, `ArgumentCountMismatch`, `UndefinedFunction`, `UndefinedClass`, `UndefinedMethod`, `UndefinedProperty`, `ImpossibleTypeComparison`, `MemberAccessOnNonObject`, `ForeachOverNonIterable`, `InvalidOperandType` |
 | `documented` | Everything in `proven`, plus values that break a documented contract or may be null. | `DocumentedArgumentType`, `DocumentedReturnType`, `DocumentedPropertyAssignment`, `DocumentedMemberAccessOnNonObject`, `DocumentedForeachOverNonIterable`, `DocumentedOperandType`, `PossiblyNullAccess`, `PossiblyNullArgument`, `RedundantTypeCheck` |
 
 A rule's own `enabled` setting always wins over the level, and `--rule` still

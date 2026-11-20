@@ -15,6 +15,7 @@ import (
 
 	"github.com/janalis/custos/internal/diagnostic"
 	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/inspection/meta"
 	"github.com/janalis/custos/internal/inspection/pattern"
 	phpversion "github.com/janalis/custos/internal/php/version"
 	"github.com/janalis/custos/internal/platform/safeio"
@@ -173,8 +174,12 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 	default:
 		return nil, fmt.Errorf("config: comparisonStyle must be regular or yoda, got %q", f.ComparisonStyle)
 	}
-	switch strings.ToLower(f.TypeCheck) {
-	case "", "off":
+	level := f.TypeCheck
+	if level == "" {
+		level = meta.DefaultTypeCheck
+	}
+	switch strings.ToLower(level) {
+	case "off":
 	case "proven":
 		c.TypeCheck = analysis.TypeCheckProven
 	case "documented":

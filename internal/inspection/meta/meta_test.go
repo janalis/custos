@@ -77,3 +77,19 @@ func TestNativeFixFact(t *testing.T) {
 		}
 	}
 }
+
+func TestOnByDefault(t *testing.T) {
+	for _, tc := range []struct {
+		r    Rule
+		want bool
+	}{
+		{Rule{EnabledByDefault: true}, true},
+		{Rule{}, false},
+		{Rule{TypeCheck: "proven"}, true},
+		{Rule{TypeCheck: "documented"}, false},
+	} {
+		if got := tc.r.OnByDefault(); got != tc.want {
+			t.Errorf("%+v: OnByDefault() = %v, want %v", tc.r, got, tc.want)
+		}
+	}
+}

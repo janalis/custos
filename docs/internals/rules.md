@@ -175,7 +175,7 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `AbstractClassInstantiation` | error | ✓ |  | ✓ | N/A |
 | `AmbiguousReplacementBackreference` | warning |  | ✓ | ✓ | N/A |
 | `AppendModeSeekUsedForOverwrite` | warning | ✓ |  | ✓ | N/A |
-| `ArgumentCountMismatch` | error |  |  | ✓ | N/A |
+| `ArgumentCountMismatch` | error | ✓ |  | ✓ | N/A |
 | `ArrayChunkInvalidSize` | error | ✓ |  | ✓ | N/A |
 | `ArrayColumnDuplicateIndexLoss` | warning | ✓ |  | ✓ | N/A |
 | `ArrayColumnMissingField` | warning |  |  | ✓ | N/A |
@@ -306,7 +306,7 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `FileWriteResultUnchecked` | warning | ✓ |  | ✓ | N/A |
 | `FilteredListJsonShape` | warning |  | ✓ | ✓ | N/A |
 | `FinallyThrowMasksException` | warning |  |  | ✓ | N/A |
-| `ForeachOverNonIterable` | warning |  |  | ✓ | N/A |
+| `ForeachOverNonIterable` | warning | ✓ |  | ✓ | N/A |
 | `ForeachReferenceSurvivesLoop` | warning | ✓ |  | ✓ | N/A |
 | `ForgottenDebugOutput` | error | ✓ |  | ✓ | pass |
 | `ForkChildFallsIntoParentWork` | warning |  |  | ✓ | N/A |
@@ -340,7 +340,7 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `ImagickResizeStatusUsedAsImage` | warning | ✓ |  | ✓ | N/A |
 | `ImagickSingleBlobDropsRequiredFrames` | warning |  |  | ✓ | N/A |
 | `ImmutableDateResultIgnored` | warning | ✓ | ✓ | ✓ | N/A |
-| `ImpossibleTypeComparison` | error |  |  | ✓ | N/A |
+| `ImpossibleTypeComparison` | error | ✓ |  | ✓ | N/A |
 | `IncorrectRandomRange` | error | ✓ |  | ✓ | pass |
 | `IncrementalInflateEncodingMismatch` | warning | ✓ |  | ✓ | N/A |
 | `InfinityLoop` | error | ✓ |  | ✓ | pass |
@@ -354,10 +354,10 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `IntlGregorianMonthOffByOne` | warning |  |  | ✓ | N/A |
 | `IntlTimezoneOffsetMillisecondsUsedAsSeconds` | warning | ✓ | ✓ | ✓ | N/A |
 | `IntlTwelveHourFieldUsedForTwentyFourHourTime` | warning | ✓ | ✓ | ✓ | N/A |
-| `InvalidArgumentType` | error |  |  | ✓ | N/A |
-| `InvalidOperandType` | error |  |  | ✓ | N/A |
-| `InvalidPropertyAssignment` | error |  |  | ✓ | N/A |
-| `InvalidReturnType` | error |  |  | ✓ | N/A |
+| `InvalidArgumentType` | error | ✓ |  | ✓ | N/A |
+| `InvalidOperandType` | error | ✓ |  | ✓ | N/A |
+| `InvalidPropertyAssignment` | error | ✓ |  | ✓ | N/A |
+| `InvalidReturnType` | error | ✓ |  | ✓ | N/A |
 | `InverseTrigInvalidRealDomain` | warning | ✓ |  | ✓ | N/A |
 | `IsoWeekCalendarYearMismatch` | warning | ✓ | ✓ | ✓ | N/A |
 | `IssetArgumentExistence` | warning | ✓ |  | ✓ | pass |
@@ -378,7 +378,7 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `LogarithmInvalidRealDomain` | warning | ✓ |  | ✓ | N/A |
 | `LoopClosureCapturesReference` | warning |  |  | ✓ | N/A |
 | `MagicMethodsValidity` | error | ✓ |  | ✓ | pass |
-| `MemberAccessOnNonObject` | error |  |  | ✓ | N/A |
+| `MemberAccessOnNonObject` | error | ✓ |  | ✓ | N/A |
 | `MillisecondsUsedAsUnixSeconds` | warning |  |  | ✓ | N/A |
 | `MissingArrayInitialization` | warning | ✓ |  | ✓ | pass |
 | `MissingIssetImplementation` | error | ✓ |  | ✓ | pass |
@@ -550,10 +550,10 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `TruncationAssumedToRewind` | warning | ✓ |  | ✓ | N/A |
 | `UmaskSetterReturnMisread` | warning |  |  | ✓ | N/A |
 | `UndeclaredDynamicProperty` | warning | ✓ |  | ✓ | N/A |
-| `UndefinedClass` | error |  |  | ✓ | N/A |
-| `UndefinedFunction` | error |  |  | ✓ | N/A |
-| `UndefinedMethod` | error |  |  | ✓ | N/A |
-| `UndefinedProperty` | error |  |  | ✓ | N/A |
+| `UndefinedClass` | error | ✓ |  | ✓ | N/A |
+| `UndefinedFunction` | error | ✓ |  | ✓ | N/A |
+| `UndefinedMethod` | error | ✓ |  | ✓ | N/A |
+| `UndefinedProperty` | error | ✓ |  | ✓ | N/A |
 | `UnicodeNormalizationFailureConsumed` | warning | ✓ |  | ✓ | N/A |
 | `UninitializedTypedPropertyRead` | error | ✓ |  | ✓ | N/A |
 | `UnitEnumJsonEncoding` | error | ✓ |  | ✓ | N/A |

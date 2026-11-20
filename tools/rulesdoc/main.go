@@ -79,7 +79,7 @@ func run(root string, stdout, stderr io.Writer) int {
 	for _, g := range groups {
 		fmt.Fprintf(&b, "\n## %s\n\n| Rule | Severity | Default | Fix | Spec | EA conformance |\n| :--- | :--- | :---: | :---: | :---: | :---: |\n", g)
 		for _, r := range byGroup[g] {
-			def := yes(r.EnabledByDefault)
+			def := yes(r.OnByDefault())
 			if r.Experimental {
 				def = "exp."
 			}

@@ -33,7 +33,8 @@ type Rule struct {
 	Experimental     bool                `json:"experimental,omitempty"` // disabled upstream; off by default
 	Options          []Option            `json:"options,omitempty"`
 	// TypeCheck is the group of the typeCheck setting that enables this rule:
-	// "proven" or "documented"; "" for a rule outside it.
+	// "proven" or "documented"; "" for a rule outside it. EnabledByDefault
+	// stays false for such a rule: the level decides (see OnByDefault).
 	TypeCheck string `json:"typeCheck,omitempty"`
 	// SuppressedBy names rules whose suppressions also suppress this
 	// rule's findings: rules that leave to this one what both would report.
@@ -107,4 +108,13 @@ func Lookup(id string) (*Rule, bool) {
 	loadOnce.Do(load)
 	r, ok := byID[id]
 	return r, ok
+}
+
+// DefaultTypeCheck is the typeCheck level of a project that sets none.
+const DefaultTypeCheck = "proven"
+
+// OnByDefault reports whether the rule runs in a project that configures
+// nothing: it is enabled by default, or part of the default typeCheck level.
+func (r Rule) OnByDefault() bool {
+	return r.EnabledByDefault || r.TypeCheck == DefaultTypeCheck
 }

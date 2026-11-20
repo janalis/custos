@@ -59,7 +59,7 @@ func cmdRules(args []string, stdout, stderr io.Writer) error {
 			mark = "✓"
 		}
 		def := "off"
-		if r.EnabledByDefault {
+		if r.OnByDefault() {
 			def = "on"
 		}
 		fmt.Fprintf(stdout, "%s %-45s %-26s %-8s %s\n", mark, r.ID, r.Group, r.Severity, def)
