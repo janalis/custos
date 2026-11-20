@@ -7,11 +7,32 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/janalis/custos/internal/inspection/rules/possiblynullaccess"
 	"github.com/janalis/custos/internal/project/baseline"
 	"github.com/janalis/custos/internal/project/config"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
+
+// actionsUntil requests code actions with params until ok accepts them and
+// returns the last response. A background index or flow build publishes a
+// new engine after the diagnostics a test waited for; until the document is
+// analyzed again with it, the server answers with no actions, and a client
+// asks again after the next publication.
+func actionsUntil(t *testing.T, cl *client, params map[string]any, ok func([]codeAction) bool) *message {
+	t.Helper()
+	deadline := time.Now().Add(testbudget.Of(5 * time.Second))
+	for id := 100; ; id++ {
+		res := cl.call(id, "textDocument/codeAction", params)
+		var actions []codeAction
+		_ = json.Unmarshal(res.Result, &actions)
+		if ok(actions) || time.Now().After(deadline) {
+			return res
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
 
 // TestBaselineHidesKnownFindings: the project baseline hides the findings
 // it records, matched on the open buffer's line text, and follows the
@@ -46,7 +67,7 @@ func TestBaselineHidesKnownFindings(t *testing.T) {
 	cl.diagsN(uri, 1)
 	// The shown one can be suppressed though the baseline hides the other.
 	line := map[string]any{"line": 2, "character": 0}
-	res := cl.call(2, "textDocument/codeAction", map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line, "end": line}, "context": map[string]any{"only": []string{"quickfix"}}})
+	res := actionsUntil(t, cl, map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line, "end": line}, "context": map[string]any{"only": []string{"quickfix"}}}, func(a []codeAction) bool { return len(a) > 0 })
 	if !strings.Contains(string(res.Result), "Suppress UnnecessarySemicolon") {
 		t.Fatalf("actions: %s", res.Result)
 	}
@@ -129,7 +150,7 @@ func TestBaselineShowsRepeatsOfRecordedFindings(t *testing.T) {
 	// summaries are rebuilt), and its actions are gone.
 	cl.diagsAt(uri, 2, 1)
 	line := map[string]any{"line": 3, "character": 0}
-	res := cl.call(2, "textDocument/codeAction", map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line, "end": line}, "context": map[string]any{}})
+	res := actionsUntil(t, cl, map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line, "end": line}, "context": map[string]any{}}, func(a []codeAction) bool { return len(a) > 0 })
 	var actions []codeAction
 	_ = json.Unmarshal(res.Result, &actions)
 	if len(actions) != 1 || actions[0].Title != "Suppress PossiblyNullAccess for this statement" || actions[0].Edit == nil {

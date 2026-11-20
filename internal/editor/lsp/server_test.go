@@ -263,7 +263,7 @@ func TestWatchedFilesUpdateIndex(t *testing.T) {
 	_ = cl.c.notify("textDocument/didOpen", map[string]any{"textDocument": map[string]any{"uri": uri, "languageId": "php", "version": 1, "text": "<?php\nhelper();\n"}})
 	waitDiags := func(want int) {
 		t.Helper()
-		deadline := time.After(5 * time.Second)
+		deadline := time.After(testbudget.Of(5 * time.Second))
 		for {
 			select {
 			case m := <-cl.out:

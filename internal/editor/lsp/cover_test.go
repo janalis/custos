@@ -19,6 +19,7 @@ import (
 	phpversion "github.com/janalis/custos/internal/php/version"
 	"github.com/janalis/custos/internal/project/config"
 	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 func frame(body string) string {
@@ -36,7 +37,7 @@ func useRules(t testing.TB, rs ...analysis.Rule) {
 // waitFor returns the next message matching pred.
 func (cl *client) waitFor(what string, pred func(*message) bool) *message {
 	cl.t.Helper()
-	timeout := time.After(5 * time.Second)
+	timeout := time.After(testbudget.Of(5 * time.Second))
 	for {
 		select {
 		case m, ok := <-cl.out:

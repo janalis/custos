@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/janalis/custos/internal/inspection/analysis"
+	"github.com/janalis/custos/internal/testing/testbudget"
 )
 
 // startRaw starts a server and returns a client plus the raw stream to it,
@@ -40,7 +41,7 @@ func startRaw(t *testing.T) (*client, io.Writer) {
 // nextError waits for an error response.
 func (cl *client) nextError() *rpcError {
 	cl.t.Helper()
-	timeout := time.After(5 * time.Second)
+	timeout := time.After(testbudget.Of(5 * time.Second))
 	for {
 		select {
 		case m, ok := <-cl.out:
@@ -164,7 +165,7 @@ func TestBadFramingEnds(t *testing.T) {
 		go func() { done <- Serve(context.Background(), strings.NewReader(in), &out) }()
 		select {
 		case <-done:
-		case <-time.After(5 * time.Second):
+		case <-time.After(testbudget.Of(5 * time.Second)):
 			t.Fatalf("%s: server did not return", name)
 		}
 	}
