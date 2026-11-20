@@ -16,6 +16,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Custom rule patterns can span several statements, use statement
   metavariables (`$S;` for one statement, `$_;` for any run of them) and
   require or exclude enclosing code (`inside`, `notInside`).
+- A custom rule metavariable can stand for a function, class or method name
+  (`$F(...)`, `new $C()`, `$C::create()`, `$X->$M()`); `where` tests the
+  name as it resolves, and a name repeated in two spellings still matches.
 - `custos test-rules` runs rules over marked-up fixtures in `custos-tests/`
   (`customRuleTests`) and compares their findings and quick-fixes.
 - The language server applies edits to `custos.json` and to custom rule

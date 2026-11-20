@@ -18,6 +18,7 @@ type binding struct {
 	args []syntax.Expr
 	seq  bool
 	span syntax.Span
+	role nameRole // how node resolves, when it is a name
 }
 
 // matcher matches one pattern against code of one file.
@@ -121,7 +122,7 @@ func sameModifiers(a, b syntax.Modifiers) bool {
 // match reports whether target matches pattern p, recording bindings.
 func (m *matcher) match(p, t syntax.Node, role nameRole, foldIdent bool) bool {
 	if name := metaVarName(p); name != "" {
-		return m.bind(name, binding{node: t, span: t.Span()})
+		return m.bind(name, binding{node: t, span: t.Span(), role: role})
 	}
 	if name := stmtMeta(p); name != "" {
 		// `$S;` stands for any one statement.
@@ -400,7 +401,32 @@ func (m *matcher) bind(name string, b binding) bool {
 		}
 		return true
 	}
+	if pn, ok := prev.node.(*syntax.Name); ok {
+		if tn, ok := b.node.(*syntax.Name); ok {
+			// Two spellings of one name: an alias and the full name.
+			fqn := m.fqn(pn, prev.role)
+			return fqn != "" && strings.EqualFold(fqn, m.fqn(tn, b.role))
+		}
+	}
 	return astquery.EquivalentFoldNames(m.ctx.File, prev.node, b.node)
+}
+
+// fqn returns the fully qualified name, without a leading backslash, that
+// name n at a position of role resolves to: for an unqualified call in a
+// namespace, the namespaced function when one is declared, else the global
+// one; "" for a class name nothing resolves (static outside a class). A
+// metavariable never stands for a constant's name: the pattern `$K` is the
+// whole constant fetch.
+func (m *matcher) fqn(n *syntax.Name, role nameRole) string {
+	if role == roleFunction {
+		fqn, fallback := m.resolved(functionKey{n})
+		if fallback != "" && m.ctx.Index().Function(fqn, m.ctx.PHP) == nil {
+			return fallback
+		}
+		return fqn
+	}
+	fqn, _ := m.resolved(classKey{n})
+	return strings.TrimPrefix(fqn, `\`)
 }
 
 // name matches a fully qualified pattern name against a target name as PHP

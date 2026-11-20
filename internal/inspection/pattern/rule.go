@@ -235,6 +235,10 @@ func (r *rule) satisfied(m *matcher) bool {
 	for name, c := range r.where {
 		b := m.lookup(name)
 		text := m.ctx.SpanText(b.span)
+		bound, isName := b.node.(*syntax.Name)
+		if isName {
+			text = m.fqn(bound, b.role) // a name as it resolves
+		}
 		if c.regex != nil && !c.regex.MatchString(text) {
 			return false
 		}
@@ -252,6 +256,13 @@ func (r *rule) satisfied(m *matcher) bool {
 		}
 		for _, p := range c.not {
 			inner := &matcher{ctx: m.ctx, budget: m.budget}
+			if cf, ok := p.root.(*syntax.ConstFetch); ok && isName {
+				// A bare name excludes the names resolving to it.
+				if inner.name(cf.Name, bound, b.role) {
+					return false
+				}
+				continue
+			}
 			node := b.node
 			if es, ok := node.(*syntax.ExprStmt); ok && p.expr {
 				node = es.Expr // `f()` excludes the statement `f();`

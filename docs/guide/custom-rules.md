@@ -108,6 +108,23 @@ the same code both times.
 Lowercase variables match that variable only: `$this->x` matches `$this->x`
 and not `$that->x`.
 
+Where PHP accepts a variable in place of a name, a metavariable matches the
+name too:
+
+| Pattern | Matches |
+|---|---|
+| `$F($X)` | any call with one argument, of a named function or not |
+| `new $C()` | any instantiation without arguments |
+| `$C::create(...)` | `create()` called on any class |
+| `$X->$M()` | any method call without arguments |
+
+A metavariable that matched a function or class name stands for the name as
+the code resolves it: a `regex` constraint tests the fully qualified name
+without its leading backslash (`App\Models\User` for `User` imported from
+`App\Models`), a name in `not` excludes the names resolving to it, and the
+same class written twice in different ways (`D` and `\B\D`) matches a
+repeated metavariable. Messages and quick-fixes use the name as written.
+
 ### Statements
 
 In a block, a metavariable alone as a statement (`$S;`) matches any one
@@ -176,8 +193,8 @@ a rule skips code within a transaction callback.
 | Constraint | The metavariable matches only when |
 |---|---|
 | `type` | the type custos infers for it is always this PHPDoc type (fully qualified classes) |
-| `regex` | its source code matches this regular expression |
-| `not` | it matches none of these patterns |
+| `regex` | its source code, or the fully qualified name a name resolves to, matches this regular expression |
+| `not` | it matches none of these patterns (a name: resolves to none of these names) |
 
 A `type` constraint makes custos index the project, as the type-checking
 rules do.
