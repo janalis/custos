@@ -121,7 +121,7 @@ jobs:
           for corpus in guzzle composer laravel; do
             (cd ".cache/bench/corpora/$corpus" && taskset -c 0-3 "$OLDPWD/bin/custos" analyse -no-cache -format json -fail-on never -cpuprofile "$out/$corpus.cpu" -memprofile "$out/$corpus.mem" src > /dev/null)
             go tool pprof -top -nodecount=40 bin/custos "$out/$corpus.cpu" > "$out/$corpus-cpu-top.txt" 2>&1
-            go tool pprof -top -cum -show='^custos' -nodecount=60 bin/custos "$out/$corpus.cpu" > "$out/$corpus-cpu-cum.txt" 2>&1
+            go tool pprof -top -cum -show='^github.com/janalis/custos/' -nodecount=60 bin/custos "$out/$corpus.cpu" > "$out/$corpus-cpu-cum.txt" 2>&1
             go tool pprof -sample_index=alloc_space -top -nodecount=40 bin/custos "$out/$corpus.mem" > "$out/$corpus-alloc-top.txt" 2>&1
           done
           head -50 "$out/laravel-cpu-top.txt"
