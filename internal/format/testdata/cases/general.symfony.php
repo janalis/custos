@@ -72,7 +72,7 @@ abstract class Foo extends Bar implements Baz, Qux
         [$p, $q] = [1, 2];
         [$p, , $q] = $arr;
         $o = new Foo();
-        $n = new class (1) extends Foo {};
+        $n = new class(1) extends Foo {};
         $str = "x {$a} y";
         unset($a, $b);
 

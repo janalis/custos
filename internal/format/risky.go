@@ -2,6 +2,7 @@ package format
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/janalis/custos/internal/php/syntax"
@@ -11,7 +12,7 @@ import (
 // risky applies the risky settings that are on.
 func (e *engine) risky() {
 	s := e.s
-	if s.Yoda != "keep" || s.IncrementStyle != "keep" || s.SingleQuote || s.HeredocToNowdoc {
+	if s.Yoda != "keep" || s.IncrementStyle != "keep" || s.SingleQuote || s.HeredocToNowdoc || s.OrderedTraits {
 		for _, st := range e.f.Stmts {
 			e.riskyNode(st)
 		}
@@ -42,6 +43,10 @@ func (e *engine) riskyNode(n syntax.Node) {
 			if inc, ok := l.(*syntax.IncDec); ok {
 				e.incrementStyle(inc)
 			}
+		}
+	case *syntax.TraitUse:
+		if e.s.OrderedTraits {
+			e.orderTraits(v)
 		}
 	case *syntax.Literal:
 		switch {
@@ -161,6 +166,11 @@ func (e *engine) incrementStyle(v *syntax.IncDec) {
 	if want == "keep" || (want == "pre") == v.Prefix {
 		return
 	}
+	switch v.Var.(type) {
+	case *syntax.Variable, *syntax.PropertyFetch, *syntax.StaticPropertyFetch, *syntax.ArrayDimFetch:
+	default:
+		return // not a variable: the other position does not parse
+	}
 	sp := v.Var.Span()
 	op := e.unitAt(v.Op.Span.Start)
 	a, b := e.unitAt(sp.Start), e.unitBefore(sp.End)
@@ -226,8 +236,8 @@ func (e *engine) unusedImports() {
 		}
 		sp := st.Span()
 		a, b := e.unitAt(sp.Start), e.unitBefore(sp.End)
-		if a < 1 || b < a || e.touched(a, b) || e.commentBetween(sp.Start, sp.End) {
-			continue
+		if a < 1 || b < a || e.kind(b) != syntax.TSemicolon || e.touched(a, b) || e.commentBetween(sp.Start, sp.End) {
+			continue // an import ended by ?> keeps the tag
 		}
 		keep := e.gaps[a].drop
 		end := e.newGroup()
@@ -345,4 +355,33 @@ func (e *engine) strictTypes() {
 	if e.kind(1) != syntax.TEOF && !e.gaps[1].comment {
 		e.setNL(1, 1, "declare_strict_types")
 	}
+}
+
+// orderTraits sorts the traits of a use statement, each name taking the
+// place of another; the separators and the adaptation block stay.
+func (e *engine) orderTraits(v *syntax.TraitUse) {
+	defer e.newGroup()()
+	sorted := slices.Clone(v.Traits)
+	slices.SortStableFunc(sorted, func(a, b *syntax.Name) int {
+		return strings.Compare(traitKey(a), traitKey(b))
+	})
+	if slices.Equal(sorted, v.Traits) {
+		return
+	}
+	first, last := v.Traits[0].Span(), v.Traits[len(v.Traits)-1].Span()
+	if e.commentBetween(first.Start, last.End) || e.touched(e.unitAt(first.Start), e.unitBefore(last.End)) {
+		return
+	}
+	text := make([]string, len(sorted))
+	for i, n := range sorted {
+		text[i] = e.unitsText(e.unitAt(n.Span().Start), e.unitBefore(n.Span().End))
+	}
+	for i, n := range v.Traits {
+		e.replaceUnits(e.unitAt(n.Span().Start), e.unitBefore(n.Span().End), text[i], "ordered_traits")
+	}
+}
+
+// traitKey is the sort key of a trait name.
+func traitKey(n *syntax.Name) string {
+	return strings.ToLower(strings.TrimPrefix(n.Value, `\`))
 }

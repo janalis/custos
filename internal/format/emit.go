@@ -230,6 +230,14 @@ func (e *engine) commentChunk(k int, p piece, lineStart bool) chunk {
 	if e.s.HashComment && strings.HasPrefix(text, "#") && !strings.HasPrefix(text, "#[") && (p.start == 0 || e.src[p.start-1] != '/') {
 		text, rule = "//"+text[1:], "hash_comment"
 	}
+	if e.s.CommentSpacing {
+		if spaced := commentSpaced(text); spaced != text {
+			text = spaced
+			if rule == "" {
+				rule = "comment_spacing"
+			}
+		}
+	}
 	if strings.HasPrefix(text, "/*") && strings.ContainsAny(text, "\n\r") {
 		lines := splitLines(text)
 		ind := ""
@@ -325,4 +333,26 @@ func starred(lines []string) bool {
 func atLineStart(out string) bool {
 	t := strings.TrimRight(out, " \t")
 	return t == "" || strings.HasSuffix(t, "\n") || strings.HasSuffix(t, "\r")
+}
+
+// commentSpaced puts a space after // and # and inside a /* */ comment
+// written on one line (not a docblock).
+func commentSpaced(c string) string {
+	switch {
+	case strings.HasPrefix(c, "//"):
+		if body := c[2:]; body != "" && body[0] != ' ' && body[0] != '\t' && body[0] != '/' {
+			return "// " + body
+		}
+	case strings.HasPrefix(c, "#") && !strings.HasPrefix(c, "#["):
+		if body := c[1:]; body != "" && body[0] != ' ' && body[0] != '\t' && body[0] != '#' {
+			return "# " + body
+		}
+	case strings.HasPrefix(c, "/*") && !strings.HasPrefix(c, "/**") && len(c) > 4 && !strings.ContainsAny(c, "\n\r"):
+		body := c[2 : len(c)-2]
+		if strings.TrimSpace(body) == "" {
+			return c
+		}
+		return "/* " + strings.TrimSpace(body) + " */"
+	}
+	return c
 }

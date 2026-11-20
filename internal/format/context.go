@@ -39,6 +39,8 @@ const (
 	roleUseKeyword     // use of a closure
 	roleNewKeyword
 	roleAttrClose // ] closing an attribute group
+	roleCatchBar  // | between the types of a catch
+	roleCaseLabel // case or default opening a switch case
 )
 
 // bracket is what an opening bracket opens.
@@ -689,6 +691,7 @@ func (e *engine) node(n syntax.Node) {
 				}
 			}
 			e.setRole(colon, roleCaseColon)
+			e.setRole(e.index(c.Span().Start), roleCaseLabel)
 			e.stmts(c.Stmts)
 			if len(c.Stmts) > 0 {
 				e.regions = append(e.regions, region{c.Stmts[0].Span().Start, c.Span().End})
@@ -702,7 +705,7 @@ func (e *engine) node(n syntax.Node) {
 			e.setBr(e.find(c.Span().Start, c.Body.Span().Start, syntax.TLParen), brControl)
 			for i := e.index(c.Span().Start); i < len(e.toks) && e.toks[i].Start < c.Body.Span().Start; i++ {
 				if e.toks[i].Kind == syntax.TBar {
-					e.role[i] = roleTypeOp
+					e.role[i] = roleCatchBar
 				}
 			}
 			e.blockBraces(c.Body, brControlBlock)

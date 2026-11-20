@@ -71,7 +71,7 @@ abstract class Foo extends Bar implements Baz, Qux {
     try {
       $r = $a ?: $b;
     }
-    catch (\Exception|\Error $e) {
+    catch (\Exception | \Error $e) {
       throw $e;
     }
     finally {
@@ -108,8 +108,8 @@ function free(array $a = [], $b = TRUE) {
   end: return FALSE;
 }
 $x = $cond
-    ? $a
-    : $b;
+  ? $a
+  : $b;
 $long = foo(
   $alpha,
   $beta,

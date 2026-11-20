@@ -13,10 +13,13 @@
 // The reference rules custos deliberately does not satisfy are listed per
 // preset, with a reason, in internal/format/testdata/divergences.json; any
 // other finding after formatting remains, and makes the command exit 1, so
-// `make formatcheck` works as a gate. Pint reports some fixers on files
-// whose net change is nil, so for laravel the remaining findings are the
-// files that Pint's fix, with the divergent fixers turned off, changes
-// outside docblocks.
+// `make formatcheck` works as a gate. PHP-CS-Fixer and Pint name every
+// fixer that touched a file, including the fixers that only tidy up after
+// a divergent one (blank lines left by a removed import), and Pint names
+// some whose net change is nil; so for their presets the remaining findings
+// come from a second run with the divergent fixers turned off: its findings
+// for PHP-CS-Fixer, and for Pint the files its fix changes outside
+// docblocks.
 //
 // The checkers are the benchmark's pinned packages (`go run ./tools/benchcmp
 // install -tool phpcs,php-cs-fixer,pint`), except drupal/coder, which

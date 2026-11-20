@@ -7,3 +7,5 @@ if ($someCondition && $anotherCondition || $yetAnotherCondition && $last) {
         $b);
 }
 $x = $a . 'a very long string literal that cannot be broken anywhere at all';
+return "first line with a long call " . $this->attributesToString($parameters, escapeBound: false) . '])
+' . $boundAttributes . '<?php $component->withAttributes([' . $this->attributesToString($attributes->all(), $escapeAttributes) . ']); ?>';

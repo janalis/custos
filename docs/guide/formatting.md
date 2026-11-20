@@ -172,7 +172,9 @@ removed import or a string's quoting. They are off unless you turn them on:
 - `declare_strict_types`: add `declare(strict_types=1);`, which changes how
   PHP checks scalar types at run time;
 - `increment_style`: write standalone increments as `++$i` or `$i++`;
-- `heredoc_to_nowdoc`: write heredocs without interpolation as nowdocs.
+- `heredoc_to_nowdoc`: write heredocs without interpolation as nowdocs;
+- `ordered_traits`: sort the traits of a `use` statement in a class, which
+  can change which trait wins a method conflict resolved by order.
 
 There are three ways to turn them on:
 
@@ -298,7 +300,7 @@ the custos settings that cover them:
 | `no_trailing_whitespace` | `trim_trailing_whitespace` |
 | `no_closing_tag` | `closing_tag` |
 | `blank_line_after_opening_tag`, `linebreak_after_opening_tag` | `blank_line_after_open_tag`, `open_tag_own_line` |
-| `no_extra_blank_lines` | `max_blank_lines` |
+| `no_extra_blank_lines` | `max_blank_lines`, `trim_block_blank_lines`, `trim_bracket_blank_lines` |
 | `braces_position` | `class_brace`, `function_brace`, `closure_brace`, `anonymous_class_brace`, `control_brace` |
 | `control_structure_continuation_position` | `else_position`, `catch_position` |
 | `blank_line_after_namespace`, `single_line_after_imports` | `blank_line_after_namespace`, `blank_line_after_imports` |
@@ -321,7 +323,8 @@ the custos settings that cover them:
 | `ordered_imports` | `import_order`, `import_groups` |
 | `no_leading_import_slash`, `single_import_per_statement`, `blank_line_between_import_groups` | the settings of the same name |
 | `method_argument_space` (fully multi-line) | `wrap` |
-| `yoda_style`, `single_quote`, `no_unused_imports`, `declare_strict_types`, `increment_style`, `heredoc_to_nowdoc` | `yoda`, `single_quote`, `remove_unused_imports`, `declare_strict_types`, `increment_style`, `heredoc_to_nowdoc` ([risky](#risky-settings) in custos) |
+| `class_definition` (`single_line`) | `single_line_class_definition` |
+| `yoda_style`, `single_quote`, `no_unused_imports`, `declare_strict_types`, `increment_style`, `heredoc_to_nowdoc`, `ordered_traits` | `yoda`, `single_quote`, `remove_unused_imports`, `declare_strict_types`, `increment_style`, `heredoc_to_nowdoc`, `ordered_traits` ([risky](#risky-settings) in custos) |
 
 Pint's and PHP-CS-Fixer's path exclusions become `format.exclude` globs.
 

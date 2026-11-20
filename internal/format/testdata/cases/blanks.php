@@ -28,3 +28,8 @@ function f()
     while (1) { $k = 1; break; }
     while (1) { $k = 1; continue; }
 }
+switch ($a) {
+    case 1:
+
+        foo();
+}

@@ -61,7 +61,7 @@ abstract class Foo extends Bar implements Baz, Qux
         }
         try {
             $r = $a ?: $b;
-        } catch (\Exception|\Error $e) {
+        } catch (\Exception | \Error $e) {
             throw $e;
         } finally {
             $r = $a ?? $b;

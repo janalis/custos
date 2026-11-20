@@ -20,7 +20,6 @@ class Foo // after name
     // before method
     public function f($x /* inline */, $y) // trailing
     {
-
         $a = [ // open
             1, // one
             /* two */ 2,
@@ -42,7 +41,6 @@ class Foo // after name
         return $x
             // between
             + $y;
-
     }
     // trailing in class
 }

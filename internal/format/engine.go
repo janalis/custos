@@ -11,11 +11,14 @@ import (
 // tokens and string atoms, ending with EOF); gap k is the trivia between
 // unit k-1 and unit k.
 type engine struct {
-	src  []byte
-	f    *syntax.File
-	s    *Settings
-	php  phpversion.Version
-	toks []syntax.Token
+	src []byte
+	f   *syntax.File
+	s   *Settings
+	php phpversion.Version // the configured version, for version-gated rewrites
+	lex phpversion.Version // the version the source parsed with, for lexing text
+
+	srcUnit int // the source's indentation unit, once measured
+	toks    []syntax.Token
 
 	// Per token (index into toks).
 	role      []role
@@ -291,7 +294,7 @@ func (e *engine) cap(n int) int {
 // setNL sets the line breaks before unit k (leading whitespace).
 func (e *engine) setNL(k, n int, rule string) {
 	k = e.written(k)
-	if k <= 0 || k >= len(e.gaps) || e.gaps[k].frozen {
+	if k <= 0 || k >= len(e.gaps) || e.gaps[k].frozen || e.besideMarkup(k) {
 		return
 	}
 	g := &e.gaps[k]
@@ -391,4 +394,15 @@ func (e *engine) newGroup() func() {
 	e.groups++
 	e.curGroup = e.groups
 	return func() { e.curGroup = 0 }
+}
+
+// besideMarkup reports whether gap k leads to inline HTML or a closing tag,
+// whose surroundings are output text. (Only the end of the file follows a
+// closing tag outside templates, and no rule breaks lines there.)
+func (e *engine) besideMarkup(k int) bool {
+	switch e.kind(k) {
+	case syntax.TInlineHTML, syntax.TCloseTag, syntax.TOpenTagWithEcho:
+		return true
+	}
+	return false
 }

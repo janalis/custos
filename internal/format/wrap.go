@@ -37,14 +37,25 @@ func (e *engine) operatorLinebreaks() {
 			}
 		}
 		before, after := &e.gaps[op], &e.gaps[k+1]
-		if before.comment || after.comment || before.frozen || after.frozen {
-			continue
+		if before.frozen || after.frozen || after.comment {
+			continue // a comment after the operator stays with it
 		}
 		n := e.leadBreaks(after)
-		if n == 0 || e.leadBreaks(before) > 0 {
+		if n == 0 {
 			continue
 		}
-		e.setNL(op, n, "operator_linebreak")
+		switch last := before.pieces; {
+		case !before.comment:
+			if e.leadBreaks(before) > 0 {
+				continue
+			}
+			e.setNL(op, n, "operator_linebreak")
+		case !last[len(last)-1].comment && e.tailBreaks(before) == 0 && !e.commentEndsLine(last[len(last)-2]):
+			// The operand ends with a comment: the operator follows it on the next line.
+			e.setTail(op, n, "operator_linebreak")
+		default:
+			continue
+		}
 		e.setNL(k+1, 0, "operator_linebreak")
 		after.sp = -1
 	}
@@ -87,6 +98,22 @@ func (e *engine) splittable(o int) bool {
 	return len(e.items(o)) > 0
 }
 
+// itemGapsFree reports whether the list opened at o holds items and no
+// comment or frozen text before them or its closing bracket: the gaps a
+// split writes. Comments nested in its items do not matter.
+func (e *engine) itemGapsFree(o int) bool {
+	its := e.items(o)
+	if len(its) == 0 || e.frozenUnit(o) || e.inRegions(e.noWrap, e.toks[e.sig[o]].Start) {
+		return false
+	}
+	for _, k := range append(its, e.match[o]) {
+		if e.gaps[k].comment || e.gaps[k].frozen {
+			return false
+		}
+	}
+	return true
+}
+
 // split puts every item of the list opened at o, and its closing bracket,
 // on a line of its own.
 func (e *engine) split(o int, rule string) bool {
@@ -117,15 +144,20 @@ func (e *engine) partlySplit(o int) bool {
 
 // wrapPartial normalizes lists split over several lines to one item per line.
 func (e *engine) wrapPartial() {
-	if e.s.Wrap != "long" {
+	if e.s.Wrap != "long" && !e.s.SplitMultilineArrays {
 		return
 	}
 	for o := range e.sig {
 		switch {
-		case opener(e.kind(o)) && e.splittable(o) && e.partlySplit(o):
-			e.split(o, "wrap")
 		case e.kind(o) == syntax.TLParen && e.br[e.sig[o]] == brControl:
-			e.splitControl(o)
+			if e.s.Wrap == "long" {
+				e.splitControl(o)
+			}
+		case !opener(e.kind(o)):
+		case e.s.Wrap == "long" && e.splittable(o) && e.partlySplit(o):
+			e.split(o, "wrap")
+		case e.s.SplitMultilineArrays && (e.br[e.sig[o]] == brArray || e.br[e.sig[o]] == brShortArray) && e.itemGapsFree(o) && !e.oneLine(o, e.match[o]):
+			e.split(o, "split_multiline_arrays")
 		}
 	}
 }
@@ -198,10 +230,11 @@ func (e *engine) inHeredocLine(k, start int) bool {
 	return k > 0 && e.outPos[k-1] < start && e.outPos[k-1]+len(e.text[k-1]) > start
 }
 
-// lineUnits returns the units on the output line of unit first.
+// lineUnits returns the units on the output line of unit first, which
+// ends at a line break or inside a multi-line string.
 func (e *engine) lineUnits(first int) []int {
 	out := []int{first}
-	for k := first + 1; k < len(e.sig) && !e.startsLine(k); k++ {
+	for k := first + 1; k < len(e.sig) && !e.startsLine(k) && !strings.ContainsAny(e.text[k-1], "\n\r"); k++ {
 		out = append(out, k)
 	}
 	return out
@@ -281,47 +314,104 @@ func (e *engine) splitCondition(o int) bool {
 func (e *engine) joinFitting(out []byte) bool {
 	changed := false
 	for o := range e.sig {
-		if !opener(e.kind(o)) || !e.splittable(o) || !e.alreadySplit(o) {
-			continue
+		if opener(e.kind(o)) && e.alreadySplit(o) {
+			changed = e.joinList(o, out, "join_fitting_lists") || changed
 		}
-		c := e.match[o]
-		nested := false
-		its := e.items(o)
-		for k := o + 1; k < c; k++ {
-			if e.startsLine(k) && !slices.Contains(its, k) {
-				nested = true
-				break
-			}
-		}
-		if nested {
-			continue
-		}
-		width := e.joinedWidth(o, c, out)
-		if width > e.s.LineLength {
-			continue
-		}
-		for _, it := range append(e.items(o), c) {
-			e.setNL(it, 0, "join_fitting_lists")
-			e.gaps[it].sp = -1
-		}
-		if e.kind(c-1) == syntax.TComma && !e.deleted[c-1] {
-			e.remove(c-1, "join_fitting_lists")
-		}
-		changed = true
 	}
 	return changed
 }
 
-// joinedWidth estimates the width of the line holding o once the list up
-// to c is joined.
-func (e *engine) joinedWidth(o, c int, out []byte) int {
+// joinList writes the list opened at o on one line when it fits, holds no
+// comment and no line break of its own, and reports whether it did.
+func (e *engine) joinList(o int, out []byte, rule string) bool {
+	if !e.splittable(o) {
+		return false
+	}
+	c := e.match[o]
+	its := append(e.items(o), c)
+	for k := o + 1; k < c; k++ {
+		if e.startsLine(k) && !slices.Contains(its, k) {
+			return false // a nested line break
+		}
+	}
+	trailing := -1
+	if e.kind(c-1) == syntax.TComma {
+		trailing = c - 1
+	}
+	if e.joinedWidth(o, c, trailing, out) > e.s.LineLength {
+		return false
+	}
+	return e.join(its, trailing, rule)
+}
+
+// join puts units on the line before them, removing the unit drop when it
+// is not negative, and reports whether anything changed.
+func (e *engine) join(units []int, drop int, rule string) bool {
+	changed := false
+	for _, it := range units {
+		if e.startsLine(it) {
+			e.setNL(it, 0, rule)
+			e.gaps[it].sp = -1
+			changed = true
+		}
+	}
+	if drop >= 0 && !e.deleted[drop] {
+		e.remove(drop, rule)
+	}
+	return changed
+}
+
+// classDefinitions writes the extends or implements list and the
+// arguments of an anonymous class on the line of their class, when it fits.
+func (e *engine) classDefinitions(out []byte) bool {
+	changed := false
+	for k := range e.sig {
+		switch kd := e.kind(k); {
+		case kd == syntax.TImplements || kd == syntax.TExtends:
+			last := k + 1
+			for last+1 < len(e.sig) && (e.kind(last+1) == syntax.TComma || e.kind(last+1) != syntax.TLBrace && e.kind(last) == syntax.TComma) {
+				last++
+			}
+			if e.commentIn(k+1, last) || e.joinedWidth(k, last, -1, out) > e.s.LineLength {
+				continue
+			}
+			changed = e.join(e.span(k+1, last), -1, "single_line_class_definition") || changed
+		case kd == syntax.TLParen && k > 1 && e.kind(k-1) == syntax.TClass && e.kind(k-2) == syntax.TNew:
+			changed = e.joinList(k, out, "single_line_class_definition") || changed
+		}
+	}
+	return changed
+}
+
+// commentIn reports whether a gap before units a to b holds a comment.
+func (e *engine) commentIn(a, b int) bool {
+	for k := a; k <= b; k++ {
+		if e.gaps[k].comment || e.gaps[k].frozen {
+			return true
+		}
+	}
+	return false
+}
+
+// span returns the units a to b.
+func (e *engine) span(a, b int) []int {
+	out := make([]int, 0, b-a+1)
+	for k := a; k <= b; k++ {
+		out = append(out, k)
+	}
+	return out
+}
+
+// joinedWidth estimates the width of the line holding o once the units up
+// to c are joined, without the unit skip.
+func (e *engine) joinedWidth(o, c, skip int, out []byte) int {
 	lineStart := e.outPos[o]
 	for lineStart > 0 && out[lineStart-1] != '\n' {
 		lineStart--
 	}
 	w := textWidth(string(out[lineStart:e.outPos[o]]), e.s.TabWidth) + len(e.text[o])
 	for k := o + 1; k <= c; k++ {
-		if e.kind(k) == syntax.TComma && k == c-1 {
+		if k == skip {
 			continue
 		}
 		sp, _ := e.spacing(k-1, k)
@@ -350,6 +440,11 @@ func (e *engine) layout() {
 	}
 	if e.s.ParameterAttributeLine && e.parameterAttributes() {
 		e.indentation()
+	}
+	if e.s.SingleLineClassDefinition {
+		if out, _ := e.emit(); e.classDefinitions(out) {
+			e.indentation()
+		}
 	}
 	if e.s.JoinFittingLists && e.s.LineLength > 0 {
 		for range 8 { // joining an inner list can make the outer one fit

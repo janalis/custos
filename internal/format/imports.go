@@ -82,6 +82,9 @@ func (e *engine) importRun(run []*syntax.Use, lvl int) {
 		if e.commentBetween(sp.Start, sp.End) || e.inRegions(e.ignored, sp.Start) {
 			return // annotated imports stay as written
 		}
+		if e.kind(e.unitBefore(sp.End)) != syntax.TSemicolon {
+			return // ended by a closing tag: rebuilt statements would need one each
+		}
 	}
 	var entries []importEntry
 	rule := ""

@@ -25,3 +25,21 @@ $long = $this->someProperty[$key]
     = compute();
 $x
     = compute();
+function g(int|string|null $a, (A&B)|null $b, int|null $c, ?int $d): static|null {}
+switch ($x) {
+    case 1:
+        return 1;
+    case 22:
+        return 2;
+    default: { return 3; }
+}
+$y = $foo
+    ->bar()
+;
+class B
+{
+    public function class() {}
+}
+$this->swap(Vite::class, new class extends Vite {
+    public function f() {}
+});

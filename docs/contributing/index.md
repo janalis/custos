@@ -165,13 +165,19 @@ The command prints one row per corpus and preset:
   `internal/format/testdata/divergences.json` explains: reference rules
   custos deliberately does not satisfy, such as docblock content, risky
   rewrites it only applies on request, or a line that cannot be shortened;
-- `remaining`: every other finding, listed below the table by rule with
-  examples (`file:line: message`; PHP-CS-Fixer gives the first change of
-  the file, as it does not say which fixer made which change).
+- `remaining`: the findings left that are not divergences, listed below
+  the table by rule with examples (`file:line: message`; PHP-CS-Fixer gives
+  the first change of the file, as it does not say which fixer made which
+  change).
 
-For `laravel`, Pint names some fixers on files where their changes cancel
-out, so `remaining` counts instead the files whose code, docblocks aside,
-Pint's fix still changes once the divergent fixers are turned off.
+PHP-CS-Fixer and Pint name every fixer that touched a file, including the
+fixers that only tidy up after a divergent one (the blank lines left by a
+removed import, say), and Pint names some whose changes cancel out. For
+their presets, `remaining` therefore comes from a second run with the
+divergent fixers turned off (patterns such as `phpdoc_*` are expanded to
+the installed PHP-CS-Fixer's rules): its findings for PHP-CS-Fixer, and for
+Pint the files whose code, docblocks aside, its fix still changes. There,
+`after` minus `divergent` minus `remaining` counts those follow-on reports.
 
 The command exits 1 when a finding remains. Each one is either a formatter
 bug, or a deliberate choice to record with its reason in

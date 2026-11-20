@@ -84,8 +84,8 @@ func TestFirstChange(t *testing.T) {
 		old, repl string
 	}{
 		{"--- a\n+++ b\n@@ -3,3 +3,3 @@\n a\n-b\n+c\n d\n", 4, "b", "c"},
-		{"@@ -1 +1 @@\n-  removed\n context\n", 1, "removed", ""},
-		{"@@ -7,2 +7,3 @@\n x\n+ added\n", 8, "", "added"},
+		{"@@ -1 +1 @@\n-  removed\n context\n", 1, "  removed", ""},
+		{"@@ -7,2 +7,3 @@\n x\n+ added\n", 8, "", " added"},
 		{"@@ -1,2 +1,2 @@\n--- double\n+++ double\n", 1, "-- double", "++ double"},
 		{"no hunk\n-x\n", 0, "", ""},
 		{"@@ -1 +1 @@\n x\n", 0, "", ""},
@@ -281,4 +281,46 @@ func TestInstallCoder(t *testing.T) {
 			t.Error("no error")
 		}
 	})
+}
+
+func TestFixerGate(t *testing.T) {
+	var rules []string
+	s := failing(t, result{}, nil)
+	s.run = func(c command) (result, error) {
+		if c.args[0] == "list-rules" {
+			return result{stdout: sample(t, "csfixer-rules.json")}, nil
+		}
+		rules = append(rules, strings.TrimPrefix(c.args[slices.IndexFunc(c.args, func(a string) bool { return strings.HasPrefix(a, "--rules=") })], "--rules="))
+		return result{stdout: sample(t, "csfixer-clean.json")}, nil
+	}
+	div := []divergence{{Rule: "phpdoc_[at]*", Reason: "r"}, {Rule: "yoda_style", Reason: "r"}, {Rule: "nothing_*", Reason: "r"}}
+	for range 2 {
+		if fs, err := fixerGate("@Symfony")(s, t.TempDir(), []string{"src"}, div); err != nil || len(fs) != 0 {
+			t.Fatalf("%+v %v", fs, err)
+		}
+	}
+	want := `{"@Symfony":true,"phpdoc_align":false,"phpdoc_trim":false,"yoda_style":false}`
+	if len(rules) != 2 || rules[0] != want {
+		t.Errorf("rules %q, want %s", rules, want)
+	}
+	if len(s.fixerRules) != 5 {
+		t.Errorf("rules listed %q", s.fixerRules)
+	}
+	// The rule list is read once.
+	s.run = func(command) (result, error) { return result{}, errors.New("listed again") }
+	if _, err := s.listFixerRules(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestListFixerRulesErrors(t *testing.T) {
+	boom := errors.New("boom")
+	if _, err := fixerGate("@PER-CS")(failing(t, result{}, boom), t.TempDir(), nil, nil); !errors.Is(err, boom) {
+		t.Errorf("run error gives %v", err)
+	}
+	for _, out := range []string{"x", `{"rules":{}}`} {
+		if _, err := failing(t, result{stdout: []byte(out)}, nil).listFixerRules(); err == nil || !strings.Contains(err.Error(), "no rule list") {
+			t.Errorf("%s: %v", out, err)
+		}
+	}
 }

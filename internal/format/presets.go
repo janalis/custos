@@ -36,9 +36,10 @@ var keepAll = map[string]any{
 	"standardize_not_equals": false, "hash_comment": false, "operator_linebreak": "keep",
 	"import_order": "none", "import_groups": "none", "no_leading_import_slash": false,
 	"single_import_per_statement": false, "single_trait_per_statement": false, "parameter_attribute_line": false,
-	"visibility": "keep", "anonymous_class_space": "keep",
+	"visibility": "keep", "anonymous_class_space": "keep", "null_type_last": false, "case_body_line": false, "semicolon_line": "keep", "comment_spacing": false,
+	"hex_case": "keep", "blank_line_after_throw": true, "catch_type_space": "keep", "function_separation": false, "single_line_class_definition": false, "trim_bracket_blank_lines": false, "split_multiline_arrays": false, "branch_comment": "body", "case_comment": "body",
 	"yoda": "keep", "single_quote": false, "remove_unused_imports": false, "declare_strict_types": false,
-	"increment_style": "keep", "heredoc_to_nowdoc": false,
+	"increment_style": "keep", "heredoc_to_nowdoc": false, "ordered_traits": false,
 }
 
 var presets = map[string]preset{
@@ -62,7 +63,8 @@ var presets = map[string]preset{
 			"keyword_case": "lower", "constant_case": "lower", "type_case": "lower", "short_cast": true,
 			"elseif": true, "new_parentheses": "add", "import_groups": "class_function_const",
 			"no_leading_import_slash": true, "single_import_per_statement": true, "single_trait_per_statement": true,
-			"visibility": "all", "anonymous_class_space": "one",
+			"visibility": "all", "anonymous_class_space": "one", "case_body_line": true, "trim_block_blank_lines": true,
+			"catch_type_space": "one",
 		},
 		reference: "https://www.php-fig.org/psr/psr-12/",
 	},
@@ -72,7 +74,7 @@ var presets = map[string]preset{
 		values: map[string]any{
 			"empty_body": "inline", "cast_space": "one", "arrow_function_space": "none",
 			"trailing_comma":             []string{"arguments", "arrays", "closure_use", "destructuring", "match", "parameters"},
-			"single_line_trailing_comma": false, "array_syntax": "short", "operator_linebreak": "start", "parameter_attribute_line": true,
+			"single_line_trailing_comma": false, "array_syntax": "short", "operator_linebreak": "start", "parameter_attribute_line": true, "null_type_last": true, "catch_type_space": "none",
 		},
 		reference: "https://www.php-fig.org/per/coding-style/",
 	},
@@ -80,8 +82,9 @@ var presets = map[string]preset{
 	"symfony": {
 		base: "per",
 		values: map[string]any{
-			"empty_body": "keep", "concat_space": "none", "binary_operator_space": "one",
-			"arrow_function_space": "one", "magic_constant_case": "upper", "single_line_closures": true,
+			"empty_body": "keep", "concat_space": "none", "binary_operator_space": "one", "semicolon_line": "join",
+			"comment_spacing": true, "hex_case": "upper", "blank_line_after_throw": false, "anonymous_class_space": "none", "single_line_class_definition": true,
+			"trim_bracket_blank_lines": true, "branch_comment": "next", "arrow_function_space": "one", "magic_constant_case": "upper", "single_line_closures": true,
 			"trailing_comma": []string{"arrays", "destructuring", "match", "parameters"},
 			"list_syntax":    "short", "standardize_not_equals": true, "hash_comment": true,
 			"operator_linebreak": "start_booleans", "import_order": "alpha", "trim_block_blank_lines": true,
@@ -96,7 +99,7 @@ var presets = map[string]preset{
 	"laravel": {
 		base: "per",
 		values: map[string]any{
-			"wrap": "off", "single_trait_per_statement": false, "parameter_attribute_line": false, "visibility": "methods_properties", "anonymous_class_space": "none", "concat_space": "none", "binary_operator_space": "one", "not_operator_space": "one",
+			"wrap": "off", "semicolon_line": "join", "comment_spacing": true, "hex_case": "upper", "blank_line_after_throw": false, "case_body_line": false, "null_type_last": false, "single_trait_per_statement": false, "parameter_attribute_line": false, "visibility": "methods_properties", "anonymous_class_space": "none", "single_line_class_definition": true, "concat_space": "none", "binary_operator_space": "one", "not_operator_space": "one",
 			"arrow_function_space": "one", "magic_constant_case": "upper", "trailing_comma": []string{"arrays"},
 			"list_syntax": "short", "new_parentheses": "remove", "anonymous_class_brace": "next_line", "standardize_not_equals": true,
 			"hash_comment": true, "operator_linebreak": "keep", "import_order": "alpha",
@@ -105,6 +108,7 @@ var presets = map[string]preset{
 		},
 		risky: map[string]any{
 			"yoda": "regular", "single_quote": true, "remove_unused_imports": true, "increment_style": "post", "heredoc_to_nowdoc": true,
+			"ordered_traits": true,
 		},
 		reference: "https://laravel.com/docs/pint",
 	},
@@ -117,7 +121,8 @@ var presets = map[string]preset{
 			"class_open_blank_line": "one", "class_close_blank_line": "one", "binary_operator_space": "one",
 			"constant_case": "upper", "arrow_function_space": "keep", "trailing_comma": []string{"arrays", "destructuring", "parameters"},
 			"standardize_not_equals": true, "operator_linebreak": "keep", "import_groups": "none",
-			"method_separation": "one", "case_separation": true,
+			"method_separation": "one", "case_separation": true, "catch_type_space": "one", "function_separation": true, "split_multiline_arrays": true, "semicolon_line": "join", "case_comment": "label",
+			"trim_block_blank_lines": false,
 		},
 		reference: "https://project.pages.drupalcode.org/coding_standards/php/coding/",
 	},

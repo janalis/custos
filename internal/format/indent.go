@@ -1,6 +1,7 @@
 package format
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/janalis/custos/internal/php/syntax"
@@ -52,7 +53,7 @@ func (e *engine) indentation() {
 			}
 		}
 		e.lineOf[k] = cur
-		if top := &stack[len(stack)-1]; e.start[e.sig[k]] || e.newItem(k) {
+		if top := &stack[len(stack)-1]; e.start[e.sig[k]] || e.newItem(k) && (k == 0 || e.kind(k-1) != syntax.TComma || top.k >= 0 && e.br[e.sig[top.k]].list()) {
 			top.item, top.itemOrig, top.itemCols, top.itemAlign = cur, e.measuredLevel(k), e.origCols(k), curAlign
 		}
 		switch kd := e.kind(k); {
@@ -95,7 +96,16 @@ func (e *engine) levelFor(k int, stack []openBracket) int {
 	if top != nil && closer(e.kind(k)) && e.match[k] == top.k {
 		return top.line
 	}
+	if b := e.br[e.sig[k]]; e.kind(k) == syntax.TLBrace && b != brNone && b != brExprBrace {
+		if o := e.owner(k); o < k {
+			return e.lineOf[o] // a body's brace on its own line sits on its construct's level
+		}
+	}
+	chain := e.kind(k) == syntax.TObjectOperator || e.kind(k) == syntax.TNullsafeObjectOperator
 	if top != nil && top.hanging {
+		if r := e.chainStart(k); chain && r < k {
+			return max(e.hangLevel(stack), e.lineOf[r]+1)
+		}
 		return e.hangLevel(stack)
 	}
 	base, topOff, topBr := 0, uint32(0), brNone
@@ -123,8 +133,12 @@ func (e *engine) levelFor(k int, stack []openBracket) int {
 		// statement or item began; deeper continuations written for nested
 		// operands keep their extra depth.
 		depth := 1
-		chain := e.kind(k) == syntax.TObjectOperator || e.kind(k) == syntax.TNullsafeObjectOperator
-		if e.origStartsLine(k) && frame.itemOrig >= 0 && !chain {
+		if chain {
+			// A chain is indented once more than the line its receiver begins on.
+			if r := e.chainStart(k); r < k {
+				return max(base+extra, frame.item+1, e.lineOf[r]+1)
+			}
+		} else if e.origStartsLine(k) && frame.itemOrig >= 0 {
 			depth = max(1, e.origLevel(k)-frame.itemOrig)
 		}
 		return max(base+extra, frame.item+depth)
@@ -158,11 +172,11 @@ func (e *engine) owner(k int) int {
 }
 
 // inSignature reports whether the comma j separates the names of an
-// extends or implements list.
+// extends, implements or trait use list.
 func (e *engine) inSignature(j int) bool {
 	for i := j - 1; ; i-- { // stops at the opening tag at the latest
 		switch e.kind(i) {
-		case syntax.TImplements, syntax.TExtends:
+		case syntax.TImplements, syntax.TExtends, syntax.TUse:
 			return true
 		case syntax.TString, syntax.TNameQualified, syntax.TNameFullyQualified, syntax.TNameRelative, syntax.TComma:
 			continue
@@ -215,7 +229,7 @@ func (e *engine) newItem(k int) bool {
 // begun on an earlier line.
 func (e *engine) continuation(k int, top *openBracket, topBr bracket) int {
 	t := e.sig[k]
-	if e.start[t] || e.kind(k) == syntax.TLBrace || closer(e.kind(k)) || k == 0 {
+	if e.start[t] || e.kind(k) == syntax.TLBrace || e.kind(k) == syntax.TSemicolon || closer(e.kind(k)) || k == 0 {
 		return 0
 	}
 	if topBr.list() && e.newItem(k) {
@@ -305,7 +319,47 @@ func (e *engine) lineWidth(k int) int {
 
 // origLevel estimates the level of the line holding unit k as written.
 func (e *engine) origLevel(k int) int {
-	return e.lineWidth(k) / max(e.unit(), 1)
+	return e.lineWidth(k) / e.sourceUnit()
+}
+
+// sourceUnit is the width of one indentation level in the source: the
+// widest of 8, 4, 3 and 2 that divides the indentation of nearly every
+// line (in a file of few lines, the narrowest indentation when it is one
+// of them), else the configured one. A file indented by 4 keeps its depths
+// when it is reformatted with 2.
+func (e *engine) sourceUnit() int {
+	if e.srcUnit > 0 {
+		return e.srcUnit
+	}
+	e.srcUnit = max(e.unit(), 1)
+	var widths []int
+	for k := range e.sig {
+		if k > 0 && e.origStartsLine(k) {
+			if w := e.lineWidth(k); w > 0 {
+				widths = append(widths, w)
+			}
+		}
+	}
+	units := []int{8, 4, 3, 2}
+	if len(widths) < 8 {
+		if len(widths) > 0 && slices.Contains(units, slices.Min(widths)) {
+			e.srcUnit = slices.Min(widths)
+		}
+		return e.srcUnit
+	}
+	for _, u := range units {
+		n := 0
+		for _, w := range widths {
+			if w%u == 0 {
+				n++
+			}
+		}
+		if n*10 >= len(widths)*9 {
+			e.srcUnit = u
+			break
+		}
+	}
+	return e.srcUnit
 }
 
 // lastLineLevel estimates the level of the last line of a heredoc unit.
@@ -314,7 +368,7 @@ func (e *engine) lastLineLevel(k int) int {
 	i := strings.LastIndexAny(t, "\n\r")
 	rest := t[i+1:]
 	ind := rest[:len(rest)-len(strings.TrimLeft(rest, " \t"))]
-	return e.width(ind) / max(e.unit(), 1)
+	return e.width(ind) / e.sourceUnit()
 }
 
 // unit is the width of one indentation level.
@@ -351,24 +405,62 @@ func (e *engine) commentIndent(k int) string {
 		return ""
 	}
 	lvl := e.want[k]
-	if closer(e.kind(k)) && e.match[k] >= 0 {
-		lvl++
+	if closer(e.kind(k)) && e.match[k] >= 0 && !e.branchComment(k) || e.afterCase(k) {
+		lvl++ // the comment ends the block or the case before it
 	}
 	return e.indentString(lvl)
 }
 
+// branchComment reports whether the comments before the closing brace k
+// describe the branch it continues into (else, elseif, catch, finally):
+// written at the brace's level, they stay there.
+func (e *engine) branchComment(k int) bool {
+	if e.s.BranchComment != "next" || e.kind(k) != syntax.TRBrace {
+		return false
+	}
+	switch e.kind(k + 1) { // the end of the file follows a brace at the latest
+	case syntax.TElse, syntax.TElseif, syntax.TCatch, syntax.TFinally:
+	default:
+		return false
+	}
+	// The first comment beginning a line; commentIndent runs only for one.
+	ps := e.gaps[k].pieces
+	i := slices.IndexFunc(ps, func(p piece) bool { return p.comment && e.beginsLine(p.start) })
+	return e.width(e.lineLeadAt(ps[i].start)) <= e.lineWidth(k)
+}
+
+// beginsLine reports whether only blanks precede the comment at off on its
+// line (an opening tag precedes any comment).
+func (e *engine) beginsLine(off uint32) bool {
+	for i := int(off) - 1; ; i-- {
+		switch e.src[i] {
+		case '\n', '\r':
+			return true
+		case ' ', '\t':
+			continue
+		}
+		return false
+	}
+}
+
+// afterCase reports whether unit k is a case label that follows another
+// case of its switch.
+func (e *engine) afterCase(k int) bool {
+	if e.role[e.sig[k]] != roleCaseLabel || e.s.CaseComment == "label" && e.endsCase(k-1) {
+		return false
+	}
+	switch e.kind(k - 1) {
+	case syntax.TLBrace:
+		return false // the first case
+	case syntax.TColon:
+		return e.role[e.sig[k-1]] == roleCaseColon // else the first case of switch (…):
+	}
+	return true
+}
+
 // lineLead returns the indentation of the source line holding unit k.
 func (e *engine) lineLead(k int) string {
-	off := int(e.toks[e.sig[k]].Start)
-	i := off
-	for i > 0 && e.src[i-1] != '\n' && e.src[i-1] != '\r' {
-		i--
-	}
-	j := i
-	for j < off && (e.src[j] == ' ' || e.src[j] == '\t') {
-		j++
-	}
-	return string(e.src[i:j])
+	return e.lineLeadAt(e.toks[e.sig[k]].Start)
 }
 
 // measuredLevel is the level of unit k's source line, or -1 when that line
@@ -413,4 +505,69 @@ func (e *engine) commentStartsLine(k int) bool {
 		return lineBreaks(e.src[p.start:p.end]) > 0 || i == g.lead && e.leadBreaks(g) > 0 || i == 0 && endsLine(e.text[k-1])
 	}
 	return endsLine(e.text[k-1])
+}
+
+// lineLeadAt returns the indentation of the source line holding off.
+func (e *engine) lineLeadAt(off uint32) string {
+	i := int(off)
+	for i > 0 && e.src[i-1] != '\n' && e.src[i-1] != '\r' {
+		i--
+	}
+	j := i
+	for j < int(off) && (e.src[j] == ' ' || e.src[j] == '\t') {
+		j++
+	}
+	return string(e.src[i:j])
+}
+
+// chainStart returns the first unit of the receiver of the member access
+// at k: back over names, variables, member operators and bracketed parts.
+func (e *engine) chainStart(k int) int {
+	r := k
+	for j := k - 1; ; j-- { // stops at the first unit, an opening tag or inline HTML, at the latest
+		switch kd := e.kind(j); {
+		case closer(kd) && e.match[j] >= 0:
+			j = e.match[j]
+		case kd == syntax.TObjectOperator || kd == syntax.TNullsafeObjectOperator || kd == syntax.TPaamayimNekudotayim ||
+			kd == syntax.TVariable || kd == syntax.TString || kd == syntax.TNameQualified || kd == syntax.TNameFullyQualified ||
+			kd == syntax.TNameRelative || kd == syntax.TStatic || kd == syntax.TNew:
+		default:
+			return e.receiverLine(r, k)
+		}
+		r = j
+	}
+}
+
+// receiverLine returns r, unless the line holding r begins with a closing
+// bracket: that line's level is the one of a construct it ends, not a
+// level to indent the chain from, and k is returned.
+func (e *engine) receiverLine(r, k int) int {
+	first := r
+	for first > 0 && !e.startsLine(first) {
+		first--
+	}
+	if closer(e.kind(first)) {
+		return k
+	}
+	return r
+}
+
+// endsCase reports whether unit j, the last of a case, ends a statement
+// that leaves the case: return, break, continue or throw.
+func (e *engine) endsCase(j int) bool {
+	if e.kind(j) != syntax.TSemicolon {
+		return false
+	}
+	for i := j - 1; ; i-- { // a statement start is found at the latest at the case label
+		if closer(e.kind(i)) && e.match[i] >= 0 {
+			i = e.match[i]
+		}
+		if e.start[e.sig[i]] {
+			switch e.kind(i) {
+			case syntax.TReturn, syntax.TBreak, syntax.TContinue, syntax.TThrow:
+				return true
+			}
+			return false
+		}
+	}
 }

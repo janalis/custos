@@ -2,6 +2,7 @@ package format
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/janalis/custos/internal/php/syntax"
 )
@@ -40,10 +41,19 @@ func (e *engine) lines() {
 	s := e.s
 	for k := 1; k < len(e.sig); k++ {
 		e.statementPerLine(k)
+		if s.SemicolonLine == "join" && e.kind(k) == syntax.TSemicolon && !e.start[e.sig[k]] && !e.deleted[k] && e.role[e.sig[k]] != roleForSemicolon &&
+			!e.gaps[k].comment && e.leadBreaks(&e.gaps[k]) > 0 {
+			e.setNL(k, 0, "semicolon_line")
+			e.gaps[k].sp = 0
+		}
 	}
 	for k := range e.sig {
-		if e.kind(k) == syntax.TLBrace {
+		switch kd := e.kind(k); {
+		case kd == syntax.TLBrace:
 			e.braceLines(k)
+		case (kd == syntax.TLBracket || kd == syntax.TLParen) && s.TrimBracketBlankLines && e.match[k] > k:
+			e.blankAfterOpen(k+1, "none", "trim_bracket_blank_lines")
+			e.blankBeforeClose(e.match[k], "none", "trim_bracket_blank_lines")
 		}
 	}
 	for _, st := range e.f.Stmts {
@@ -62,6 +72,10 @@ func (e *engine) statementPerLine(k int) {
 	}
 	p := e.kind(k - 1)
 	if !e.start[e.sig[k]] || e.leadBreaks(&e.gaps[k]) > 0 {
+		return
+	}
+	if p == syntax.TColon && e.role[e.sig[k-1]] == roleCaseColon && e.s.CaseBodyLine && !e.gaps[k].comment && e.kind(k) != syntax.TLBrace {
+		e.setNL(k, 1, "case_body_line")
 		return
 	}
 	if p != syntax.TSemicolon && p != syntax.TRBrace {
@@ -150,7 +164,7 @@ func (e *engine) braceLines(k int) {
 	}
 	// The body starts and ends on lines of its own.
 	oneLine := e.leadBreaks(&e.gaps[k+1]) == 0 && !e.gaps[k+1].comment
-	if oneLine && (b == brClosure || b == brAnonClass) && e.s.SingleLineClosures && e.sameLine(k, c) {
+	if oneLine && (b == brClosure || b == brAnonClass) && e.s.SingleLineClosures && e.sameLine(k, c) && !e.innerBlock(k, c) {
 		return
 	}
 	if style != "keep" {
@@ -219,8 +233,8 @@ func blankCount(v string) int {
 
 // blankAfterOpen sets the blank line after an opening brace (gap k).
 func (e *engine) blankAfterOpen(k int, v, rule string) {
-	if v == "keep" || e.leadBreaks(&e.gaps[k]) == 0 {
-		return
+	if n := e.leadBreaks(&e.gaps[k]); v == "keep" || n == 0 || n == blankCount(v) {
+		return // nothing to change: the rule that set the break keeps it
 	}
 	e.setNL(k, blankCount(v), rule)
 }
@@ -237,7 +251,7 @@ func (e *engine) blankBeforeClose(k int, v, rule string) {
 		}
 		return
 	}
-	if e.leadBreaks(g) > 0 {
+	if n := e.leadBreaks(g); n > 0 && n != blankCount(v) {
 		e.setNL(k, blankCount(v), rule)
 	}
 }
@@ -279,8 +293,18 @@ func (e *engine) walkLines(n syntax.Node) {
 		e.members(v.Members)
 	case *syntax.Block:
 		e.blankBefore(v.Stmts)
+		e.functionSeparation(v)
 	case *syntax.Case:
 		e.blankBefore(v.Stmts)
+		if e.s.TrimBlockBlankLines && len(v.Stmts) > 0 {
+			if k := e.unitAt(v.Stmts[0].Span().Start); !e.gaps[k].comment && e.leadBreaks(&e.gaps[k]) > 1 {
+				e.setNL(k, 1, "trim_block_blank_lines")
+			}
+		}
+	case *syntax.Throw:
+		if e.s.SingleLineThrow {
+			e.singleLine(v)
+		}
 	case *syntax.Switch:
 		if e.s.CaseSeparation {
 			for i := 1; i < len(v.Cases); i++ {
@@ -292,8 +316,12 @@ func (e *engine) walkLines(n syntax.Node) {
 	case *syntax.Namespace:
 		e.topLevel(v.Stmts)
 	case *syntax.ExprStmt:
-		if _, ok := v.Expr.(*syntax.Throw); ok && e.s.SingleLineThrow {
-			e.singleLine(v)
+		if _, ok := v.Expr.(*syntax.Throw); ok {
+			// blank_line_before wins for the statement that follows.
+			if k := e.nextUnit(v); !e.s.BlankLineAfterThrow && k > 0 && e.leadBreaks(&e.gaps[e.written(k)]) > 1 && !e.gaps[k].comment &&
+				!slices.Contains(e.s.BlankLineBefore, strings.ToLower(e.text[k])) {
+				e.setNL(k, 1, "blank_line_after_throw")
+			}
 		}
 	}
 	syntax.Children(n, e.walkLines)
@@ -497,7 +525,7 @@ func (e *engine) inOneLineClosure(k int) bool {
 			depth--
 		case opener(kd):
 			b := e.br[e.sig[j]]
-			return (b == brClosure || b == brAnonClass) && e.sameLine(j, e.match[j])
+			return (b == brClosure || b == brAnonClass) && e.sameLine(j, e.match[j]) && !e.innerBlock(j, e.match[j])
 		}
 	}
 	return false
@@ -505,7 +533,7 @@ func (e *engine) inOneLineClosure(k int) bool {
 
 // singleLine writes statement st on one line when nothing in it needs a line
 // of its own: no comment, brace or heredoc.
-func (e *engine) singleLine(st syntax.Stmt) {
+func (e *engine) singleLine(st syntax.Node) {
 	sp := st.Span()
 	a, b := e.unitAt(sp.Start), e.unitBefore(sp.End)
 	for k := a; k <= b; k++ {
@@ -524,4 +552,34 @@ func (e *engine) singleLine(st syntax.Stmt) {
 		}
 	}
 	e.noWrap = append(e.noWrap, region{sp.Start, sp.End})
+}
+
+// functionSeparation puts a blank line before a function declared first in
+// a block and after one declared last.
+func (e *engine) functionSeparation(b *syntax.Block) {
+	if !e.s.FunctionSeparation || len(b.Stmts) == 0 || b.Alt {
+		return
+	}
+	if _, ok := b.Stmts[0].(*syntax.Function); ok {
+		if k := e.unitAt(b.Stmts[0].Span().Start); !e.gaps[k].comment || e.gaps[k].lead == 0 && !e.gaps[k].pieces[0].comment {
+			e.atLeastBlank(k, "function_separation")
+		}
+	}
+	last := b.Stmts[len(b.Stmts)-1]
+	if _, ok := last.(*syntax.Function); ok {
+		if c := e.unitAfter(last.Span().End); c > 0 && e.kind(c) == syntax.TRBrace && !e.gaps[c].comment {
+			e.atLeastBlank(c, "function_separation")
+		}
+	}
+}
+
+// innerBlock reports whether a body brace opens between k and c: its own
+// lines would split a closure kept on one line.
+func (e *engine) innerBlock(k, c int) bool {
+	for i := k + 1; i < c; i++ {
+		if e.kind(i) == syntax.TLBrace && e.br[e.sig[i]].block() {
+			return true
+		}
+	}
+	return false
 }

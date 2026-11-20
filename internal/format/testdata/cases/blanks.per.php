@@ -47,3 +47,7 @@ function f()
         continue;
     }
 }
+switch ($a) {
+    case 1:
+        foo();
+}

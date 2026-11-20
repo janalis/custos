@@ -41,8 +41,8 @@ class Foo // after name
       $a,
     );
     return $x
-        // between
-        + $y;
+      // between
+      + $y;
 
   }
   // trailing in class

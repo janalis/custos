@@ -70,6 +70,9 @@ func (e *engine) spacing(a, b int) (int, string) {
 		return 0, "spacing"
 	case ka == syntax.TComma:
 		if closer(kb) {
+			if o := e.match[b]; o >= 0 && !e.oneLine(o, b) {
+				return -1, "" // a list closing on its last item's line
+			}
 			return 0, "spacing"
 		}
 		return 1, "spacing"
@@ -112,6 +115,8 @@ func (e *engine) spacing(a, b int) (int, string) {
 		return 0, "spacing"
 	case ra == roleTypeOp || rb == roleTypeOp:
 		return 0, "spacing"
+	case ra == roleCatchBar || rb == roleCatchBar:
+		return choice(e.s.CatchTypeSpace, "catch_type_space")
 	case rb == roleReturnColon || rb == roleEnumColon || rb == roleNamedColon || rb == roleCaseColon ||
 		rb == roleLabelColon || rb == roleAltColon:
 		return 0, "spacing"
@@ -159,7 +164,7 @@ func (e *engine) parenSpacing(a, b int) (int, string) {
 		return choice(e.s.ArrowFunctionSpace, "arrow_function_space")
 	case e.role[ta] == roleUseKeyword:
 		return 1, "spacing"
-	case ka == syntax.TClass:
+	case ka == syntax.TClass && !e.ident[ta]:
 		return choice(e.s.AnonymousClassSpace, "anonymous_class_space") // only new class(...) puts ( after class
 	case e.br[tb] == brControl && (controlKeyword(ka) || e.text[a] == "elseif"):
 		return 1, "spacing"
@@ -184,7 +189,7 @@ func (e *engine) spaceOK(a, b int) bool {
 		return ok
 	}
 	kinds := func(text string) []syntax.TokenKind {
-		toks, _ := syntax.Lex([]byte("<?php "+text), syntax.LexOptions{Version: e.php})
+		toks, _ := syntax.Lex([]byte("<?php "+text), syntax.LexOptions{Version: e.lex})
 		var out []syntax.TokenKind
 		for _, t := range toks {
 			if !t.Kind.IsTrivia() && t.Kind != syntax.TEOF && t.Kind != syntax.TOpenTag {

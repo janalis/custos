@@ -220,3 +220,13 @@ func TestWrittenGap(t *testing.T) {
 		t.Error("written gap")
 	}
 }
+
+// Code newer than the configured version is checked with the lexer that
+// read it: under PHP 7.4, #[ opens a comment.
+func TestNewerSyntaxThanVersion(t *testing.T) {
+	src := "<?php\n\nfunction f(#[A] $t) {}\n"
+	res := Source("a.php", []byte(src), Options{PHP: phpversion.PHP74})
+	if res.Skipped != "" || string(res.Output) != src {
+		t.Fatalf("skipped %q, output %q", res.Skipped, res.Output)
+	}
+}

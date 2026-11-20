@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -67,6 +69,8 @@ type session struct {
 	tools string // tools formatcheck installs
 	log   io.Writer
 	cpus  int
+	// fixerRules caches the rule names of the installed PHP-CS-Fixer.
+	fixerRules []string
 }
 
 func (s *session) benchBin(pkg, bin string) string {
@@ -100,7 +104,12 @@ type checker struct {
 	// gate, when set, finds what remains on the formatted copy instead of
 	// subtracting the divergences from check's findings.
 	gate func(s *session, root string, paths []string, div []divergence) ([]finding, error)
+	// note explains the remaining column of a gated checker.
+	note string
 }
+
+const fixerNote = "php-cs-fixer: remaining comes from a second run with the divergent fixers off; the rest of after - divergent\n" +
+	"  are fixers reported only for tidying up after a divergent one."
 
 var checkers = map[string]checker{
 	"psr12": {
@@ -116,6 +125,8 @@ var checkers = map[string]checker{
 		check: func(s *session, root string, paths []string) ([]finding, error) {
 			return s.fixer("@PER-CS", root, paths)
 		},
+		gate: fixerGate("@PER-CS"),
+		note: fixerNote,
 	},
 	"symfony": {
 		label: "php-cs-fixer --rules=@Symfony",
@@ -123,12 +134,16 @@ var checkers = map[string]checker{
 		check: func(s *session, root string, paths []string) ([]finding, error) {
 			return s.fixer("@Symfony", root, paths)
 		},
+		gate: fixerGate("@Symfony"),
+		note: fixerNote,
 	},
 	"laravel": {
 		label: "pint --preset laravel",
 		bin:   (*session).pintBin,
 		check: (*session).pintTest,
 		gate:  (*session).pintGate,
+		note: "pint: remaining counts the files whose code (docblocks aside) Pint's fix changes with the divergent fixers off;\n" +
+			"  the other fixers Pint reports there change nothing in the end.",
 	},
 	"drupal": {
 		label:   "phpcs --standard=Drupal",
@@ -257,6 +272,54 @@ func (s *session) fixer(rules, root string, paths []string) ([]finding, error) {
 	return fs, nil
 }
 
+// fixerGate checks the formatted copy with the rule set, the divergent
+// fixers turned off. PHP-CS-Fixer names every fixer that touched a file, so
+// a divergent fixer's change (removing an import, say) also has the fixers
+// that tidy up after it reported; with it off, they are not.
+func fixerGate(set string) func(*session, string, []string, []divergence) ([]finding, error) {
+	return func(s *session, root string, paths []string, div []divergence) ([]finding, error) {
+		known, err := s.listFixerRules()
+		if err != nil {
+			return nil, err
+		}
+		rules := map[string]bool{set: true}
+		for _, d := range ruleWide(div) {
+			if !isPattern(d.Rule) {
+				rules[d.Rule] = false // an unknown name fails the run
+				continue
+			}
+			for _, name := range known {
+				if ok, _ := path.Match(d.Rule, name); ok { // patterns are checked on load
+					rules[name] = false
+				}
+			}
+		}
+		data, _ := json.Marshal(rules) // plain values
+		return s.fixer(string(data), root, paths)
+	}
+}
+
+// listFixerRules returns the names of every rule of the installed
+// PHP-CS-Fixer (`list-rules --format=json`), once.
+func (s *session) listFixerRules() ([]string, error) {
+	if s.fixerRules != nil {
+		return s.fixerRules, nil
+	}
+	bin := s.fixerBin()
+	r, err := s.run(command{dir: s.bench, env: []string{"PHP_CS_FIXER_IGNORE_ENV=1"}, name: bin, args: []string{"list-rules", "--format=json"}})
+	if err != nil {
+		return nil, err
+	}
+	var list struct {
+		Rules map[string]json.RawMessage `json:"rules"`
+	}
+	if err := json.Unmarshal(r.stdout, &list); err != nil || len(list.Rules) == 0 {
+		return nil, toolError(bin, r, errors.New("no rule list"))
+	}
+	s.fixerRules = slices.Sorted(maps.Keys(list.Rules))
+	return s.fixerRules, nil
+}
+
 // parseFixer reads the JSON report of `php-cs-fixer check -v --diff`: each
 // file lists its fixers (only with -v) and one diff. A fixer is reported at
 // the first change of its file's diff, as the diff does not say which
@@ -288,7 +351,7 @@ func parseFixer(out []byte) ([]finding, error) {
 
 // firstChange returns the line of the first change of a unified diff in the
 // old file, with the old and new text of that line ("" for an added or
-// removed line), trimmed. The line is 0 without a hunk.
+// removed line), indentation included. The line is 0 without a hunk.
 func firstChange(diff string) (int, string, string) {
 	line := 0
 	inHunk := false
@@ -305,11 +368,11 @@ func firstChange(diff string) (int, string, string) {
 		case strings.HasPrefix(l, "-"):
 			repl := ""
 			if i+1 < len(lines) && strings.HasPrefix(lines[i+1], "+") {
-				repl = strings.TrimSpace(lines[i+1][1:])
+				repl = lines[i+1][1:]
 			}
-			return line, strings.TrimSpace(l[1:]), repl
+			return line, l[1:], repl
 		case strings.HasPrefix(l, "+"):
-			return line, "", strings.TrimSpace(l[1:])
+			return line, "", l[1:]
 		}
 	}
 	return 0, "", ""
@@ -379,7 +442,7 @@ func (s *session) pintGate(root string, paths []string, div []divergence) ([]fin
 		return nil, err
 	}
 	rules := map[string]bool{}
-	for _, d := range div {
+	for _, d := range ruleWide(div) {
 		if !isPattern(d.Rule) {
 			rules[d.Rule] = false
 		}

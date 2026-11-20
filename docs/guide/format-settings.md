@@ -47,6 +47,8 @@ preset applies only when risky settings are allowed (`--allow-risky` or `allowRi
 | `wrap` | enum | `long`, `off` | `long` puts one item per line in lists that exceed `line_length` or are partly split; `off` keeps line breaks as written. |
 | `report_long_lines` | bool | `true`, `false` | Report the lines that stay wider than `line_length` after formatting; a check then fails on them. |
 | `join_fitting_lists` | bool | `true`, `false` | Join a multi-line list back on one line when it fits and holds no comment. |
+| `branch_comment` | enum | `body`, `next` | Indentation of comments just before `} else`, `} elseif`, `} catch` or `} finally`: with the block they end (`body`), or with the next branch when written at the brace's level (`next`). |
+| `case_comment` | enum | `body`, `label` | Indentation of comments just before a `case` or `default` that follows another case: with the body of the case they end (`body`), or with the label after a `return`, `break`, `continue` or `throw` (`label`). |
 
 Preset values:
 
@@ -68,6 +70,8 @@ Preset values:
 | `wrap` | `off` | `long` | `long` | `long` | `off` | `long` |
 | `report_long_lines` | `false` | `false` | `false` | `false` | `false` | `false` |
 | `join_fitting_lists` | `false` | `false` | `false` | `false` | `false` | `false` |
+| `branch_comment` | `body` | `body` | `body` | `next` | `body` | `body` |
+| `case_comment` | `body` | `body` | `body` | `body` | `body` | `label` |
 
 ## Braces
 
@@ -102,12 +106,19 @@ Preset values:
 | Setting | Type | Values | Description |
 |---|---|---|---|
 | `statement_per_line` | bool | `true`, `false` | Start each statement on its own line. |
+| `semicolon_line` | enum | `join`, `keep` | Move a `;` alone on its line to the end of the statement. |
+| `blank_line_after_throw` | bool | `true`, `false` | Keep the blank lines that follow a `throw` statement; `false` removes them. |
+| `single_line_class_definition` | bool | `true`, `false` | Write the `extends` and `implements` lists and the arguments of an anonymous class on the line of their class when it fits. |
+| `function_separation` | bool | `true`, `false` | One blank line before a function declared first in a block and after one declared last. |
+| `case_body_line` | bool | `true`, `false` | Start the statements of a `case` on the line after it. |
 | `single_line_throw` | bool | `true`, `false` | Write a `throw` statement on one line, whatever its length, unless it holds a comment, a closure or a heredoc. |
 | `blank_line_after_namespace` | bool | `true`, `false` | One blank line after a `namespace` declaration. |
 | `blank_line_after_imports` | bool | `true`, `false` | One blank line after the last `use` import. |
 | `blank_line_between_import_groups` | bool | `true`, `false` | One blank line between class, function and constant imports. |
 | `class_open_blank_line` | enum | `one`, `none`, `keep` | Blank line after the opening brace of a class. |
 | `class_close_blank_line` | enum | `one`, `none`, `keep` | Blank line before the closing brace of a class. |
+| `split_multiline_arrays` | bool | `true`, `false` | Write an array that spans several lines one item per line, also when only its last item spans lines. |
+| `trim_bracket_blank_lines` | bool | `true`, `false` | Remove blank lines after an opening and before a closing bracket or parenthesis. |
 | `trim_block_blank_lines` | bool | `true`, `false` | Remove blank lines after the opening and before the closing brace of a function or control structure. |
 | `blank_line_after_trait_use` | bool | `true`, `false` | One blank line between the trait imports of a class and its next member. |
 | `method_separation` | enum | `one`, `keep` | One blank line between a method and the member before it. |
@@ -121,13 +132,20 @@ Preset values:
 | Setting | `psr1` | `psr12` | `per` | `symfony` | `laravel` | `drupal` |
 |---|---|---|---|---|---|---|
 | `statement_per_line` | `false` | `true` | `true` | `true` | `true` | `true` |
+| `semicolon_line` | `keep` | `keep` | `keep` | `join` | `join` | `join` |
+| `blank_line_after_throw` | `true` | `true` | `true` | `false` | `false` | `true` |
+| `single_line_class_definition` | `false` | `false` | `false` | `true` | `true` | `false` |
+| `function_separation` | `false` | `false` | `false` | `false` | `false` | `true` |
+| `case_body_line` | `false` | `true` | `true` | `true` | `false` | `true` |
 | `single_line_throw` | `false` | `false` | `false` | `true` | `false` | `false` |
 | `blank_line_after_namespace` | `false` | `true` | `true` | `true` | `true` | `true` |
 | `blank_line_after_imports` | `false` | `true` | `true` | `true` | `true` | `true` |
 | `blank_line_between_import_groups` | `false` | `true` | `true` | `true` | `true` | `true` |
 | `class_open_blank_line` | `keep` | `none` | `none` | `none` | `none` | `one` |
 | `class_close_blank_line` | `keep` | `none` | `none` | `none` | `none` | `one` |
-| `trim_block_blank_lines` | `false` | `false` | `false` | `true` | `true` | `false` |
+| `split_multiline_arrays` | `false` | `false` | `false` | `false` | `false` | `true` |
+| `trim_bracket_blank_lines` | `false` | `false` | `false` | `true` | `false` | `false` |
+| `trim_block_blank_lines` | `false` | `true` | `true` | `true` | `true` | `false` |
 | `blank_line_after_trait_use` | `false` | `true` | `true` | `true` | `true` | `true` |
 | `method_separation` | `keep` | `keep` | `keep` | `one` | `one` | `one` |
 | `property_separation` | `keep` | `keep` | `keep` | `keep` | `one` | `keep` |
@@ -146,6 +164,7 @@ Preset values:
 | `not_operator_space` | enum | `none`, `one` | Space after the `!` operator. |
 | `arrow_function_space` | enum | `none`, `one`, `keep` | Space between `fn` and `(`. |
 | `anonymous_class_space` | enum | `one`, `none`, `keep` | Space between `class` and `(` in `new class(...)`. |
+| `catch_type_space` | enum | `one`, `none`, `keep` | Spaces around `\|` between the exception types of a `catch`. |
 | `closure_space` | enum | `one`, `none` | Space between `function` and `(` of a closure. |
 
 Preset values:
@@ -158,7 +177,8 @@ Preset values:
 | `cast_space` | `keep` | `keep` | `one` | `one` | `one` | `one` |
 | `not_operator_space` | `none` | `none` | `none` | `none` | `one` | `none` |
 | `arrow_function_space` | `keep` | `keep` | `none` | `one` | `one` | `keep` |
-| `anonymous_class_space` | `keep` | `one` | `one` | `one` | `none` | `one` |
+| `anonymous_class_space` | `keep` | `one` | `one` | `none` | `none` | `one` |
+| `catch_type_space` | `keep` | `one` | `none` | `none` | `none` | `one` |
 | `closure_space` | `one` | `one` | `one` | `one` | `one` | `one` |
 
 ## Casing
@@ -169,6 +189,7 @@ Preset values:
 | `constant_case` | enum | `lower`, `upper`, `keep` | Case of `true`, `false` and `null`. |
 | `type_case` | enum | `lower`, `keep` | Case of built-in type names in declarations. |
 | `magic_constant_case` | enum | `upper`, `keep` | Case of magic constants such as `__DIR__`. |
+| `hex_case` | enum | `upper`, `keep` | Write the digits of hexadecimal numbers in uppercase and the prefixes of numbers (`0x`, `0b`, `0o`) in lowercase. |
 | `short_cast` | bool | `true`, `false` | Write casts in their short lowercase form: `(int)`, `(bool)`, `(float)`, `(string)`. |
 
 Preset values:
@@ -179,6 +200,7 @@ Preset values:
 | `constant_case` | `keep` | `lower` | `lower` | `lower` | `lower` | `upper` |
 | `type_case` | `keep` | `lower` | `lower` | `lower` | `lower` | `lower` |
 | `magic_constant_case` | `keep` | `keep` | `keep` | `upper` | `upper` | `keep` |
+| `hex_case` | `keep` | `keep` | `keep` | `upper` | `upper` | `keep` |
 | `short_cast` | `false` | `true` | `true` | `true` | `true` | `true` |
 
 ## Syntax
@@ -191,9 +213,11 @@ Preset values:
 | `list_syntax` | enum | `short`, `long`, `keep` | `[]` or `list()` for destructuring (short needs PHP 7.1). |
 | `visibility` | enum | `all`, `methods_properties`, `keep` | Write the implicit `public` of class members that declare no visibility: methods, properties and constants (PHP 7.1), or methods and properties. |
 | `parameter_attribute_line` | bool | `true`, `false` | Put the attributes of a parameter on a line of their own when the parameters are one per line. |
+| `null_type_last` | bool | `true`, `false` | Write `null` last in a union type: `string\|null`. |
 | `elseif` | bool | `true`, `false` | Write `else if` as `elseif`. |
 | `new_parentheses` | enum | `add`, `remove`, `keep` | Parentheses after a class name in `new` without arguments. |
 | `standardize_not_equals` | bool | `true`, `false` | Write `<>` as `!=`. |
+| `comment_spacing` | bool | `true`, `false` | Put a space after `//` and `#`, and inside `/* */` written on one line. |
 | `hash_comment` | bool | `true`, `false` | Write `#` comments as `//`. |
 | `operator_linebreak` | enum | `start`, `start_booleans`, `keep` | Move an operator that ends a line to the start of the next: every binary operator, or only `&&`, `\|\|`, `and`, `or`, `xor`. |
 
@@ -207,9 +231,11 @@ Preset values:
 | `list_syntax` | `keep` | `keep` | `keep` | `short` | `short` | `keep` |
 | `visibility` | `keep` | `all` | `all` | `all` | `methods_properties` | `all` |
 | `parameter_attribute_line` | `false` | `false` | `true` | `true` | `false` | `true` |
+| `null_type_last` | `false` | `false` | `true` | `true` | `false` | `true` |
 | `elseif` | `false` | `true` | `true` | `true` | `true` | `true` |
 | `new_parentheses` | `keep` | `add` | `add` | `add` | `remove` | `add` |
 | `standardize_not_equals` | `false` | `false` | `false` | `true` | `true` | `true` |
+| `comment_spacing` | `false` | `false` | `false` | `true` | `true` | `false` |
 | `hash_comment` | `false` | `false` | `false` | `true` | `true` | `false` |
 | `operator_linebreak` | `keep` | `keep` | `start` | `start_booleans` | `keep` | `keep` |
 
@@ -242,6 +268,7 @@ Preset values:
 | `remove_unused_imports` (risky) | bool | `true`, `false` | Remove `use` imports the file never mentions, docblocks included. |
 | `declare_strict_types` (risky) | bool | `true`, `false` | Add `declare(strict_types=1);` to PHP-only files that lack it (PHP 7.0+). |
 | `increment_style` (risky) | enum | `pre`, `post`, `keep` | Write a standalone increment or decrement statement as `++$i` or `$i++`. |
+| `ordered_traits` (risky) | bool | `true`, `false` | Sort the traits of a `use` statement in a class alphabetically (case-insensitive). |
 | `heredoc_to_nowdoc` (risky) | bool | `true`, `false` | Write a heredoc without escapes or interpolation as a nowdoc. |
 
 Preset values:
@@ -253,4 +280,5 @@ Preset values:
 | `remove_unused_imports` | `false` | `false` | `false` | `false`, risky: `true` | `false`, risky: `true` | `false` |
 | `declare_strict_types` | `false` | `false` | `false` | `false` | `false` | `false` |
 | `increment_style` | `keep` | `keep` | `keep` | `keep`, risky: `pre` | `keep`, risky: `post` | `keep` |
+| `ordered_traits` | `false` | `false` | `false` | `false` | `false`, risky: `true` | `false` |
 | `heredoc_to_nowdoc` | `false` | `false` | `false` | `false` | `false`, risky: `true` | `false` |

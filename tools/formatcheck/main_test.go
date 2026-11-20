@@ -55,11 +55,31 @@ func (f *fake) run(c command) (result, error) {
 		}
 		return sample("phpcs.json"), nil
 	case "php-cs-fixer":
-		if formatted && slices.Contains(c.args, "--rules=@PER-CS") {
+		if c.args[0] == "list-rules" {
+			return sample("csfixer-rules.json"), nil
+		}
+		if formatted && slices.ContainsFunc(c.args, func(a string) bool { return strings.Contains(a, "@PER-CS") }) {
 			return sample("csfixer-clean.json"), nil
 		}
 		r := sample("csfixer.json")
 		r.code = 8
+		// A rule set given as JSON: its disabled fixers are not reported.
+		if rules, ok := strings.CutPrefix(c.args[slices.IndexFunc(c.args, func(a string) bool { return strings.HasPrefix(a, "--rules=") })], "--rules={"); ok {
+			var off map[string]bool
+			var report map[string]any
+			if err := errors.Join(json.Unmarshal([]byte("{"+rules), &off), json.Unmarshal(r.stdout, &report)); err != nil {
+				f.t.Fatal(err)
+			}
+			file := report["files"].([]any)[0].(map[string]any)
+			var kept []any
+			for _, fixer := range file["appliedFixers"].([]any) {
+				if on, listed := off[fixer.(string)]; on || !listed {
+					kept = append(kept, fixer)
+				}
+			}
+			file["appliedFixers"] = kept
+			r.stdout, _ = json.Marshal(report)
+		}
 		return r, nil
 	case "pint":
 		if slices.Contains(c.args, "--test") {
@@ -146,7 +166,7 @@ func TestRunAllPresets(t *testing.T) {
 		"corpus  preset   checker", "c       psr12    phpcs --standard=PSR12         13      0      0          0",
 		"c       symfony  php-cs-fixer --rules=@Symfony  15      15     3          12",
 		"c       laravel  pint --preset laravel          15      0      0          1",
-		"laravel: remaining counts", "c symfony: 12 remaining", "  array_syntax: 1\n    src/Sample.php:2: first change: \"\" → \"\"",
+		"pint: remaining counts", "php-cs-fixer: remaining comes", "c symfony: 12 remaining", "  array_syntax: 1\n    src/Sample.php:2: first change: \"\" → \"\"",
 		"c laravel: 1 remaining", `  a_fixer,z_fixer: 1` + "\n" + `    src/A.php:2: Pint changes "$a = 1;" → "$a = 2;"`,
 	} {
 		if !strings.Contains(out, want) {
@@ -180,7 +200,7 @@ func TestRunAllPresets(t *testing.T) {
 func TestRunClean(t *testing.T) {
 	e := newEnv(t)
 	code, out, errOut := e.run(t, &fake{t: t}, "-presets", " psr12, per ,")
-	if code != 0 || strings.Contains(out, "laravel:") || strings.Contains(out, ": ") {
+	if code != 0 || strings.Contains(out, "pint:") || strings.Contains(out, "\nc p") {
 		t.Fatalf("exit %d\n%s%s", code, out, errOut)
 	}
 }

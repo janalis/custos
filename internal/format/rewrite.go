@@ -79,6 +79,8 @@ func (e *engine) tokens() {
 			e.rewrite(k, strings.ToLower(txt), "type_case")
 		case kd == syntax.TIsNotEqual && txt == "<>" && s.StandardizeNotEquals:
 			e.rewrite(k, "!=", "standardize_not_equals")
+		case kd == syntax.TLNumber && s.HexCase == "upper" && len(txt) > 2 && txt[0] == '0':
+			e.rewrite(k, numberCase(txt), "hex_case")
 		}
 	}
 }
@@ -139,6 +141,8 @@ func (e *engine) syntaxRewrites(n syntax.Node) {
 		e.visibility(v.Modifiers, afterAttrs(v, v.Attrs), syntax.TConst, true)
 	case *syntax.TraitUse:
 		e.splitTraits(v)
+	case *syntax.UnionType:
+		e.nullLast(v)
 	}
 	syntax.Children(n, e.syntaxRewrites)
 }
@@ -420,4 +424,44 @@ func (e *engine) splitTraits(v *syntax.TraitUse) {
 		e.start[e.sig[k]] = true
 		e.setNL(k, 1, "single_trait_per_statement")
 	}
+}
+
+// nullLast writes null last in a union type.
+func (e *engine) nullLast(v *syntax.UnionType) {
+	if !e.s.NullTypeLast {
+		return
+	}
+	n := len(v.Types)
+	at := -1
+	for i, t := range v.Types {
+		if nm, ok := t.(*syntax.Name); ok && strings.EqualFold(nm.Value, "null") {
+			at = i
+		}
+	}
+	sp := v.Span()
+	if at < 0 || at == n-1 || e.commentBetween(sp.Start, sp.End) {
+		return
+	}
+	parts := make([]string, 0, n)
+	for i, t := range v.Types {
+		if i != at {
+			parts = append(parts, e.unitsText(e.unitAt(t.Span().Start), e.unitBefore(t.Span().End)))
+		}
+	}
+	null := v.Types[at]
+	parts = append(parts, e.text[e.unitAt(null.Span().Start)])
+	defer e.newGroup()()
+	e.replaceUnits(e.unitAt(sp.Start), e.unitBefore(sp.End), strings.Join(parts, "|"), "null_type_last")
+}
+
+// numberCase writes the prefix of a number in lowercase and the digits of
+// a hexadecimal one in uppercase.
+func numberCase(txt string) string {
+	switch p := strings.ToLower(txt[:2]); p {
+	case "0x":
+		return p + strings.ToUpper(txt[2:])
+	case "0b", "0o":
+		return p + txt[2:]
+	}
+	return txt
 }

@@ -1,0 +1,29 @@
+{
+    "rules": {
+        "array_syntax": {
+            "isRisky": false,
+            "name": "array_syntax",
+            "summary": "PHP arrays should be declared using the configured syntax."
+        },
+        "phpdoc_align": {
+            "isRisky": false,
+            "name": "phpdoc_align",
+            "summary": "All items of the given PHPDoc tags must be either left-aligned or (by default) aligned vertically."
+        },
+        "phpdoc_separation": {
+            "isRisky": false,
+            "name": "phpdoc_separation",
+            "summary": "Annotations in PHPDoc should be grouped together so that annotations of the same type immediately follow each other. Annotations of a different type are separated by a single blank line."
+        },
+        "phpdoc_trim": {
+            "isRisky": false,
+            "name": "phpdoc_trim",
+            "summary": "PHPDoc should start and end with content, excluding the very first and last line of the docblocks."
+        },
+        "yoda_style": {
+            "isRisky": false,
+            "name": "yoda_style",
+            "summary": "Write conditions in Yoda style (`true`), non-Yoda style (`['equal' => false, 'identical' => false, 'less_and_greater' => false]`) or ignore those conditions (`null`) based on configuration."
+        }
+    }
+}

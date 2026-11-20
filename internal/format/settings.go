@@ -77,14 +77,27 @@ type Settings struct {
 	HashComment             bool
 	OperatorLinebreak       string // start, start_booleans, keep
 
-	ImportOrder              string // alpha, length, none
-	ImportGroups             string // class_function_const, const_class_function, none
-	NoLeadingImportSlash     bool
-	SingleImportPerStatement bool
-	SingleTraitPerStatement  bool
-	ParameterAttributeLine   bool
-	Visibility               string // all, methods_properties, keep
-	AnonymousClassSpace      string // one, none, keep
+	ImportOrder               string // alpha, length, none
+	ImportGroups              string // class_function_const, const_class_function, none
+	NoLeadingImportSlash      bool
+	SingleImportPerStatement  bool
+	SingleTraitPerStatement   bool
+	ParameterAttributeLine    bool
+	NullTypeLast              bool
+	SemicolonLine             string // join, keep
+	CommentSpacing            bool
+	HexCase                   string // upper, keep
+	BlankLineAfterThrow       bool
+	CatchTypeSpace            string // one, none, keep
+	FunctionSeparation        bool
+	SingleLineClassDefinition bool
+	TrimBracketBlankLines     bool
+	SplitMultilineArrays      bool
+	BranchComment             string // body, next
+	CaseComment               string // body, label
+	CaseBodyLine              bool
+	Visibility                string // all, methods_properties, keep
+	AnonymousClassSpace       string // one, none, keep
 
 	// Risky settings change tokens beyond layout; they apply only when
 	// Risky allows them.
@@ -94,6 +107,7 @@ type Settings struct {
 	DeclareStrictTypes  bool
 	IncrementStyle      string // pre, post, keep
 	HeredocToNowdoc     bool
+	OrderedTraits       bool
 }
 
 // Kind is the value type of a setting.
@@ -270,12 +284,21 @@ var registry = []*Setting{
 
 	// Lines.
 	{ID: "statement_per_line", Group: "lines", Kind: KindBool, Description: "Start each statement on its own line.", field: func(s *Settings) any { return &s.StatementPerLine }},
+	{ID: "semicolon_line", Group: "lines", Kind: KindEnum, Values: []string{"join", "keep"}, Description: "Move a `;` alone on its line to the end of the statement.", field: func(s *Settings) any { return &s.SemicolonLine }},
+	{ID: "blank_line_after_throw", Group: "lines", Kind: KindBool, Description: "Keep the blank lines that follow a `throw` statement; `false` removes them.", field: func(s *Settings) any { return &s.BlankLineAfterThrow }},
+	{ID: "single_line_class_definition", Group: "lines", Kind: KindBool, Description: "Write the `extends` and `implements` lists and the arguments of an anonymous class on the line of their class when it fits.", field: func(s *Settings) any { return &s.SingleLineClassDefinition }},
+	{ID: "function_separation", Group: "lines", Kind: KindBool, Description: "One blank line before a function declared first in a block and after one declared last.", field: func(s *Settings) any { return &s.FunctionSeparation }},
+	{ID: "case_body_line", Group: "lines", Kind: KindBool, Description: "Start the statements of a `case` on the line after it.", field: func(s *Settings) any { return &s.CaseBodyLine }},
 	{ID: "single_line_throw", Group: "lines", Kind: KindBool, Description: "Write a `throw` statement on one line, whatever its length, unless it holds a comment, a closure or a heredoc.", field: func(s *Settings) any { return &s.SingleLineThrow }},
 	{ID: "blank_line_after_namespace", Group: "lines", Kind: KindBool, Description: "One blank line after a `namespace` declaration.", field: func(s *Settings) any { return &s.BlankLineAfterNamespace }},
 	{ID: "blank_line_after_imports", Group: "lines", Kind: KindBool, Description: "One blank line after the last `use` import.", field: func(s *Settings) any { return &s.BlankLineAfterImports }},
 	{ID: "blank_line_between_import_groups", Group: "lines", Kind: KindBool, Description: "One blank line between class, function and constant imports.", field: func(s *Settings) any { return &s.BlankLineBetweenImportGroups }},
 	{ID: "class_open_blank_line", Group: "lines", Kind: KindEnum, Values: sepValues, Description: "Blank line after the opening brace of a class.", field: func(s *Settings) any { return &s.ClassOpenBlankLine }},
 	{ID: "class_close_blank_line", Group: "lines", Kind: KindEnum, Values: sepValues, Description: "Blank line before the closing brace of a class.", field: func(s *Settings) any { return &s.ClassCloseBlankLine }},
+	{ID: "branch_comment", Group: "file", Kind: KindEnum, Values: []string{"body", "next"}, Description: "Indentation of comments just before `} else`, `} elseif`, `} catch` or `} finally`: with the block they end (`body`), or with the next branch when written at the brace's level (`next`).", field: func(s *Settings) any { return &s.BranchComment }},
+	{ID: "case_comment", Group: "file", Kind: KindEnum, Values: []string{"body", "label"}, Description: "Indentation of comments just before a `case` or `default` that follows another case: with the body of the case they end (`body`), or with the label after a `return`, `break`, `continue` or `throw` (`label`).", field: func(s *Settings) any { return &s.CaseComment }},
+	{ID: "split_multiline_arrays", Group: "lines", Kind: KindBool, Description: "Write an array that spans several lines one item per line, also when only its last item spans lines.", field: func(s *Settings) any { return &s.SplitMultilineArrays }},
+	{ID: "trim_bracket_blank_lines", Group: "lines", Kind: KindBool, Description: "Remove blank lines after an opening and before a closing bracket or parenthesis.", field: func(s *Settings) any { return &s.TrimBracketBlankLines }},
 	{ID: "trim_block_blank_lines", Group: "lines", Kind: KindBool, Description: "Remove blank lines after the opening and before the closing brace of a function or control structure.", field: func(s *Settings) any { return &s.TrimBlockBlankLines }},
 	{ID: "blank_line_after_trait_use", Group: "lines", Kind: KindBool, Description: "One blank line between the trait imports of a class and its next member.", field: func(s *Settings) any { return &s.BlankLineAfterTraitUse }},
 	{ID: "method_separation", Group: "lines", Kind: KindEnum, Values: sepOneOrKeep, Description: "One blank line between a method and the member before it.", field: func(s *Settings) any { return &s.MethodSeparation }},
@@ -292,6 +315,7 @@ var registry = []*Setting{
 	{ID: "not_operator_space", Group: "spacing", Kind: KindEnum, Values: []string{"none", "one"}, Description: "Space after the `!` operator.", field: func(s *Settings) any { return &s.NotOperatorSpace }},
 	{ID: "arrow_function_space", Group: "spacing", Kind: KindEnum, Values: []string{"none", "one", "keep"}, Description: "Space between `fn` and `(`.", field: func(s *Settings) any { return &s.ArrowFunctionSpace }},
 	{ID: "anonymous_class_space", Group: "spacing", Kind: KindEnum, Values: []string{"one", "none", "keep"}, Description: "Space between `class` and `(` in `new class(...)`.", field: func(s *Settings) any { return &s.AnonymousClassSpace }},
+	{ID: "catch_type_space", Group: "spacing", Kind: KindEnum, Values: []string{"one", "none", "keep"}, Description: "Spaces around `|` between the exception types of a `catch`.", field: func(s *Settings) any { return &s.CatchTypeSpace }},
 	{ID: "closure_space", Group: "spacing", Kind: KindEnum, Values: []string{"one", "none"}, Description: "Space between `function` and `(` of a closure.", field: func(s *Settings) any { return &s.ClosureSpace }},
 
 	// Casing.
@@ -299,6 +323,7 @@ var registry = []*Setting{
 	{ID: "constant_case", Group: "casing", Kind: KindEnum, Values: []string{"lower", "upper", "keep"}, Description: "Case of `true`, `false` and `null`.", field: func(s *Settings) any { return &s.ConstantCase }},
 	{ID: "type_case", Group: "casing", Kind: KindEnum, Values: []string{"lower", "keep"}, Description: "Case of built-in type names in declarations.", field: func(s *Settings) any { return &s.TypeCase }},
 	{ID: "magic_constant_case", Group: "casing", Kind: KindEnum, Values: []string{"upper", "keep"}, Description: "Case of magic constants such as `__DIR__`.", field: func(s *Settings) any { return &s.MagicConstantCase }},
+	{ID: "hex_case", Group: "casing", Kind: KindEnum, Values: []string{"upper", "keep"}, Description: "Write the digits of hexadecimal numbers in uppercase and the prefixes of numbers (`0x`, `0b`, `0o`) in lowercase.", field: func(s *Settings) any { return &s.HexCase }},
 	{ID: "short_cast", Group: "casing", Kind: KindBool, Description: "Write casts in their short lowercase form: `(int)`, `(bool)`, `(float)`, `(string)`.", field: func(s *Settings) any { return &s.ShortCast }},
 
 	// Syntax.
@@ -308,9 +333,11 @@ var registry = []*Setting{
 	{ID: "list_syntax", Group: "syntax", Kind: KindEnum, Values: []string{"short", "long", "keep"}, Description: "`[]` or `list()` for destructuring (short needs PHP 7.1).", field: func(s *Settings) any { return &s.ListSyntax }},
 	{ID: "visibility", Group: "syntax", Kind: KindEnum, Values: []string{"all", "methods_properties", "keep"}, Description: "Write the implicit `public` of class members that declare no visibility: methods, properties and constants (PHP 7.1), or methods and properties.", field: func(s *Settings) any { return &s.Visibility }},
 	{ID: "parameter_attribute_line", Group: "syntax", Kind: KindBool, Description: "Put the attributes of a parameter on a line of their own when the parameters are one per line.", field: func(s *Settings) any { return &s.ParameterAttributeLine }},
+	{ID: "null_type_last", Group: "syntax", Kind: KindBool, Description: "Write `null` last in a union type: `string|null`.", field: func(s *Settings) any { return &s.NullTypeLast }},
 	{ID: "elseif", Group: "syntax", Kind: KindBool, Description: "Write `else if` as `elseif`.", field: func(s *Settings) any { return &s.ElseIf }},
 	{ID: "new_parentheses", Group: "syntax", Kind: KindEnum, Values: []string{"add", "remove", "keep"}, Description: "Parentheses after a class name in `new` without arguments.", field: func(s *Settings) any { return &s.NewParentheses }},
 	{ID: "standardize_not_equals", Group: "syntax", Kind: KindBool, Description: "Write `<>` as `!=`.", field: func(s *Settings) any { return &s.StandardizeNotEquals }},
+	{ID: "comment_spacing", Group: "syntax", Kind: KindBool, Description: "Put a space after `//` and `#`, and inside `/* */` written on one line.", field: func(s *Settings) any { return &s.CommentSpacing }},
 	{ID: "hash_comment", Group: "syntax", Kind: KindBool, Description: "Write `#` comments as `//`.", field: func(s *Settings) any { return &s.HashComment }},
 	{ID: "operator_linebreak", Group: "syntax", Kind: KindEnum, Values: []string{"start", "start_booleans", "keep"}, Description: "Move an operator that ends a line to the start of the next: every binary operator, or only `&&`, `||`, `and`, `or`, `xor`.", field: func(s *Settings) any { return &s.OperatorLinebreak }},
 
@@ -327,6 +354,7 @@ var registry = []*Setting{
 	{ID: "remove_unused_imports", Group: "risky", Kind: KindBool, Risky: true, Description: "Remove `use` imports the file never mentions, docblocks included.", field: func(s *Settings) any { return &s.RemoveUnusedImports }},
 	{ID: "declare_strict_types", Group: "risky", Kind: KindBool, Risky: true, Description: "Add `declare(strict_types=1);` to PHP-only files that lack it (PHP 7.0+).", field: func(s *Settings) any { return &s.DeclareStrictTypes }},
 	{ID: "increment_style", Group: "risky", Kind: KindEnum, Values: []string{"pre", "post", "keep"}, Risky: true, Description: "Write a standalone increment or decrement statement as `++$i` or `$i++`.", field: func(s *Settings) any { return &s.IncrementStyle }},
+	{ID: "ordered_traits", Group: "risky", Kind: KindBool, Risky: true, Description: "Sort the traits of a `use` statement in a class alphabetically (case-insensitive).", field: func(s *Settings) any { return &s.OrderedTraits }},
 	{ID: "heredoc_to_nowdoc", Group: "risky", Kind: KindBool, Risky: true, Description: "Write a heredoc without escapes or interpolation as a nowdoc.", field: func(s *Settings) any { return &s.HeredocToNowdoc }},
 }
 

@@ -86,7 +86,15 @@ func sourceOnce(path string, src []byte, opt Options) (Result, bool) {
 	if ignoreFile.Match(src) {
 		return Result{Output: src, Skipped: "ignored by a format-ignore comment"}, false
 	}
-	f := syntax.ParseBest(path, src, syntax.Options{Version: php})
+	lex := php
+	f := syntax.Parse(path, src, syntax.Options{Version: php})
+	if len(f.Errors) > 0 {
+		// Code newer than the configured version: parse it, and lex the
+		// output, as the newest version reads it.
+		if g := syntax.Parse(path, src, syntax.Options{Version: phpversion.Max, Permissive: true}); len(g.Errors) < len(f.Errors) {
+			f, lex = g, phpversion.Max
+		}
+	}
 	if n := len(f.Errors); n > 0 {
 		return Result{Output: src, Skipped: plural(n, "syntax error")}, false
 	}
@@ -95,7 +103,7 @@ func sourceOnce(path string, src []byte, opt Options) (Result, bool) {
 		end := uint32(len(src))
 		toks = append(toks[:n:n], syntax.Token{Kind: syntax.TEOF, Start: end, End: end})
 	}
-	e := &engine{src: src, f: f, s: s, php: php, toks: toks, final: -1}
+	e := &engine{src: src, f: f, s: s, php: php, lex: lex, toks: toks, final: -1}
 	e.annotate()
 	e.units()
 	e.pair()
@@ -301,7 +309,7 @@ func (e *engine) statementAt(off uint32) syntax.Node {
 // verify checks that out holds the same code as the source: the same
 // significant tokens apart from the rewrites, and no syntax error.
 func (e *engine) verify(out []byte) string {
-	got := significant(out, e.php)
+	got := significant(out, e.lex)
 	var want []syntax.Token
 	var wantText []string
 	var batch strings.Builder
@@ -310,7 +318,7 @@ func (e *engine) verify(out []byte) string {
 			return
 		}
 		src := "<?php\n" + batch.String()
-		for _, t := range significant([]byte(src), e.php) {
+		for _, t := range significant([]byte(src), e.lex) {
 			if t.Kind == syntax.TOpenTag || t.Kind == syntax.TEOF || t.Kind == syntax.THaltCompilerData {
 				continue // the data after __halt_compiler is a unit of its own
 			}
@@ -326,7 +334,7 @@ func (e *engine) verify(out []byte) string {
 		}
 		if e.kind(k) == syntax.TOpenTag && strings.TrimSpace(txt) != strings.TrimSpace(e.orig(k)) {
 			flush()
-			for _, t := range significant([]byte(txt), e.php) {
+			for _, t := range significant([]byte(txt), e.lex) {
 				want = append(want, t)
 				wantText = append(wantText, txt[t.Start:t.End])
 			}
@@ -357,8 +365,8 @@ func (e *engine) verify(out []byte) string {
 			return fmt.Sprintf("token %d reads %q instead of %q", i, out[t.Start:t.End], wantText[i])
 		}
 	}
-	if f := syntax.Parse("", out, syntax.Options{Version: e.php, Permissive: true}); len(f.Errors) > 0 {
-		if g := syntax.Parse("", e.src, syntax.Options{Version: e.php, Permissive: true}); len(g.Errors) < len(f.Errors) {
+	if f := syntax.Parse("", out, syntax.Options{Version: e.lex, Permissive: true}); len(f.Errors) > 0 {
+		if g := syntax.Parse("", e.src, syntax.Options{Version: e.lex, Permissive: true}); len(g.Errors) < len(f.Errors) {
 			return "syntax error"
 		}
 	}

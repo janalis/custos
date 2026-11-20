@@ -13,10 +13,41 @@ import (
 )
 
 // divergence is a reference rule custos deliberately does not satisfy. Rule
-// is a name or a path.Match pattern (`phpdoc_*`).
+// is a name or a path.Match pattern (`phpdoc_*`); File, when set, limits it
+// to the findings in files whose path ends with it, for a reference rule
+// that is right elsewhere.
 type divergence struct {
 	Rule   string `json:"rule"`
+	File   string `json:"file,omitempty"`
 	Reason string `json:"reason"`
+}
+
+// ruleWide returns the divergences that hold in every file.
+func ruleWide(div []divergence) []divergence {
+	var out []divergence
+	for _, d := range div {
+		if d.File == "" {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// inFile reports whether a divergence limited to a file covers f. A
+// finding of Pint names every fixer it ran on the file, some with no net
+// change: one of them is enough.
+func inFile(div []divergence, f finding) bool {
+	for _, d := range div {
+		if d.File == "" || !strings.HasSuffix(f.File, d.File) {
+			continue
+		}
+		for rule := range strings.SplitSeq(f.Rule, ",") {
+			if ok, _ := path.Match(d.Rule, rule); ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func isPattern(rule string) bool { return strings.ContainsAny(rule, `*?[\`) }
@@ -46,7 +77,7 @@ func loadDivergences(file string) (map[string][]divergence, error) {
 
 // divergent returns the reason why rule is a divergence ("" when it is not).
 func divergent(div []divergence, rule string) string {
-	for _, d := range div {
+	for _, d := range ruleWide(div) {
 		if ok, _ := path.Match(d.Rule, rule); ok { // patterns are checked on load
 			return d.Reason
 		}
@@ -96,14 +127,18 @@ func summarize(corpus, preset string, ck checker, before, after, gated []finding
 		rc := count(f.Rule)
 		rc.After++
 		switch {
-		case rc.Divergent != "":
+		case rc.Divergent != "" || inFile(div, f):
 			oc.Divergent++
 		case ck.gate == nil:
 			oc.Findings = append(oc.Findings, f)
 		}
 	}
 	if ck.gate != nil {
-		oc.Findings = append(oc.Findings, gated...)
+		for _, f := range gated {
+			if !inFile(div, f) {
+				oc.Findings = append(oc.Findings, f)
+			}
+		}
 	}
 	oc.Remaining = len(oc.Findings)
 	for _, rc := range counts {
@@ -123,15 +158,16 @@ func summarize(corpus, preset string, ck checker, before, after, gated []finding
 func printText(w io.Writer, outcomes []outcome, examples int) {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "corpus\tpreset\tchecker\tbefore\tafter\tdivergent\tremaining")
-	gated := false
+	var notes []string
 	for _, oc := range outcomes {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%d\t%d\t%d\n", oc.Corpus, oc.Preset, oc.Checker, oc.Before, oc.After, oc.Divergent, oc.Remaining)
-		gated = gated || checkers[oc.Preset].gate != nil
+		if note := checkers[oc.Preset].note; note != "" && !slices.Contains(notes, note) {
+			notes = append(notes, note)
+		}
 	}
 	_ = tw.Flush() // writes to w, whose errors the caller cannot act on
-	if gated {
-		fmt.Fprintln(w, "\nlaravel: remaining counts the files whose code (docblocks aside) Pint's fix changes with the divergent fixers off;")
-		fmt.Fprintln(w, "the other fixers Pint reports there change nothing in the end.")
+	if len(notes) > 0 {
+		fmt.Fprintf(w, "\n%s\n", strings.Join(notes, "\n"))
 	}
 	for _, oc := range outcomes {
 		if oc.Remaining == 0 {
