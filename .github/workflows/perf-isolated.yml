@@ -5,6 +5,9 @@ name: perf-isolated
 # run gives the same output, and uploads CPU and allocation profiles of the
 # branch. A branch meant to change findings passes -f output=own: each binary
 # must then give the same output on every run, not the same as the other.
+# To time a configuration, pass -f config=<custos.json in the repository>:
+# the candidate then analyses a copy of each corpus holding it (for custom
+# rules: -f config=bench/custom-rules/custos.json -f base=<the same branch>).
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +20,9 @@ on:
         type: choice
         options: [same, own]
         default: same
+      config:
+        description: A custos.json of the repository the candidate alone runs with (output is then compared per binary)
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -54,6 +60,7 @@ jobs:
         env:
           GOMAXPROCS: "4"
           OUTPUT: ${{ inputs.output }}
+          CONFIG: ${{ inputs.config }}
         run: |
           python3 - <<'PY'
           import hashlib, json, os, pathlib, shutil, statistics, subprocess, tempfile, time
@@ -72,9 +79,17 @@ jobs:
               directory = root / '.cache/bench/corpora' / corpus
               metadata['commits'][corpus] = subprocess.check_output(['git', '-C', str(directory), 'rev-parse', 'HEAD'], text=True).strip()
           (output / 'metadata.json').write_text(json.dumps(metadata, indent=2))
+          config = os.environ.get('CONFIG', '')
+          metadata['config'] = config
+          (output / 'metadata.json').write_text(json.dumps(metadata, indent=2))
           results = []
           for corpus in ['guzzle', 'composer', 'laravel']:
-              os.chdir(root / '.cache/bench/corpora' / corpus)
+              # The candidate runs on a copy holding the configuration, if any.
+              dirs = {name: root / '.cache/bench/corpora' / corpus for name in binaries}
+              if config:
+                  dirs['head'] = pathlib.Path(os.environ['RUNNER_TEMP']) / f'configured-{corpus}'
+                  shutil.copytree(dirs['base'], dirs['head'], symlinks=True)
+                  shutil.copyfile(root / config, dirs['head'] / 'custos.json')
               outputs = {}
               # warm: analyse with the cache, kept per binary (its key covers
               # the binary); run 0 fills it and the medians leave it out. Its
@@ -88,6 +103,7 @@ jobs:
                           command = 'analyse' if mode == 'warm' else mode
                           argv = [str(binaries[name]), command] + ([] if mode == 'warm' else ['-no-cache']) + (['-format', 'json', '-fail-on', 'never'] if command == 'analyse' else ['-dry-run']) + ['src']
                           env = dict(os.environ, CUSTOS_CACHE_DIR=str(caches[name]))
+                          os.chdir(dirs[name])
                           with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
                               start = time.monotonic()
                               pid = os.posix_spawn(argv[0], argv, env, file_actions=[(os.POSIX_SPAWN_DUP2, stdout.fileno(), 1), (os.POSIX_SPAWN_DUP2, stderr.fileno(), 2)])
@@ -105,7 +121,7 @@ jobs:
                           digest = hashlib.sha256(data).hexdigest()
                           error_digest = hashlib.sha256(errors).hexdigest()
                           (output / f'{corpus}-{mode}-{name}-{run}.stderr').write_bytes(errors)
-                          key = (command, name) if os.environ.get('OUTPUT') == 'own' else command
+                          key = (command, name) if os.environ.get('OUTPUT') == 'own' or config else command
                           expected = outputs.setdefault(key, (digest, error_digest))
                           if (digest, error_digest) != expected:
                               raise RuntimeError((corpus, mode, name, run, 'output changed'))
@@ -116,10 +132,13 @@ jobs:
       - name: Profile the candidate
         env:
           GOMAXPROCS: "4"
+          CONFIG: ${{ inputs.config }}
         run: |
           out="$PWD/.cache/perf-isolated"
           for corpus in guzzle composer laravel; do
-            (cd ".cache/bench/corpora/$corpus" && taskset -c 0-3 "$OLDPWD/bin/custos" analyse -no-cache -format json -fail-on never -cpuprofile "$out/$corpus.cpu" -memprofile "$out/$corpus.mem" src > /dev/null)
+            dir=".cache/bench/corpora/$corpus"
+            if [ -n "$CONFIG" ]; then dir="$RUNNER_TEMP/configured-$corpus"; fi
+            (cd "$dir" && taskset -c 0-3 "$OLDPWD/bin/custos" analyse -no-cache -format json -fail-on never -cpuprofile "$out/$corpus.cpu" -memprofile "$out/$corpus.mem" src > /dev/null)
             go tool pprof -top -nodecount=40 bin/custos "$out/$corpus.cpu" > "$out/$corpus-cpu-top.txt" 2>&1
             go tool pprof -top -cum -show='^github.com/janalis/custos/' -nodecount=60 bin/custos "$out/$corpus.cpu" > "$out/$corpus-cpu-cum.txt" 2>&1
             go tool pprof -sample_index=alloc_space -top -nodecount=40 bin/custos "$out/$corpus.mem" > "$out/$corpus-alloc-top.txt" 2>&1

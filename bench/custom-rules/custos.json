@@ -1,0 +1,24 @@
+{
+  "customRules": [
+    {"id": "BenchNoDebugCall", "match": ["\\dump(...)", "\\dd(...)", "\\var_dump(...)", "\\print_r($X)"], "message": "Remove the debug call"},
+    {"id": "BenchLooseNull", "match": "$X == null", "message": "Compare $X with ===", "fix": "$X === null"},
+    {"id": "BenchLooseNotNull", "match": "$X != null", "message": "Compare $X with !==", "fix": "$X !== null"},
+    {"id": "BenchIsNull", "match": "\\is_null($X)", "message": "Compare with null", "fix": "$X === null"},
+    {"id": "BenchNewDateTime", "match": "new \\DateTime(...)", "message": "Use DateTimeImmutable"},
+    {"id": "BenchInArrayLoose", "match": "\\in_array($N, $H)", "message": "Pass strict to in_array", "fix": "\\in_array($N, $H, true)"},
+    {"id": "BenchArraySearchLoose", "match": "\\array_search($N, $H)", "message": "Pass strict to array_search", "fix": "\\array_search($N, $H, true)"},
+    {"id": "BenchCountZero", "match": ["\\count($X) == 0", "\\count($X) === 0"], "message": "Compare $X with []"},
+    {"id": "BenchStrlenZero", "match": ["\\strlen($X) == 0", "\\strlen($X) === 0"], "message": "Compare $X with ''"},
+    {"id": "BenchJsonEncode", "match": "\\json_encode($X)", "message": "Pass JSON_THROW_ON_ERROR"},
+    {"id": "BenchJsonDecode", "match": "\\json_decode($X, true)", "message": "Pass JSON_THROW_ON_ERROR"},
+    {"id": "BenchSprintfOnly", "match": "\\sprintf($F)", "message": "Drop the sprintf call"},
+    {"id": "BenchSelfCompare", "match": ["$X === $X", "$X !== $X"], "message": "Compare $X with something else"},
+    {"id": "BenchCallUserFunc", "match": ["\\call_user_func(...)", "\\call_user_func_array(...)"], "message": "Call the callable directly"},
+    {"id": "BenchFuncGetArgs", "match": "\\func_get_args()", "message": "Use variadic parameters"},
+    {"id": "BenchExtract", "match": ["\\extract(...)", "\\compact(...)"], "message": "Name the variables"},
+    {"id": "BenchArrayKeyExists", "match": "\\array_key_exists($K, $A)", "where": {"$A": {"type": "array"}}, "message": "Use isset when null is not stored"},
+    {"id": "BenchMergeInLoop", "match": "foreach ($A as $V) { $_; $R = \\array_merge($R, $M); $_; }", "message": "Merge once after the loop"},
+    {"id": "BenchSaveInLoop", "match": "$X->save()", "inside": "foreach ($A as $X) { $_; }", "message": "Save in one batch"},
+    {"id": "BenchThrowGeneric", "match": "throw new \\Exception(...)", "notInside": "try { $_; } catch (\\Exception $E) { $_; }", "message": "Throw a specific exception"}
+  ]
+}
