@@ -95,6 +95,7 @@ type Settings struct {
 	SplitMultilineArrays      bool
 	BranchComment             string // body, next
 	CaseComment               string // body, label
+	AssignmentChain           string // one, stairs
 	CaseBodyLine              bool
 	Visibility                string // all, methods_properties, keep
 	AnonymousClassSpace       string // one, none, keep
@@ -258,6 +259,7 @@ var registry = []*Setting{
 	{ID: "indent_size", Group: "file", Kind: KindInt, Max: 16, Description: "Columns per indentation level when indenting with spaces.", field: func(s *Settings) any { return &s.IndentSize }},
 	{ID: "tab_width", Group: "file", Kind: KindInt, Max: 16, Description: "Columns a tab counts for when measuring line length.", field: func(s *Settings) any { return &s.TabWidth }},
 	{ID: "continuation_indent", Group: "file", Kind: KindEnum, Values: []string{"one", "keep"}, Description: "Indentation of a line continuing a statement or list item: one level more than its first line (deeper levels written for nested operands are kept), or `keep` the offset written, alignment included.", field: func(s *Settings) any { return &s.ContinuationIndent }},
+	{ID: "assignment_chain", Group: "file", Kind: KindEnum, Values: []string{"one", "stairs"}, Description: "Indentation of a line starting with the `=` of a chained assignment written over several lines: one level more than the statement (`one`), or one level more than the line before (`stairs`).", field: func(s *Settings) any { return &s.AssignmentChain }},
 	{ID: "line_ending", Group: "file", Kind: KindEnum, Values: []string{"lf", "crlf", "cr", "keep"}, Description: "Line break written between lines outside strings; `keep` uses the file's first line break.", field: func(s *Settings) any { return &s.LineEnding }},
 	{ID: "final_newline", Group: "file", Kind: KindBool, Description: "End a file of PHP code with exactly one line break.", field: func(s *Settings) any { return &s.FinalNewline }},
 	{ID: "trim_trailing_whitespace", Group: "file", Kind: KindBool, Description: "Remove spaces and tabs at the end of lines outside strings and inline HTML.", field: func(s *Settings) any { return &s.TrimTrailingWhitespace }},

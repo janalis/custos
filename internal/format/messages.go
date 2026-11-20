@@ -36,6 +36,7 @@ var messages = map[string]string{
 	"split_multiline_arrays":           "Put each item of the array on its own line",
 	"branch_comment":                   "Fix the indentation",
 	"case_comment":                     "Fix the indentation",
+	"assignment_chain":                 "Fix the indentation",
 	"blank_line_after_trait_use":       "Leave a blank line after the trait imports",
 	"method_separation":                "Separate the method with one blank line",
 	"property_separation":              "Fix the blank line between properties",

@@ -133,6 +133,9 @@ func (e *engine) levelFor(k int, stack []openBracket) int {
 		// statement or item began; deeper continuations written for nested
 		// operands keep their extra depth.
 		depth := 1
+		if e.s.AssignmentChain == "stairs" && e.kind(k) == syntax.TEqual {
+			return e.lineOf[k-1] + 1 // each `=` one level deeper than the line before
+		}
 		if chain {
 			// A chain is indented once more than the line its receiver begins on.
 			if r := e.chainStart(k); r < k {

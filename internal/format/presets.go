@@ -37,7 +37,7 @@ var keepAll = map[string]any{
 	"import_order": "none", "import_groups": "none", "no_leading_import_slash": false,
 	"single_import_per_statement": false, "single_trait_per_statement": false, "parameter_attribute_line": false,
 	"visibility": "keep", "anonymous_class_space": "keep", "null_type_last": false, "case_body_line": false, "semicolon_line": "keep", "comment_spacing": false,
-	"hex_case": "keep", "blank_line_after_throw": true, "catch_type_space": "keep", "function_separation": false, "single_line_class_definition": false, "trim_bracket_blank_lines": false, "split_multiline_arrays": false, "branch_comment": "body", "case_comment": "body",
+	"hex_case": "keep", "blank_line_after_throw": true, "catch_type_space": "keep", "function_separation": false, "single_line_class_definition": false, "trim_bracket_blank_lines": false, "split_multiline_arrays": false, "branch_comment": "body", "case_comment": "body", "assignment_chain": "one",
 	"yoda": "keep", "single_quote": false, "remove_unused_imports": false, "declare_strict_types": false,
 	"increment_style": "keep", "heredoc_to_nowdoc": false, "ordered_traits": false,
 }
@@ -121,7 +121,7 @@ var presets = map[string]preset{
 			"class_open_blank_line": "one", "class_close_blank_line": "one", "binary_operator_space": "one",
 			"constant_case": "upper", "arrow_function_space": "keep", "trailing_comma": []string{"arrays", "destructuring", "parameters"},
 			"standardize_not_equals": true, "operator_linebreak": "keep", "import_groups": "none",
-			"method_separation": "one", "case_separation": true, "catch_type_space": "one", "function_separation": true, "split_multiline_arrays": true, "semicolon_line": "join", "case_comment": "label",
+			"method_separation": "one", "case_separation": true, "catch_type_space": "one", "function_separation": true, "split_multiline_arrays": true, "semicolon_line": "join", "case_comment": "label", "assignment_chain": "stairs",
 			"trim_block_blank_lines": false,
 		},
 		reference: "https://project.pages.drupalcode.org/coding_standards/php/coding/",

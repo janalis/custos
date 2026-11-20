@@ -35,6 +35,7 @@ preset applies only when risky settings are allowed (`--allow-risky` or `allowRi
 | `indent_size` | int | integer, 0 or more | Columns per indentation level when indenting with spaces. |
 | `tab_width` | int | integer, 0 or more | Columns a tab counts for when measuring line length. |
 | `continuation_indent` | enum | `one`, `keep` | Indentation of a line continuing a statement or list item: one level more than its first line (deeper levels written for nested operands are kept), or `keep` the offset written, alignment included. |
+| `assignment_chain` | enum | `one`, `stairs` | Indentation of a line starting with the `=` of a chained assignment written over several lines: one level more than the statement (`one`), or one level more than the line before (`stairs`). |
 | `line_ending` | enum | `lf`, `crlf`, `cr`, `keep` | Line break written between lines outside strings; `keep` uses the file's first line break. |
 | `final_newline` | bool | `true`, `false` | End a file of PHP code with exactly one line break. |
 | `trim_trailing_whitespace` | bool | `true`, `false` | Remove spaces and tabs at the end of lines outside strings and inline HTML. |
@@ -58,6 +59,7 @@ Preset values:
 | `indent_size` | `4` | `4` | `4` | `4` | `4` | `2` |
 | `tab_width` | `4` | `4` | `4` | `4` | `4` | `4` |
 | `continuation_indent` | `keep` | `one` | `one` | `one` | `one` | `one` |
+| `assignment_chain` | `one` | `one` | `one` | `one` | `one` | `stairs` |
 | `line_ending` | `keep` | `lf` | `lf` | `lf` | `lf` | `lf` |
 | `final_newline` | `false` | `true` | `true` | `true` | `true` | `true` |
 | `trim_trailing_whitespace` | `false` | `true` | `true` | `true` | `true` | `true` |
