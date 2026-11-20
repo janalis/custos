@@ -340,3 +340,26 @@ func TestList(t *testing.T) {
 		t.Errorf("%q", got)
 	}
 }
+
+// A file custos refuses to format remains, and the run goes on.
+func TestCheckPresetRefusal(t *testing.T) {
+	e := newEnv(t)
+	f := &fake{t: t}
+	s := &session{run: f.run, bench: filepath.Join(e.root, "bench"), tools: filepath.Join(e.root, "tools"), cpus: 2}
+	f.fail = func(c command) (result, error, bool) {
+		stderr := "custos: src/a.php: formatting would change the code; please report it, not formatted\ncustos: 1 file(s) could not be formatted\n"
+		return result{code: 2, stderr: []byte(stderr)}, nil, filepath.Base(c.name) == "custos"
+	}
+	c := corpus{Name: "c", Paths: []string{"src"}}
+	oc, err := s.checkPreset("custos", c, "psr12", filepath.Join(e.root, "bench", "corpora", "c"), filepath.Join(e.root, "out"), nil)
+	if err != nil || oc.Remaining == 0 || oc.Findings[0] != (finding{Rule: "custos", File: "src/a.php", Message: "formatting would change the code; please report it, not formatted"}) {
+		t.Fatalf("%v %+v", err, oc)
+	}
+}
+
+func TestRefusals(t *testing.T) {
+	got := refusals([]byte("custos: src/a.php: why\r\nnoise\ncustos: 2 file(s) could not be formatted\ncustos: dir: not php\n"))
+	if len(got) != 1 || got[0].File != "src/a.php" || got[0].Message != "why" {
+		t.Fatalf("%+v", got)
+	}
+}

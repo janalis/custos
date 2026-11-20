@@ -360,6 +360,9 @@ func (e *engine) strictTypes() {
 // orderTraits sorts the traits of a use statement, each name taking the
 // place of another; the separators and the adaptation block stay.
 func (e *engine) orderTraits(v *syntax.TraitUse) {
+	if e.s.SingleTraitPerStatement && len(v.Adaptations) == 0 {
+		return // split one trait per statement, which keeps their order
+	}
 	defer e.newGroup()()
 	sorted := slices.Clone(v.Traits)
 	slices.SortStableFunc(sorted, func(a, b *syntax.Name) int {

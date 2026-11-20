@@ -182,18 +182,33 @@ func TestPintGate(t *testing.T) {
 		return root
 	}
 	div := []divergence{{Rule: "yoda_style", Reason: "r"}, {Rule: "phpdoc_*", Reason: "r"}}
+	// gate returns a session whose PHP-CS-Fixer rule list is known.
+	gate := func(t *testing.T, r result, err error) *session {
+		s := failing(t, r, err)
+		s.fixerRules = []string{}
+		return s
+	}
 	t.Run("config", func(t *testing.T) {
 		root := setup(t)
 		var config string
 		s := failing(t, result{}, nil)
 		s.run = func(c command) (result, error) {
+			if c.args[0] == "list-rules" {
+				return result{stdout: sample(t, "csfixer-rules.json")}, nil
+			}
 			data, err := os.ReadFile(c.args[slices.Index(c.args, "--config")+1])
 			config = string(data)
-			return result{stdout: []byte(`{"result":"passed"}`)}, err
+			return result{stdout: []byte("Deprecated: noise\n" + `{"tool":"pint","result":"passed"}`)}, err
 		}
 		fs, err := s.pintGate(root, []string{"src"}, div)
-		if err != nil || len(fs) != 0 || config != `{"preset":"laravel","rules":{"yoda_style":false}}` {
+		// Patterns are turned off as the PHP-CS-Fixer rules they match.
+		if err != nil || len(fs) != 0 || !strings.Contains(config, `"yoda_style":false`) || !strings.Contains(config, `"phpdoc_trim":false`) {
 			t.Errorf("%+v %v %s", fs, err, config)
+		}
+	})
+	t.Run("rule list", func(t *testing.T) {
+		if _, err := failing(t, result{}, errors.New("boom")).pintGate(setup(t), []string{"src"}, nil); err == nil {
+			t.Error("no error")
 		}
 	})
 	t.Run("copy", func(t *testing.T) {
@@ -206,24 +221,28 @@ func TestPintGate(t *testing.T) {
 		if err := os.MkdirAll(root+"-pint.pint.json", 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := failing(t, result{}, nil).pintGate(root, []string{"src"}, nil); err == nil {
+		s := failing(t, result{}, nil)
+		s.fixerRules = []string{}
+		if _, err := s.pintGate(root, []string{"src"}, nil); err == nil {
 			t.Error("no error")
 		}
 	})
 	t.Run("pint", func(t *testing.T) {
-		if _, err := failing(t, result{}, errors.New("boom")).pintGate(setup(t), []string{"src"}, nil); err == nil {
+		s := failing(t, result{}, errors.New("boom"))
+		s.fixerRules = []string{}
+		if _, err := s.pintGate(setup(t), []string{"src"}, nil); err == nil {
 			t.Error("no error")
 		}
 	})
 	t.Run("missing before", func(t *testing.T) {
 		out := result{stdout: []byte(`{"result":"fixed","files":[{"path":"src/none.php","fixers":["x"]}]}`)}
-		if _, err := failing(t, out, nil).pintGate(setup(t), []string{"src"}, nil); err == nil {
+		if _, err := gate(t, out, nil).pintGate(setup(t), []string{"src"}, nil); err == nil {
 			t.Error("no error")
 		}
 	})
 	t.Run("missing after", func(t *testing.T) {
 		root := setup(t)
-		s := failing(t, result{}, nil)
+		s := gate(t, result{}, nil)
 		s.run = func(c command) (result, error) {
 			return result{stdout: []byte(`{"result":"fixed","files":[{"path":"src/A.php","fixers":["x"]}]}`)},
 				os.Remove(filepath.Join(c.dir, "src", "A.php"))

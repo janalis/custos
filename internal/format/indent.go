@@ -323,40 +323,29 @@ func (e *engine) origLevel(k int) int {
 }
 
 // sourceUnit is the width of one indentation level in the source: the
-// widest of 8, 4, 3 and 2 that divides the indentation of nearly every
-// line (in a file of few lines, the narrowest indentation when it is one
-// of them), else the configured one. A file indented by 4 keeps its depths
-// when it is reformatted with 2.
+// most frequent step (2, 3, 4 or 8 columns) by which a line is indented
+// more than the line before it, else the configured width. A file indented
+// by 4 keeps its depths when it is reformatted with 2.
 func (e *engine) sourceUnit() int {
 	if e.srcUnit > 0 {
 		return e.srcUnit
 	}
-	e.srcUnit = max(e.unit(), 1)
-	var widths []int
+	steps := map[int]int{}
+	prev := 0
 	for k := range e.sig {
 		if k > 0 && e.origStartsLine(k) {
-			if w := e.lineWidth(k); w > 0 {
-				widths = append(widths, w)
+			w := e.lineWidth(k)
+			if d := w - prev; d == 2 || d == 3 || d == 4 || d == 8 {
+				steps[d]++
 			}
+			prev = w
 		}
 	}
-	units := []int{8, 4, 3, 2}
-	if len(widths) < 8 {
-		if len(widths) > 0 && slices.Contains(units, slices.Min(widths)) {
-			e.srcUnit = slices.Min(widths)
-		}
-		return e.srcUnit
-	}
-	for _, u := range units {
-		n := 0
-		for _, w := range widths {
-			if w%u == 0 {
-				n++
-			}
-		}
-		if n*10 >= len(widths)*9 {
-			e.srcUnit = u
-			break
+	e.srcUnit = max(e.unit(), 1)
+	best := 0
+	for _, d := range []int{2, 3, 4, 8} { // a tie goes to the narrower step
+		if steps[d] > best {
+			e.srcUnit, best = d, steps[d]
 		}
 	}
 	return e.srcUnit
@@ -425,7 +414,7 @@ func (e *engine) branchComment(k int) bool {
 	}
 	// The first comment beginning a line; commentIndent runs only for one.
 	ps := e.gaps[k].pieces
-	i := slices.IndexFunc(ps, func(p piece) bool { return p.comment && e.beginsLine(p.start) })
+	i := max(slices.IndexFunc(ps, func(p piece) bool { return p.comment && e.beginsLine(p.start) }), 0)
 	return e.width(e.lineLeadAt(ps[i].start)) <= e.lineWidth(k)
 }
 

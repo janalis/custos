@@ -315,7 +315,7 @@ func (e *engine) joinFitting(out []byte) bool {
 	changed := false
 	for o := range e.sig {
 		if opener(e.kind(o)) && e.alreadySplit(o) {
-			changed = e.joinList(o, out, "join_fitting_lists") || changed
+			changed = e.joinList(o, o, out, "join_fitting_lists") || changed
 		}
 	}
 	return changed
@@ -323,12 +323,15 @@ func (e *engine) joinFitting(out []byte) bool {
 
 // joinList writes the list opened at o on one line when it fits, holds no
 // comment and no line break of its own, and reports whether it did.
-func (e *engine) joinList(o int, out []byte, rule string) bool {
+func (e *engine) joinList(o, lead int, out []byte, rule string) bool {
 	if !e.splittable(o) {
 		return false
 	}
 	c := e.match[o]
 	its := append(e.items(o), c)
+	if lead < o {
+		its = append(its, o) // o goes on the line of lead too
+	}
 	for k := o + 1; k < c; k++ {
 		if e.startsLine(k) && !slices.Contains(its, k) {
 			return false // a nested line break
@@ -338,10 +341,27 @@ func (e *engine) joinList(o int, out []byte, rule string) bool {
 	if e.kind(c-1) == syntax.TComma {
 		trailing = c - 1
 	}
-	if e.joinedWidth(o, c, trailing, out) > e.s.LineLength {
+	if e.joinedWidth(lead, c, trailing, out) > e.s.LineLength {
 		return false
 	}
 	return e.join(its, trailing, rule)
+}
+
+// anonClassParen reports whether the parenthesis k opens the arguments of
+// an anonymous class: new, attributes and readonly may come before class.
+func (e *engine) anonClassParen(k int) bool {
+	if e.kind(k-1) != syntax.TClass {
+		return false
+	}
+	for j := k - 2; ; j-- { // stops at the opening tag at the latest
+		switch kd := e.kind(j); {
+		case kd == syntax.TReadonly:
+		case closer(kd) && e.match[j] >= 0 && e.kind(e.match[j]) == syntax.TAttribute:
+			j = e.match[j]
+		default:
+			return kd == syntax.TNew
+		}
+	}
 }
 
 // join puts units on the line before them, removing the unit drop when it
@@ -372,15 +392,27 @@ func (e *engine) classDefinitions(out []byte) bool {
 			for last+1 < len(e.sig) && (e.kind(last+1) == syntax.TComma || e.kind(last+1) != syntax.TLBrace && e.kind(last) == syntax.TComma) {
 				last++
 			}
-			if e.commentIn(k+1, last) || e.joinedWidth(k, last, -1, out) > e.s.LineLength {
+			if e.commentIn(k, last) || e.joinedWidth(k-1, last, -1, out) > e.s.LineLength {
 				continue
 			}
-			changed = e.join(e.span(k+1, last), -1, "single_line_class_definition") || changed
-		case kd == syntax.TLParen && k > 1 && e.kind(k-1) == syntax.TClass && e.kind(k-2) == syntax.TNew:
-			changed = e.joinList(k, out, "single_line_class_definition") || changed
+			changed = e.join(e.span(k, last), -1, "single_line_class_definition") || changed
+		case kd == syntax.TLParen && e.anonClassParen(k) && !e.gaps[k].comment:
+			changed = e.joinList(k, k-1, out, "single_line_class_definition") || changed
 		}
 	}
 	return changed
+}
+
+// hasClassDefinition reports whether the file holds extends, implements or
+// the arguments of an anonymous class, which single_line_class_definition
+// lays out.
+func (e *engine) hasClassDefinition() bool {
+	for k := range e.sig {
+		if kd := e.kind(k); kd == syntax.TImplements || kd == syntax.TExtends || kd == syntax.TLParen && e.anonClassParen(k) {
+			return true
+		}
+	}
+	return false
 }
 
 // commentIn reports whether a gap before units a to b holds a comment.
@@ -441,7 +473,7 @@ func (e *engine) layout() {
 	if e.s.ParameterAttributeLine && e.parameterAttributes() {
 		e.indentation()
 	}
-	if e.s.SingleLineClassDefinition {
+	if e.s.SingleLineClassDefinition && e.hasClassDefinition() {
 		if out, _ := e.emit(); e.classDefinitions(out) {
 			e.indentation()
 		}

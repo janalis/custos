@@ -282,21 +282,30 @@ func fixerGate(set string) func(*session, string, []string, []divergence) ([]fin
 		if err != nil {
 			return nil, err
 		}
-		rules := map[string]bool{set: true}
-		for _, d := range ruleWide(div) {
-			if !isPattern(d.Rule) {
-				rules[d.Rule] = false // an unknown name fails the run
-				continue
-			}
-			for _, name := range known {
-				if ok, _ := path.Match(d.Rule, name); ok { // patterns are checked on load
-					rules[name] = false
-				}
-			}
-		}
+		rules := offRules(known, div)
+		rules[set] = true
 		data, _ := json.Marshal(rules) // plain values
 		return s.fixer(string(data), root, paths)
 	}
+}
+
+// offRules turns off the fixers of the rule-wide divergences: a name as
+// written (an unknown one fails the run), a pattern as the known names it
+// matches.
+func offRules(known []string, div []divergence) map[string]bool {
+	rules := map[string]bool{}
+	for _, d := range ruleWide(div) {
+		if !isPattern(d.Rule) {
+			rules[d.Rule] = false
+			continue
+		}
+		for _, name := range known {
+			if ok, _ := path.Match(d.Rule, name); ok { // patterns are checked on load
+				rules[name] = false
+			}
+		}
+	}
+	return rules
 }
 
 // listFixerRules returns the names of every rule of the installed
@@ -391,6 +400,9 @@ func parsePint(out []byte) ([]pintFile, error) {
 		Result string     `json:"result"`
 		Files  []pintFile `json:"files"`
 	}
+	if i := bytes.Index(out, []byte(`{"tool"`)); i > 0 {
+		out = out[i:] // PHP may print notices before the report
+	}
 	if err := json.Unmarshal(out, &report); err != nil {
 		return nil, err
 	}
@@ -433,7 +445,8 @@ func (s *session) pintTest(root string, paths []string) ([]finding, error) {
 }
 
 // pintGate fixes a copy of the formatted code at root with Pint, the
-// divergent fixers turned off (patterns cannot be: they are left on), and
+// divergent fixers turned off (patterns as the PHP-CS-Fixer rules they
+// match, which Pint runs), and
 // reports each file whose code, docblocks aside, Pint changed. Pint names
 // some fixers on files whose net change is nil; this ignores them.
 func (s *session) pintGate(root string, paths []string, div []divergence) ([]finding, error) {
@@ -441,12 +454,11 @@ func (s *session) pintGate(root string, paths []string, div []divergence) ([]fin
 	if err := copyCorpus(root, fixed, paths); err != nil {
 		return nil, err
 	}
-	rules := map[string]bool{}
-	for _, d := range ruleWide(div) {
-		if !isPattern(d.Rule) {
-			rules[d.Rule] = false
-		}
+	known, err := s.listFixerRules()
+	if err != nil {
+		return nil, err
 	}
+	rules := offRules(known, div)
 	config := fixed + ".pint.json"
 	data, _ := json.Marshal(map[string]any{"preset": "laravel", "rules": rules}) // plain values
 	if err := os.WriteFile(config, data, 0o644); err != nil {

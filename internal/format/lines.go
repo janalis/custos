@@ -171,8 +171,10 @@ func (e *engine) braceLines(k int) {
 		if oneLine {
 			e.setNL(k+1, 1, "brace_body")
 		}
-		if e.leadBreaks(&e.gaps[c]) == 0 && !e.gaps[c].comment {
+		if g := &e.gaps[c]; !g.comment && e.leadBreaks(g) == 0 {
 			e.setNL(c, 1, "brace_body")
+		} else if g.comment && g.tailNL == 0 && !g.frozen {
+			e.setTail(c, 1, "brace_body") // a block comment ends the last line: the brace gets one of its own
 		}
 	}
 	if b == brClass || b == brAnonClass {

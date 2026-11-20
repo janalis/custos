@@ -25,3 +25,8 @@ $y = new class(
     ],
 ) {
 };
+$y = new readonly class($a) {};
+$z = new #[A] class($a) {};
+class D extends B implements C
+{
+}

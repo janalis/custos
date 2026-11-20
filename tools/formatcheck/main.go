@@ -210,7 +210,8 @@ func (s *session) checkPreset(custos string, c corpus, p, orig, dir string, div 
 	if err != nil {
 		return outcome{}, err
 	}
-	if res.code != 0 {
+	refused := refusals(res.stderr)
+	if res.code != 0 && len(refused) == 0 {
 		return outcome{}, toolError(custos, res, errors.New("formatting failed"))
 	}
 	before, err := ck.check(s, orig, c.Paths)
@@ -227,7 +228,24 @@ func (s *session) checkPreset(custos string, c corpus, p, orig, dir string, div 
 			return outcome{}, err
 		}
 	}
-	return summarize(c.Name, p, ck, before, after, gated, div), nil
+	oc := summarize(c.Name, p, ck, before, after, gated, div)
+	oc.Findings = append(refused, oc.Findings...) // files custos left as written remain to fix
+	oc.Remaining = len(oc.Findings)
+	return oc, nil
+}
+
+// refusals reads the files custos format refused to change from its
+// standard error, `custos: <file>: <reason>`, as findings of rule custos.
+func refusals(stderr []byte) []finding {
+	var fs []finding
+	for line := range strings.Lines(string(stderr)) {
+		rest, ok := strings.CutPrefix(strings.TrimRight(line, "\r\n"), "custos: ")
+		file, reason, found := strings.Cut(rest, ": ")
+		if ok && found && strings.HasSuffix(file, ".php") {
+			fs = append(fs, finding{Rule: "custos", File: file, Message: reason})
+		}
+	}
+	return fs
 }
 
 // copyCorpus copies the given paths of src into dst. The corpus's

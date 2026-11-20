@@ -15,3 +15,8 @@ $g = function () { return 1; };
     {}
     ;
 });
+if ($a) {
+    foo(); /* c */
+} else {
+    foo();
+}
