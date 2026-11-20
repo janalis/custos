@@ -16,15 +16,23 @@ import (
 // methods must stay linear in n (it rescanned the whole class per lookup,
 // 4.8 s on Moodle's 900 KB tcpdf.php).
 func TestPossibleValuesCompletePropertiesLinear(t *testing.T) {
-	small, large := propertyLookupTime(t, 300), propertyLookupTime(t, 1200)
-	ratio := float64(large) / float64(small)
-	t.Logf("300: %v, 1200: %v (x%.1f)", small, large, ratio)
+	// Runs alternate between the sizes, so that both see the same load,
+	// and the fastest run of each counts.
+	small, large := propertyLookup(t, 300), propertyLookup(t, 1200)
+	bestSmall, bestLarge := time.Duration(1<<63-1), time.Duration(1<<63-1)
+	for range 7 {
+		bestSmall, bestLarge = min(bestSmall, small()), min(bestLarge, large())
+	}
+	ratio := float64(bestLarge) / float64(bestSmall)
+	t.Logf("300: %v, 1200: %v (x%.1f)", bestSmall, bestLarge, ratio)
 	if ratio > 9 {
 		t.Errorf("4x more methods took x%.1f longer (super-linear)", ratio)
 	}
 }
 
-func propertyLookupTime(t *testing.T, n int) time.Duration {
+// propertyLookup returns a function timing one resolution of every
+// `$this->p` probe in a class of n methods.
+func propertyLookup(t *testing.T, n int) func() time.Duration {
 	t.Helper()
 	var b strings.Builder
 	b.WriteString("<?php class C {\n")
@@ -32,9 +40,9 @@ func propertyLookupTime(t *testing.T, n int) time.Duration {
 		fmt.Fprintf(&b, "private $p%d = 'd';\nfunction m%d() { $this->p%d = 'e'; $x = 1; $y = [$x, $x, $x]; probe($this->p%d); }\n", i, i, i, i)
 	}
 	b.WriteString("}\n")
-	best := time.Duration(1<<63 - 1)
-	for run := 0; run < 5; run++ {
-		f := Parse(t, b.String())
+	src := b.String()
+	return func() time.Duration {
+		f := Parse(t, src)
 		var probes []syntax.Expr
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if c, ok := n.(*syntax.FuncCall); ok && astquery.CallLastName(c) == "probe" {
@@ -50,7 +58,6 @@ func propertyLookupTime(t *testing.T, n int) time.Duration {
 				t.Fatalf("%s: %d values, complete=%v", Text(f, p), len(vals), ok)
 			}
 		}
-		best = min(best, time.Since(start))
+		return time.Since(start)
 	}
-	return best
 }
