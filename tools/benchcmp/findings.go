@@ -168,20 +168,31 @@ func magoFormatFiles(out []byte) (int, error) {
 
 // pintFiles counts the files `pint --test --format=json` would change; it
 // lists none when every file passes. Notices PHP prints first may hold
-// braces, so the report is looked up by its tool key.
+// braces, so the report is looked up by its first key.
 func pintFiles(out []byte) (int, error) {
 	var r struct {
-		Result string            `json:"result"`
+		Result string            `json:"result"` // Pint's own report
+		About  string            `json:"about"`  // PHP-CS-Fixer's
 		Files  []json.RawMessage `json:"files"`
 	}
-	if i := bytes.Index(out, []byte(`{"tool"`)); i > 0 {
-		out = out[i:]
-	}
+	out = pintReport(out)
 	if err := decode(out, &r); err != nil {
 		return 0, err
 	}
-	if r.Result == "" {
+	if r.Result == "" && r.About == "" {
 		return 0, errors.New("no result in output")
 	}
 	return len(r.Files), nil
+}
+
+// pintReport returns Pint's JSON report from its output, past any PHP
+// notice. Pint prints its own report (`{"tool":"pint",...}`) when it finds
+// an AI agent in its environment, PHP-CS-Fixer's (`{"about":...}`) else.
+func pintReport(out []byte) []byte {
+	for _, start := range []string{`{"tool"`, `{"about"`} {
+		if i := bytes.Index(out, []byte(start)); i > 0 {
+			return out[i:]
+		}
+	}
+	return out
 }

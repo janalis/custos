@@ -44,6 +44,8 @@ func TestParsers(t *testing.T) {
 		{"pint", `{"tool":"pint","result":"passed"}`, 0, false},
 		{"pint", "Deprecated: f(): {x} is deprecated\n" + `{"tool":"pint","result":"fail","files":[{"path":"a.php","fixers":[]}]}`, 1, false},
 		{"pint", `{"tool":"pint"}`, 0, true},
+		{"pint", "Deprecated: x\n" + `{"about":"PHP CS Fixer","files":[{"name":"a.php"},{"name":"b.php"}],"time":{"total":0}}`, 2, false},
+		{"pint", `{"about":"PHP CS Fixer","files":[]}`, 0, false},
 		{"pint", `x`, 0, true},
 	} {
 		got, err := parsers[tc.parser]([]byte(tc.out))

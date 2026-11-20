@@ -391,23 +391,37 @@ func firstChange(diff string) (int, string, string) {
 type pintFile struct {
 	Path   string   `json:"path"`
 	Fixers []string `json:"fixers"`
+	// PHP-CS-Fixer's report names the same as name and appliedFixers.
+	Name          string   `json:"name"`
+	AppliedFixers []string `json:"appliedFixers"`
 }
 
-// parsePint reads Pint's JSON report: its result, and the files it would
-// change or changed with their fixers.
+// parsePint reads Pint's JSON report: the files it would change or changed
+// with their fixers. Pint prints its own report (`{"tool":"pint",...}`)
+// when it finds an AI agent in its environment, PHP-CS-Fixer's
+// (`{"about":...}`, fixers listed with -v) else; PHP may print notices first.
 func parsePint(out []byte) ([]pintFile, error) {
 	var report struct {
 		Result string     `json:"result"`
+		About  string     `json:"about"`
 		Files  []pintFile `json:"files"`
 	}
-	if i := bytes.Index(out, []byte(`{"tool"`)); i > 0 {
-		out = out[i:] // PHP may print notices before the report
+	for _, start := range []string{`{"tool"`, `{"about"`} {
+		if i := bytes.Index(out, []byte(start)); i > 0 {
+			out = out[i:]
+			break
+		}
 	}
 	if err := json.Unmarshal(out, &report); err != nil {
 		return nil, err
 	}
-	if report.Result == "" {
+	if report.Result == "" && report.About == "" {
 		return nil, errors.New("no result")
+	}
+	for i, f := range report.Files {
+		if f.Path == "" {
+			report.Files[i].Path, report.Files[i].Fixers = f.Name, f.AppliedFixers
+		}
 	}
 	return report.Files, nil
 }
@@ -416,7 +430,7 @@ func parsePint(out []byte) ([]pintFile, error) {
 func (s *session) pint(root string, args, paths []string) ([]pintFile, error) {
 	bin := s.pintBin()
 	// A cache file of the copy's own, not shared with other runs.
-	args = append(args, "--format=json", "--cache-file="+root+".pint-cache")
+	args = append(args, "-v", "--format=json", "--cache-file="+root+".pint-cache")
 	r, err := s.run(command{dir: root, name: bin, args: append(args, paths...)})
 	if err != nil {
 		return nil, err

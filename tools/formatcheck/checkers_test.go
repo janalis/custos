@@ -119,6 +119,11 @@ func TestParsePint(t *testing.T) {
 			t.Errorf("%s: no error", bad)
 		}
 	}
+	// Outside an AI agent, Pint prints PHP-CS-Fixer's report.
+	out := "Deprecated: x\n" + `{"about":"PHP CS Fixer","files":[{"name":"src\/a.php","appliedFixers":["braces_position","concat_space"],"diff":"-"}],"time":{"total":0}}`
+	if files, err := parsePint([]byte(out)); err != nil || len(files) != 1 || files[0].Path != "src/a.php" || len(files[0].Fixers) != 2 {
+		t.Errorf("%+v %v", files, err)
+	}
 }
 
 func TestCodeChange(t *testing.T) {
