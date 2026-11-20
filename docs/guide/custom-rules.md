@@ -123,7 +123,8 @@ the code resolves it: a `regex` constraint tests the fully qualified name
 without its leading backslash (`App\Models\User` for `User` imported from
 `App\Models`), a name in `not` excludes the names resolving to it, and the
 same class written twice in different ways (`D` and `\B\D`) matches a
-repeated metavariable. Messages and quick-fixes use the name as written.
+repeated metavariable; `self`, `static` and `parent` repeat only as
+themselves. Messages and quick-fixes use the name as written.
 
 ### Statements
 

@@ -135,3 +135,27 @@ func TestPatternsJSON(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestSemanticCallees(t *testing.T) {
+	for _, tc := range []struct {
+		def      Definition
+		semantic bool
+	}{
+		{Definition{Match: Patterns{`$F(...)`}}, false},
+		{Definition{Match: Patterns{`$_(...)`}}, false},
+		{Definition{Match: Patterns{`$F(...)`}, Where: map[string]Where{"$F": {Regex: `^App`}}}, true},
+		{Definition{Match: Patterns{`$F($X)`}, Where: map[string]Where{"$F": {Not: Patterns{`$X`}}}}, true},
+		{Definition{Match: Patterns{`$F($X)`}, Where: map[string]Where{"$X": {Regex: `a`}}}, false},
+		{Definition{Match: Patterns{`$F($F)`}}, true},
+		{Definition{Match: Patterns{`$F()`}, Inside: Patterns{`function f() { $F(); $_; }`}}, true},
+	} {
+		tc.def.ID, tc.def.Message = "R", "m"
+		r, err := Compile(tc.def)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := r.(analysis.SemanticRule); ok != tc.semantic {
+			t.Errorf("%v: semantic %t", tc.def, ok)
+		}
+	}
+}

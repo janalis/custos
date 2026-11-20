@@ -236,11 +236,13 @@ func (r *rule) satisfied(m *matcher) bool {
 		b := m.lookup(name)
 		text := m.ctx.SpanText(b.span)
 		bound, isName := b.node.(*syntax.Name)
-		if isName {
-			text = m.fqn(bound, b.role) // a name as it resolves
-		}
-		if c.regex != nil && !c.regex.MatchString(text) {
-			return false
+		if c.regex != nil {
+			if isName {
+				text = m.fqn(bound, b.role) // a name as it resolves
+			}
+			if !c.regex.MatchString(text) {
+				return false
+			}
 		}
 		if b.seq {
 			if c.typed || len(c.not) > 0 {

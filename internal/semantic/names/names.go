@@ -147,15 +147,19 @@ func (r *Resolver) ScopeAt(offset uint32) *Scope {
 // alias: only then can resolving an unqualified name change its last
 // segment. Class and function aliases fold case; constant aliases do not.
 func (r *Resolver) Aliases(kind syntax.UseKind, alias string) bool {
+	folded := alias
+	if kind != syntax.UseConst {
+		folded = Fold(alias)
+	}
 	for _, s := range r.scopes {
 		var ok bool
 		switch kind {
 		case syntax.UseFunction:
-			_, ok = s.Functions[Fold(alias)]
+			_, ok = s.Functions[folded]
 		case syntax.UseConst:
-			_, ok = s.Consts[alias]
+			_, ok = s.Consts[folded]
 		default:
-			_, ok = s.Classes[Fold(alias)]
+			_, ok = s.Classes[folded]
 		}
 		if ok {
 			return true

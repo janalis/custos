@@ -6,7 +6,7 @@ name: perf-isolated
 # branch. A branch meant to change findings passes -f output=own: each binary
 # must then give the same output on every run, not the same as the other.
 # To time a configuration, pass -f config=<custos.json in the repository>:
-# the candidate then analyses a copy of each corpus holding it (for custom
+# the candidate then analyzes a copy of each corpus holding it (for custom
 # rules: -f config=bench/custom-rules/custos.json -f base=<the same branch>).
 on:
   workflow_dispatch:
@@ -78,7 +78,6 @@ jobs:
           for corpus in ['guzzle', 'composer', 'laravel']:
               directory = root / '.cache/bench/corpora' / corpus
               metadata['commits'][corpus] = subprocess.check_output(['git', '-C', str(directory), 'rev-parse', 'HEAD'], text=True).strip()
-          (output / 'metadata.json').write_text(json.dumps(metadata, indent=2))
           config = os.environ.get('CONFIG', '')
           metadata['config'] = config
           (output / 'metadata.json').write_text(json.dumps(metadata, indent=2))

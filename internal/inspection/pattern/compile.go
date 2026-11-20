@@ -213,6 +213,7 @@ func compile(d Definition) (*rule, error) {
 		}
 		r.where[name] = c
 	}
+	r.semantic = r.semantic || r.resolvesCallees()
 	if d.Fix != nil {
 		t, err := parseTemplate(*d.Fix)
 		if err != nil {
@@ -288,6 +289,53 @@ func resolvesNames(p *snippet) bool {
 		})
 	}
 	return found
+}
+
+// resolvesCallees reports a metavariable standing for a called function's
+// name whose resolved name counts: constrained by a regex or by names, or
+// repeated. An unqualified call in a namespace resolves to the namespace's
+// function when the project declares one, which only the project index
+// knows.
+func (r *rule) resolvesCallees() bool {
+	snippets := slices.Concat(r.patterns, r.inside)
+	for _, p := range snippets {
+		for _, root := range p.nodes() {
+			found := false
+			syntax.Inspect(root, func(n syntax.Node) bool {
+				call, ok := n.(*syntax.FuncCall)
+				if !ok {
+					return true
+				}
+				name := metaVarName(call.Name)
+				if name == "" || name == wildcard {
+					return true
+				}
+				c := r.where[name]
+				found = found || c != nil && (c.regex != nil || len(c.not) > 0) || occurrences(snippets, name) > 1
+				return !found
+			})
+			if found {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// occurrences counts the uses of metavariable name in snippets.
+func occurrences(snippets []*snippet, name string) int {
+	count := 0
+	for _, p := range snippets {
+		for _, root := range p.nodes() {
+			syntax.Inspect(root, func(n syntax.Node) bool {
+				if metaVarName(n) == name {
+					count++
+				}
+				return true
+			})
+		}
+	}
+	return count
 }
 
 // mergeWildcards keeps one `$_;` of each run: two in a row match what one

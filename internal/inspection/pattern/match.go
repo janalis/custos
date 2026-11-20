@@ -403,9 +403,17 @@ func (m *matcher) bind(name string, b binding) bool {
 	}
 	if pn, ok := prev.node.(*syntax.Name); ok {
 		if tn, ok := b.node.(*syntax.Name); ok {
-			// Two spellings of one name: an alias and the full name.
-			fqn := m.fqn(pn, prev.role)
-			return fqn != "" && strings.EqualFold(fqn, m.fqn(tn, b.role))
+			// Two spellings of one name: an alias and the full name. A
+			// function is not a class of the same name, and self, static
+			// and parent only equal themselves: static binds late, and self
+			// in a trait is the using class.
+			switch {
+			case prev.role != b.role:
+				return false
+			case names.IsSpecialClass(pn.Value) || names.IsSpecialClass(tn.Value):
+				return strings.EqualFold(pn.Value, tn.Value)
+			}
+			return strings.EqualFold(m.fqn(pn, prev.role), m.fqn(tn, b.role))
 		}
 	}
 	return astquery.EquivalentFoldNames(m.ctx.File, prev.node, b.node)
