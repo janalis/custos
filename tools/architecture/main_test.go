@@ -290,12 +290,12 @@ func TestPublicAPIBoundaries(t *testing.T) {
 }
 
 func TestAdapterBoundaries(t *testing.T) {
-	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/inspection/catalogue"}, {"internal/cli", "internal/editor/mcp"}, {"internal/testing/conformance", "internal/project"}, {"internal/inspection/pattern", "internal/inspection/semanticquery"}, {"pkg/custos", "internal/cli"}, {"pkg/custos", "pkg/custos/ast"}, {"pkg/custos/ast", "internal/php/syntax"}, {"internal/diagnostic/markup", "internal/diagnostic"}} {
+	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/inspection/catalogue"}, {"internal/cli", "internal/editor/mcp"}, {"internal/testing/conformance", "internal/project"}, {"internal/inspection/pattern", "internal/inspection/semanticquery"}, {"pkg/custos", "internal/cli"}, {"pkg/custos", "pkg/custos/ast"}, {"pkg/custos/ast", "internal/php/syntax"}, {"internal/diagnostic/markup", "internal/diagnostic"}, {"internal/format", "internal/php/syntax"}} {
 		if !allowed(pair[0], pair[1]) {
 			t.Error(pair)
 		}
 	}
-	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/editor/mcp"}, {"internal/editor/lsp", "internal/cli"}, {"internal/cli", "internal/testing/testbudget"}, {"internal/testing/conformance", "internal/editor/lsp"}, {"internal/unlisted", "internal/php/syntax"}, {"internal/inspection/pattern", "internal/project"}, {"internal/project", "pkg/custos"}, {"pkg/custos/ast", "internal/cli"}, {"pkg/custos", "internal/project"}, {"internal/diagnostic/markup", "internal/php/syntax"}} {
+	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/editor/mcp"}, {"internal/editor/lsp", "internal/cli"}, {"internal/cli", "internal/testing/testbudget"}, {"internal/testing/conformance", "internal/editor/lsp"}, {"internal/unlisted", "internal/php/syntax"}, {"internal/inspection/pattern", "internal/project"}, {"internal/project", "pkg/custos"}, {"pkg/custos/ast", "internal/cli"}, {"pkg/custos", "internal/project"}, {"internal/diagnostic/markup", "internal/php/syntax"}, {"internal/format/editorconfig", "internal/php/syntax"}, {"internal/format", "internal/project"}} {
 		if allowed(pair[0], pair[1]) {
 			t.Error(pair)
 		}

@@ -28,6 +28,8 @@ func sampleResults() *Results {
 				{ID: "lint", Label: "Lint", Kind: "linter", Version: "1.0.0", Status: "ok", Median: 1, PeakMB: 30, Findings: 7},
 				{ID: "quick", Label: "Quick", Kind: "linter", Version: "1.0.0", Status: "ok", Median: 0.02, PeakMB: 20, Findings: 9},
 				{ID: "fixer", Label: "Fixer", Kind: "fixer", Version: "1.0.0", Status: "ok", Median: 2, PeakMB: 50, Findings: 3},
+				{ID: "fmt", Label: "Fmt", Kind: "formatter", Version: "1.0.0", Status: "ok", Median: 3, PeakMB: 40, Findings: 5},
+				{ID: "custos-format", Label: "custos format", Kind: "formatter", Version: "1.0.0", Status: "ok", Median: 0.3, PeakMB: 60, Findings: 4},
 			},
 		}},
 	}

@@ -12,9 +12,10 @@ need. The [benchmark workflow](https://github.com/janalis/custos/actions/workflo
 numbers every week, with the latest release of every tool and project.
 
 ::: warning Different tools, different jobs
-Type checkers infer much more than custos, linters mostly check style, and fixers
-rewrite code. Compare times within a kind, and read finding counts only as a sign that
-a tool did its work: each counts what its own rules look for.
+Type checkers infer much more than custos, linters mostly check style, fixers
+rewrite code, and formatters only touch its layout. Compare times within a kind,
+and read finding counts only as a sign that a tool did its work: each counts what
+its own rules look for.
 :::
 
 Measured on 2026-11-09 on linux/amd64, Test CPU, 4 cores, 16 GB of memory, with PHP 8.4.1.
@@ -33,6 +34,8 @@ Each time is the median of 3 runs.
 | Quick | linter | 1.0.0 | 0.02 s | 0.04× | 20 MB | 9 |
 | Lint | linter | 1.0.0 | 1.00 s | 2.0× | 30 MB | 7 |
 | Fixer | fixer | 1.0.0 | 2.00 s | — | 50 MB | 3 |
+| **custos format** | formatter | 1.0.0 | 0.30 s | 1.0× | 60 MB | 4 |
+| Fmt | formatter | 1.0.0 | 3.00 s | 10× | 40 MB | 5 |
 
 ## Features
 
@@ -59,7 +62,11 @@ Checked against each tool's documentation on 2026-11-08; linked cells cite it.
   parallel workers.
 - Findings: problems reported by analyzers and linters, edits `custos fix` would
   apply, and files other fixers would change. Fixers run in dry-run mode.
+- Formatters run in check mode, so no file is written. Their findings count the
+  files whose layout does not match the style they were given (PER Coding Style
+  where the tool offers it), not the individual changes within each file.
 - *vs custos* divides a tool's time by the time of the custos command of the
-  same kind (`custos analyse`, or `custos fix` for fixers).
+  same kind (`custos analyse`, `custos fix` for fixers, `custos format` for
+  formatters).
 - Run it yourself with `make compare`; the tools, versions and projects are listed
   in [`bench/competitors.json`](https://github.com/janalis/custos/blob/develop/bench/competitors.json).

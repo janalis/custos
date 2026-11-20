@@ -64,6 +64,8 @@ type File struct {
 	// CustomRuleTests is the directory of the rules' fixtures (custos
 	// test-rules), relative to the root; default DefaultRuleTests.
 	CustomRuleTests string `json:"customRuleTests,omitempty"`
+	// Format configures custos format.
+	Format *FormatFile `json:"format,omitempty"`
 }
 
 // DefaultRuleTests is where custos test-rules looks for rule fixtures.
@@ -94,6 +96,7 @@ type Config struct {
 	Definitions     []pattern.Definition
 	CustomRuleFiles []string
 	CustomRuleTests string // fixtures directory, relative to the root
+	Format          FormatConfig
 }
 
 // DefaultExclude are directory names skipped during discovery.
@@ -123,6 +126,7 @@ func Resolve(root string, f File) (*Config, error) {
 }
 
 func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, error) {
+	var err error
 	c := &Config{Root: root, Paths: f.Paths, Baseline: f.Baseline, Exclude: append(append([]string{}, DefaultExclude...), f.Exclude...), Rules: map[string]analysis.RuleConfig{}}
 	// The configuration comes with the analyzed code: it must not point
 	// custos (and `custos fix`) at files outside the project.
@@ -198,6 +202,9 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 	}
 	if f.ParseOnce != nil {
 		c.ParseOnce = *f.ParseOnce
+	}
+	if c.Format, err = resolveFormat(f.Format, read); err != nil {
+		return nil, err
 	}
 	if err := c.compileCustom(f, read); err != nil {
 		return nil, err
@@ -366,7 +373,7 @@ func insideRoot(p string) bool {
 
 // Analysis returns the analysis.Config view.
 func (c *Config) Analysis() analysis.Config {
-	return analysis.Config{Flow: c.Flow, PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, TypeCheck: c.TypeCheck, Rules: c.Rules}
+	return analysis.Config{Flow: c.Flow, PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, TypeCheck: c.TypeCheck, Rules: c.Rules, Format: c.AnalysisFormat("")}
 }
 
 func findRoot(dir string) (string, error) {

@@ -221,7 +221,7 @@ func TestProtocolRevisions(t *testing.T) {
 			}
 			defer session.Close()
 			list, err := session.ListTools(ctx, nil)
-			if err != nil || len(list.Tools) != 9 {
+			if err != nil || len(list.Tools) != 10 {
 				t.Fatal(list, err)
 			}
 			result, err := session.CallTool(ctx, &sdk.CallToolParams{Name: "custos_analyze", Arguments: map[string]any{}})

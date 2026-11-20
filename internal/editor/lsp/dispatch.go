@@ -23,7 +23,9 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 			// metadata changes so the index world follows installs.
 			// JSON covers Composer's metadata, custos.json and the custom rule
 			// files, including those the configuration lists later.
-			watchers := []any{map[string]any{"globPattern": "**/*.php"}, map[string]any{"globPattern": "**/*.json"}}
+			// .editorconfig files set the format settings of the Formatting
+			// rule.
+			watchers := []any{map[string]any{"globPattern": "**/*.php"}, map[string]any{"globPattern": "**/*.json"}, map[string]any{"globPattern": "**/.editorconfig"}}
 			s.mu.Lock()
 			if p := baselinePath(s.cfg); p != "" {
 				watchers = append(watchers, map[string]any{"globPattern": "**/" + filepath.Base(p)})
@@ -122,6 +124,15 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 			return nil, &rpcError{Code: codeInvalidParams, Message: err.Error()}
 		}
 		return s.resolveAction(a)
+	case "textDocument/formatting", "textDocument/rangeFormatting":
+		var p formattingParams
+		if err := json.Unmarshal(m.Params, &p); err != nil {
+			return nil, &rpcError{Code: codeInvalidParams, Message: err.Error()}
+		}
+		if m.Method == "textDocument/rangeFormatting" && p.Range == nil {
+			return nil, &rpcError{Code: codeInvalidParams, Message: "rangeFormatting needs a range"}
+		}
+		return s.formatting(p), nil
 	case "workspace/executeCommand":
 		var p executeCommandParams
 		if err := json.Unmarshal(m.Params, &p); err != nil {

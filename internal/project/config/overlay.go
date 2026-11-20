@@ -42,6 +42,7 @@ func Overlay(base *Config, over File) (*Config, error) {
 	// What to analyze stays the project's choice.
 	merged.Paths, merged.Exclude, merged.Baseline = base.Paths, base.Exclude, base.Baseline
 	merged.CustomRuleFiles, merged.CustomRuleTests = base.CustomRuleFiles, base.CustomRuleTests
+	merged.Format = base.Format
 	// A client rule entry overrides the project's field by field.
 	for id, rc := range base.Rules {
 		over, ok := merged.Rules[id]

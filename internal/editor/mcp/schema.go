@@ -16,6 +16,7 @@ func toolSchema(name string) map[string]any {
 		"scope":     map[string]any{"type": "string", "enum": []string{"project", "vendor", "all"}, "description": "Defaults to all, or to project without a query."},
 		"action":    map[string]any{"type": "string", "enum": []string{"list", "resume", "delete"}, "default": "list"},
 		"iterative": map[string]any{"type": "boolean", "default": false},
+		"mode":      map[string]any{"type": "string", "enum": []string{"check", "preview", "apply"}, "default": "check", "description": "check lists the changes; preview returns diffs; apply writes the files."},
 		"choices":   map[string]any{"type": "array", "maxItems": 100, "items": map[string]any{"type": "object", "additionalProperties": false, "required": []string{"findingId", "fix"}, "properties": map[string]any{"findingId": map[string]any{"type": "string"}, "fix": map[string]any{"type": "integer", "minimum": 0, "description": "Zero-based index in the finding's fix choices."}}}},
 	}
 	selections := map[string][]string{
@@ -24,6 +25,7 @@ func toolSchema(name string) map[string]any {
 		"rules":    {"workspaceId", "query", "rule", "cursor", "limit"}, "symbols": {"workspaceId", "checkpointId", "query", "kind", "scope", "path", "cursor", "limit"},
 		"type": {"workspaceId", "checkpointId", "path", "line", "column", "offset"}, "prepare_fixes": {"workspaceId", "checkpointId", "planId", "choices", "iterative", "path", "rule", "cursor", "limit"},
 		"apply_fixes": {"workspaceId", "planId"}, "checkpoints": {"workspaceId", "checkpointId", "action", "cursor", "limit"},
+		"format": {"workspaceId", "paths", "mode", "cursor", "limit"},
 	}
 	required := map[string][]string{"findings": {"checkpointId"}, "symbols": {"checkpointId"}, "type": {"checkpointId", "path"}, "prepare_fixes": {"checkpointId"}, "apply_fixes": {"planId"}}
 	props := map[string]any{}

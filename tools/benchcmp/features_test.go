@@ -75,3 +75,18 @@ func TestLoadFeatures(t *testing.T) {
 		t.Errorf("missing file: %v", err)
 	}
 }
+
+// The committed comparison loads and renders every tool and row.
+func TestBenchFeatures(t *testing.T) {
+	f, err := loadFeatures("../../bench/features.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, got := range []string{f.table(), f.compact()} {
+		for _, want := range []string{"[Laravel Pint](https://laravel.com/docs/pint)", "| Formatter |", "| Line wrapping |", "| Formatting presets |", "| EditorConfig |", "| Range formatting (LSP) |"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("missing %q in:\n%s", want, got)
+			}
+		}
+	}
+}

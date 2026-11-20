@@ -57,7 +57,19 @@ Fix one rule at a time if you want small, reviewable commits:
 custos fix --rule UnnecessarySemicolon src
 ```
 
-## 3. Configure
+## 3. Format
+
+Lay out the code following a style preset (PER by default, or the style of
+your Pint, PHP-CS-Fixer or Mago configuration):
+
+```sh
+custos format --check
+custos format
+```
+
+See [Formatting](./formatting).
+
+## 4. Configure
 
 Create a `custos.json` at the project root to pin the PHP version, choose
 paths, and turn rules on or off:
@@ -74,7 +86,7 @@ paths, and turn rules on or off:
 
 See [Configuration](./configuration).
 
-## 4. Adopt on legacy code
+## 5. Adopt on legacy code
 
 On an existing code base, record the current findings in a
 [baseline](./suppressing#baseline) so that only new ones are reported:
@@ -83,7 +95,7 @@ On an existing code base, record the current findings in a
 custos analyse --generate-baseline custos-baseline.json
 ```
 
-## 5. Wire it in
+## 6. Wire it in
 
 - CI: [GitHub Actions, GitLab and others](./ci).
 - Editor: [diagnostics and quick-fixes as you type](./editors).

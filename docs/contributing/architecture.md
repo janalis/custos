@@ -21,6 +21,8 @@ summarize the same responsibilities.
 | `internal/inspection/semanticquery` | Resolved calls, classes, hierarchies, types, native-function contracts and inspection fix decisions. |
 | `internal/inspection/pattern` | Custom rules a project declares: pattern compilation, matching on resolved names, constraints and fix templates. |
 | `internal/inspection/phpunit` | Shared assertion-call shapes, method spelling and PHPUnit version detection. |
+| `internal/format` | The formatter behind `custos format`, LSP formatting, MCP `custos_format` and the Formatting rule: the settings registry (`settings.go`: ID, group, kind, values, description, risky flag) and the presets (`presets.go`); a one-pass gap engine that decides, from the token stream and the syntax tree, the whitespace between every two significant tokens and the token rewrites, and returns the output with the list of changes that produce it; and a safety check that leaves a file as written unless its output holds the same tokens (apart from the rewrites) and no new syntax error. |
+| `internal/format/editorconfig` | EditorConfig parser, glob matcher and per-file property resolution; IO goes through a caller-supplied reader. |
 | `internal/diagnostic` | Severity, findings, lazy fixes, edits, file results and positioned items. |
 | `internal/fixing` | Conflict detection, edit application and bounded iterative fixing. |
 | `internal/project` | Discovery, bounded reading, indexing and flow snapshots, buffer analysis, project reporting and prepared file fixes; `config` and `baseline` subpackages. |
@@ -692,6 +694,8 @@ to exercise complete execution paths.
   invalidation have separate files in the same package and share existing caches.
 - Add a fix to its inspection using diagnostic edits. Generic conflict/application
   changes belong in `fixing`; project preparation and adapter writes stay separate.
+- Add a format setting in `internal/format`; see
+  [Adding a format setting](./index#adding-a-format-setting).
 - Add an output adapter in `output/report` using positioned diagnostic items.
   Core analysis and baselines do not depend on reporting.
 - Extend syntax in `php/syntax`, then regenerate node kinds with
@@ -702,7 +706,9 @@ to exercise complete execution paths.
 
 `make rules-doc` regenerates `inspection/meta/descriptions.json`
 (`tools/genexplain`), the public rule reference and sidebar
-(`tools/rulesref`) and the internal status table (`tools/rulesdoc`). They
+(`tools/rulesref`), the internal status table (`tools/rulesdoc`) and the
+format settings reference `docs/guide/format-settings.md` (`tools/formatdoc`,
+from the settings registry and presets). They
 read specs through `tools/internal/specmd`, which also makes spec text
 readable for users (see [Adding a rule](./adding-a-rule#_1-the-spec)).
 `make stubs` rebuilds embedded semantic assets; rerun it whenever a change to

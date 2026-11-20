@@ -12,6 +12,9 @@ on:
       - "CHANGELOG.md"
       - "internal/inspection/meta/**"
       - "tools/rulesref/**"
+      - "tools/formatdoc/**"
+      - "internal/format/settings.go"
+      - "internal/format/presets.go"
       - "tools/internal/**"
       - "tools/benchcmp/**"
       - "bench/results.json"
@@ -25,6 +28,9 @@ on:
       - "CHANGELOG.md"
       - "internal/inspection/meta/**"
       - "tools/rulesref/**"
+      - "tools/formatdoc/**"
+      - "internal/format/settings.go"
+      - "internal/format/presets.go"
       - "tools/internal/**"
       - "tools/benchcmp/**"
       - "bench/results.json"
@@ -63,6 +69,15 @@ jobs:
           if [ -n "$changed" ]; then
             echo "$changed"
             echo "::error::rule pages are stale: run make rules-doc and commit"
+            exit 1
+          fi
+      - name: generated format settings page is committed
+        run: |
+          go run ./tools/formatdoc
+          changed=$(git status --porcelain -- docs/guide/format-settings.md)
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            echo "::error::format settings page is stale: run make rules-doc and commit"
             exit 1
           fi
       - name: generated benchmark page and README comparison are committed

@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **599 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **600 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -35,6 +35,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ComparisonOperandsOrder](./code-style/ComparisonOperandsOrder) | EA | info | off | ✓ | any |
 | [DisallowWritingIntoStaticProperties](./code-style/DisallowWritingIntoStaticProperties) | EA | info | off |  | any |
 | [DynamicInvocationViaScopeResolution](./code-style/DynamicInvocationViaScopeResolution) | EA | warning | on | ✓ | any |
+| [Formatting](./code-style/Formatting) | native | info | off | ✓ | any |
 | [ImplodeArgumentsOrder](./code-style/ImplodeArgumentsOrder) | EA | info | on | ✓ | any |
 | [IncrementDecrementOperationEquivalent](./code-style/IncrementDecrementOperationEquivalent) | EA | info | on | ✓ | any |
 | [IsEmptyFunctionUsage](./code-style/IsEmptyFunctionUsage) | EA | info | on | ✓ | any |

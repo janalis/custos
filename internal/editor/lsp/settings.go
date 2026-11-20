@@ -40,7 +40,9 @@ func (s *Server) initialize(raw json.RawMessage) (any, *rpcError) {
 				"codeActionKinds": []string{"quickfix", kindFixAll},
 				"resolveProvider": true,
 			},
-			"executeCommandProvider": map[string]any{"commands": []string{cmdFixFile, cmdFixRule}},
+			"executeCommandProvider":          map[string]any{"commands": []string{cmdFixFile, cmdFixRule}},
+			"documentFormattingProvider":      true,
+			"documentRangeFormattingProvider": true,
 		},
 		"serverInfo": map[string]any{"name": "custos", "version": Version},
 	}, nil

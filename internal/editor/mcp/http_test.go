@@ -108,7 +108,7 @@ func TestHTTPProtocolRevisions(t *testing.T) {
 			}
 			defer session.Close()
 			tools, err := session.ListTools(context.Background(), nil)
-			if err != nil || len(tools.Tools) != 9 {
+			if err != nil || len(tools.Tools) != 10 {
 				t.Fatal(tools, err)
 			}
 			result, err := session.CallTool(context.Background(), &sdk.CallToolParams{Name: "custos_analyze", Arguments: map[string]any{}})

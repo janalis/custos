@@ -18,6 +18,7 @@ const usage = `custos — PHP inspections and fixes
 Usage:
   custos analyse [flags] [paths...]   report problems
   custos fix [flags] [paths...]       apply quick-fixes
+  custos format [flags] [paths...]    format code (--check to only report)
   custos mcp [flags]                  run the MCP server (stdio or HTTP)
   custos lsp                          run the language server (stdio)
   custos rules [--json]               list rules
@@ -94,6 +95,8 @@ func run(version string, args []string, stdin io.Reader, stdout, stderr io.Write
 		notice := startUpdateNotice(releaseVersion(version, embedded), stderr)
 		code, err = cmdFix(args[1:], stdout, stderr)
 		notice.finish(stderr)
+	case "format":
+		code, err = cmdFormat(args[1:], stdin, stdout, stderr)
 	case "self-update":
 		if embedded {
 			code, err = 2, errors.New("self-update installs the stock custos release; rebuild this program to update it")

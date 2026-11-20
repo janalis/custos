@@ -134,8 +134,10 @@ type fileChange struct {
 func (s *Server) watchedFilesChanged(changes []fileChange) {
 	s.mu.Lock()
 	cfg, root := s.cfg, s.root
+	// The format settings a rule formatting code sees read .editorconfig.
+	formats := s.engine != nil && s.engine.NeedsFormat()
 	s.mu.Unlock()
-	if touches(configInputs(cfg, root), changes) {
+	if touches(configInputs(cfg, root), changes) || formats && editorConfigChanged(changes) {
 		if err := s.configure(); err != nil {
 			s.logf("configuration: %v", err)
 		}
@@ -200,6 +202,16 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 }
 
 // touches reports whether changes name one of paths.
+// editorConfigChanged reports whether changes touch an .editorconfig file.
+func editorConfigChanged(changes []fileChange) bool {
+	for _, ch := range changes {
+		if filepath.Base(uriToPath(ch.URI)) == ".editorconfig" {
+			return true
+		}
+	}
+	return false
+}
+
 func touches(paths []string, changes []fileChange) bool {
 	for _, ch := range changes {
 		if slices.Contains(paths, filepath.Clean(uriToPath(ch.URI))) {

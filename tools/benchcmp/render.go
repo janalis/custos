@@ -11,8 +11,13 @@ import (
 
 const repoURL = "https://github.com/janalis/custos"
 
-// kindOrder sorts table rows: analyzers, then linters, then fixers.
-var kindOrder = map[string]int{"analyzer": 0, "linter": 1, "fixer": 2}
+// kindOrder sorts table rows: analyzers, then linters, fixers and
+// formatters. It also lists the kinds a tool may have.
+var kindOrder = map[string]int{"analyzer": 0, "linter": 1, "fixer": 2, "formatter": 3}
+
+// kindRef is the custos command each kind is compared with (custos analyse
+// for the others).
+var kindRef = map[string]string{"fixer": "custos-fix", "formatter": "custos-format"}
 
 // render writes the documentation page for r, with the feature comparison f
 // (none when nil).
@@ -25,9 +30,10 @@ func render(r *Results, f *Features) string {
 	fmt.Fprintf(&b, "need. The [benchmark workflow](%s/actions/workflows/benchmark.yml) refreshes these\n", repoURL)
 	b.WriteString("numbers every week, with the latest release of every tool and project.\n\n")
 	b.WriteString("::: warning Different tools, different jobs\n")
-	b.WriteString("Type checkers infer much more than custos, linters mostly check style, and fixers\n")
-	b.WriteString("rewrite code. Compare times within a kind, and read finding counts only as a sign that\n")
-	b.WriteString("a tool did its work: each counts what its own rules look for.\n:::\n\n")
+	b.WriteString("Type checkers infer much more than custos, linters mostly check style, fixers\n")
+	b.WriteString("rewrite code, and formatters only touch its layout. Compare times within a kind,\n")
+	b.WriteString("and read finding counts only as a sign that a tool did its work: each counts what\n")
+	b.WriteString("its own rules look for.\n:::\n\n")
 	if len(r.Corpora) == 0 {
 		b.WriteString("No results yet: they appear after the first run of the benchmark workflow.\n")
 	} else {
@@ -59,8 +65,12 @@ func render(r *Results, f *Features) string {
 	b.WriteString("  parallel workers.\n")
 	b.WriteString("- Findings: problems reported by analyzers and linters, edits `custos fix` would\n")
 	b.WriteString("  apply, and files other fixers would change. Fixers run in dry-run mode.\n")
+	b.WriteString("- Formatters run in check mode, so no file is written. Their findings count the\n")
+	b.WriteString("  files whose layout does not match the style they were given (PER Coding Style\n")
+	b.WriteString("  where the tool offers it), not the individual changes within each file.\n")
 	b.WriteString("- *vs custos* divides a tool's time by the time of the custos command of the\n")
-	b.WriteString("  same kind (`custos analyse`, or `custos fix` for fixers).\n")
+	b.WriteString("  same kind (`custos analyse`, `custos fix` for fixers, `custos format` for\n")
+	b.WriteString("  formatters).\n")
 	fmt.Fprintf(&b, "- Run it yourself with `make compare`; the tools, versions and projects are listed\n  in [`bench/competitors.json`](%s/blob/develop/bench/competitors.json).\n", repoURL)
 	return b.String()
 }
@@ -113,10 +123,7 @@ func ok(r Row) int {
 
 // ratio compares r with the custos command of its kind.
 func ratio(r Row, rows []Row) string {
-	ref := "custos"
-	if r.Kind == "fixer" {
-		ref = "custos-fix"
-	}
+	ref := cmp.Or(kindRef[r.Kind], "custos")
 	for _, x := range rows {
 		if x.ID == ref && x.Status == "ok" && x.Median > 0 {
 			switch q := r.Median / x.Median; {

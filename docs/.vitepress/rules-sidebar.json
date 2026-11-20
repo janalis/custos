@@ -62,6 +62,10 @@
         "link": "/rules/code-style/DynamicInvocationViaScopeResolution"
       },
       {
+        "text": "Formatting",
+        "link": "/rules/code-style/Formatting"
+      },
+      {
         "text": "ImplodeArgumentsOrder",
         "link": "/rules/code-style/ImplodeArgumentsOrder"
       },

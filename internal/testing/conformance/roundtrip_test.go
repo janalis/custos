@@ -15,6 +15,7 @@ var fixRoundTrips = []struct {
 	fixtures []string
 }{
 	{"ContentLengthUsesCharacterCount", []string{"basic"}},
+	{"Formatting", []string{"basic"}},
 	{"JsonIntegerPrecisionLoss", []string{"basic"}},
 	{"NanCheckedWithEquality", []string{"basic"}},
 	{"OpenSslVerifyTruthyResult", []string{"basic", "conditions"}},

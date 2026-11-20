@@ -13,15 +13,18 @@ import (
 // parsers count the findings in a tool's standard output. They are not
 // comparable across tools: each reports what its own rules look for.
 var parsers = map[string]func([]byte) (int, error){
-	"custos":       custosFindings,
-	"custos-fix":   custosFixEdits,
-	"phpstan":      phpstanFindings,
-	"psalm":        jsonArrayLen,
-	"phan":         jsonArrayLen,
-	"mago":         magoFindings,
-	"phpcs":        phpcsFindings,
-	"php-cs-fixer": phpCsFixerFindings,
-	"rector":       rectorFindings,
+	"custos":        custosFindings,
+	"custos-fix":    custosFixEdits,
+	"phpstan":       phpstanFindings,
+	"psalm":         jsonArrayLen,
+	"phan":          jsonArrayLen,
+	"mago":          magoFindings,
+	"phpcs":         phpcsFindings,
+	"php-cs-fixer":  phpCsFixerFindings,
+	"rector":        rectorFindings,
+	"custos-format": custosFormatFiles,
+	"mago-format":   magoFormatFiles,
+	"pint":          pintFiles,
 }
 
 // decode unmarshals the JSON document of out, skipping any text a tool
@@ -135,4 +138,46 @@ func rectorFindings(out []byte) (int, error) {
 		return 0, errors.New("no totals in output")
 	}
 	return r.Totals.ChangedFiles, nil
+}
+
+var formatFiles = regexp.MustCompile(`(\d+) file\(s\) would be reformatted`)
+
+// custosFormatFiles counts the files `custos format --check` would
+// reformat, from its summary line.
+func custosFormatFiles(out []byte) (int, error) {
+	m := formatFiles.FindSubmatch(out)
+	if m == nil {
+		return 0, errors.New("no format summary in output")
+	}
+	return strconv.Atoi(string(m[1]))
+}
+
+var magoFormat = regexp.MustCompile(`Found (\d+) file\(s\) (?:that )?need formatting`)
+
+// magoFormatFiles counts the files `mago fmt --check` would reformat, from
+// its log on standard error.
+func magoFormatFiles(out []byte) (int, error) {
+	if m := magoFormat.FindSubmatch(out); m != nil {
+		return strconv.Atoi(string(m[1]))
+	}
+	if bytes.Contains(out, []byte("All files are already formatted")) {
+		return 0, nil
+	}
+	return 0, errors.New("no format summary in output")
+}
+
+// pintFiles counts the files `pint --test --format=json` would change; it
+// lists none when every file passes.
+func pintFiles(out []byte) (int, error) {
+	var r struct {
+		Result string            `json:"result"`
+		Files  []json.RawMessage `json:"files"`
+	}
+	if err := decode(out, &r); err != nil {
+		return 0, err
+	}
+	if r.Result == "" {
+		return 0, errors.New("no result in output")
+	}
+	return len(r.Files), nil
 }

@@ -514,6 +514,10 @@ func allowed(from, to string) bool {
 		return within("internal/cli") || within("internal/inspection/analysis") || within("internal/inspection/meta") || within("internal/inspection/pattern") || within("internal/diagnostic") || within("internal/php") || within("pkg/custos/ast")
 	case strings.HasPrefix(from, "internal/php/"):
 		return within("internal/php")
+	case from == "internal/format":
+		return within("internal/php")
+	case from == "internal/format/editorconfig":
+		return false // standard library only
 	case strings.HasPrefix(from, "internal/semantic/"):
 		return within("internal/php") || within("internal/semantic")
 	case from == "internal/diagnostic":
@@ -531,7 +535,7 @@ func allowed(from, to string) bool {
 	case from == "internal/inspection/flowquery":
 		return within("internal/php") || within("internal/inspection/astquery")
 	case strings.HasPrefix(from, "internal/inspection/rules/"):
-		return within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/inspection/analysis") || within("internal/inspection/meta") || within("internal/inspection/astquery") || within("internal/inspection/flowquery") || within("internal/inspection/semanticquery") || within("internal/inspection/phpunit")
+		return within("internal/php") || within("internal/format") || within("internal/semantic") || within("internal/diagnostic") || within("internal/inspection/analysis") || within("internal/inspection/meta") || within("internal/inspection/astquery") || within("internal/inspection/flowquery") || within("internal/inspection/semanticquery") || within("internal/inspection/phpunit")
 	case from == "internal/inspection/pattern":
 		// Custom rules resolve names and types as the rules do.
 		return within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/inspection/analysis") || within("internal/inspection/meta") || within("internal/inspection/astquery") || within("internal/inspection/semanticquery")
@@ -540,7 +544,7 @@ func allowed(from, to string) bool {
 	case strings.HasPrefix(from, "internal/inspection/"):
 		return within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/inspection/analysis") || within("internal/inspection/meta") || within("internal/inspection/astquery") || within("internal/inspection/flowquery")
 	case from == "internal/editor/mcp":
-		return within("internal/platform/safeio") || within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/fixing") || within("internal/project") || within("internal/output/diff") || within("internal/inspection/analysis") || within("internal/inspection/meta")
+		return within("internal/platform/safeio") || within("internal/format") || within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/fixing") || within("internal/project") || within("internal/output/diff") || within("internal/inspection/analysis") || within("internal/inspection/meta")
 	case strings.HasPrefix(from, "internal/project"):
 		return !within("internal/cli") && !within("internal/editor") && !within("internal/output")
 	case strings.HasPrefix(from, "internal/output/"):
@@ -548,7 +552,7 @@ func allowed(from, to string) bool {
 	case strings.HasPrefix(from, "internal/platform/"):
 		return within("internal/platform")
 	case from == "internal/editor/lsp":
-		return within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/fixing") || within("internal/project") || within("internal/inspection/analysis") || within("internal/inspection/catalogue") || within("internal/inspection/meta")
+		return within("internal/php") || within("internal/format") || within("internal/semantic") || within("internal/diagnostic") || within("internal/fixing") || within("internal/project") || within("internal/inspection/analysis") || within("internal/inspection/catalogue") || within("internal/inspection/meta")
 	case from == "internal/cli":
 		return !within("internal/testing")
 	case strings.HasPrefix(from, "internal/testing/"):
@@ -564,7 +568,7 @@ func allowed(from, to string) bool {
 // analysisLayer reports packages that turn source text into findings and
 // edits: they compute, and adapters supply whatever comes from the system.
 func analysisLayer(from string) bool {
-	for _, prefix := range []string{"internal/php", "internal/semantic", "internal/inspection", "internal/diagnostic", "internal/fixing"} {
+	for _, prefix := range []string{"internal/php", "internal/semantic", "internal/inspection", "internal/diagnostic", "internal/fixing", "internal/format"} {
 		if from == prefix || strings.HasPrefix(from, prefix+"/") {
 			return true
 		}

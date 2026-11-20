@@ -94,6 +94,7 @@ rules-doc:
 	$(GO) run ./tools/rulesdoc
 	$(GO) run ./tools/genexplain
 	$(GO) run ./tools/rulesref
+	$(GO) run ./tools/formatdoc
 
 # Documentation site (VitePress, Node 20+): build to docs/.vitepress/dist, or
 # serve with live reload.

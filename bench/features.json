@@ -1,5 +1,5 @@
 {
-  "checked": "2026-11-08",
+  "checked": "2026-11-20",
   "tools": [
     {
       "id": "custos",
@@ -37,6 +37,11 @@
       "url": "https://cs.symfony.com"
     },
     {
+      "id": "pint",
+      "label": "Laravel Pint",
+      "url": "https://laravel.com/docs/pint"
+    },
+    {
       "id": "rector",
       "label": "Rector",
       "url": "https://getrector.com"
@@ -69,6 +74,9 @@
         },
         "rector": {
           "note": "PHP"
+        },
+        "pint": {
+          "note": "PHP"
         }
       }
     },
@@ -98,6 +106,9 @@
           "value": "no"
         },
         "rector": {
+          "value": "no"
+        },
+        "pint": {
           "value": "no"
         }
       }
@@ -131,6 +142,9 @@
           "value": "no"
         },
         "rector": {
+          "value": "no"
+        },
+        "pint": {
           "value": "no"
         }
       }
@@ -166,6 +180,9 @@
           "value": "no"
         },
         "rector": {
+          "value": "no"
+        },
+        "pint": {
           "value": "no"
         }
       }
@@ -208,14 +225,19 @@
         },
         "rector": {
           "value": "yes"
+        },
+        "pint": {
+          "value": "yes"
         }
       }
     },
     {
-      "name": "Formatting",
+      "name": "Formatter",
       "cells": {
         "custos": {
-          "value": "no"
+          "value": "yes",
+          "note": "`format`",
+          "source": "https://janalis.github.io/custos/guide/formatting"
         },
         "phpstan": {
           "value": "no"
@@ -229,14 +251,163 @@
         "mago": {
           "value": "yes",
           "note": "`fmt`",
-          "source": "https://mago.carthage.software/1.59.0/en/tools/formatter/overview"
+          "source": "https://mago.carthage.software/1.60.2/en/tools/formatter/overview"
         },
         "phpcs": {
-          "value": "yes",
-          "note": "`phpcbf`"
+          "value": "partial",
+          "note": "`phpcbf`",
+          "source": "https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki"
         },
         "phpcsfixer": {
           "value": "yes"
+        },
+        "pint": {
+          "value": "yes"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "Line wrapping",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "note": "lists over the line length",
+          "source": "https://janalis.github.io/custos/guide/formatting"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "no"
+        },
+        "phan": {
+          "value": "no"
+        },
+        "mago": {
+          "value": "yes",
+          "note": "`print-width`",
+          "source": "https://mago.carthage.software/1.60.2/en/tools/formatter/configuration-reference"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "pint": {
+          "value": "no"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "Formatting presets",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "note": "PSR-1, PSR-12, PER, Symfony, Laravel, Drupal",
+          "source": "https://janalis.github.io/custos/guide/formatting"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "no"
+        },
+        "phan": {
+          "value": "no"
+        },
+        "mago": {
+          "value": "yes",
+          "note": "PER, PSR-12, Pint, Tempest, Hack, Drupal",
+          "source": "https://mago.carthage.software/1.60.2/en/tools/formatter/configuration-reference"
+        },
+        "phpcs": {
+          "value": "yes",
+          "note": "standards: PSR-12, PEAR, Squiz…",
+          "source": "https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki/Usage"
+        },
+        "phpcsfixer": {
+          "value": "yes",
+          "note": "rule sets: PER-CS, PSR-12, Symfony, PhpCsFixer…",
+          "source": "https://cs.symfony.com/doc/ruleSets/index.html"
+        },
+        "pint": {
+          "value": "yes",
+          "note": "Laravel, PER, PSR-12, Symfony",
+          "source": "https://laravel.com/docs/pint#presets"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "EditorConfig",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "source": "https://janalis.github.io/custos/guide/formatting"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "no"
+        },
+        "phan": {
+          "value": "no"
+        },
+        "mago": {
+          "value": "no"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "pint": {
+          "value": "no"
+        },
+        "rector": {
+          "value": "no"
+        }
+      }
+    },
+    {
+      "name": "Range formatting (LSP)",
+      "cells": {
+        "custos": {
+          "value": "yes",
+          "note": "`custos lsp`",
+          "source": "https://janalis.github.io/custos/guide/editors"
+        },
+        "phpstan": {
+          "value": "no"
+        },
+        "psalm": {
+          "value": "no"
+        },
+        "phan": {
+          "value": "no"
+        },
+        "mago": {
+          "value": "no"
+        },
+        "phpcs": {
+          "value": "no"
+        },
+        "phpcsfixer": {
+          "value": "no"
+        },
+        "pint": {
+          "value": "no"
         },
         "rector": {
           "value": "no"
@@ -275,6 +446,9 @@
         },
         "rector": {
           "value": "no"
+        },
+        "pint": {
+          "value": "no"
         }
       }
     },
@@ -305,6 +479,9 @@
           "value": "no"
         },
         "rector": {
+          "value": "no"
+        },
+        "pint": {
           "value": "no"
         }
       }
@@ -339,6 +516,9 @@
           "value": "no"
         },
         "rector": {
+          "value": "no"
+        },
+        "pint": {
           "value": "no"
         }
       }
@@ -377,6 +557,11 @@
         "rector": {
           "value": "yes",
           "source": "https://getrector.com/documentation/custom-rule"
+        },
+        "pint": {
+          "value": "no",
+          "note": "built-in rules only",
+          "source": "https://github.com/laravel/pint/blob/v1.32.1/app/Factories/ConfigurationFactory.php"
         }
       }
     },
@@ -408,6 +593,9 @@
           "value": "no"
         },
         "rector": {
+          "value": "no"
+        },
+        "pint": {
           "value": "no"
         }
       }

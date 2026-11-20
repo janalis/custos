@@ -64,6 +64,8 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'Command line', link: '/guide/cli' },
             { text: 'Configuration', link: '/guide/configuration' },
+            { text: 'Formatting', link: '/guide/formatting' },
+            { text: 'Format settings', link: '/guide/format-settings' },
             { text: 'Type checking', link: '/guide/type-checking' },
             { text: 'Suppressing findings', link: '/guide/suppressing' },
             { text: 'Custom rules', link: '/guide/custom-rules' },

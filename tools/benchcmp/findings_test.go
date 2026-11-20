@@ -32,6 +32,18 @@ func TestParsers(t *testing.T) {
 		{"rector", `{"totals":{"changed_files":4,"errors":1}}`, 4, false},
 		{"rector", `{}`, 0, true},
 		{"rector", `x`, 0, true},
+		{"custos-format", "custos: 12 file(s) would be reformatted, 60 unchanged, 4 skipped\n", 12, false},
+		{"custos-format", "custos: 0 file(s) would be reformatted, 76 unchanged, 0 skipped\n", 0, false},
+		{"custos-format", "custos: boom\n", 0, true},
+		// mago fmt --check logs on standard error.
+		{"mago-format", " INFO Overriding workspace directory with /w/guzzle.\n INFO Found 68 file(s) need formatting. Run the command without '--check' to format them.\n", 68, false},
+		{"mago-format", " INFO Found 1 file(s) that need formatting.\n", 1, false},
+		{"mago-format", " INFO Overriding workspace directory with /w/guzzle.\n INFO All files are already formatted.\n", 0, false},
+		{"mago-format", " ERROR Failed to parse configuration file\n", 0, true},
+		{"pint", `{"tool":"pint","result":"fail","files":[{"path":"src\/Client.php","fixers":["single_line_empty_body"]},{"path":"src\/Utils.php","fixers":["concat_space","trailing_comma_in_multiline"]}]}`, 2, false},
+		{"pint", `{"tool":"pint","result":"passed"}`, 0, false},
+		{"pint", `{"tool":"pint"}`, 0, true},
+		{"pint", `x`, 0, true},
 	} {
 		got, err := parsers[tc.parser]([]byte(tc.out))
 		if (err != nil) != tc.fails || (!tc.fails && got != tc.want) {

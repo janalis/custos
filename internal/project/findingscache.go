@@ -34,7 +34,8 @@ import (
 //     options (the symbol cache's key), the working directory, the project
 //     root, each file's path within its project (see
 //     analysis.Config.ProjectPath), the enabled rules and their
-//     configuration, --parse-once, the
+//     configuration, each file's format settings when a rule formats code
+//     (analysis.Config.Format), --parse-once, the
 //     baseline the checks see (Options.RecordedKey), the Composer world's
 //     inputs, the size and modification time of every file indexed but not
 //     analyzed, and the declarations of every analyzed file
@@ -130,6 +131,21 @@ func (c *SymbolCache) findings(files []string, in findingsInputs, snapshot *flow
 	if relate := cfg.ProjectPath; relate != nil {
 		for _, path := range files {
 			fmt.Fprintf(h, "%s\x00%s\n", path, relate(path))
+		}
+	}
+	// Rules formatting code see each file's format settings, which
+	// custos.json, .editorconfig files and other tools' configuration
+	// decide.
+	if settings := cfg.Format; settings != nil && in.engine.NeedsFormat() {
+		prints := map[any]string{}
+		for _, path := range files {
+			v, ok := settings(path)
+			p, seen := prints[v]
+			if !seen {
+				p = fmt.Sprintf("%#v", v)
+				prints[v] = p
+			}
+			fmt.Fprintf(h, "%s\x00%t\x00%s\n", path, ok, p)
 		}
 	}
 	fc := &findingsCache{path: c.findingsPath(), key: fmt.Sprintf("%x", h.Sum(nil)), snapshot: snapshot, options: options, fresh: make([]*cachedResult, len(files)), files: files}

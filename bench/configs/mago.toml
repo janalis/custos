@@ -4,3 +4,7 @@ paths = [
     "@PATH@",
 ]
 includes = ["vendor"]
+
+# The default preset follows PER Coding Style.
+[formatter]
+preset = "default"

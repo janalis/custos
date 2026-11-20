@@ -66,6 +66,7 @@ certification of a particular agent application's integration.
 | `custos_prepare_fixes` | Selected fixes or bounded iterative fixes; previews and a plan ID. |
 | `custos_apply_fixes` | Apply a disk plan once and return file outcomes and fresh analysis. |
 | `custos_checkpoints` | List, resume or delete the caller's checkpoints. |
+| `custos_format` | Run the formatter: list its changes, preview them as diffs or write them. |
 
 Analyze first, then pass `checkpointId` to the findings and navigation
 tools. Positions use zero-based byte offsets and one-based lines and rune
@@ -121,6 +122,22 @@ atomically replaces each file with its permissions preserved. Failures are
 reported per file; an application is not a multi-file transaction. The
 checkpoint of an applied plan is replaced by the analysis returned with the
 outcomes.
+
+### Formatting
+
+`custos_format` lays out the configured paths, or the given `paths`, as
+`custos format` does with the workspace's format configuration
+(`custos.json`, `.editorconfig` files and the other tools' configuration),
+leaving out the files `format.exclude` lists. Its `mode` is:
+
+- `check` (the default): one item per change, with its position, rule
+  (`format.<setting>`) and message, and one item per file left as written
+  with the reason (syntax errors, a format-ignore comment);
+- `preview`: one unified diff per file that would change;
+- `apply`: writes the formatted files. It needs write access, writes each
+  file only while it still holds the bytes it formatted, as applying a fix
+  plan does, and returns the counts, the files that failed or were skipped,
+  and a fresh analysis.
 
 External editors do not share the server's write lock, so coordinate edits
 while applying a plan. custos rechecks each file right before replacing it,

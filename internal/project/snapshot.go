@@ -139,6 +139,8 @@ func capture(ctx context.Context, root *os.Root, rules []analysis.Rule, paths []
 		_, err := root.Stat(name)
 		return err == nil
 	}, ".")
+	// Snapshot paths are relative to the root.
+	acfg.Format = cfg.AnalysisFormat(cfg.Root)
 	engine, err := analysis.NewEngine(cfg.Registry(rules), acfg)
 	if err != nil {
 		return nil, err

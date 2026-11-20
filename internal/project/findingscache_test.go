@@ -88,7 +88,8 @@ func TestFindingsCacheOracle(t *testing.T) {
 	writeFile(t, src("other.php"), "<?php final class Other { public function go(Other $o) { return $o->go($o); } }")
 	check("declarations", runFindings(t, root, dir, nil), 0)
 	check("configuration", runFindings(t, root, dir, func(p *Project) {
-		p.Engine, _ = analysis.NewEngine(catalogue.All(), analysis.Config{PHP: phpversion.PHP84})
+		// Restating a default changes the configuration, not the findings.
+		p.Engine, _ = analysis.NewEngine(catalogue.All(), analysis.Config{PHP: phpversion.PHP84, EnableAll: true, Rules: map[string]analysis.RuleConfig{"Formatting": {Severity: diagnostic.SeverityInfo}}})
 	}), 0)
 	check("back", runFindings(t, root, dir, nil), 0)
 	// Composer's installed packages are part of the world rules see.

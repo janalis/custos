@@ -39,6 +39,9 @@ available quick-fixes.
 - **Fixes, not just reports.** Rules offer quick-fixes when a safe correction
   can be established. Apply them with `custos fix`, or one at a time from
   your editor.
+- **Formatting.** `custos format` lays out code following a style preset
+  (PER, PSR-12, Symfony, Laravel, Drupal) that `.editorconfig` and
+  `custos.json` can adjust (see [Formatting](./formatting)).
 - **Same findings everywhere.** The CLI, CI, the language server and the
   [MCP server](./mcp) for AI agents share one engine, one configuration file
   (`custos.json`) and one baseline.
@@ -80,7 +83,9 @@ invalid PHP, custos diverges on purpose.
 ## custos and other tools
 
 custos works alongside type checkers (PHPStan, Psalm), formatters
-(PHP-CS-Fixer, PHP_CodeSniffer) and your main PHP language server
+(PHP-CS-Fixer, PHP_CodeSniffer, Laravel Pint, Mago), whose configuration
+[`custos format`](./formatting#other-tools-configuration) can take over, and
+your main PHP language server
 (Intelephense, Phpactor, PhpStorm). It covers patterns that are legal PHP
 but probably wrong, slow, insecure or outdated, and offers optional
 [type checking](./type-checking) that reads the same PHPDoc, PHPStan, Psalm

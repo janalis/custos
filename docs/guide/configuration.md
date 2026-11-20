@@ -39,6 +39,7 @@ custos reads `custos.json` from the project root. Every key is optional.
 | `rules` | Per-rule settings, keyed by rule ID or PhpStorm name. |
 | `customRules` | The project's own pattern rules. See [Custom rules](./custom-rules). |
 | `customRuleFiles` | JSON files, relative to the root, each holding a list of custom rules. |
+| `format` | How [`custos format`](./formatting) lays out code. See [Format](#format). |
 | `customRuleTests` | Directory of the rules' fixtures for `custos test-rules`, relative to the root. Default `custos-tests`, which `analyse` and `fix` skip; add a directory you name to `exclude`. |
 
 Each `rules` entry accepts:
@@ -74,9 +75,45 @@ when `custos.json` is not valid JSON, or when it has:
 - a `comparisonStyle` other than `regular` or `yoda`;
 - a `typeCheck` other than `off`, `proven` or `documented`;
 - an unsupported `php` version;
-- a `paths` entry or `baseline` that is absolute or leaves the root.
+- a `paths` entry or `baseline` that is absolute or leaves the root;
+- in `format`: an unknown preset or setting, a value a setting does not
+  accept, or a `risky` entry that is not a risky setting.
 
 Unknown top-level keys and unknown rule options are ignored.
+
+## Format
+
+The `format` section configures [`custos format`](./formatting), the
+language server's formatting and the [Formatting](/rules/code-style/Formatting)
+rule:
+
+```json
+{
+  "format": {
+    "preset": "per",
+    "settings": {
+      "line_length": 100,
+      "blank_line_before": ["return", "throw"]
+    },
+    "risky": ["remove_unused_imports"],
+    "exclude": ["resources/views/**", "src/Generated"]
+  }
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `preset` | `auto` (default), `psr1`, `psr12`, `per`, `symfony`, `laravel` or `drupal`. `auto` takes the style of the project's Laravel Pint, PHP-CS-Fixer or Mago configuration, else `per`; see [Presets](./formatting#presets). |
+| `settings` | Setting IDs and values, over the preset and `.editorconfig`. [Format settings](./format-settings) lists them. |
+| `risky` | Risky settings to turn on: `true` for an on/off setting, else the preset's risky value. See [Risky settings](./formatting#risky-settings). |
+| `allowRisky` | `true` applies the preset's own risky values. Default `false`. |
+| `exclude` | Files not to format: globs relative to the root, in EditorConfig syntax (`*`, `**`, `{a,b}`), matching a file or one of its directories. `analyse` and `fix` still check them. |
+| `editorconfig` | `false` ignores `.editorconfig` files. Default `true`. |
+
+Values resolve in this order, later ones winning: the preset, the other
+tool's configuration (with `auto` only), `.editorconfig`, this section, and
+`--set` on the command line; `custos format --show-config` shows the source
+of each value. See [How settings resolve](./formatting#how-settings-resolve).
 
 ## Type checking
 

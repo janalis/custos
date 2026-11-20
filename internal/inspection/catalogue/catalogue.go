@@ -194,6 +194,7 @@ import (
 	"github.com/janalis/custos/internal/inspection/rules/forgottendebugoutput"
 	"github.com/janalis/custos/internal/inspection/rules/forkchildfallsintoparentwork"
 	"github.com/janalis/custos/internal/inspection/rules/forkfailuretreatedasparent"
+	"github.com/janalis/custos/internal/inspection/rules/formatting"
 	"github.com/janalis/custos/internal/inspection/rules/formencodingusedforrfc3986signature"
 	"github.com/janalis/custos/internal/inspection/rules/fractionalarraykeytruncation"
 	"github.com/janalis/custos/internal/inspection/rules/fractionalmodulooperand"
@@ -621,6 +622,7 @@ func All() []analysis.Rule {
 		comparisonoperandsorder.New(),
 		disallowwritingintostaticproperties.New(),
 		dynamicinvocationviascoperesolution.New(),
+		formatting.New(),
 		implodeargumentsorder.New(),
 		incrementdecrementoperationequivalent.New(),
 		isemptyfunctionusage.New(),

@@ -77,26 +77,9 @@ func (c *common) prepare(args []string) (*setup, error) {
 		return nil, err
 	}
 	paths := c.fs.Args()
-	dir := c.configDir
-	if dir == "" {
-		dir = "."
-		if len(paths) > 0 {
-			dir = paths[0]
-			if st, err := os.Stat(dir); err == nil && !st.IsDir() {
-				dir = filepath.Dir(dir)
-			}
-		}
-	}
-	cfg, err := config.Load(dir)
+	cfg, err := loadConfig(c.configDir, paths, c.php)
 	if err != nil {
 		return nil, err
-	}
-	if c.php != "" {
-		v, err := phpversion.Parse(c.php)
-		if err != nil {
-			return nil, err
-		}
-		cfg.PHP, cfg.PHPSource = v, "flag"
 	}
 	switch c.style {
 	case "":
@@ -140,6 +123,34 @@ func (c *common) prepare(args []string) (*setup, error) {
 		return nil, err
 	}
 	return &setup{project: p, cfg: cfg}, nil
+}
+
+// loadConfig loads the configuration from configDir, else from the first
+// path (its directory when it names a file), else from the working
+// directory; php, unless empty, overrides the target version.
+func loadConfig(configDir string, paths []string, php string) (*config.Config, error) {
+	dir := configDir
+	if dir == "" {
+		dir = "."
+		if len(paths) > 0 {
+			dir = paths[0]
+			if st, err := os.Stat(dir); err == nil && !st.IsDir() {
+				dir = filepath.Dir(dir)
+			}
+		}
+	}
+	cfg, err := config.Load(dir)
+	if err != nil {
+		return nil, err
+	}
+	if php != "" {
+		v, err := phpversion.Parse(php)
+		if err != nil {
+			return nil, err
+		}
+		cfg.PHP, cfg.PHPSource = v, "flag"
+	}
+	return cfg, nil
 }
 
 func (c *common) startProfile() (func(), error) {

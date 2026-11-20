@@ -24,6 +24,10 @@ type FileRule interface {
 	CheckFile(ctx *Context)
 }
 
+// FormatRule marks rules that lay out code as the formatter does: they
+// read the settings Config.Format gives each file.
+type FormatRule interface{ Format() }
+
 // ComparisonStyle is the preferred operand order in comparisons.
 type ComparisonStyle uint8
 
@@ -77,6 +81,13 @@ type Config struct {
 	// Adapters supply it, as they own filesystem access; nil keeps paths
 	// as given.
 	ProjectPath func(path string) string
+	// Format returns the formatter settings of the file at path for the
+	// rules that format code (see FormatRule): an opaque, comparable value
+	// those rules know (nil for the default settings), and false when the
+	// file is not to be formatted. Adapters supply it, as they own the
+	// project configuration; nil formats every file with the default
+	// settings.
+	Format func(path string) (settings any, ok bool)
 	// LabelRules runs each rule's checks under a "rule" profiler label
 	// carrying its ID, so a CPU profile splits the time rules take by rule.
 	LabelRules bool

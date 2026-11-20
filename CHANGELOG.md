@@ -5,6 +5,34 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `custos format` lays out PHP code: indentation, spaces, line breaks,
+  braces, blank lines and token spellings such as array syntax, keyword
+  case and trailing commas. It keeps the line breaks you wrote and splits
+  lists wider than the line length one item per line. Presets follow PER
+  Coding Style (the default), PSR-1, PSR-12, Symfony, Laravel and Drupal;
+  every setting can be changed in the new `format` section of
+  `custos.json` or with `--set`, `.editorconfig` files apply, and with the
+  `auto` preset the style of a `pint.json`, PHP-CS-Fixer or Mago
+  configuration is taken over. Risky settings (Yoda comparisons, single
+  quotes, unused imports, strict types...) are opt-in. `--check` and
+  `--dry-run` list the changes in any report format and exit 1, `--diff`
+  prints them, `--stdin` formats standard input, `--show-config` shows each
+  setting and its source; ignore comments (`@custos-format-ignore`,
+  `@formatter:off`, Mago's) keep code as written, and files already
+  formatted are remembered in the cache. See the new Formatting and Format
+  settings pages.
+- The language server formats documents and ranges with the project's
+  format configuration (`textDocument/formatting`,
+  `textDocument/rangeFormatting`).
+- MCP: `custos_format` checks, previews or applies the formatter.
+- `Formatting` rule (off by default): reports each change `custos format`
+  would make, with a quick-fix for the change and one for the whole file, so
+  formatting shows in `analyse`, the editor and the baseline.
+- The competitor benchmark compares formatters: `custos format`, Laravel
+  Pint, Mago's formatter and PHP-CS-Fixer's layout rules, in check mode.
+
 ## [0.2.3] - 2026-11-20
 
 ### Changed

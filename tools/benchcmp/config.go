@@ -59,6 +59,9 @@ func loadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	for _, t := range c.Tools {
+		if _, ok := kindOrder[t.Kind]; !ok {
+			return nil, fmt.Errorf("%s: tool %s: unknown kind %q", path, t.ID, t.Kind)
+		}
 		if _, ok := parsers[t.Findings]; !ok {
 			return nil, fmt.Errorf("%s: tool %s: unknown findings parser %q", path, t.ID, t.Findings)
 		}

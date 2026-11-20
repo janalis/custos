@@ -162,6 +162,17 @@ func (e *Engine) Fingerprints() []string {
 	return out
 }
 
+// NeedsFormat reports whether an enabled rule formats code (see
+// FormatRule), so that its findings depend on Config.Format.
+func (e *Engine) NeedsFormat() bool {
+	for _, r := range e.rules {
+		if _, ok := r.rule.(FormatRule); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // Known reports whether id names a rule of the catalogue (by ID or legacy
 // name) or one registered with its own facts.
 func (e *Engine) Known(id string) bool {

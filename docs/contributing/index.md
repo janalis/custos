@@ -52,7 +52,7 @@ code compiles.
 | `make extract` | Regenerate the EA-modeled rule facts and the local upstream case index from `EA_PATH`, then `make rules-doc`. |
 | `make coverage` | 100% statement coverage gates (see [Ground rules](#ground-rules)). |
 | `make clean` | Remove `bin/`, `dist/` and the docs build output. |
-| `make rules-doc` | Regenerate the inspection catalogue (`internal/inspection/catalogue/catalogue.go`) and the rule catalogue docs: `docs/rules/`, `docs/internals/rules.md`, `custos explain` texts. |
+| `make rules-doc` | Regenerate the inspection catalogue (`internal/inspection/catalogue/catalogue.go`), the rule catalogue docs (`docs/rules/`, `docs/internals/rules.md`, `custos explain` texts) and the format settings reference (`docs/guide/format-settings.md`). |
 | `make docs` / `make docs-dev` | Build or serve this site. |
 | `make bench` / `make fuzz` | Benchmarks (`-benchmem`), with the language server's edit-latency budget enforced, and a short fuzz run of every fuzz target. |
 | `make compare` / `make compare-doc` | Compare custos with other PHP tools on the projects of `bench/competitors.json` (needs PHP with `ast` and `pcntl`, Composer and git; `TOOL=` / `CORPUS=` filter), or only regenerate `docs/guide/benchmark.md` and the README comparison from `bench/results.json` and `bench/features.json`. The weekly `benchmark` workflow bumps versions, reruns it and opens a pull request. |
@@ -72,6 +72,7 @@ Some tests read optional environment variables:
 | `CUSTOS_CORPUS` | Real PHP projects: `:`-separated roots for `make fixcheck` and the no-crash test of every rule; the parser oracle test reads a single root. |
 | `CUSTOS_CORPUS_MAX` | Cap on the files the parser oracle test takes from the corpus. |
 | `CUSTOS_FIXCHECK` | Set by `make fixcheck`; `php` also lints samples with `php -l`. |
+| `CUSTOS_FORMAT_CORPUS` | A directory of real PHP code for the formatter's corpus test (`go test -run TestCorpus ./internal/format`): every preset must pass the safety check and be idempotent. `CUSTOS_FORMAT_PRESET` limits it to one preset, `CUSTOS_FORMAT_RISKY=1` allows risky settings. |
 | `CUSTOS_BENCH_FILE` | A PHP file for the parser benchmark on real input. |
 | `CUSTOS_PERF_TRACE` | `1` adds raw timing for each edit, parse/analysis phases, CPU time, GC count and pause deltas to `TestEditLatency`; GC snapshots and trace logging occur outside the measured edit. |
 | `CUSTOS_PERF` | `1` (set by `make bench`) turns logged performance budgets into failures. |
@@ -106,6 +107,33 @@ a tool's variable empty to skip it offline (`make lint MDLINT=`).
   texts) are fixed in their generator or their spec, then `make rules-doc`.
 - Editors: enable EditorConfig support, and gofumpt in gopls
   (`"gopls": {"formatting.gofumpt": true}`).
+
+## Adding a format setting
+
+The formatter (`internal/format`) has its own workflow; formatting is not a
+rule, so there is no spec or clean-room step.
+
+1. Add the setting to the registry in `internal/format/settings.go`: a field
+   of `Settings`, then an entry with its ID, group, kind, allowed values,
+   description (user-facing, our own words) and `Risky: true` when it
+   changes more than layout. Give it its neutral value (usually `keep` or
+   `false`) in `keepAll` in `presets.go`, and the value each style guide asks
+   for in the presets (in `risky` for a risky setting).
+2. Add the message of its changes to `messages.go`, short and imperative.
+3. Implement it in the engine, then add a golden case
+   `internal/format/testdata/cases/<name>.php` whose first line names what
+   to run: `<?php // presets: per symfony; set: line_length=60, wrap=long; risky`
+   (list values separated by `|`). Run `go test ./internal/format -update`
+   to write `<name>.<preset>.php`, and review every output by hand: the
+   golden test then guards them, and checks that the changes replay to the
+   output and that formatting it again changes nothing.
+4. Fuzz it (`go test -fuzz FuzzFormat ./internal/format`) and run it over
+   real code (`CUSTOS_FORMAT_CORPUS=/path/to/project go test -run TestCorpus ./internal/format`).
+5. If another tool's configuration maps onto it unambiguously, read it in
+   `internal/project/config/formatimport.go`.
+6. Run `make rules-doc` to regenerate
+   [Format settings](/guide/format-settings), and record the setting in
+   `CHANGELOG.md`.
 
 ## Ground rules
 

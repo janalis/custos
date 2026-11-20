@@ -59,6 +59,7 @@ internal/php/                       syntax, version, phpdoc
 internal/semantic/                  names, types, index, infer, flow, stubs
 internal/inspection/                analysis, meta, catalogue, phpunit, {ast,flow,semantic}query
 internal/inspection/rules/<id>/     rule.go (New), implementation, tests, testdata/, optional NOTES.md
+internal/format/                    formatter: settings registry, presets, gap engine; editorconfig/
 internal/diagnostic/ internal/fixing/  findings and edits; fix application
 internal/project/                   discovery, indexing, analysis, prepared fixes; config, baseline
 internal/output/ internal/cli/ internal/editor/{lsp,mcp}/  adapters

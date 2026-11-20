@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("<?php #0000000000000\nA0? :\n00; ")

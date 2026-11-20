@@ -1010,6 +1010,13 @@
     ]
   },
   {
+    "id": "Formatting",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": true
+  },
+  {
     "id": "FractionalArrayKeyTruncation",
     "group": "Probable bugs",
     "severity": "warning",

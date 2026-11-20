@@ -271,6 +271,16 @@ func (c *Context) List(name string) []string {
 	return nil
 }
 
+// FormatSettings returns the formatter settings of the file (see
+// Config.Format): nil for the default settings, and false when the file is
+// not to be formatted.
+func (c *Context) FormatSettings() (settings any, ok bool) {
+	if c.engine.cfg.Format == nil {
+		return nil, true
+	}
+	return c.engine.cfg.Format(c.File.Path)
+}
+
 // IsTestFile reports whether the file looks like a test (IsTestPath).
 func (c *Context) IsTestFile() bool { return IsTestPath(c.File.Path) }
 

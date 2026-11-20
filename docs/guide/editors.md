@@ -14,6 +14,9 @@ What it offers:
   finding;
 - `source.fixAll.custos`: apply every quick-fix in the file, for example on
   save;
+- document and range formatting (`textDocument/formatting`,
+  `textDocument/rangeFormatting`), as [`custos format`](./formatting) lays out the
+  file;
 - the commands `custos.fixFile` (argument: the document URI) and
   `custos.fixRule` (arguments: the document URI and a rule ID), which apply
   the quick-fixes of an open document.
@@ -50,6 +53,14 @@ Both take the shape of [`custos.json`](./configuration) with these limits:
 
 When the client watches files for the server, editing `custos.json` or a
 custom rule file takes effect without a restart.
+
+Formatting follows the project's format configuration (`custos.json`,
+`.editorconfig` files and the other tools' configuration), as `custos format`
+does, and ignores the editor's tab size and indentation options, so that
+the editor and the command line write the same layout. Range formatting
+applies the changes that touch the selected lines. A file `format.exclude`
+lists, or one the formatter leaves as written (syntax errors, a
+format-ignore comment), gets no edit; the reason is logged.
 
 When a document's [analysis status](./cli#analysis-status) changes (complete,
 or incomplete with other reasons), the server sends an informational

@@ -661,6 +661,10 @@
     "summary": "Form-style query encoding differs from RFC3986 encoding for spaces. Select RFC3986 encoding when the configured signature protocol requires it. This inspection is disabled by default because the intended policy or use can vary.",
     "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| signatureFunctions | list | `[]` | Fully qualified names of the functions that build RFC 3986 signatures; only queries signed inside one of them are checked. |"
   },
+  "Formatting": {
+    "summary": "Reports every place where the file's layout differs from what `custos format`\nwould write: indentation, spaces, line breaks, braces, blank lines and the\nother settings of the project's format configuration. It brings formatting\nchecks into the analysis, the editor and the baseline, with each change\noffered as a quick-fix.",
+    "fix": true
+  },
   "FractionalArrayKeyTruncation": {
     "summary": "PHP converts float array keys to integers and loses their fractional part. Use a string key when the complete value identifies the entry."
   },
