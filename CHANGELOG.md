@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-20
+
 ### Changed
 
 - Type checking is on by default at the `proven` level: a project that sets
@@ -1048,7 +1050,8 @@ First public release.
   stay inside the project; `custos fix` never writes through symlinks; the
   language server rejects malformed or oversized messages.
 
-[Unreleased]: https://github.com/janalis/custos/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/janalis/custos/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/janalis/custos/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/janalis/custos/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/janalis/custos/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/janalis/custos/compare/v0.1.16...v0.2.0
