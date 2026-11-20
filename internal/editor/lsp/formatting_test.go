@@ -202,3 +202,30 @@ func TestRangeFormattingKeepsGroups(t *testing.T) {
 		t.Fatalf("whole array:\n%s", got)
 	}
 }
+
+func TestRangeFormattingIndentsFirstLine(t *testing.T) {
+	dir := t.TempDir()
+	writeTree(t, dir, map[string]string{"composer.json": "{}"})
+	cl := startServer(t)
+	cl.initialize(map[string]any{"rootUri": "file://" + dir, "capabilities": map[string]any{}})
+	line := func(n int) map[string]any { return map[string]any{"line": n, "character": 0} }
+	for i, tc := range []struct {
+		name, src, want string
+		first, last     int
+	}{
+		{"indentation", "<?php\n\nfunction f($x)\n{\n      return $x;\n}\n", "<?php\n\nfunction f($x)\n{\n    return $x;\n}\n", 4, 5},
+		{"blank line above", "<?php\n\nfunction f($x)\n{\n    $x++;\n\n\n  return $x;\n}\n", "<?php\n\nfunction f($x)\n{\n    $x++;\n\n\n    return $x;\n}\n", 7, 8},
+		{"comment line", "<?php\n\nfunction f($x)\n{\n  // c\n    return $x;\n}\n", "<?php\n\nfunction f($x)\n{\n    // c\n    return $x;\n}\n", 4, 5},
+		{"from a blank line", "<?php\n\nfunction f($x)\n{\n    $x++;\n\n\n  return $x;\n}\n", "<?php\n\nfunction f($x)\n{\n    $x++;\n\n\n    return $x;\n}\n", 5, 8},
+		{"inside a docblock", "<?php\n\nfunction f($x)\n{\n      /**\n       * Doc.\n       */\n    return $x;\n}\n", "<?php\n\nfunction f($x)\n{\n      /**\n       * Doc.\n       */\n    return $x;\n}\n", 5, 6},
+		{"already indented", "<?php\n\nfunction f($x)\n{  \n    return $x;\n}\n", "<?php\n\nfunction f($x)\n{  \n    return $x;\n}\n", 4, 5},
+		{"joined to the line above", "<?php\n\nif ($a) {\n}\nelse {\n}\n", "<?php\n\nif ($a) {\n}\nelse {\n}\n", 4, 5},
+	} {
+		uri := "file://" + filepath.Join(dir, tc.name+".php")
+		cl.open(uri, tc.src)
+		params := map[string]any{"textDocument": map[string]any{"uri": uri}, "range": map[string]any{"start": line(tc.first), "end": line(tc.last)}}
+		if got := applyEdits(tc.src, cl.formatEdits(10+i, "textDocument/rangeFormatting", params)); got != tc.want {
+			t.Errorf("%s: got\n%s\nwant\n%s", tc.name, got, tc.want)
+		}
+	}
+}

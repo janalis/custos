@@ -124,6 +124,9 @@ func TestFormatApply(t *testing.T) {
 	if out["applied"] != 2 || out["failedCount"] != 0 || out["skippedCount"] != 2 || out["analysis"] == nil {
 		t.Fatalf("apply: %v", out)
 	}
+	if failed, ok := out["failed"].([]any); !ok || failed == nil {
+		t.Fatalf("no failure is an empty list, not null: %#v", out["failed"])
+	}
 	if b, _ := os.ReadFile(filepath.Join(root, "src", "a.php")); string(b) != tidyPHP {
 		t.Fatalf("a.php: %q", b)
 	}

@@ -58,7 +58,9 @@ Formatting follows the project's format configuration (`custos.json`,
 `.editorconfig` files and the other tools' configuration), as `custos format`
 does, and ignores the editor's tab size and indentation options, so that
 the editor and the command line write the same layout. Range formatting
-applies the changes that touch the selected lines. A file `format.exclude`
+applies the changes within the selected lines, the indentation of the first
+one included; a change that reaches outside them, such as an array rewritten
+as a whole, is left out. A file `format.exclude`
 lists, or one the formatter leaves as written (syntax errors, a
 format-ignore comment), gets no edit; the reason is logged.
 

@@ -155,8 +155,9 @@ func (s *Server) applyFormat(ctx context.Context, w *workspace, in Input, writes
 		applied++
 	}
 	out := Output{"summary": summary, "applied": applied, "failedCount": len(failed), "skippedCount": len(skipped)}
-	out["failed"] = failed[:min(len(failed), maxFormatOutcomes)]
-	out["skippedFiles"] = skipped[:min(len(skipped), maxFormatOutcomes)]
+	// Empty lists, not null, when nothing failed or was skipped.
+	out["failed"] = append([]any{}, failed[:min(len(failed), maxFormatOutcomes)]...)
+	out["skippedFiles"] = append([]any{}, skipped[:min(len(skipped), maxFormatOutcomes)]...)
 	if applied > 0 && ctx.Err() == nil {
 		next, err := s.analyze(ctx, w, Input{Paths: in.Paths})
 		if err == nil {
