@@ -42,6 +42,9 @@ available quick-fixes.
 - **Same findings everywhere.** The CLI, CI, the language server and the
   [MCP server](./mcp) for AI agents share one engine, one configuration file
   (`custos.json`) and one baseline.
+- **Your own rules.** Project-specific checks are PHP code patterns in
+  `custos.json`, with quick-fixes and fixture tests, or Go code built into
+  your own binary (see [Custom rules](./custom-rules)).
 - **Version-aware.** Rules are gated on your target PHP version (5.3 to 8.5),
   from `--php`, `custos.json` or `composer.json` (see
   [Target PHP version](./configuration#target-php-version)).

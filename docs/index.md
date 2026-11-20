@@ -50,6 +50,11 @@ features:
     details: custos mcp lets coding agents analyze a workspace, read findings and apply quick-fixes through the Model Context Protocol, locally or remotely.
     link: /guide/mcp
     linkText: MCP setup
+  - icon: ✏️
+    title: Your own rules
+    details: Write project rules as PHP code patterns in custos.json, matched on resolved names, with quick-fixes and fixture tests, or in Go for full control.
+    link: /guide/custom-rules
+    linkText: Custom rules
   - icon: 🤝
     title: PhpStorm-compatible
     details: Rules modeled on Php Inspections (EA Extended) keep their PhpStorm names, so existing @noinspection comments keep working. Native rules are designed for custos.

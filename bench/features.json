@@ -347,7 +347,8 @@
       "name": "Custom rules",
       "cells": {
         "custos": {
-          "value": "no"
+          "value": "yes",
+          "source": "https://janalis.github.io/custos/guide/custom-rules"
         },
         "phpstan": {
           "value": "yes",

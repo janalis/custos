@@ -110,7 +110,7 @@ that already relies on one.
 | Language server | ✓ | — | ✓ | ✓ | — | — | — | — |
 | MCP server for AI agents | ✓ | — | — | — | — | — | — | — |
 | Baseline | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
-| Custom rules | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Custom rules | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | SARIF output | ✓ | — | ✓ | — | ✓ | — | — | — |
 
 Other projects, versions, finding counts and the sources of every feature are on the
@@ -130,6 +130,29 @@ Set `typeCheck` in `custos.json` to check types with the same run:
 PHPDoc, PHPStan, Psalm and PhpStorm declarations, including generics, array
 and object shapes and callable signatures. See
 [Type checking](https://janalis.github.io/custos/guide/type-checking).
+
+## Custom rules
+
+Add your project's own checks to `custos.json` as PHP code patterns. Names
+match as the code resolves them, metavariables such as `$X` stand for any
+expression, and a rule can carry a quick-fix:
+
+```json
+{
+  "customRules": [
+    {
+      "id": "UseClock",
+      "match": "new \\DateTimeImmutable()",
+      "message": "Get the time from the clock",
+      "fix": "$this->clock->now()"
+    }
+  ]
+}
+```
+
+They run everywhere the built-in rules do, `custos test-rules` checks them
+against fixtures, and rules that need more than a pattern can be written in
+Go. See [Custom rules](https://janalis.github.io/custos/guide/custom-rules).
 
 ## Configuration
 
