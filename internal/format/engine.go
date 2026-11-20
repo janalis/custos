@@ -375,6 +375,9 @@ func (e *engine) written(k int) int {
 		j--
 	}
 	if !e.gaps[j].drop {
+		if e.gaps[j].into > 0 {
+			return e.gaps[j].into // it takes its line breaks from an earlier gap
+		}
 		return j
 	}
 	for j = k; j < len(e.gaps)-1 && e.gaps[j].drop && e.deleted[j]; j++ {
