@@ -224,6 +224,9 @@ func (b *bench) runOnce(t Tool, c Corpus) (sample, int, error) {
 		if s.err != nil {
 			msg += " (" + s.err.Error() + ")"
 		}
+		if len(s.stderr) == 0 {
+			return s, 0, errors.New(msg + firstLine(s.stdout))
+		}
 		return s, 0, errors.New(msg + firstLine(s.stderr))
 	}
 	return s, n, nil

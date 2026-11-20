@@ -102,7 +102,8 @@ func TestMeasureTool(t *testing.T) {
 		t.Errorf("failing tool: %q", row.Status)
 	}
 	tool.Env["FAKE_EXIT"], tool.Env["FAKE_STDERR"] = "0", ""
-	if row := b.measureTool(tool, c); row.Status != "error: no JSON in output" {
+	// Without anything on stderr, the start of stdout explains the error.
+	if row := b.measureTool(tool, c); row.Status != "error: no JSON in output: nope" {
 		t.Errorf("bad output: %q", row.Status)
 	}
 

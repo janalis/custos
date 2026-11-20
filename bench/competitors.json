@@ -233,8 +233,6 @@
         "--format=json",
         "--config={configs}/pint.json",
         "--cache-file={cache}/pint.cache",
-        "--parallel",
-        "--max-processes={cpus}",
         "{paths}"
       ],
       "findings": "pint"
