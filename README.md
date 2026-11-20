@@ -103,7 +103,7 @@ that already relies on one.
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Written in | Go | PHP | PHP | PHP | Rust | PHP | PHP | PHP |
 | Runs without PHP | ✓ | — | — | — | ✓ | — | — | — |
-| Type checking | ◐ | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| Type checking | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
 | Taint analysis | ✓ | — | ✓ | — | ◐ | — | — | — |
 | Automatic fixes | ✓ | ◐ | ✓ | ◐ | ✓ | ✓ | ✓ | ✓ |
 | Formatting | — | — | — | — | ✓ | ✓ | ✓ | — |
