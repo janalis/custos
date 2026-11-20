@@ -86,16 +86,20 @@ custos reports and fixes problems, and formats code.
 
 | Tool | Kind | Time | Peak memory |
 | :--- | :--- | ---: | ---: |
-| Mago analyze | analyzer | 0.69 s | 395 MB |
-| **custos analyse** | analyzer | 4.25 s | 762 MB |
-| Phan | analyzer | 13.2 s | 1.7 GB |
-| PHPStan | analyzer | 17.9 s | 1.6 GB |
-| Psalm | analyzer | 46.6 s | 2.5 GB |
-| Mago lint | linter | 0.19 s | 206 MB |
-| PHP_CodeSniffer | linter | 4.77 s | 131 MB |
-| **custos fix** | fixer | 3.63 s | 647 MB |
-| PHP-CS-Fixer | fixer | 6.99 s | 181 MB |
-| Rector | fixer | 23.3 s | 3.4 GB |
+| Mago analyze | analyzer | 0.81 s | 387 MB |
+| **custos analyse** | analyzer | 5.11 s | 729 MB |
+| Phan | analyzer | 14.0 s | 1.7 GB |
+| PHPStan | analyzer | 21.5 s | 1.7 GB |
+| Psalm | analyzer | 56.1 s | 2.5 GB |
+| Mago lint | linter | 0.23 s | 212 MB |
+| PHP_CodeSniffer | linter | 6.61 s | 129 MB |
+| **custos fix** | fixer | 4.28 s | 625 MB |
+| PHP-CS-Fixer | fixer | 8.75 s | 180 MB |
+| Rector | fixer | 25.5 s | 3.4 GB |
+| Mago format | formatter | 0.21 s | 230 MB |
+| **custos format** | formatter | 0.63 s | 107 MB |
+| PHP-CS-Fixer (layout) | formatter | 12.1 s | 181 MB |
+| Laravel Pint | formatter | 30.7 s | 75 MB |
 
 **Features** (✓ yes, ◐ partial, — no):
 
