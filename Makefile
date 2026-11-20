@@ -9,7 +9,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
 
-.PHONY: architecture examples coverage fixcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
+.PHONY: architecture examples coverage fixcheck formatcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -135,6 +135,16 @@ corpus-baseline: build
 
 corpus-diff: build
 	$(GO) run ./tools/corpusdiff -corpora "$(CORPORA)"
+
+# Format a copy of each corpus with each preset (PRESETS=, default all) and
+# run the preset's reference checker on it: PHP_CodeSniffer, PHP-CS-Fixer,
+# Pint, and drupal/coder (installed under .cache/formatcheck). Fails when a
+# finding remains that internal/format/testdata/divergences.json does not
+# explain. Needs PHP and Composer, so it is not part of verify.
+PRESETS ?=
+formatcheck: build
+	$(GO) run ./tools/benchcmp install -tool phpcs,php-cs-fixer,pint -corpus "$(CORPORA)"
+	$(GO) run ./tools/formatcheck -corpora "$(CORPORA)" -presets "$(PRESETS)"
 
 # Share of expressions whose inferred type is unknown on the corpora, by
 # kind and cause (TYPECOV: root=srcdir pairs separated by ';'). Writes

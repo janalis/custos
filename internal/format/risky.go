@@ -245,9 +245,10 @@ func (e *engine) unusedImports() {
 				j--
 			}
 			e.gaps[j].toComment = true
+			after.into = j
 			if p0 := after.pieces[0]; !p0.comment {
 				// The breaks before and after the import merge into one run.
-				after.dropLead, after.into = true, j
+				after.dropLead = true
 				if n := lineBreaks(e.src[p0.start:p0.end]); n > 0 {
 					before := &e.gaps[j]
 					if before.comment {

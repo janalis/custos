@@ -19,7 +19,7 @@ func (e *engine) operatorLinebreaks() {
 		r := e.role[e.sig[k]]
 		switch {
 		case r == roleBoolean:
-		case mode == "start" && (r == roleBinary || r == roleConcat || r == roleTernaryQ || r == roleTernaryColon):
+		case mode == "start" && (r == roleBinary || r == roleConcat || r == roleTernaryQ || r == roleTernaryColon || r == roleAssign):
 			if e.kind(k) == syntax.TInstanceof {
 				continue
 			}
@@ -213,17 +213,25 @@ func (e *engine) wrapLong(out []byte) bool {
 	changed := false
 	for _, first := range e.longLines(out) {
 		units := e.lineUnits(first)
+		// The widest list on the line shortens it most; a short one, such
+		// as the single argument of isset(), hardly helps.
+		best, width := -1, 0
 		for _, k := range units {
-			if opener(e.kind(k)) && e.splittable(k) && !e.alreadySplit(k) {
-				if e.split(k, "wrap") {
-					changed = true
-					break
-				}
-			}
 			if e.kind(k) == syntax.TLParen && e.br[e.sig[k]] == brControl && e.splitCondition(k) {
-				changed = true
+				best = -2
 				break
 			}
+			if opener(e.kind(k)) && e.splittable(k) && !e.alreadySplit(k) {
+				if w := e.outPos[e.match[k]] - e.outPos[k]; w > width {
+					best, width = k, w
+				}
+			}
+		}
+		switch {
+		case best == -2:
+			changed = true
+		case best >= 0 && e.split(best, "wrap"):
+			changed = true
 		}
 	}
 	return changed
@@ -340,6 +348,9 @@ func (e *engine) layout() {
 			e.indentation()
 		}
 	}
+	if e.s.ParameterAttributeLine && e.parameterAttributes() {
+		e.indentation()
+	}
 	if e.s.JoinFittingLists && e.s.LineLength > 0 {
 		for range 8 { // joining an inner list can make the outer one fit
 			out, _ := e.emit()
@@ -381,4 +392,22 @@ func (e *engine) signatureBraces() {
 			e.setNL(k, 1, "function_brace")
 		}
 	}
+}
+
+// parameterAttributes puts each attribute of a parameter on a line of its
+// own in parameter lists written one parameter per line.
+func (e *engine) parameterAttributes() bool {
+	changed := false
+	for o := range e.sig {
+		if e.kind(o) != syntax.TLParen || e.br[e.sig[o]] != brParams || e.match[o] <= o+1 || !e.alreadySplit(o) {
+			continue
+		}
+		for k := o + 1; k < e.match[o]; k++ {
+			if e.role[e.sig[k]] == roleAttrClose && !e.gaps[k+1].comment && e.leadBreaks(&e.gaps[k+1]) == 0 {
+				e.setNL(k+1, 1, "parameter_attribute_line")
+				changed = true
+			}
+		}
+	}
+	return changed
 }

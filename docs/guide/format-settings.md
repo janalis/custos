@@ -113,6 +113,7 @@ Preset values:
 | `method_separation` | enum | `one`, `keep` | One blank line between a method and the member before it. |
 | `property_separation` | enum | `one`, `none`, `keep` | Blank line between consecutive properties. |
 | `constant_separation` | enum | `one`, `none`, `keep` | Blank line between consecutive class constants. |
+| `case_separation` | bool | `true`, `false` | One blank line before a `case` or `default` that follows the statements of the previous one. |
 | `blank_line_before` | list | list of `break`, `continue`, `declare`, `do`, `for`, `foreach`, `if`, `return`, `switch`, `throw`, `try`, `while`, `yield` | Statements preceded by a blank line unless they open their block. |
 
 Preset values:
@@ -131,6 +132,7 @@ Preset values:
 | `method_separation` | `keep` | `keep` | `keep` | `one` | `one` | `one` |
 | `property_separation` | `keep` | `keep` | `keep` | `keep` | `one` | `keep` |
 | `constant_separation` | `keep` | `keep` | `keep` | `keep` | `one` | `keep` |
+| `case_separation` | `false` | `false` | `false` | `false` | `false` | `true` |
 | `blank_line_before` | `[]` | `[]` | `[]` | `return` | `continue`, `return` | `[]` |
 
 ## Spacing
@@ -143,6 +145,7 @@ Preset values:
 | `cast_space` | enum | `one`, `none`, `keep` | Space after a cast such as `(int)`. |
 | `not_operator_space` | enum | `none`, `one` | Space after the `!` operator. |
 | `arrow_function_space` | enum | `none`, `one`, `keep` | Space between `fn` and `(`. |
+| `anonymous_class_space` | enum | `one`, `none`, `keep` | Space between `class` and `(` in `new class(...)`. |
 | `closure_space` | enum | `one`, `none` | Space between `function` and `(` of a closure. |
 
 Preset values:
@@ -155,6 +158,7 @@ Preset values:
 | `cast_space` | `keep` | `keep` | `one` | `one` | `one` | `one` |
 | `not_operator_space` | `none` | `none` | `none` | `none` | `one` | `none` |
 | `arrow_function_space` | `keep` | `keep` | `none` | `one` | `one` | `keep` |
+| `anonymous_class_space` | `keep` | `one` | `one` | `one` | `none` | `one` |
 | `closure_space` | `one` | `one` | `one` | `one` | `one` | `one` |
 
 ## Casing
@@ -185,6 +189,8 @@ Preset values:
 | `single_line_trailing_comma` | bool | `true`, `false` | Keep a trailing comma in a list written on one line. |
 | `array_syntax` | enum | `short`, `long`, `keep` | `[]` or `array()` for array literals. |
 | `list_syntax` | enum | `short`, `long`, `keep` | `[]` or `list()` for destructuring (short needs PHP 7.1). |
+| `visibility` | enum | `all`, `methods_properties`, `keep` | Write the implicit `public` of class members that declare no visibility: methods, properties and constants (PHP 7.1), or methods and properties. |
+| `parameter_attribute_line` | bool | `true`, `false` | Put the attributes of a parameter on a line of their own when the parameters are one per line. |
 | `elseif` | bool | `true`, `false` | Write `else if` as `elseif`. |
 | `new_parentheses` | enum | `add`, `remove`, `keep` | Parentheses after a class name in `new` without arguments. |
 | `standardize_not_equals` | bool | `true`, `false` | Write `<>` as `!=`. |
@@ -195,10 +201,12 @@ Preset values:
 
 | Setting | `psr1` | `psr12` | `per` | `symfony` | `laravel` | `drupal` |
 |---|---|---|---|---|---|---|
-| `trailing_comma` | `[]` | `[]` | `arguments`, `arrays`, `closure_use`, `destructuring`, `match`, `parameters` | `arrays`, `destructuring`, `match`, `parameters` | `arrays` | `arrays`, `parameters` |
+| `trailing_comma` | `[]` | `[]` | `arguments`, `arrays`, `closure_use`, `destructuring`, `match`, `parameters` | `arrays`, `destructuring`, `match`, `parameters` | `arrays` | `arrays`, `destructuring`, `parameters` |
 | `single_line_trailing_comma` | `true` | `true` | `false` | `false` | `false` | `false` |
 | `array_syntax` | `keep` | `keep` | `short` | `short` | `short` | `short` |
 | `list_syntax` | `keep` | `keep` | `keep` | `short` | `short` | `keep` |
+| `visibility` | `keep` | `all` | `all` | `all` | `methods_properties` | `all` |
+| `parameter_attribute_line` | `false` | `false` | `true` | `true` | `false` | `true` |
 | `elseif` | `false` | `true` | `true` | `true` | `true` | `true` |
 | `new_parentheses` | `keep` | `add` | `add` | `add` | `remove` | `add` |
 | `standardize_not_equals` | `false` | `false` | `false` | `true` | `true` | `true` |
@@ -212,6 +220,7 @@ Preset values:
 | `import_order` | enum | `alpha`, `length`, `none` | Sort `use` imports within each group, alphabetically (case-insensitive) or by length. |
 | `import_groups` | enum | `class_function_const`, `const_class_function`, `none` | Order of the class, function and constant import groups. |
 | `no_leading_import_slash` | bool | `true`, `false` | Remove the leading `\` of an imported name. |
+| `single_trait_per_statement` | bool | `true`, `false` | Split `use A, B;` in a class into one statement per trait (not when it adapts methods). |
 | `single_import_per_statement` | bool | `true`, `false` | Split `use A, B;` into one statement per import. |
 
 Preset values:
@@ -221,6 +230,7 @@ Preset values:
 | `import_order` | `none` | `none` | `none` | `alpha` | `alpha` | `none` |
 | `import_groups` | `none` | `class_function_const` | `class_function_const` | `class_function_const` | `const_class_function` | `none` |
 | `no_leading_import_slash` | `false` | `true` | `true` | `true` | `true` | `true` |
+| `single_trait_per_statement` | `false` | `true` | `true` | `true` | `false` | `true` |
 | `single_import_per_statement` | `false` | `true` | `true` | `true` | `true` | `true` |
 
 ## Risky

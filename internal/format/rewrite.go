@@ -131,6 +131,14 @@ func (e *engine) syntaxRewrites(n syntax.Node) {
 		e.elseIf(v)
 	case *syntax.New:
 		e.newParens(v)
+	case *syntax.Method:
+		e.visibility(v.Modifiers, afterAttrs(v, v.Attrs), syntax.TFunction, false)
+	case *syntax.Property:
+		e.visibility(v.Modifiers, afterAttrs(v, v.Attrs), syntax.TVar, false)
+	case *syntax.ClassConst:
+		e.visibility(v.Modifiers, afterAttrs(v, v.Attrs), syntax.TConst, true)
+	case *syntax.TraitUse:
+		e.splitTraits(v)
 	}
 	syntax.Children(n, e.syntaxRewrites)
 }
@@ -234,7 +242,7 @@ func (e *engine) listKind(o int) (string, bool) {
 	case brCall:
 		if o > 0 {
 			switch e.kind(o - 1) {
-			case syntax.TIsset, syntax.TUnset, syntax.TEmpty, syntax.TEval, syntax.TExit, syntax.TList:
+			case syntax.TEmpty, syntax.TEval, syntax.TExit, syntax.TList:
 				return "", false
 			}
 		}
@@ -361,4 +369,55 @@ func (e *engine) oneLine(a, b int) bool {
 func (e *engine) isDestructuring(a *syntax.Array) bool {
 	i := e.at(a.Span().Start)
 	return a.Short && i >= 0 && e.destruct[i]
+}
+
+// visibility writes the implicit public of a class member that declares no
+// visibility: before its modifiers (after abstract or final), or in place
+// of var. kw is the keyword starting a member without modifiers.
+func (e *engine) visibility(mods syntax.Modifiers, from uint32, kw syntax.TokenKind, constant bool) {
+	want := e.s.Visibility
+	if want == "keep" || constant && (want != "all" || !e.php.AtLeast(phpversion.PHP71)) {
+		return
+	}
+	after := -1 // the abstract or final modifier the visibility follows
+	for _, m := range mods {
+		switch m.Kind {
+		case syntax.TPublic, syntax.TProtected, syntax.TPrivate:
+			return
+		case syntax.TVar:
+			e.rewrite(e.unitAt(m.Span.Start), "public", "visibility")
+			return
+		case syntax.TAbstract, syntax.TFinal:
+			after = e.unitAt(m.Span.Start)
+		}
+	}
+	switch {
+	case after >= 0:
+		e.rewrite(after, e.text[after]+" public", "visibility")
+	case len(mods) > 0:
+		k := e.unitAt(mods[0].Span.Start)
+		e.rewrite(k, "public "+e.text[k], "visibility")
+	default:
+		if i := e.find(from, uint32(len(e.src)), kw); i >= 0 {
+			k := e.unitOf[i]
+			e.rewrite(k, "public "+e.text[k], "visibility")
+		}
+	}
+}
+
+// splitTraits writes one trait per statement: use A, B; becomes use A;
+// use B; on lines of their own.
+func (e *engine) splitTraits(v *syntax.TraitUse) {
+	if !e.s.SingleTraitPerStatement || len(v.Traits) < 2 || len(v.Adaptations) > 0 || e.commentBetween(v.Span().Start, v.Span().End) {
+		return
+	}
+	defer e.newGroup()()
+	for _, t := range v.Traits[1:] {
+		k := e.unitAt(t.Span().Start)
+		comma := k - 1
+		e.rewrite(comma, ";", "single_trait_per_statement")
+		e.rewrite(k, "use "+e.text[k], "single_trait_per_statement")
+		e.start[e.sig[k]] = true
+		e.setNL(k, 1, "single_trait_per_statement")
+	}
 }

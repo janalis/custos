@@ -51,6 +51,7 @@ type Settings struct {
 	PropertySeparation           string // one, none, keep
 	ConstantSeparation           string // one, none, keep
 	BlankLineBefore              []string
+	CaseSeparation               bool
 
 	Spacing             bool
 	ConcatSpace         string // one, none, keep
@@ -80,6 +81,10 @@ type Settings struct {
 	ImportGroups             string // class_function_const, const_class_function, none
 	NoLeadingImportSlash     bool
 	SingleImportPerStatement bool
+	SingleTraitPerStatement  bool
+	ParameterAttributeLine   bool
+	Visibility               string // all, methods_properties, keep
+	AnonymousClassSpace      string // one, none, keep
 
 	// Risky settings change tokens beyond layout; they apply only when
 	// Risky allows them.
@@ -276,6 +281,7 @@ var registry = []*Setting{
 	{ID: "method_separation", Group: "lines", Kind: KindEnum, Values: sepOneOrKeep, Description: "One blank line between a method and the member before it.", field: func(s *Settings) any { return &s.MethodSeparation }},
 	{ID: "property_separation", Group: "lines", Kind: KindEnum, Values: sepValues, Description: "Blank line between consecutive properties.", field: func(s *Settings) any { return &s.PropertySeparation }},
 	{ID: "constant_separation", Group: "lines", Kind: KindEnum, Values: sepValues, Description: "Blank line between consecutive class constants.", field: func(s *Settings) any { return &s.ConstantSeparation }},
+	{ID: "case_separation", Group: "lines", Kind: KindBool, Description: "One blank line before a `case` or `default` that follows the statements of the previous one.", field: func(s *Settings) any { return &s.CaseSeparation }},
 	{ID: "blank_line_before", Group: "lines", Kind: KindList, Values: blankBefore, Description: "Statements preceded by a blank line unless they open their block.", field: func(s *Settings) any { return &s.BlankLineBefore }},
 
 	// Spacing.
@@ -285,6 +291,7 @@ var registry = []*Setting{
 	{ID: "cast_space", Group: "spacing", Kind: KindEnum, Values: []string{"one", "none", "keep"}, Description: "Space after a cast such as `(int)`.", field: func(s *Settings) any { return &s.CastSpace }},
 	{ID: "not_operator_space", Group: "spacing", Kind: KindEnum, Values: []string{"none", "one"}, Description: "Space after the `!` operator.", field: func(s *Settings) any { return &s.NotOperatorSpace }},
 	{ID: "arrow_function_space", Group: "spacing", Kind: KindEnum, Values: []string{"none", "one", "keep"}, Description: "Space between `fn` and `(`.", field: func(s *Settings) any { return &s.ArrowFunctionSpace }},
+	{ID: "anonymous_class_space", Group: "spacing", Kind: KindEnum, Values: []string{"one", "none", "keep"}, Description: "Space between `class` and `(` in `new class(...)`.", field: func(s *Settings) any { return &s.AnonymousClassSpace }},
 	{ID: "closure_space", Group: "spacing", Kind: KindEnum, Values: []string{"one", "none"}, Description: "Space between `function` and `(` of a closure.", field: func(s *Settings) any { return &s.ClosureSpace }},
 
 	// Casing.
@@ -299,6 +306,8 @@ var registry = []*Setting{
 	{ID: "single_line_trailing_comma", Group: "syntax", Kind: KindBool, Description: "Keep a trailing comma in a list written on one line.", field: func(s *Settings) any { return &s.SingleLineTrailingComma }},
 	{ID: "array_syntax", Group: "syntax", Kind: KindEnum, Values: []string{"short", "long", "keep"}, Description: "`[]` or `array()` for array literals.", field: func(s *Settings) any { return &s.ArraySyntax }},
 	{ID: "list_syntax", Group: "syntax", Kind: KindEnum, Values: []string{"short", "long", "keep"}, Description: "`[]` or `list()` for destructuring (short needs PHP 7.1).", field: func(s *Settings) any { return &s.ListSyntax }},
+	{ID: "visibility", Group: "syntax", Kind: KindEnum, Values: []string{"all", "methods_properties", "keep"}, Description: "Write the implicit `public` of class members that declare no visibility: methods, properties and constants (PHP 7.1), or methods and properties.", field: func(s *Settings) any { return &s.Visibility }},
+	{ID: "parameter_attribute_line", Group: "syntax", Kind: KindBool, Description: "Put the attributes of a parameter on a line of their own when the parameters are one per line.", field: func(s *Settings) any { return &s.ParameterAttributeLine }},
 	{ID: "elseif", Group: "syntax", Kind: KindBool, Description: "Write `else if` as `elseif`.", field: func(s *Settings) any { return &s.ElseIf }},
 	{ID: "new_parentheses", Group: "syntax", Kind: KindEnum, Values: []string{"add", "remove", "keep"}, Description: "Parentheses after a class name in `new` without arguments.", field: func(s *Settings) any { return &s.NewParentheses }},
 	{ID: "standardize_not_equals", Group: "syntax", Kind: KindBool, Description: "Write `<>` as `!=`.", field: func(s *Settings) any { return &s.StandardizeNotEquals }},
@@ -309,6 +318,7 @@ var registry = []*Setting{
 	{ID: "import_order", Group: "imports", Kind: KindEnum, Values: []string{"alpha", "length", "none"}, Description: "Sort `use` imports within each group, alphabetically (case-insensitive) or by length.", field: func(s *Settings) any { return &s.ImportOrder }},
 	{ID: "import_groups", Group: "imports", Kind: KindEnum, Values: []string{"class_function_const", "const_class_function", "none"}, Description: "Order of the class, function and constant import groups.", field: func(s *Settings) any { return &s.ImportGroups }},
 	{ID: "no_leading_import_slash", Group: "imports", Kind: KindBool, Description: "Remove the leading `\\` of an imported name.", field: func(s *Settings) any { return &s.NoLeadingImportSlash }},
+	{ID: "single_trait_per_statement", Group: "imports", Kind: KindBool, Description: "Split `use A, B;` in a class into one statement per trait (not when it adapts methods).", field: func(s *Settings) any { return &s.SingleTraitPerStatement }},
 	{ID: "single_import_per_statement", Group: "imports", Kind: KindBool, Description: "Split `use A, B;` into one statement per import.", field: func(s *Settings) any { return &s.SingleImportPerStatement }},
 
 	// Risky.

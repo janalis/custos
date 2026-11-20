@@ -5,5 +5,5 @@ list($x, $y) = $a;
 $o = new Foo;
 $p = new Foo()->bar();
 $q = (new Foo)->bar();
-$r = new class() {};
+$r = new class () {};
 $s = new Foo(/* c */);

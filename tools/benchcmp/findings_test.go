@@ -42,6 +42,7 @@ func TestParsers(t *testing.T) {
 		{"mago-format", " ERROR Failed to parse configuration file\n", 0, true},
 		{"pint", `{"tool":"pint","result":"fail","files":[{"path":"src\/Client.php","fixers":["single_line_empty_body"]},{"path":"src\/Utils.php","fixers":["concat_space","trailing_comma_in_multiline"]}]}`, 2, false},
 		{"pint", `{"tool":"pint","result":"passed"}`, 0, false},
+		{"pint", "Deprecated: f(): {x} is deprecated\n" + `{"tool":"pint","result":"fail","files":[{"path":"a.php","fixers":[]}]}`, 1, false},
 		{"pint", `{"tool":"pint"}`, 0, true},
 		{"pint", `x`, 0, true},
 	} {

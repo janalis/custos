@@ -77,6 +77,17 @@ When neither names one (the default `"preset": "auto"`), custos takes the
 style of the project's other formatter (see
 [Other tools' configuration](#other-tools-configuration)), else `per`.
 
+### Compliance
+
+Each preset is checked against the tool that defines its style guide on
+real projects: PHP_CodeSniffer for `psr12` and `drupal`, PHP-CS-Fixer for
+`per` and `symfony`, Laravel Pint for `laravel`. A preset lays code out; it
+leaves alone what those tools also check beyond layout, such as the content
+of docblocks, names and imports, and the risky rewrites custos applies only
+on request. The rules each preset deliberately does not satisfy are listed,
+with the reason, in
+[`divergences.json`](https://github.com/janalis/custos/blob/main/internal/format/testdata/divergences.json).
+
 ## How settings resolve
 
 Each setting takes the value of the last of these sources that sets it:

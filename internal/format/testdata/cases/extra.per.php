@@ -3,7 +3,7 @@
 class A
 {
     #[Deprecated]
-    const X = 1;
+    public const X = 1;
     // note
 }
 #[Attr]

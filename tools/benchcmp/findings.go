@@ -167,11 +167,15 @@ func magoFormatFiles(out []byte) (int, error) {
 }
 
 // pintFiles counts the files `pint --test --format=json` would change; it
-// lists none when every file passes.
+// lists none when every file passes. Notices PHP prints first may hold
+// braces, so the report is looked up by its tool key.
 func pintFiles(out []byte) (int, error) {
 	var r struct {
 		Result string            `json:"result"`
 		Files  []json.RawMessage `json:"files"`
+	}
+	if i := bytes.Index(out, []byte(`{"tool"`)); i > 0 {
+		out = out[i:]
 	}
 	if err := decode(out, &r); err != nil {
 		return 0, err

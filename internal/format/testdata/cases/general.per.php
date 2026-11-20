@@ -12,8 +12,8 @@ abstract class Foo extends Bar implements Baz, Qux
 {
     use TraitA;
 
-    const A = 1;
-    const B = 2;
+    public const A = 1;
+    public const B = 2;
     public $x = [1, 2, 3];
     private ?int $y = null;
     protected static $z;
@@ -69,7 +69,7 @@ abstract class Foo extends Bar implements Baz, Qux
         list($p, $q) = [1, 2];
         [$p, , $q] = $arr;
         $o = new Foo();
-        $n = new class(1) extends Foo {};
+        $n = new class (1) extends Foo {};
         $str = "x {$a} y";
         unset($a, $b);
         return !$a && $b instanceof Foo || $c <> 1;

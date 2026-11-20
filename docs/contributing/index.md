@@ -59,6 +59,7 @@ code compiles.
 | `make corpus-baseline` / `make corpus-diff` | Record the findings of every rule on the pinned benchmark corpora, then compare a later build with the record: added and removed findings are listed by rule and written to `.cache/corpus-diff/`. `CORPORA=` filters. |
 | `make typecov` | Measure the share of expressions whose inferred type is unknown on the benchmark corpora, by kind and cause (`.cache/typecov/run.summary`; `TYPECOV=` takes `root=srcdir` pairs separated by `;`). |
 | `make fixcheck` | Apply every quick-fix on the projects in `CUSTOS_CORPUS` and require the result to still parse, and each fix to remove its finding. |
+| `make formatcheck` | Format a copy of each benchmark corpus with each preset and run the style checker the preset follows on it (see [Formatter compliance](#formatter-compliance)). Needs PHP and Composer; `CORPORA=` and `PRESETS=` filter. Not part of `make verify`. |
 | `make stubs` | Rebuild the embedded PHP builtin symbol index from phpstorm-stubs. |
 
 AST node kinds are generated (by `tools/genkinds`): run
@@ -128,12 +129,55 @@ rule, so there is no spec or clean-room step.
    golden test then guards them, and checks that the changes replay to the
    output and that formatting it again changes nothing.
 4. Fuzz it (`go test -fuzz FuzzFormat ./internal/format`) and run it over
-   real code (`CUSTOS_FORMAT_CORPUS=/path/to/project go test -run TestCorpus ./internal/format`).
+   real code (`CUSTOS_FORMAT_CORPUS=/path/to/project go test -run TestCorpus ./internal/format`),
+   then compare the presets with their style checkers (`make formatcheck`).
 5. If another tool's configuration maps onto it unambiguously, read it in
    `internal/project/config/formatimport.go`.
 6. Run `make rules-doc` to regenerate
    [Format settings](/guide/format-settings), and record the setting in
    `CHANGELOG.md`.
+
+## Formatter compliance
+
+`make formatcheck` checks the presets against the tools that define the
+style guides they follow. For each benchmark corpus (`CORPORA=`, default
+all), it copies the corpus's source into the system temporary directory,
+formats a copy with each preset (`PRESETS=`, default all), and runs the
+preset's reference checker on the copy before and after formatting:
+
+| Preset | Checker |
+|---|---|
+| `psr12` | PHP_CodeSniffer, `--standard=PSR12` |
+| `per` | PHP-CS-Fixer, `--rules=@PER-CS` |
+| `symfony` | PHP-CS-Fixer, `--rules=@Symfony` |
+| `laravel` | Laravel Pint, `--preset laravel` |
+| `drupal` | PHP_CodeSniffer, `--standard=Drupal` (drupal/coder) |
+
+The checkers are the benchmark's pinned packages, installed by the target
+under `.cache/bench`; drupal/coder is pinned in `tools/formatcheck` and
+installed under `.cache/formatcheck`. The corpora are never modified.
+
+The command prints one row per corpus and preset:
+
+- `before` and `after`: the checker's findings on the copy before and after
+  formatting (for PHP-CS-Fixer and Pint, one per fixer and file);
+- `divergent`: the findings after formatting that
+  `internal/format/testdata/divergences.json` explains: reference rules
+  custos deliberately does not satisfy, such as docblock content, risky
+  rewrites it only applies on request, or a line that cannot be shortened;
+- `remaining`: every other finding, listed below the table by rule with
+  examples (`file:line: message`; PHP-CS-Fixer gives the first change of
+  the file, as it does not say which fixer made which change).
+
+For `laravel`, Pint names some fixers on files where their changes cancel
+out, so `remaining` counts instead the files whose code, docblocks aside,
+Pint's fix still changes once the divergent fixers are turned off.
+
+The command exits 1 when a finding remains. Each one is either a formatter
+bug, or a deliberate choice to record with its reason in
+`divergences.json` (a rule name or a pattern such as `phpdoc_*`). `-json`
+prints every count and remaining finding for scripts:
+`go run ./tools/formatcheck -json -corpora guzzle`.
 
 ## Ground rules
 

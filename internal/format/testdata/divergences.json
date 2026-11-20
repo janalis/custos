@@ -1,0 +1,44 @@
+{
+  "psr12": [
+    {"rule": "Generic.Files.LineLength.TooLong", "reason": "Some lines cannot be shortened without rewriting code, such as long strings; PSR-12 makes this a soft limit."},
+    {"rule": "Squiz.Functions.MultiLineFunctionDeclaration.UseOneParamPerLine", "reason": "PSR-12 does not require splitting a closure's use list when its parameters are split."},
+    {"rule": "Squiz.Functions.MultiLineFunctionDeclaration.OneParamPerLine", "reason": "PSR-12 does not require splitting a closure's parameters when its use list is split."},
+    {"rule": "PSR12.ControlStructures.ControlStructureSpacing.*", "reason": "A condition made of one call or array whose contents span lines stays hugged: PSR-12 splits conditions, not the expressions inside them."}
+  ],
+  "per": [],
+  "symfony": [
+    {"rule": "phpdoc_*", "reason": "The content of docblocks is out of the formatter's scope."},
+    {"rule": "no_superfluous_phpdoc_tags", "reason": "The content of docblocks is out of the formatter's scope."},
+    {"rule": "no_empty_phpdoc", "reason": "The content of docblocks is out of the formatter's scope."},
+    {"rule": "yoda_style", "reason": "Risky in custos (yoda): changes code, applied only on request."},
+    {"rule": "no_unused_imports", "reason": "Risky in custos (remove_unused_imports): applied only on request."},
+    {"rule": "single_quote", "reason": "Risky in custos (single_quote): applied only on request."},
+    {"rule": "no_useless_concat_operator", "reason": "Rewrites expressions rather than their layout."},
+    {"rule": "global_namespace_import", "reason": "Rewrites names rather than their layout."},
+    {"rule": "self_static_accessor", "reason": "Rewrites names rather than their layout."},
+    {"rule": "fully_qualified_strict_types", "reason": "Rewrites names rather than their layout."}
+  ],
+  "laravel": [
+    {"rule": "phpdoc_align", "reason": "The content of docblocks is out of the formatter's scope."},
+    {"rule": "phpdoc_separation", "reason": "The content of docblocks is out of the formatter's scope."},
+    {"rule": "yoda_style", "reason": "Risky in custos (yoda): changes code, applied only on request."},
+    {"rule": "increment_style", "reason": "Risky in custos (increment_style): applied only on request."},
+    {"rule": "no_unused_imports", "reason": "Risky in custos (remove_unused_imports): applied only on request."},
+    {"rule": "single_quote", "reason": "Risky in custos (single_quote): applied only on request."},
+    {"rule": "heredoc_to_nowdoc", "reason": "Risky in custos (heredoc_to_nowdoc): applied only on request."},
+    {"rule": "self_static_accessor", "reason": "Rewrites names rather than their layout."},
+    {"rule": "ordered_interfaces", "reason": "Reorders declarations rather than laying them out."},
+    {"rule": "fully_qualified_strict_types", "reason": "Rewrites names rather than their layout."}
+  ],
+  "drupal": [
+    {"rule": "Drupal.WhiteSpace.Comma.TooManySpaces", "reason": "Spaces aligning a trailing comment after a comma are kept: the alignment is written on purpose."},
+    {"rule": "Drupal.Commenting.*", "reason": "The content and placement of comments are out of the formatter's scope."},
+    {"rule": "Drupal.Files.LineLength.*", "reason": "Comment and string lines cannot be shortened without rewriting them."},
+    {"rule": "Drupal.Classes.UnusedUseStatement.*", "reason": "Risky in custos (remove_unused_imports): applied only on request."},
+    {"rule": "Drupal.Classes.FullyQualifiedNamespace.*", "reason": "Rewrites names rather than their layout."},
+    {"rule": "Drupal.Classes.UseGlobalClass.*", "reason": "Rewrites names rather than their layout."},
+    {"rule": "Drupal.Classes.InterfaceName.*", "reason": "Naming is not layout."},
+    {"rule": "Generic.PHP.DeprecatedFunctions.*", "reason": "Code analysis, not layout."},
+    {"rule": "Generic.CodeAnalysis.*", "reason": "Code analysis, not layout."}
+  ]
+}

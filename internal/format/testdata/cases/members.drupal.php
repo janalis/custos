@@ -5,9 +5,9 @@ class A {
   use T1;
   use T2 { foo as bar; }
 
-  const X = 1;
+  public const X = 1;
 
-  const Y = 2;
+  public const Y = 2;
 
   public $a;
 
@@ -17,7 +17,7 @@ class A {
 
   public $c;
 
-  const Z = 3;
+  public const Z = 3;
   case Q;
 
   public function g() {

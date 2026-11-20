@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("<?php use A;use C; /**/ use funCtion A;A %0; ")

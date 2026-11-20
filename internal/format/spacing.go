@@ -159,6 +159,8 @@ func (e *engine) parenSpacing(a, b int) (int, string) {
 		return choice(e.s.ArrowFunctionSpace, "arrow_function_space")
 	case e.role[ta] == roleUseKeyword:
 		return 1, "spacing"
+	case ka == syntax.TClass:
+		return choice(e.s.AnonymousClassSpace, "anonymous_class_space") // only new class(...) puts ( after class
 	case e.br[tb] == brControl && (controlKeyword(ka) || e.text[a] == "elseif"):
 		return 1, "spacing"
 	case e.br[tb] == brCall || e.br[tb] == brParams || e.br[tb] == brArray || e.br[tb] == brDeclare:

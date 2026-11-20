@@ -215,7 +215,7 @@ func TestEdges(t *testing.T) {
 
 func TestWrittenGap(t *testing.T) {
 	e := prepared(t, "<?php\n$a; $b; $c;\n")
-	e.gaps[4].dropLead, e.gaps[4].into = true, 2
+	e.gaps[4].into = 2
 	if e.written(4) != 2 || e.written(0) != 0 {
 		t.Error("written gap")
 	}

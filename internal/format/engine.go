@@ -72,7 +72,7 @@ type gap struct {
 	drop       bool // emitted empty (the unit before or after it is removed)
 	dropLead   bool // the whitespace before its first comment is emitted empty
 	toComment  bool // a comment of a later gap starts the line it opens
-	into       int  // with dropLead, the gap whose line breaks it takes
+	into       int  // when not 0, the gap whose line breaks it takes (it follows removed units)
 	tailSet    int  // wanted line breaks after the last comment; -1 keeps
 	tailRule   string
 }
@@ -361,7 +361,7 @@ func (e *engine) written(k int) int {
 	if k <= 0 || k >= len(e.gaps) {
 		return k
 	}
-	if e.gaps[k].dropLead {
+	if e.gaps[k].into > 0 {
 		return e.gaps[k].into
 	}
 	if !e.gaps[k].drop {

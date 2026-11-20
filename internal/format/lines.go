@@ -281,6 +281,14 @@ func (e *engine) walkLines(n syntax.Node) {
 		e.blankBefore(v.Stmts)
 	case *syntax.Case:
 		e.blankBefore(v.Stmts)
+	case *syntax.Switch:
+		if e.s.CaseSeparation {
+			for i := 1; i < len(v.Cases); i++ {
+				if len(v.Cases[i-1].Stmts) > 0 {
+					e.atLeastBlank(e.unitAt(v.Cases[i].Span().Start), "case_separation")
+				}
+			}
+		}
 	case *syntax.Namespace:
 		e.topLevel(v.Stmts)
 	case *syntax.ExprStmt:
@@ -437,10 +445,10 @@ func (e *engine) topLevel(all []syntax.Stmt) {
 		case nextUse == nil && s.BlankLineAfterImports:
 			// Right after the import, before any comment that follows it.
 			e.atLeastBlank(e.unitAfter(v.Span().End), "blank_line_after_imports")
-		case nextUse != nil && s.BlankLineBetweenImportGroups && e.leadBreaks(&e.gaps[next]) > 0:
+		case nextUse != nil && s.BlankLineBetweenImportGroups && e.leadBreaks(&e.gaps[e.written(next)]) > 0:
 			if useKind(v) != useKind(nextUse) {
 				e.setNL(next, 2, "blank_line_between_import_groups")
-			} else if !e.gaps[next].comment {
+			} else if !e.gaps[e.written(next)].comment {
 				e.setNL(next, 1, "blank_line_between_import_groups")
 			}
 		}
