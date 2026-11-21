@@ -43,8 +43,14 @@ func (b *bench) install(tools []Tool, corpora []Corpus, log io.Writer) error {
 			if _, err := os.Stat(filepath.Join(dir, "composer.json")); err != nil {
 				return nil
 			}
-			return sh(log, dir, "composer", "install", "--no-interaction", "--no-progress",
-				"--no-dev", "--no-scripts", "--no-plugins", "--ignore-platform-reqs")
+			args := []string{"install", "--no-interaction", "--no-progress", "--no-scripts", "--no-plugins", "--ignore-platform-reqs"}
+			// A check corpus gets its development packages too: with every
+			// requirement installed its world is complete, so the rules
+			// needing one run on it.
+			if c.PHP == "" {
+				args = append(args, "--no-dev")
+			}
+			return sh(log, dir, "composer", args...)
 		}); err != nil {
 			return fmt.Errorf("%s: %w", c.Name, err)
 		}

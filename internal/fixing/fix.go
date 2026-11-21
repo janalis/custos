@@ -114,9 +114,8 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 		if len(edits) == 0 {
 			break
 		}
-		out, n := Apply(res.Source, edits)
+		out, n, next := applyParsed(path, res.Source, edits, opt.Parse)
 		res.Iterations++
-		next := syntax.ParseBest(path, out, opt.Parse)
 		if had := versionOf(f); len(next.Errors) <= len(f.Errors) && tooNewFor(opt.Parse.Version, next, had) {
 			// Rare: keep only the fixes that are compatible together.
 			left := len(tooNew)
@@ -247,8 +246,7 @@ func compatibleEdits(path string, src []byte, f *syntax.File, groups []fixGroup,
 	out, next = src, f
 	for _, g := range groups {
 		try := slices.Concat(kept, g.edits)
-		o, k := Apply(src, try)
-		t := syntax.ParseBest(path, o, opt)
+		o, k, t := applyParsed(path, src, try, opt)
 		if len(t.Errors) > len(f.Errors) {
 			continue
 		}
@@ -266,6 +264,13 @@ func compatibleEdits(path string, src []byte, f *syntax.File, groups []fixGroup,
 // tooNewAlone reports whether edits, applied alone to src, make it need a
 // newer PHP version than both the target and had().
 func tooNewAlone(path string, src []byte, edits []diagnostic.TextEdit, opt syntax.Options, had func() phpversion.Version) bool {
-	o, _ := Apply(src, edits)
-	return tooNewFor(opt.Version, syntax.ParseBest(path, o, opt), had)
+	_, _, t := applyParsed(path, src, edits, opt)
+	return tooNewFor(opt.Version, t, had)
+}
+
+// applyParsed applies edits to src and parses the result: the fixed source,
+// the number of edits applied and its tree.
+func applyParsed(path string, src []byte, edits []diagnostic.TextEdit, opt syntax.Options) ([]byte, int, *syntax.File) {
+	out, n := Apply(src, edits)
+	return out, n, syntax.ParseBest(path, out, opt)
 }

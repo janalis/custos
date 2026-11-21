@@ -18,6 +18,7 @@ func TestInstall(t *testing.T) {
 	corpora := []Corpus{
 		{Name: "app", Repo: gitRepo(t, true, "1.0.0"), Tag: "1.0.0"},
 		{Name: "lib", Repo: gitRepo(t, false, "2.0.0"), Tag: "2.0.0"},
+		{Name: "old", Repo: gitRepo(t, true, "0.1.0"), Tag: "0.1.0", PHP: "5.6"},
 	}
 	var log bytes.Buffer
 	if err := b.install(tools, corpora, &log); err != nil {
@@ -31,8 +32,15 @@ func TestInstall(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(work, "corpora/lib/vendor")); err == nil {
 		t.Error("composer ran for a corpus without composer.json")
 	}
-	if n := strings.Count(log.String(), "installing"); n != 3 {
-		t.Errorf("%d installs, want 3:\n%s", n, log.String())
+	if n := strings.Count(log.String(), "installing"); n != 4 {
+		t.Errorf("%d installs, want 4:\n%s", n, log.String())
+	}
+	// Only a check corpus gets its development packages.
+	for name, dev := range map[string]bool{"app": false, "old": true} {
+		args, _ := os.ReadFile(filepath.Join(work, "corpora", name, "vendor", "args"))
+		if strings.Contains(string(args), "--no-dev") == dev {
+			t.Errorf("%s: composer %s", name, args)
+		}
 	}
 
 	// Up to date: nothing is reinstalled.

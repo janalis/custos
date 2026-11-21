@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -54,8 +55,9 @@ func fakeTool() {
 	os.Exit(code)
 }
 
-// fakeComposer creates vendor/ in the working directory, or fails when
-// FAKE_COMPOSER_FAIL names its subcommand.
+// fakeComposer creates vendor/ in the working directory, writing its
+// arguments to vendor/args, or fails when FAKE_COMPOSER_FAIL names its
+// subcommand.
 func fakeComposer() {
 	if len(os.Args) > 1 && os.Getenv("FAKE_COMPOSER_FAIL") == os.Args[1] {
 		fmt.Fprintln(os.Stderr, "composer failed")
@@ -64,6 +66,7 @@ func fakeComposer() {
 	if err := os.MkdirAll("vendor", 0o755); err != nil {
 		os.Exit(1)
 	}
+	_ = os.WriteFile(filepath.Join("vendor", "args"), []byte(strings.Join(os.Args[1:], " ")), 0o644)
 	os.Exit(0)
 }
 
