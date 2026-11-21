@@ -45,8 +45,13 @@ func BenchmarkFormat(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	big := []byte(strings.Repeat(string(src)+"\n", 20))
-	big = []byte(strings.ReplaceAll(string(big), "?>\n", ""))
+	// One open tag: a repeated `<?php` inside code is a syntax error, and
+	// a file with errors is left as written without being formatted.
+	body := strings.ReplaceAll(strings.TrimPrefix(string(src), "<?php"), "?>\n", "")
+	big := []byte("<?php" + strings.Repeat(body+"\n", 20))
+	if res := Source("bench.php", big, Options{}); res.Skipped != "" {
+		b.Fatal(res.Skipped)
+	}
 	for _, p := range []string{"per", "laravel"} {
 		r, _ := Resolve(p, false)
 		b.Run(p, func(b *testing.B) {
