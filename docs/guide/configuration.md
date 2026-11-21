@@ -144,12 +144,20 @@ The first of these that is set decides:
 1. `--php` on the command line;
 2. `php` in `custos.json`;
 3. `config.platform.php` in `composer.json`;
-4. the lowest version that `require.php` in `composer.json` allows;
+4. the lowest version that `require.php` in `composer.json` allows (a bare
+   major such as `5.*` or `^7` stands for its lowest version, 5.3 or 7.0);
 5. the version pinned by `.php-version` at the project root (as read by
    phpenv or the Symfony CLI): its first line, such as `8.2` or `8.2.12`;
 6. PHP 8.4.
 
 `custos analyse --stats` shows which version was used and where it came from.
+
+custos supports PHP 5.3 to 8.5. The target is the oldest version the code
+must run on: rules only suggest what that version has, and quick-fixes and
+`custos format` never make a file need a newer version. A fix that would
+(such as `??` in a PHP 5.6 project) is not applied, and the formatter leaves
+the file as written; a file that already uses newer syntax is not held back
+by its own syntax.
 
 ## Comparison style
 
