@@ -68,8 +68,11 @@ Reported:
   PHP version, the name itself (`method_exists()` included), or an
   extension or constant whose name or leading word is the leading word of
   the name (`extension_loaded('acme')`, `defined('ACME_READY')` for
-  `Acme\open()` or `acme_open()`). A check whose result guards nothing
-  (stored and left unread) does not count.
+  `Acme\open()` or `acme_open()`), or an extension whose name starts the
+  name (`extension_loaded('openacme')` for `openacme_sign()`). A check whose result guards nothing
+  (stored and left unread) does not count. In an instance method, a check
+  the class's constructor makes, throwing or exiting when it fails, guards
+  the whole method: no instance exists without what it checks.
 - A namespaced name in a namespace that a PHP extension uses (such as
   `MongoDB\` or `Swoole\`), and a namespaced name under a PSR-4 or PSR-0
   prefix whose code the analysis did not read: a directory outside the

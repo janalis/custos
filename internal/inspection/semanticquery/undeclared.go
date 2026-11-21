@@ -110,6 +110,9 @@ func ExistenceChecked(ctx *analysis.Context, n syntax.Node, fqns ...string) bool
 			}
 		}
 	}
+	if constructorGuards(ctx, n, fqns) {
+		return true
+	}
 	// An earlier check whose result the conditions guarding n narrow: an
 	// early exit, an else arm, a short circuit.
 	at, ok := n.(syntax.Expr)
@@ -119,6 +122,57 @@ func ExistenceChecked(ctx *analysis.Context, n syntax.Node, fqns ...string) bool
 		}
 		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") || t.OnlyOf("false") }
 	})
+}
+
+// constructorGuards reports whether n lies in an instance method of a class
+// whose constructor throws or exits under a condition making a check about
+// one of fqns: no instance runs the method without what the check asks
+// for. A constructor returning early still makes the instance.
+func constructorGuards(ctx *analysis.Context, n syntax.Node, fqns []string) bool {
+	var method *syntax.Method
+	for p := n.Parent(); p != nil; p = p.Parent() {
+		switch p := p.(type) {
+		case *syntax.Method:
+			if method == nil {
+				method = p
+			}
+		case *syntax.ClassLike:
+			if method == nil || method.Modifiers.Has(syntax.TStatic) {
+				return false
+			}
+			for _, m := range p.Members {
+				ctor, ok := m.(*syntax.Method)
+				if !ok || ctor.Body == nil || !strings.EqualFold(ctor.Name.Value, "__construct") {
+					continue
+				}
+				for _, s := range ctor.Body.Stmts {
+					if check, ok := s.(*syntax.If); ok && aborts(check.Body) && guardIn(ctx, check.Cond, fqns) {
+						return true
+					}
+				}
+			}
+			return false
+		}
+	}
+	return false
+}
+
+// aborts reports whether body, an if statement's, ends by throwing or
+// exiting.
+func aborts(body syntax.Stmt) bool {
+	if b, ok := body.(*syntax.Block); ok {
+		if len(b.Stmts) == 0 {
+			return false
+		}
+		body = b.Stmts[len(b.Stmts)-1]
+	}
+	if s, ok := body.(*syntax.ExprStmt); ok {
+		switch s.Expr.(type) {
+		case *syntax.Throw, *syntax.Exit:
+			return true
+		}
+	}
+	return false
 }
 
 // guardsAny reports whether x, a call or a comparison, checks something
@@ -173,6 +227,11 @@ func guardsCall(ctx *analysis.Context, call *syntax.FuncCall, fqns []string) boo
 			word, _, _ := strings.Cut(subject, "_")
 			for _, fqn := range fqns {
 				if leading := leadingWords(fqn); leading[subject] || leading[word] {
+					return true
+				}
+				// An extension whose name starts the name: `opendkim` for
+				// `OpenDKIMSign`.
+				if fn == "extension_loaded" && strings.HasPrefix(strings.ToLower(strings.TrimPrefix(fqn, `\`)), subject) {
 					return true
 				}
 			}
