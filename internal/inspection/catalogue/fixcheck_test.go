@@ -2,6 +2,7 @@ package catalogue
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/janalis/custos/internal/diagnostic"
@@ -24,14 +26,34 @@ import (
 // TestFixesKeepCodeParsable applies every quick-fix offered on a real-world
 // corpus, one finding at a time and then all together per file (the
 // `custos fix` loop), and requires the result to parse with no more syntax
-// errors than the original. Each fix applied alone must also remove its
-// finding: its rule, run again on the result, must not report it there. Skipped with -short or without a
-// corpus (CUSTOS_CORPUS, a list of directories).
+// errors than the original, and to need no newer PHP version than both the
+// target and the original. Each fix applied alone must also remove its
+// finding: its rule, run again on the result, must not report it there.
+// Skipped without CUSTOS_FIXCHECK or a corpus (CUSTOS_CORPUS, a list of
+// directories). CUSTOS_FIXCHECK_PHP sets the target (default 8.5) and
+// CUSTOS_PHP the binary used by CUSTOS_FIXCHECK=php (default php), which
+// must then be of the target version.
 func TestFixesKeepCodeParsable(t *testing.T) {
 	if os.Getenv("CUSTOS_FIXCHECK") == "" {
 		t.Skip("set CUSTOS_FIXCHECK=1 (or run `make fixcheck`); CUSTOS_FIXCHECK=php also lints samples with php -l")
 	}
 	phpLint := os.Getenv("CUSTOS_FIXCHECK") == "php"
+	target, err := phpversion.Parse(cmp.Or(os.Getenv("CUSTOS_FIXCHECK_PHP"), phpversion.PHP85.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	phpBin := cmp.Or(os.Getenv("CUSTOS_PHP"), "php")
+	if phpLint && os.Getenv("CUSTOS_FIXCHECK_PHP") != "" {
+		if got := phpBinaryVersion(t, phpBin); got != target.String() {
+			t.Fatalf("%s is PHP %s, not the target %s", phpBin, got, target)
+		}
+	}
+	// Below 8.0 the real binary is the only check of semantic-only version
+	// differences, so every result is linted.
+	lintCap := 20
+	if target.Below(phpversion.PHP80) {
+		lintCap = 1 << 30
+	}
 	linted := map[string]int{}
 	roots := filepath.SplitList(os.Getenv("CUSTOS_CORPUS"))
 	var present []string
@@ -47,8 +69,8 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opt := syntax.Options{Version: phpversion.PHP85}
-	e, err := analysis.NewEngine(All(), analysis.Config{PHP: phpversion.PHP85, EnableAll: true})
+	opt := syntax.Options{Version: target}
+	e, err := analysis.NewEngine(All(), analysis.Config{PHP: target, EnableAll: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +80,7 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 	// Each fix's result is analyzed again with its rule alone.
 	alone := map[string]*analysis.Engine{}
 	for _, r := range All() {
-		one, err := analysis.NewEngine([]analysis.Rule{r}, analysis.Config{PHP: phpversion.PHP85, EnableAll: true})
+		one, err := analysis.NewEngine([]analysis.Rule{r}, analysis.Config{PHP: target, EnableAll: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,6 +93,10 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 	combined := 0
 	for _, r := range project.Run(e, files, opt) {
 		base := len(r.Errors)
+		had, _ := syntax.RequiredVersion(syntax.ParseBest(r.Path, r.Src, opt))
+		limit := max(target, had)
+		// php -l judges a fix only when it accepts the original file.
+		lintable := sync.OnceValue(func() bool { return phpLintSource(t, phpBin, r.Src) == "" })
 		fixable := false
 		for _, fd := range r.Findings {
 			fixable = fixable || len(fd.Fixes) > 0
@@ -82,17 +108,22 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 				}
 				applied++
 				line := 1 + countNewlines(r.Src[:fd.Span.Start])
-				if got := len(syntax.ParseBest(r.Path, out, opt).Errors); got > base {
+				fixedTree := syntax.ParseBest(r.Path, out, opt)
+				if got := len(fixedTree.Errors); got > base {
 					broken[fd.Rule] = append(broken[fd.Rule], fmt.Sprintf("%s:%d (%s)", r.Path, line, fx.Title))
+					continue
+				}
+				if need, _ := syntax.RequiredVersion(fixedTree); need > limit {
+					broken[fd.Rule] = append(broken[fd.Rule], fmt.Sprintf("%s:%d (%s) needs PHP %s", r.Path, line, fx.Title, need))
 					continue
 				}
 				if stillReported(project.AnalyzeBuffer(alone[fd.Rule], r.Path, out, opt).Findings, fd, edits, r.Src, out) {
 					lingering[fd.Rule] = append(lingering[fd.Rule], fmt.Sprintf("%s:%d (%s)", r.Path, line, fx.Title))
 				}
 				// Optional ground truth: lint a sample per rule with the real PHP.
-				if phpLint && base == 0 && linted[fd.Rule] < 20 {
+				if phpLint && base == 0 && linted[fd.Rule] < lintCap && lintable() {
 					linted[fd.Rule]++
-					if msg := phpLintSource(t, out); msg != "" {
+					if msg := phpLintSource(t, phpBin, out); msg != "" {
 						broken[fd.Rule] = append(broken[fd.Rule], fmt.Sprintf("%s:%d (%s) php -l: %s", r.Path, line, fx.Title, msg))
 					}
 				}
@@ -105,9 +136,9 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 			combined++
 			if got := len(syntax.ParseBest(r.Path, res.Source, opt).Errors); got > base {
 				broken["(all fixes combined)"] = append(broken["(all fixes combined)"], r.Path)
-			} else if phpLint && base == 0 && linted["(all fixes combined)"] < 50 && res.Applied > 0 {
+			} else if phpLint && base == 0 && linted["(all fixes combined)"] < max(50, lintCap) && res.Applied > 0 && lintable() {
 				linted["(all fixes combined)"]++
-				if msg := phpLintSource(t, res.Source); msg != "" {
+				if msg := phpLintSource(t, phpBin, res.Source); msg != "" {
 					broken["(all fixes combined)"] = append(broken["(all fixes combined)"], r.Path+" php -l: "+msg)
 				}
 			}
@@ -177,8 +208,18 @@ func stillReported(findings []diagnostic.Finding, fd diagnostic.Finding, edits [
 	return false
 }
 
-// phpLintSource runs `php -l` on src and returns the error output ("" = OK).
-func phpLintSource(t *testing.T, src []byte) string {
+// phpBinaryVersion returns the major.minor version of the PHP binary bin.
+func phpBinaryVersion(t *testing.T, bin string) string {
+	t.Helper()
+	out, err := exec.Command(bin, "-n", "-r", `echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;`).Output()
+	if err != nil {
+		t.Fatalf("%s: %v", bin, err)
+	}
+	return string(out)
+}
+
+// phpLintSource runs `bin -l` on src and returns the error output ("" = OK).
+func phpLintSource(t *testing.T, bin string, src []byte) string {
 	t.Helper()
 	f, err := os.CreateTemp(t.TempDir(), "fix-*.php")
 	if err != nil {
@@ -186,7 +227,7 @@ func phpLintSource(t *testing.T, src []byte) string {
 	}
 	_, _ = f.Write(src)
 	_ = f.Close()
-	out, err := exec.Command("php", "-l", f.Name()).CombinedOutput()
+	out, err := exec.Command(bin, "-n", "-l", f.Name()).CombinedOutput()
 	if err != nil {
 		return strings.TrimSpace(string(out))
 	}

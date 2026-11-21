@@ -119,10 +119,12 @@ cleanroom:
 	$(GO) run ./tools/cleanroom -ea "$(EA_PATH)"
 
 # Apply every quick-fix offered on the real-world corpus (CUSTOS_CORPUS, a list
-# of directories) and require the result to still parse, and each fix to
-# remove its finding (FIXCHECK=php additionally runs php -l on samples).
+# of directories) and require the result to still parse, to need no newer PHP
+# than the target, and each fix to remove its finding (FIXCHECK=php
+# additionally runs php -l on samples). FIXCHECK_PHP=5.6 sets the target
+# (default 8.5); PHP_BIN is the php binary of that version FIXCHECK=php uses.
 fixcheck:
-	CUSTOS_FIXCHECK=$(FIXCHECK) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout 30m
+	CUSTOS_FIXCHECK=$(FIXCHECK) CUSTOS_FIXCHECK_PHP=$(FIXCHECK_PHP) CUSTOS_PHP=$(PHP_BIN) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout 30m
 
 # Record the findings of every rule on the pinned benchmark corpora
 # (installed by `make compare`, or `go run ./tools/benchcmp install -tool

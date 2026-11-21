@@ -43,18 +43,23 @@ func FuzzRules(f *testing.F) {
 		}
 	}
 	f.Add("<?php class A { function f($x) { return $x?->y ?? throw new E(); } }")
-	e, err := analysis.NewEngine(All(), analysis.Config{PHP: phpversion.PHP84, EnableAll: true})
-	if err != nil {
-		f.Fatal(err)
+	engines := map[phpversion.Version]*analysis.Engine{}
+	for _, v := range []phpversion.Version{phpversion.PHP56, phpversion.PHP84} {
+		e, err := analysis.NewEngine(All(), analysis.Config{PHP: v, EnableAll: true})
+		if err != nil {
+			f.Fatal(err)
+		}
+		engines[v] = e
 	}
 	f.Fuzz(func(t *testing.T, src string) {
 		for _, v := range []phpversion.Version{phpversion.PHP56, phpversion.PHP84} {
 			opt := syntax.Options{Version: v, Permissive: true}
-			engine := e
+			// Rules see the version the source is parsed at.
+			engine := engines[v]
 			if v == phpversion.PHP84 {
 				ix := index.New(stubs.Index())
 				ix.Add(project.ExtractSymbols("fuzz.php", []byte(src), opt, infer.Options{}))
-				engine = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(context.Background(), []string{"fuzz.php"}, [][]byte{[]byte(src)}, opt, ix, flow.Options{}))
+				engine = engine.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(context.Background(), []string{"fuzz.php"}, [][]byte{[]byte(src)}, opt, ix, flow.Options{}))
 			}
 			file := syntax.ParseBest("fuzz.php", []byte(src), opt)
 			for _, fd := range engine.Analyze(file) {

@@ -58,7 +58,7 @@ code compiles.
 | `make compare` / `make compare-doc` | Compare custos with other PHP tools on the projects of `bench/competitors.json` (needs PHP with `ast` and `pcntl`, Composer and git; `TOOL=` / `CORPUS=` filter), or only regenerate `docs/guide/benchmark.md` and the README comparison from `bench/results.json` and `bench/features.json`. The weekly `benchmark` workflow bumps versions, reruns it and opens a pull request. |
 | `make corpus-baseline` / `make corpus-diff` | Record the findings of every rule on the pinned benchmark corpora, then compare a later build with the record: added and removed findings are listed by rule and written to `.cache/corpus-diff/`. `CORPORA=` filters. |
 | `make typecov` | Measure the share of expressions whose inferred type is unknown on the benchmark corpora, by kind and cause (`.cache/typecov/run.summary`; `TYPECOV=` takes `root=srcdir` pairs separated by `;`). |
-| `make fixcheck` | Apply every quick-fix on the projects in `CUSTOS_CORPUS` and require the result to still parse, and each fix to remove its finding. |
+| `make fixcheck` | Apply every quick-fix on the projects in `CUSTOS_CORPUS` and require the result to still parse, to need no newer PHP version than the target, and each fix to remove its finding. `FIXCHECK_PHP=5.6` sets the target (default 8.5); with `FIXCHECK=php`, `PHP_BIN` names a php binary of that version to lint the results with. |
 | `make formatcheck` | Format a copy of each benchmark corpus with each preset and run the style checker the preset follows on it (see [Formatter compliance](#formatter-compliance)). Needs PHP and Composer; `CORPORA=` and `PRESETS=` filter. Not part of `make verify`. |
 | `make stubs` | Rebuild the embedded PHP builtin symbol index from phpstorm-stubs. |
 
@@ -73,6 +73,7 @@ Some tests read optional environment variables:
 | `CUSTOS_CORPUS` | Real PHP projects: `:`-separated roots for `make fixcheck` and the no-crash test of every rule; the parser oracle test reads a single root. |
 | `CUSTOS_CORPUS_MAX` | Cap on the files the parser oracle test takes from the corpus. |
 | `CUSTOS_FIXCHECK` | Set by `make fixcheck`; `php` also lints samples with `php -l`. |
+| `CUSTOS_FIXCHECK_PHP`, `CUSTOS_PHP` | Set by `make fixcheck` from `FIXCHECK_PHP` and `PHP_BIN`: the target version and the php binary, which must be of that version when the target is set. Below 8.0 every fix result is linted, not a sample. |
 | `CUSTOS_FORMAT_CORPUS` | A directory of real PHP code for the formatter's corpus test (`go test -run TestCorpus ./internal/format`): every preset must pass the safety check and be idempotent. `CUSTOS_FORMAT_PRESET` limits it to one preset, `CUSTOS_FORMAT_RISKY=1` allows risky settings. |
 | `CUSTOS_BENCH_FILE` | A PHP file for the parser benchmark on real input. |
 | `CUSTOS_PERF_TRACE` | `1` adds raw timing for each edit, parse/analysis phases, CPU time, GC count and pause deltas to `TestEditLatency`; GC snapshots and trace logging occur outside the measured edit. |
