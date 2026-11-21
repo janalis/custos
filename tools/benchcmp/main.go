@@ -45,7 +45,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	from := fs.String("from", "", "adopt: configuration a benchmark run bumped")
 	resultsFrom := fs.String("results-from", "", "adopt: measurements of that run, written to -results")
 	dev := fs.Bool("dev", false, "install: the corpora with their development packages, under <work>/corpora-dev (for corpusdiff)")
-	if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 {
+	if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 || *dev && sub != "install" {
 		fmt.Fprintln(stderr, usage)
 		return 2
 	}

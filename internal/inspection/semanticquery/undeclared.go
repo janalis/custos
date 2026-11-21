@@ -11,7 +11,8 @@ import (
 
 // UndeclaredEverywhere reports whether none of the class-likes (or, with
 // function, functions) fqns can be declared anywhere the analyzed file may
-// run. Every candidate must be missing from the index (stubs, project and
+// run. A file written for a package hosting other code (see
+// index.World.Hosts) may run with any name declared. Every candidate must be missing from the index (stubs, project and
 // vendor, at any PHP version), the index world must be complete for the
 // file (see index.World), and no candidate may lie where the index cannot
 // see: a namespace the project autoloads from unindexed directories, a
@@ -62,29 +63,49 @@ func UndeclaredEverywhere(ctx *analysis.Context, function bool, fqns ...string) 
 
 type hostedKey struct{}
 
-// importsFrom reports whether file imports a name under one of namespaces
-// (lower case, ending in a backslash): such a file runs within the package
-// hosting them (see index.World.Hosts).
+// importsFrom reports whether file is written for a package hosting one of
+// namespaces (lower case, ending in a backslash; see index.World.Hosts): it
+// lies in one of them, imports from one, or extends or implements a fully
+// qualified name of one. Only top-level and namespace statements are read.
 func importsFrom(file *syntax.File, namespaces []string) bool {
-	found := false
-	syntax.InspectFile(file, func(n syntax.Node) bool {
-		u, ok := n.(*syntax.Use)
-		if !ok {
-			return !found
-		}
-		for _, item := range u.Items {
-			name := item.Name.Value
-			if u.Prefix != nil {
-				name = u.Prefix.Value + `\` + name
-			}
-			name = strings.ToLower(strings.TrimPrefix(name, `\`))
-			for _, ns := range namespaces {
-				found = found || strings.HasPrefix(name, ns)
+	under := func(name string) bool {
+		name = strings.ToLower(strings.TrimPrefix(name, `\`)) + `\`
+		for _, ns := range namespaces {
+			if strings.HasPrefix(name, ns) {
+				return true
 			}
 		}
 		return false
-	})
-	return found
+	}
+	var scan func(stmts []syntax.Stmt) bool
+	scan = func(stmts []syntax.Stmt) bool {
+		for _, st := range stmts {
+			switch st := st.(type) {
+			case *syntax.Namespace:
+				if st.Name != nil && under(st.Name.Value) || scan(st.Stmts) {
+					return true
+				}
+			case *syntax.Use:
+				for _, item := range st.Items {
+					name := item.Name.Value
+					if st.Prefix != nil {
+						name = st.Prefix.Value + `\` + name
+					}
+					if under(name) {
+						return true
+					}
+				}
+			case *syntax.ClassLike:
+				for _, n := range append(st.Extends[:len(st.Extends):len(st.Extends)], st.Implements...) {
+					if strings.HasPrefix(n.Value, `\`) && under(n.Value) {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+	return scan(file.Stmts)
 }
 
 // existenceChecks are the builtins whose first argument names a function

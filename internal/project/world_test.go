@@ -77,6 +77,8 @@ func TestComposerWorldComplete(t *testing.T) {
 // declares unseen; one without autoloader, or unreadable, changes nothing.
 func TestComposerWorldPackageAutoloader(t *testing.T) {
 	for src, blind := range map[string]bool{
+		"<?php namespace PHPStan; spl_autoload_register(function ($c) {});\n":                                         true,
+		"<?php\nspl_autoload_register(function ($c) {}); // a global one hides nothing\n":                             false,
 		"<?php declare(strict_types = 1);\n\nnamespace PHPStan;\n\nspl_autoload_register([Loader::class, 'load']);\n": true,
 		"<?php\nnamespace Acme\\Http;\nfunction helper() {}\n":                                                        false,
 		"": false,
@@ -122,10 +124,6 @@ func TestComposerWorldIncomplete(t *testing.T) {
 		},
 		"package classmap in tests": func(f map[string]string) {
 			addPackage(f, `{"name": "acme/y", "install-path": "../acme/http", "autoload": {"classmap": ["test/"]}}`)
-		},
-		"global autoloader": func(f map[string]string) {
-			addPackage(f, `{"name": "acme/z", "install-path": "../acme/http", "autoload": {"files": ["src/Client.php"]}}`)
-			f["vendor/acme/http/src/Client.php"] = "<?php\nspl_autoload_register(function ($c) {});\n"
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

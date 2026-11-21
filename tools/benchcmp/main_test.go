@@ -17,7 +17,7 @@ func call(args ...string) (int, string, string) {
 }
 
 func TestUsage(t *testing.T) {
-	for _, args := range [][]string{nil, {"run", "-nope"}, {"run", "extra"}, {"dance"}} {
+	for _, args := range [][]string{nil, {"run", "-nope"}, {"run", "extra"}, {"dance"}, {"run", "-dev"}} {
 		if code, _, stderr := call(args...); code != 2 || !strings.Contains(stderr, "usage") {
 			t.Errorf("%q: %d %s", args, code, stderr)
 		}

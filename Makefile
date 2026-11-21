@@ -137,14 +137,13 @@ fixcheck:
 # e.g. swiftmailer at 5.6), which compare neither measures nor
 # formatchecks.
 CORPORA ?=
-CORPORA_DEV = .cache/bench/corpora-dev
 corpus-baseline: build
 	$(GO) run ./tools/benchcmp install -dev -tool custos -corpus "$(CORPORA)"
-	$(GO) run ./tools/corpusdiff -record -corpora "$(CORPORA)" -dir $(CORPORA_DEV)
+	$(GO) run ./tools/corpusdiff -record -corpora "$(CORPORA)"
 
 corpus-diff: build
 	$(GO) run ./tools/benchcmp install -dev -tool custos -corpus "$(CORPORA)"
-	$(GO) run ./tools/corpusdiff -corpora "$(CORPORA)" -dir $(CORPORA_DEV)
+	$(GO) run ./tools/corpusdiff -corpora "$(CORPORA)"
 
 # Format a copy of each corpus with each preset (PRESETS=, default all) and
 # run the preset's reference checker on it: PHP_CodeSniffer, PHP-CS-Fixer,

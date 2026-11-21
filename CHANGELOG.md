@@ -22,7 +22,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `UndefinedClass` and `UndefinedFunction` no longer report PHPStan's
   classes, nor the libraries it bundles, in a PHPStan extension: a package
   whose autoloader loads classes from a phar now makes its namespace, and
-  any name a file importing from it uses, count as possibly declared.
+  any name in a file written for it, count as possibly declared, through
+  the command line, the language server and MCP alike.
 - `UndefinedClass` and `UndefinedFunction` no longer report names of an
   optional extension used in an instance method when the class's
   constructor throws unless `extension_loaded()` finds the extension, or

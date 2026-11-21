@@ -61,9 +61,13 @@ func TestUndeclaredEverywhereHosted(t *testing.T) {
 	ix.SetWorld(index.World{Complete: true, Hosts: []string{`phpstan\`}})
 	ix.Freeze()
 	for src, want := range map[string]int{
-		`<?php namespace App; use PHPStan\Type\Type; new \PhpParser\Node\Identifier();`:             0,
-		`<?php namespace App; use PHPStan\{Type\Type, Analyser\Scope}; new \PhpParser\Node\Name();`: 0,
-		`<?php namespace App; use Other\Type; new \PhpParser\Node\Name();`:                          1,
+		`<?php namespace App; use PHPStan\Type\Type; new \PhpParser\Node\Identifier();`:                                                     0,
+		`<?php namespace App; use PHPStan\{Type\Type, Analyser\Scope}; new \PhpParser\Node\Name();`:                                         0,
+		`<?php namespace App; use Other\Type; new \PhpParser\Node\Name();`:                                                                  1,
+		`<?php namespace PHPStan\Ext; new \PhpParser\Node\Name();`:                                                                          0,
+		`<?php namespace App { final class R implements \PHPStan\Rules\Rule { function f() { return new \PhpParser\Node\Name(); } } }`:      0,
+		`<?php namespace App; abstract class R extends Type implements \Other\Rule { function f() { return new \PhpParser\Node\Name(); } }`: 1,
+		`<?php namespace App; use PHPStanned\Type; new \PhpParser\Node\Name();`:                                                             1,
 	} {
 		f := Parse(t, src)
 		if got := e.WithIndex(ix).Analyze(f); len(got) != want {

@@ -147,13 +147,8 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 	if err != nil {
 		return index.World{}
 	}
-	var packages []composerManifest
-	var v2 struct {
-		Packages []composerManifest `json:"packages"`
-	}
-	if json.Unmarshal(b, &v2) == nil && v2.Packages != nil {
-		packages = v2.Packages
-	} else if json.Unmarshal(b, &packages) != nil {
+	packages, ok := installedPackages(b)
+	if !ok {
 		return index.World{}
 	}
 	installed := map[string]bool{}
@@ -262,17 +257,16 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 			if p = path.Join(dir, p); !g.indexed[p] || g.file[p] {
 				return false
 			}
-			// A package's file registering an autoloader loads classes from
-			// where the index does not look (PHPStan's from its phar): the
-			// namespace it declares is unseen, and with none any name is.
-			if !own {
-				ns, registers, bundle := autoloaderNamespace(read, p)
-				if registers && ns == "" {
-					return false
-				}
-				if registers {
-					w.Blind = append(w.Blind, strings.ToLower(ns)+`\`)
-				}
+			// A package's file registering an autoloader in a namespace
+			// loads classes from where the index does not look (PHPStan's
+			// from its phar): that namespace is unseen. A global
+			// autoloader (Rector's, for its prefixed copies) is left
+			// alone, as before: it would hide every name.
+			if own {
+				continue
+			}
+			if ns, registers, bundle := autoloaderNamespace(read, p); registers && ns != "" {
+				w.Blind = append(w.Blind, strings.ToLower(ns)+`\`)
 				if bundle {
 					w.Hosts = append(w.Hosts, strings.ToLower(ns)+`\`)
 				}
@@ -291,10 +285,7 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 		if p.Autoload.empty() {
 			continue
 		}
-		dir := path.Join(vendor, p.Name)
-		if p.InstallPath != "" {
-			dir = path.Join(vendor, "composer", p.InstallPath)
-		}
+		dir := p.dir(vendor)
 		if !files[dir] || !autoload(p.Autoload, dir, false) {
 			return index.World{}
 		}
@@ -302,8 +293,43 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 	return w
 }
 
+// installedPackages decodes Composer's installed.json: the packages list
+// of Composer 2, or the bare list of Composer 1.
+func installedPackages(b []byte) ([]composerManifest, bool) {
+	var v2 struct {
+		Packages []composerManifest `json:"packages"`
+	}
+	if json.Unmarshal(b, &v2) == nil && v2.Packages != nil {
+		return v2.Packages, true
+	}
+	var packages []composerManifest
+	return packages, json.Unmarshal(b, &packages) == nil
+}
+
+// dir is where a package is installed, relative to the project root.
+func (p composerManifest) dir(vendor string) string {
+	if p.InstallPath != "" {
+		return path.Join(vendor, "composer", p.InstallPath)
+	}
+	return path.Join(vendor, p.Name)
+}
+
+// packageFiles lists the files entries of the packages installed.json
+// lists, relative to the project root: the files composerWorld reads to
+// find autoloaders.
+func packageFiles(installed []byte, vendor string) []string {
+	packages, _ := installedPackages(installed)
+	var out []string
+	for _, p := range packages {
+		for _, f := range p.Autoload.Files {
+			out = append(out, path.Join(p.dir(vendor), f))
+		}
+	}
+	return out
+}
+
 // namespaceDecl matches the first namespace declaration of a file.
-var namespaceDecl = regexp.MustCompile(`(?m)^\s*namespace\s+([A-Za-z_\\][A-Za-z0-9_\\]*)\s*[;{]`)
+var namespaceDecl = regexp.MustCompile(`(?m)(?:^|[;{}]|<\?php)\s*namespace\s+([A-Za-z_\\][A-Za-z0-9_\\]*)\s*[;{]`)
 
 // autoloaderNamespace reports whether file calls spl_autoload_register(),
 // the namespace it declares first ("" for none), and whether it loads from
