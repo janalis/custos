@@ -114,6 +114,26 @@ func TestFixSourceKeepsTheTargetVersion(t *testing.T) {
 	}
 }
 
+// TestFixSourceRetriesFixesATooNewFixOverlapped: the fix left out for its
+// version no longer blocks the compatible fix it overlapped.
+func TestFixSourceRetriesFixesATooNewFixOverlapped(t *testing.T) {
+	src := "<?php $a = !!$b;"
+	res := fixWithAt(t, phpversion.PHP56, src, func(n syntax.Node) []diagnostic.TextEdit {
+		// Spans of later iterations may lie past the original source.
+		if n.Span().End > uint32(len(src)) {
+			return nil
+		}
+		text := map[string]string{"!!$b": "$b ?? 1", "!$b": "(bool) $b"}[src[n.Span().Start:n.Span().End]]
+		if text == "" {
+			return nil
+		}
+		return []diagnostic.TextEdit{{Span: n.Span(), NewText: text}}
+	})
+	if string(res.Source) != "<?php $a = !(bool) $b;" {
+		t.Fatalf("got %q", res.Source)
+	}
+}
+
 func TestWithinVersion(t *testing.T) {
 	opt := syntax.Options{Version: phpversion.PHP56}
 	if !WithinVersion("x.php", []byte("<?php $a = !$b;"), []byte("<?php $a = (bool) $b;"), opt) {

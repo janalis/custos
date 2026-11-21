@@ -147,8 +147,10 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, forward bool) (
 				return "", false
 			}
 			// Before 7.0, $f() cannot call a 'Cls::m' string.
-			if t := ctx.TypeOf(a0); ctx.PHP.Below(phpversion.PHP70) && (t.IsUnknown() || t.HasAny("mixed", "string", "callable")) {
-				return "", false
+			if ctx.PHP.Below(phpversion.PHP70) {
+				if t := ctx.TypeOf(a0); t.IsUnknown() || t.HasAny("mixed", "string", "callable") {
+					return "", false
+				}
 			}
 		}
 		first = a0

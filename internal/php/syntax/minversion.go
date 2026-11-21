@@ -110,8 +110,13 @@ func minVersion(f *File, n Node) phpversion.Version {
 		at(dimFetchVersion(x))
 	case *FuncCall:
 		at(callableVersion(x.Name))
+	case *StaticCall:
+		at(staticClassVersion(x.Class))
+	case *StaticPropertyFetch:
+		at(staticClassVersion(x.Class))
 	case *ClassConstFetch:
 		at(classConstFetchVersion(x))
+		at(staticClassVersion(x.Class))
 	case *Empty:
 		if !isWritable(UnwrapParens(x.Expr)) {
 			at(phpversion.PHP55)
@@ -156,7 +161,7 @@ func minVersion(f *File, n Node) phpversion.Version {
 	case *AttributeGroup:
 		at(phpversion.PHP80)
 	case *Clone:
-		if x.Args != nil && len(x.Args.Args) != 1 {
+		if x.Args != nil && !legacyCloneArgs(f, x.Args) {
 			at(phpversion.PHP85)
 		}
 	case *MagicConst:
@@ -398,15 +403,40 @@ func nullsafeVersion(nullsafe bool) phpversion.Version {
 	return phpversion.Min
 }
 
-// dereferenceVersion covers `(new A)->m()` (5.4) as the object of a member
-// access; the unparenthesized form is classified on the New node.
+// dereferenceVersion covers a parenthesized object of a member or offset
+// access: `(new A)->m()` works since 5.4, any other `(expr)->m()` since 7.0
+// (uniform variable syntax). The unparenthesized `new A()->m()` is
+// classified on the New node.
 func dereferenceVersion(obj Expr) phpversion.Version {
-	if p, ok := obj.(*Paren); ok {
-		if _, ok := p.Expr.(*New); ok {
-			return phpversion.PHP54
-		}
+	p, ok := obj.(*Paren)
+	if !ok {
+		return phpversion.Min
 	}
-	return phpversion.Min
+	if _, ok := p.Expr.(*New); ok {
+		return phpversion.PHP54
+	}
+	return phpversion.PHP70
+}
+
+// staticClassVersion classifies the class operand of `::`: a name, a
+// variable or an offset works everywhere, any other expression
+// (`(new A)::m()`, `$o->p::m()`, `'A'::m()`) since 7.0.
+func staticClassVersion(class Expr) phpversion.Version {
+	switch class.(type) {
+	case *Name, *Variable, *ArrayDimFetch:
+		return phpversion.Min
+	}
+	return phpversion.PHP70
+}
+
+// legacyCloneArgs reports whether the argument list of a function-like
+// clone is the parenthesized operand every version accepts, `clone($x)`.
+func legacyCloneArgs(f *File, args *ArgList) bool {
+	if len(args.Args) != 1 {
+		return false
+	}
+	a, ok := args.Args[0].(*Arg)
+	return ok && a.Name == nil && !a.Unpack && !trailingComma(f, args, a)
 }
 
 func dimFetchVersion(x *ArrayDimFetch) phpversion.Version {
@@ -560,7 +590,7 @@ func literalVersion(f *File, x *Literal) phpversion.Version {
 		return numberVersion(x.Raw)
 	}
 	v := phpversion.Min
-	if strings.HasPrefix(x.Raw, "<<<") {
+	if strings.HasPrefix(strings.TrimLeft(x.Raw, "bB"), "<<<") {
 		v = heredocVersion(f, x)
 	}
 	if !singleQuoted(x.Raw) {
@@ -625,7 +655,9 @@ func escapeVersion(raw string) phpversion.Version {
 // marker, or one followed by anything other than an optional `;` and a
 // line break.
 func heredocVersion(f *File, n Node) phpversion.Version {
-	f = fileOf(f, n)
+	if f = fileOf(f, n); f == nil {
+		return phpversion.Min
+	}
 	sp := n.Span()
 	body := f.Src[sp.Start:sp.End]
 	last := body[strings.LastIndexByte(string(body), '\n')+1:]
@@ -652,7 +684,9 @@ func trailingListVersion(f *File, n Node, xs []Expr) phpversion.Version {
 // trailingComma reports whether the first significant token after last
 // (inside its list owner n) is a comma.
 func trailingComma(f *File, n, last Node) bool {
-	f = fileOf(f, n)
+	if f = fileOf(f, n); f == nil {
+		return false
+	}
 	toks := f.Tokens
 	end := last.Span().End
 	i := sort.Search(len(toks), func(i int) bool { return toks[i].Start >= end })
@@ -664,9 +698,10 @@ func trailingComma(f *File, n, last Node) bool {
 	return false
 }
 
-// fileOf returns f, or the file n belongs to when f is nil.
+// fileOf returns f, or the file n belongs to when f is nil (nil for a node
+// outside any file).
 func fileOf(f *File, n Node) *File {
-	for f == nil {
+	for f == nil && n != nil {
 		if x, ok := n.(*File); ok {
 			return x
 		}

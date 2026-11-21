@@ -44,6 +44,7 @@ N;
 	{`use A\B, C\D as E; empty($a); empty($a['k']); empty($o->p); empty(A::$p); throw new E();`, phpversion.PHP53, false},
 	{`echo __LINE__, __DIR__; isset($a, $b); unset($a);`, phpversion.PHP53, false},
 	{`list(, $b) = $c; list($a, list(, $b)) = $c;`, phpversion.PHP53, false},
+	{`$a['x']::m(); $a::X; $a['x']::X; $a::$p;`, phpversion.PHP53, false},
 	{`[, $b] = $c;`, phpversion.PHP71, false},
 	{`$s = "a$b"; $t = "{$o->p}"; $f = (int) $x; $g = !$y; $h = A::$p; $i = $a ? : $b;`, phpversion.PHP53, false},
 	// 5.4
@@ -103,6 +104,17 @@ N;
 	{`f()();`, phpversion.PHP70, false},
 	{`$o->m()();`, phpversion.PHP70, false},
 	{`'strlen'('x');`, phpversion.PHP70, false},
+	{`(clone $a)->m();`, phpversion.PHP70, false},
+	{`($x)->p;`, phpversion.PHP70, false},
+	{`($a ?: $b)[0];`, phpversion.PHP70, false},
+	{`(new A)::m();`, phpversion.PHP70, false},
+	{`(new A)::X;`, phpversion.PHP70, false},
+	{`(new A)::$p;`, phpversion.PHP70, false},
+	{`(new A)();`, phpversion.PHP70, false},
+	{`'A'::m();`, phpversion.PHP70, false},
+	{`$o->p::m();`, phpversion.PHP70, false},
+	{`A::$p::m();`, phpversion.PHP70, false},
+	{`f()::m();`, phpversion.PHP70, false},
 	// 7.1
 	{`function f(?int $a) {}`, phpversion.PHP71, false},
 	{`function f(): void {}`, phpversion.PHP71, true},
@@ -126,6 +138,7 @@ N;
 	{"$x = [<<<EOT\na\nEOT, 1];\n", phpversion.PHP73, false},
 	{"$x = [<<<'N'\na\nN, 1];\n", phpversion.PHP73, false},
 	{"$x = <<<EOT\n\t$a\n\tEOT;\n", phpversion.PHP73, false},
+	{"$x = b<<<EOT\n  a\n  EOT;\n", phpversion.PHP73, false},
 	// 7.4
 	{`$f = fn($x) => $x;`, phpversion.PHP74, false},
 	{`$a ??= 1;`, phpversion.PHP74, false},
@@ -187,6 +200,8 @@ N;
 	{`$a = $b |> f(...);`, phpversion.PHP85, false},
 	{`(void) f();`, phpversion.PHP85, false},
 	{`$b = clone($a, ['p' => 1]);`, phpversion.PHP85, false},
+	{`$b = clone($a,);`, phpversion.PHP85, false},
+	{`$b = clone(...$a);`, phpversion.PHP85, false},
 }
 
 func TestRequiredVersion(t *testing.T) {
@@ -238,6 +253,10 @@ func TestRequiredVersionOnBrokenCode(t *testing.T) {
 func TestMinVersionNil(t *testing.T) {
 	if MinVersion(nil) != phpversion.Min {
 		t.Fatal("nil")
+	}
+	// A node outside any file has no tokens to read.
+	if MinVersion(&ArgList{Args: []Expr{&Arg{}}}) != phpversion.Min || MinVersion(&Literal{LitKind: LitString, Raw: "<<<X\nX"}) != phpversion.Min {
+		t.Fatal("detached node")
 	}
 	// Error recovery always yields a type node; other expressions need nothing.
 	if typeVersion(&BadExpr{}) != phpversion.Min {

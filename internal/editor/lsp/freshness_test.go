@@ -304,7 +304,15 @@ func TestActionNeedingNewerPHPIsRefused(t *testing.T) {
 	s.mu.Lock()
 	s.cfg.PHP = phpversion.PHP56
 	s.mu.Unlock()
-	if s.buildEdit(firstFreshAction(t, s, uri)) != nil {
-		t.Fatal("fix needing PHP 7.0 offered at 5.6")
+	for _, a := range s.codeActions(freshActionParams(uri)) {
+		if a.Title == "Coalesce" {
+			t.Fatal("fix needing PHP 7.0 offered at 5.6")
+		}
+	}
+	// Resolved lazily, the fix is listed and refused when picked.
+	s.resolve = true
+	data := firstFreshAction(t, s, uri)
+	if data.Suppress || s.buildEdit(data) != nil {
+		t.Fatal("lazy fix needing PHP 7.0 applies at 5.6")
 	}
 }

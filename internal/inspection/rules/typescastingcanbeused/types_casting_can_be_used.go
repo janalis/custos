@@ -10,6 +10,7 @@ import (
 	"github.com/janalis/custos/internal/inspection/astquery"
 	"github.com/janalis/custos/internal/inspection/flowquery"
 	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // typesCastingCanBeUsed reports conversion helpers, single-interpolation
@@ -96,7 +97,9 @@ func (typesCastingCanBeUsed) checkCall(ctx *analysis.Context, call *syntax.FuncC
 		return
 	}
 	r := "(" + typ + ")" + castOperand(ctx, args[0]) // D3
-	reportCast(ctx, call.Span(), guardCastResult(call, r), " instead (a cast is clearer and faster).")
+	if r, ok := guardCastResult(ctx, call, r); ok {
+		reportCast(ctx, call.Span(), r, " instead (a cast is clearer and faster).")
+	}
 }
 
 func (typesCastingCanBeUsed) checkString(ctx *analysis.Context, s *syntax.InterpolatedString) {
@@ -118,7 +121,9 @@ func (typesCastingCanBeUsed) checkString(ctx *analysis.Context, s *syntax.Interp
 	default:
 		r = "(string)" + simpleInterpolation(ctx, part)
 	}
-	reportCast(ctx, sp, guardCastResult(s, r), " to make the string conversion explicit.")
+	if r, ok := guardCastResult(ctx, s, r); ok {
+		reportCast(ctx, sp, r, " to make the string conversion explicit.")
+	}
 }
 
 func (typesCastingCanBeUsed) checkToString(ctx *analysis.Context, m *syntax.MethodCall) {
@@ -130,7 +135,9 @@ func (typesCastingCanBeUsed) checkToString(ctx *analysis.Context, m *syntax.Meth
 		return
 	}
 	r := "(string)" + castOperand(ctx, m.Var) // D11
-	reportCast(ctx, m.Span(), guardCastResult(m, r), " instead of calling __toString() directly.")
+	if r, ok := guardCastResult(ctx, m, r); ok {
+		reportCast(ctx, m.Span(), r, " instead of calling __toString() directly.")
+	}
 }
 
 func reportCast(ctx *analysis.Context, span syntax.Span, r, tail string) {
@@ -234,8 +241,10 @@ func isVariableNamed(e syntax.Expr, name string) bool {
 
 // guardCastResult parenthesises a cast replacing n when n is the base of an
 // array/member access, a callee, the class operand of `::` or an operand of
-// `**`, which bind tighter than a cast.
-func guardCastResult(n syntax.Expr, r string) string {
+// `**`, which bind tighter than a cast (F3). ok is false when the
+// parenthesized cast would be dereferenced before PHP 7.0, which cannot
+// parse it.
+func guardCastResult(ctx *analysis.Context, n syntax.Expr, r string) (string, bool) {
 	tighter := false
 	switch p := n.Parent().(type) {
 	case *syntax.ArrayDimFetch:
@@ -253,10 +262,12 @@ func guardCastResult(n syntax.Expr, r string) string {
 	case *syntax.StaticPropertyFetch:
 		tighter = p.Class == n
 	case *syntax.Binary:
-		tighter = p.Op.Kind == syntax.TPow
+		if p.Op.Kind == syntax.TPow {
+			return "(" + r + ")", true
+		}
 	}
 	if tighter {
-		return "(" + r + ")"
+		return "(" + r + ")", ctx.PHP.AtLeast(phpversion.PHP70)
 	}
-	return r
+	return r, true
 }

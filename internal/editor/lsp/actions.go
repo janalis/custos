@@ -71,7 +71,11 @@ func (s *Server) codeActions(p codeActionParams) []codeAction {
 			data := actionData{URI: p.TextDocument.URI, Version: version, Snapshot: snapshot, Rule: f.Rule, Start: f.Span.Start, End: f.Span.End, Fix: i}
 			a := codeAction{Title: fx.Title, Kind: "quickfix", Diagnostics: []protocolDiagnostic{diag}, IsPreferred: i == 0, Data: mustJSON(data)}
 			if !s.resolve {
-				a.Edit = s.buildEdit(data)
+				// A fix that cannot apply (its edits fail, or it needs a
+				// newer PHP version than the target) is not offered.
+				if a.Edit = s.buildEdit(data); a.Edit == nil {
+					continue
+				}
 			}
 			actions = append(actions, a)
 		}
@@ -113,7 +117,7 @@ func (s *Server) resolveAction(a codeAction) (any, *rpcError) {
 	}
 	a.Edit = s.buildEdit(data)
 	if a.Edit == nil {
-		return nil, &rpcError{Code: codeRequestFailed, Message: "document changed; fix no longer applies"}
+		return nil, &rpcError{Code: codeRequestFailed, Message: "fix no longer applies: the document changed, or the fix needs a newer PHP version than the project targets"}
 	}
 	return a, nil
 }

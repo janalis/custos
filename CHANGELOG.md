@@ -8,14 +8,18 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Quick-fixes and the formatter never make a file need a newer PHP version
-  than the project targets: `custos fix`, the language server and MCP leave
-  out a fix that would (unless the file already needs that version), and
-  `custos format` keeps a file as written instead of producing such code.
+  than the project targets (unless the file already needs that version):
+  `custos fix` leaves out such a fix and still applies the others, the
+  language server no longer offers it, MCP refuses to prepare it, and
+  `custos format` keeps the file as written.
 - `custos format` no longer turns the invalid `array($a, $b) = $x` into a
   `[$a, $b] = $x` destructuring (PHP 7.1).
 - A `composer.json` PHP constraint without a minor version (`5.*`, `>=5`,
   `^7 || ^8`) now sets the target to that major's lowest version (5.3, 7.0)
   instead of falling back to 8.4.
+- `TypesCastingCanBeUsed` no longer suggests `(string)$x` for
+  `strval($x)[0]` and similar below PHP 7.0, where the parenthesized cast
+  cannot be dereferenced.
 - `VariableFunctionsUsage` no longer rewrites `call_user_func($cb, …)` to
   `$cb(…)` below PHP 7.0 when `$cb` may hold a `'Class::method'` string,
   which `$cb()` cannot call before 7.0.

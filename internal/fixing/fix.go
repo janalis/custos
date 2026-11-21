@@ -4,6 +4,7 @@ package fixing
 import (
 	"context"
 	"sort"
+	"sync"
 
 	"github.com/janalis/custos/internal/diagnostic"
 	"github.com/janalis/custos/internal/php/syntax"
@@ -86,11 +87,18 @@ func FixSource(e Analyzer, path string, src []byte, opt Options) Result {
 func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, opt Options) Result {
 	res := Result{Source: src}
 	f := syntax.ParseBest(path, src, opt.Parse)
+	// Fixes left out for needing a newer PHP version, so that the fixes
+	// they overlapped get their turn.
+	tooNew := map[fixKey]bool{}
 	for res.Iterations < MaxIterations && ctx.Err() == nil {
 		var edits []diagnostic.TextEdit
-		var groups [][]diagnostic.TextEdit
+		var groups []fixGroup
 		for _, fd := range e.Analyze(f) {
 			if len(fd.Fixes) == 0 || (opt.Filter != nil && !opt.Filter(fd)) {
+				continue
+			}
+			key := keyOf(fd, res.Source)
+			if tooNew[key] {
 				continue
 			}
 			// All edits of one fix must apply together: group them by
@@ -100,7 +108,7 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 				continue
 			}
 			edits = append(edits, fe...)
-			groups = append(groups, fe)
+			groups = append(groups, fixGroup{fe, key})
 		}
 		if len(edits) == 0 {
 			break
@@ -108,14 +116,14 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 		out, n := Apply(res.Source, edits)
 		res.Iterations++
 		next := syntax.ParseBest(path, out, opt.Parse)
-		if len(next.Errors) <= len(f.Errors) && !withinVersion(opt.Parse.Version, f, next) {
+		if len(next.Errors) <= len(f.Errors) && tooNewFor(opt.Parse.Version, next, versionOf(f)) {
 			// Rare: keep only the fixes that are compatible on their own.
-			edits = compatibleEdits(path, res.Source, f, groups, opt.Parse)
+			edits = compatibleEdits(path, res.Source, f, groups, opt.Parse, tooNew)
+			if len(edits) == 0 {
+				continue // the next analysis skips the fixes left out
+			}
 			out, n = Apply(res.Source, edits)
 			next = syntax.ParseBest(path, out, opt.Parse)
-			if n == 0 {
-				break
-			}
 		}
 		if len(next.Errors) > len(f.Errors) {
 			break
@@ -127,6 +135,19 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 		}
 	}
 	return res
+}
+
+// fixKey tells a fix from another across iterations, where offsets move:
+// its rule, title and the text of its finding.
+type fixKey struct{ rule, title, text string }
+
+func keyOf(fd diagnostic.Finding, src []byte) fixKey {
+	return fixKey{fd.Rule, fd.Fixes[0].Title, string(src[fd.Span.Start:fd.Span.End])}
+}
+
+type fixGroup struct {
+	edits []diagnostic.TextEdit
+	key   fixKey
 }
 
 // sound reports that the edits of one fix lie within a source of size bytes
@@ -183,33 +204,49 @@ func overlapsAny(a, b []diagnostic.TextEdit) bool {
 // must not introduce syntax the project's PHP version lacks, while code
 // that already needs a newer version is not made worse.
 func WithinVersion(path string, before, after []byte, opt syntax.Options) bool {
-	return withinVersion(opt.Version, syntax.ParseBest(path, before, opt), syntax.ParseBest(path, after, opt))
+	return !tooNewFor(opt.Version, syntax.ParseBest(path, after, opt), func() phpversion.Version {
+		v, _ := syntax.RequiredVersion(syntax.ParseBest(path, before, opt))
+		return v
+	})
 }
 
-func withinVersion(target phpversion.Version, before, after *syntax.File) bool {
+// tooNewFor reports whether after needs a newer PHP version than both
+// target and had(), the version the unfixed source needs (only computed
+// when after exceeds the target).
+func tooNewFor(target phpversion.Version, after *syntax.File, had func() phpversion.Version) bool {
 	if target == 0 {
 		target = phpversion.Default
 	}
 	if target >= phpversion.Max {
-		return true
+		return false
 	}
 	need, _ := syntax.RequiredVersion(after)
-	if need <= target {
-		return true
-	}
-	had, _ := syntax.RequiredVersion(before)
-	return need <= had
+	return need > target && need > had()
+}
+
+// versionOf returns RequiredVersion(f), computed once on first call.
+func versionOf(f *syntax.File) func() phpversion.Version {
+	return sync.OnceValue(func() phpversion.Version {
+		v, _ := syntax.RequiredVersion(f)
+		return v
+	})
 }
 
 // compatibleEdits keeps the edit groups that, applied alone to src, neither
-// add syntax errors nor raise the required PHP version.
-func compatibleEdits(path string, src []byte, f *syntax.File, groups [][]diagnostic.TextEdit, opt syntax.Options) []diagnostic.TextEdit {
+// add syntax errors nor raise the required PHP version; the others are
+// recorded in tooNew.
+func compatibleEdits(path string, src []byte, f *syntax.File, groups []fixGroup, opt syntax.Options, tooNew map[fixKey]bool) []diagnostic.TextEdit {
+	had := versionOf(f)
 	var kept []diagnostic.TextEdit
 	for _, g := range groups {
-		out, _ := Apply(src, g)
+		out, _ := Apply(src, g.edits)
 		next := syntax.ParseBest(path, out, opt)
-		if len(next.Errors) <= len(f.Errors) && withinVersion(opt.Version, f, next) {
-			kept = append(kept, g...)
+		if tooNewFor(opt.Version, next, had) {
+			tooNew[g.key] = true
+			continue
+		}
+		if len(next.Errors) <= len(f.Errors) {
+			kept = append(kept, g.edits...)
 		}
 	}
 	return kept

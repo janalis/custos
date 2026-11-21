@@ -127,7 +127,9 @@ expresses the same thing directly and avoids a function call.
   an array or member access, the callee of a call (`"$fn"()` →
   `((string)$fn)()`), the class operand of `::` (`"$cls"::create()` →
   `((string)$cls)::create()`) or an operand of `**`: those bind tighter than
-  a cast. The reported `R` includes the parentheses.
+  a cast. The reported `R` includes the parentheses. Below PHP 7.0 a
+  parenthesized expression cannot be the base of an access, a callee or the
+  class operand of `::`, so those cases (all but `**`) are not reported.
 
 ## Options
 
@@ -138,7 +140,9 @@ expresses the same thing directly and avoids a function call.
 
 ## PHP versions
 
-No gating. The upstream fixture declares no level (test default, below 7.1).
+Only F3: below 7.0, a call or string whose cast would need parentheses to
+be dereferenced, called or used before `::` is not reported. The upstream
+fixture declares no level (test default, below 7.1).
 
 ## Examples
 
