@@ -92,7 +92,8 @@ None: the intended function cannot be guessed.
 ## PHP versions
 
 All versions. A function PHP declares in another version than the
-configured one counts as declared; other rules report version mismatches.
+configured one counts as declared; UnavailableFunction reports a call to a
+function introduced after the configured version.
 
 ## Configure
 

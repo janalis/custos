@@ -5,6 +5,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `UnavailableFunction` reports a call to a function PHP only provides from
+  a later version than the project targets (`str_contains()` in a PHP 5.6
+  project), unless the project or a package declares it (a polyfill) or a
+  `function_exists()` or PHP version check guards the call. Like
+  `UndefinedFunction`, it needs every Composer dependency installed.
+
 ### Fixed
 
 - Quick-fixes and the formatter never make a file need a newer PHP version

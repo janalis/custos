@@ -531,6 +531,7 @@ import (
 	"github.com/janalis/custos/internal/inspection/rules/typeunsafearraysearch"
 	"github.com/janalis/custos/internal/inspection/rules/typeunsafecomparison"
 	"github.com/janalis/custos/internal/inspection/rules/umasksetterreturnmisread"
+	"github.com/janalis/custos/internal/inspection/rules/unavailablefunction"
 	"github.com/janalis/custos/internal/inspection/rules/undeclareddynamicproperty"
 	"github.com/janalis/custos/internal/inspection/rules/undefinedclass"
 	"github.com/janalis/custos/internal/inspection/rules/undefinedfunction"
@@ -1105,6 +1106,7 @@ func All() []analysis.Rule {
 		trimmaskusedassuffix.New(),
 		truncationassumedtorewind.New(),
 		umasksetterreturnmisread.New(),
+		unavailablefunction.New(),
 		undeclareddynamicproperty.New(),
 		undefinedclass.New(),
 		undefinedfunction.New(),

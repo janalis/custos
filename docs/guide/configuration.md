@@ -157,7 +157,9 @@ must run on: rules only suggest what that version has, and quick-fixes and
 `custos format` never make a file need a newer version. A fix that would
 (such as `??` in a PHP 5.6 project) is not applied, and the formatter leaves
 the file as written; a file that already uses newer syntax is not held back
-by its own syntax.
+by its own syntax. The `UnavailableFunction` rule reports calls to functions
+PHP only has from a later version, such as `str_contains()` in a PHP 5.6
+project, unless a polyfill declares them or the call is guarded.
 
 ## Comparison style
 

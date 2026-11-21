@@ -76,6 +76,10 @@ func TestVersionedBuiltinMetadata(t *testing.T) {
 	if !ix.Function("is_real", phpversion.PHP74).Avail.In(phpversion.PHP74) || ix.Function("is_real", phpversion.PHP80).Avail.In(phpversion.PHP80) {
 		t.Fatal("is_real availability")
 	}
+	// The New Relic agent's @since tags are its own versions.
+	if !ix.Function("newrelic_create_distributed_trace_payload", phpversion.PHP56).Avail.In(phpversion.PHP56) || ix.Function("str_contains", phpversion.PHP74).Avail.In(phpversion.PHP74) {
+		t.Fatal("extension-versioned availability")
+	}
 	if ix.FindMethod("WeakMap", "offsetGet", phpversion.PHP74) != nil || ix.FindMethod("WeakMap", "offsetGet", phpversion.PHP80) == nil {
 		t.Fatal("WeakMap method availability")
 	}

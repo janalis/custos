@@ -2094,6 +2094,10 @@
             "link": "/rules/probable-bugs/UmaskSetterReturnMisread"
           },
           {
+            "text": "UnavailableFunction",
+            "link": "/rules/probable-bugs/UnavailableFunction"
+          },
+          {
             "text": "UndeclaredDynamicProperty",
             "link": "/rules/probable-bugs/UndeclaredDynamicProperty"
           },

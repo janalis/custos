@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **600 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **601 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -553,6 +553,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [TrimMaskUsedAsSuffix](./probable-bugs/TrimMaskUsedAsSuffix) | native | warning | off |  | any |
 | [TruncationAssumedToRewind](./probable-bugs/TruncationAssumedToRewind) | native | warning | on |  | any |
 | [UmaskSetterReturnMisread](./probable-bugs/UmaskSetterReturnMisread) | native | warning | off |  | any |
+| [UnavailableFunction](./probable-bugs/UnavailableFunction) | native | error | on |  | any |
 | [UndeclaredDynamicProperty](./probable-bugs/UndeclaredDynamicProperty) | native | warning | on |  | PHP ≥ 8.2 |
 | [UndefinedClass](./probable-bugs/UndefinedClass) | native | error | on |  | any |
 | [UndefinedFunction](./probable-bugs/UndefinedFunction) | native | error | on |  | any |

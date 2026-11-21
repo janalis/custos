@@ -1873,6 +1873,9 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Suggests `array_key_exists()` for array accesses whose container is not known to be an object. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Suggests a null comparison, with its fix, for non-array subjects. |\n| REPORT_CONCATENATION_IN_INDEXES | bool | true | Reports concatenations used directly as an index. When off, such accesses get the `array_key_exists()` suggestion instead. |",
     "fix": true
   },
+  "UnavailableFunction": {
+    "summary": "Report a call to a function PHP only provides from a later version than the\nproject targets, such as `str_contains()` in a project that supports PHP\n5.6. On the older versions the call throws an `Error` (a fatal error before\nPHP 7.0). Raise the project's minimum PHP version, install a polyfill or\nwrite the code without the function. The rule needs a complete view of the\ncode the project can load, since a polyfill may declare the function, so it\nreports nothing unless every Composer dependency is installed."
+  },
   "UndeclaredDynamicProperty": {
     "phpMin": "8.2",
     "summary": "Detect assigning a missing instance property on a resolved PHP 8.2+ class with a complete known hierarchy."

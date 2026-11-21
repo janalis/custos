@@ -1,6 +1,7 @@
 package stubs
 
 import (
+	"path"
 	"strings"
 
 	phpversion "github.com/janalis/custos/internal/php/version"
@@ -33,15 +34,24 @@ func addPre80Failures(files []*index.FileSymbols) {
 	}
 }
 
+// extensionVersioned lists the stub directories of extensions that do not
+// ship with PHP and whose @since tags give their own release versions, not
+// PHP's: their functions are taken as available at every PHP version.
+var extensionVersioned = map[string]bool{"newrelic": true}
+
 // markBuiltin flags every declaration as a builtin and clears EmptyBody
 // (stub bodies are placeholders).
 func markBuiltin(files []*index.FileSymbols) {
 	for _, f := range files {
+		ownVersions := extensionVersioned[path.Base(path.Dir(f.Path))]
 		for _, c := range f.Constants {
 			c.Builtin = true
 		}
 		for _, fn := range f.Functions {
 			fn.Builtin = true
+			if ownVersions {
+				fn.Avail = index.Avail{}
+			}
 		}
 		for _, c := range f.Classes {
 			for _, m := range c.Methods {
