@@ -97,6 +97,14 @@ var parseCases = []struct {
 	{`<?php while (1) { break 3; }`, phpversion.PHP84, true, true},
 	{`<?php $a = Foreach::x(); $b = Callable::C;`, phpversion.PHP84, false, false},
 	{`<?php $a = Enum::x(); $b = Mixed::C; $c = self::C; $d = static::C;`, phpversion.PHP84, true, false},
+	// PHP 5.6-era code: removed syntax and names reserved later.
+	{`<?php $a =& new A; $b = &new B();`, phpversion.PHP56, true, false},
+	{`<?php $a =& new A;`, phpversion.PHP70, false, false},
+	{`<?php function f() { global $$a[0], $$b; }`, phpversion.PHP56, true, false},
+	{`<?php function fn() {} function match() {} function int() {} class Enum {} class Readonly {} class Mixed {} const FN = 1;`, phpversion.PHP56, true, false},
+	{`<?php class String {} class Object {} class Iterable {} function void() {}`, phpversion.PHP56, true, false},
+	{`<?php $f = fn($x) => $x;`, phpversion.PHP56, false, false},
+	{`<?php $s = $a{0} . $b{$i};`, phpversion.PHP56, true, false},
 }
 
 func TestParseCases(t *testing.T) {
