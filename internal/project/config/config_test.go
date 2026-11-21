@@ -16,6 +16,14 @@ func TestLowestVersion(t *testing.T) {
 		">=8.1":        phpversion.PHP81,
 		"~5.6|^7.0":    phpversion.PHP56,
 		"8.2.*":        phpversion.PHP82,
+		"5.*":          phpversion.PHP53,
+		">=5":          phpversion.PHP53,
+		"^7 || ^8":     phpversion.PHP70,
+		"~8":           phpversion.PHP80,
+		">=5.6.40":     phpversion.PHP56,
+		"8.2.5":        phpversion.PHP82,
+		"^7.1.3|^8":    phpversion.PHP71,
+		"^4 || ^7.2":   phpversion.PHP72,
 	}
 	for in, want := range cases {
 		if got, ok := lowestVersion(in); !ok || got != want {
@@ -97,7 +105,7 @@ func TestResolveOptions(t *testing.T) {
 // TestComposerWithoutUsableVersion: constraints naming only unsupported
 // versions fall back to the default target.
 func TestComposerWithoutUsableVersion(t *testing.T) {
-	if _, ok := lowestVersion("^4.0 || ^9.1"); ok {
+	if _, ok := lowestVersion("^4.0 || ^9.1 || ^6"); ok {
 		t.Fatal("unsupported versions accepted")
 	}
 	dir := t.TempDir()

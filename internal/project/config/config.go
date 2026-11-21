@@ -393,7 +393,9 @@ func findRoot(dir string) (string, error) {
 	}
 }
 
-var versionRe = regexp.MustCompile(`(\d+)\.(\d+)`)
+// versionRe matches a version in a composer constraint: `7.4`, `8.2.12`
+// (the patch is ignored) or a bare major (`5`, `5.*`, `^7`).
+var versionRe = regexp.MustCompile(`(\d+)(?:\.(\d+))?`)
 
 // composerPHPRead reads config.platform.php, else the lowest version in require.php.
 // phpVersionFileRead reads the version that `.php-version` (phpenv, the
@@ -437,11 +439,22 @@ func composerPHPRead(read func(string) ([]byte, error)) (phpversion.Version, boo
 }
 
 // lowestVersion returns the smallest supported version mentioned in a
-// composer constraint such as "^7.4 || ^8.0" or ">=8.1".
+// composer constraint such as "^7.4 || ^8.0", ">=8.1" or "5.*". A bare
+// major stands for its lowest supported minor (5 for 5.3, 7 for 7.0).
 func lowestVersion(constraint string) (phpversion.Version, bool) {
 	var best phpversion.Version
-	for _, m := range versionRe.FindAllStringSubmatch(constraint, -1) {
-		v, err := phpversion.Parse(m[1] + "." + m[2])
+	for _, m := range versionRe.FindAllStringSubmatchIndex(constraint, -1) {
+		if m[0] > 0 && constraint[m[0]-1] == '.' {
+			continue // the patch of a version already read
+		}
+		major := constraint[m[2]:m[3]]
+		var v phpversion.Version
+		var err error
+		if m[4] >= 0 {
+			v, err = phpversion.Parse(major + "." + constraint[m[4]:m[5]])
+		} else {
+			v, err = lowestMinor(major)
+		}
 		if err != nil {
 			continue
 		}
@@ -450,4 +463,12 @@ func lowestVersion(constraint string) (phpversion.Version, bool) {
 		}
 	}
 	return best, best != 0
+}
+
+// lowestMinor returns the lowest supported version of a major version.
+func lowestMinor(major string) (phpversion.Version, error) {
+	if major == "5" {
+		return phpversion.Min, nil
+	}
+	return phpversion.Parse(major + ".0")
 }

@@ -13,6 +13,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   `custos format` keeps a file as written instead of producing such code.
 - `custos format` no longer turns the invalid `array($a, $b) = $x` into a
   `[$a, $b] = $x` destructuring (PHP 7.1).
+- A `composer.json` PHP constraint without a minor version (`5.*`, `>=5`,
+  `^7 || ^8`) now sets the target to that major's lowest version (5.3, 7.0)
+  instead of falling back to 8.4.
 - `VariableFunctionsUsage` no longer rewrites `call_user_func($cb, …)` to
   `$cb(…)` below PHP 7.0 when `$cb` may hold a `'Class::method'` string,
   which `$cb()` cannot call before 7.0.
