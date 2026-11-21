@@ -373,7 +373,7 @@ func insideRoot(p string) bool {
 
 // Analysis returns the analysis.Config view.
 func (c *Config) Analysis() analysis.Config {
-	return analysis.Config{Flow: c.Flow, PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, TypeCheck: c.TypeCheck, Rules: c.Rules, Format: c.AnalysisFormat("")}
+	return analysis.Config{Flow: c.Flow, PHP: c.PHP, PHPAssumed: c.PHPSource == "default", ComparisonStyle: c.ComparisonStyle, TypeCheck: c.TypeCheck, Rules: c.Rules, Format: c.AnalysisFormat("")}
 }
 
 func findRoot(dir string) (string, error) {

@@ -76,7 +76,10 @@ decision.
 ## PHP versions
 
 All versions: the target version decides which functions are reported.
-Nothing is reported at the latest supported version.
+Nothing is reported at the latest supported version, nor when no target
+version is configured (the command line, the custos configuration,
+`composer.json` or `.php-version`): the fallback version says nothing about
+where the code runs.
 
 ## Configure
 

@@ -197,3 +197,19 @@ func TestTypeCheckEnablesItsGroups(t *testing.T) {
 		t.Errorf("an explicit false: %d rules, want 1", got)
 	}
 }
+
+func TestPHPAssumed(t *testing.T) {
+	for _, tc := range []struct {
+		cfg  Config
+		want bool
+	}{{Config{}, true}, {Config{PHP: phpversion.PHP84}, false}, {Config{PHP: phpversion.PHP84, PHPAssumed: true}, true}} {
+		cfg, want := tc.cfg, tc.want
+		e, err := NewEngine(nil, cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := (&Context{engine: e}).PHPAssumed(); got != want || e.cfg.PHP != phpversion.PHP84 {
+			t.Errorf("%+v: PHPAssumed = %v, PHP %v", cfg, got, e.cfg.PHP)
+		}
+	}
+}

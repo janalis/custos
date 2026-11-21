@@ -174,6 +174,24 @@ func TestFixSourceRetriesFixesOnlyValidTogether(t *testing.T) {
 	}
 }
 
+// TestFixSourceStopsWhenNoFixIsLeftOut: two fixes only valid together form
+// newer syntax together; neither is too new alone, so the loop stops
+// instead of offering them again until MaxIterations.
+func TestFixSourceStopsWhenNoFixIsLeftOut(t *testing.T) {
+	src := "<?php $c = !$d + !$f;"
+	res := fixWithAt(t, phpversion.PHP56, src, func(n syntax.Node) []diagnostic.TextEdit {
+		sp := n.Span()
+		text := map[string]string{"!$d": "($d", "!$f": "$f ?? 1)"}[srcOf(n)[sp.Start:sp.End]]
+		if text == "" {
+			return nil
+		}
+		return []diagnostic.TextEdit{{Span: sp, NewText: text}}
+	})
+	if string(res.Source) != src || res.Iterations != 1 {
+		t.Fatalf("got %q after %d iterations", res.Source, res.Iterations)
+	}
+}
+
 func TestWithinVersion(t *testing.T) {
 	opt := syntax.Options{Version: phpversion.PHP56}
 	if !WithinVersion("x.php", []byte("<?php $a = !$b;"), syntax.ParseBest("x.php", []byte("<?php $a = (bool) $b;"), opt), opt) {

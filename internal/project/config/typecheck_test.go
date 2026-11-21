@@ -43,3 +43,15 @@ func TestTypeCheckOverlay(t *testing.T) {
 		}
 	}
 }
+
+func TestAnalysisPHPAssumed(t *testing.T) {
+	for php, want := range map[string]bool{"": true, "7.4": false} {
+		c, err := Resolve(t.TempDir(), File{PHP: php})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := c.Analysis().PHPAssumed; got != want {
+			t.Errorf("%q: PHPAssumed = %v", php, got)
+		}
+	}
+}

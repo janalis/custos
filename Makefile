@@ -133,7 +133,7 @@ fixcheck:
 # finding and writes them to .cache/corpus-diff/<corpus>.diff. CORPORA=
 # takes a comma-separated list; by default corpus-diff takes every corpus,
 # including those checked at an old PHP version (`"php"`, e.g. swiftmailer
-# at 5.6), while compare and formatcheck take only the benchmark corpora.
+# at 5.6), which compare installs but neither measures nor formatchecks.
 CORPORA ?=
 corpus-baseline: build
 	$(GO) run ./tools/corpusdiff -record -corpora "$(CORPORA)"

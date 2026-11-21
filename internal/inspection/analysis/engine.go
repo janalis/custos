@@ -66,7 +66,7 @@ func (e *Engine) Recording() bool { return e.recorded != nil }
 // NewEngine builds an engine from the registered rules and cfg.
 func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 	if cfg.PHP == 0 {
-		cfg.PHP = phpversion.Default
+		cfg.PHP, cfg.PHPAssumed = phpversion.Default, true
 	}
 	only := map[string]bool{}
 	for _, id := range cfg.Only {

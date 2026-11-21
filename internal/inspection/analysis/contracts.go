@@ -66,8 +66,12 @@ type RuleConfig struct {
 
 // Config selects and configures rules.
 type Config struct {
-	Flow            flow.Options
-	PHP             phpversion.Version // target version for rule gating
+	Flow flow.Options
+	PHP  phpversion.Version // target version for rule gating
+	// PHPAssumed is set when nothing configured the target version and PHP
+	// holds the fallback (also when PHP is 0): rules reporting what the
+	// target lacks stay silent then.
+	PHPAssumed      bool
 	ComparisonStyle ComparisonStyle
 	TypeCheck       TypeCheck             // rule groups enabled together
 	Rules           map[string]RuleConfig // keyed by rule ID

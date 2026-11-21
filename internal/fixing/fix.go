@@ -117,10 +117,14 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 		out, n := Apply(res.Source, edits)
 		res.Iterations++
 		next := syntax.ParseBest(path, out, opt.Parse)
-		if len(next.Errors) <= len(f.Errors) && tooNewFor(opt.Parse.Version, next, versionOf(f)) {
+		if had := versionOf(f); len(next.Errors) <= len(f.Errors) && tooNewFor(opt.Parse.Version, next, had) {
 			// Rare: keep only the fixes that are compatible together.
-			out, n, next = compatibleEdits(path, res.Source, f, groups, opt.Parse, tooNew)
+			left := len(tooNew)
+			out, n, next = compatibleEdits(path, res.Source, f, groups, opt.Parse, had, tooNew)
 			if n == 0 {
+				if len(tooNew) == left {
+					break // the next analysis would offer the same fixes
+				}
 				continue // the next analysis skips the fixes left out
 			}
 		}
@@ -238,8 +242,7 @@ func versionOf(f *syntax.File) func() phpversion.Version {
 // its own is recorded in tooNew; one only too new combined with the groups
 // before it (two edits can form a token together, such as `*` and `*`) is
 // left for the next iteration.
-func compatibleEdits(path string, src []byte, f *syntax.File, groups []fixGroup, opt syntax.Options, tooNew map[fixKey]bool) (out []byte, n int, next *syntax.File) {
-	had := versionOf(f)
+func compatibleEdits(path string, src []byte, f *syntax.File, groups []fixGroup, opt syntax.Options, had func() phpversion.Version, tooNew map[fixKey]bool) (out []byte, n int, next *syntax.File) {
 	var kept []diagnostic.TextEdit
 	out, next = src, f
 	for _, g := range groups {

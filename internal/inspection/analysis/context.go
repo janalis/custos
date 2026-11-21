@@ -220,6 +220,10 @@ func (c *Context) suppressions() *suppressions {
 // current rule explicitly (false when the catalogue default applies).
 func (c *Context) OptionSet(name string) bool { return c.cur.explicit[name] }
 
+// PHPAssumed reports whether the target version is the fallback rather
+// than one the project configured (see Config.PHPAssumed).
+func (c *Context) PHPAssumed() bool { return c.engine.cfg.PHPAssumed }
+
 // Bool returns a boolean option of the current rule.
 func (c *Context) Bool(name string) bool { return boolOption(c.cur.options, name) }
 

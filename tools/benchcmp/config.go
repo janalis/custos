@@ -27,9 +27,9 @@ type Corpus struct {
 	Tag   string   `json:"tag"`
 	Paths []string `json:"paths"`
 	// PHP, when set, makes the corpus a check corpus for that old PHP
-	// version: corpusdiff and fixcheck use it, while the benchmark leaves
-	// it out unless named and bump keeps its tag (its later releases need
-	// a newer PHP).
+	// version: install sets it up and corpusdiff and fixcheck use it,
+	// while the benchmark leaves it out unless named and bump keeps its
+	// tag (its later releases need a newer PHP).
 	PHP string `json:"php,omitempty"`
 }
 

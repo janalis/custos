@@ -49,11 +49,11 @@ func BenchmarkFormat(b *testing.B) {
 	// a file with errors is left as written without being formatted.
 	body := strings.ReplaceAll(strings.TrimPrefix(string(src), "<?php"), "?>\n", "")
 	big := []byte("<?php" + strings.Repeat(body+"\n", 20))
-	if res := Source("bench.php", big, Options{}); res.Skipped != "" {
-		b.Fatal(res.Skipped)
-	}
 	for _, p := range []string{"per", "laravel"} {
 		r, _ := Resolve(p, false)
+		if res := Source("bench.php", big, Options{Settings: &r.Settings}); res.Skipped != "" {
+			b.Fatal(p, ": ", res.Skipped)
+		}
 		b.Run(p, func(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(len(big)))

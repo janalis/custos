@@ -11,7 +11,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   a later version than the project targets (`str_contains()` in a PHP 5.6
   project), unless the project or a package declares it (a polyfill) or a
   `function_exists()` or PHP version check guards the call. Like
-  `UndefinedFunction`, it needs every Composer dependency installed.
+  `UndefinedFunction`, it needs every Composer dependency installed, and it
+  stays silent when no target version is configured.
 
 ### Fixed
 
