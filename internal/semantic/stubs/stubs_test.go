@@ -82,6 +82,9 @@ func TestVersionedBuiltinMetadata(t *testing.T) {
 			t.Errorf("%s: extension %q, bundled %v", name, f.Ext, f.Bundled)
 		}
 	}
+	if !ix.Function("newrelic_create_distributed_trace_payload", phpversion.PHP56).Avail.In(phpversion.PHP56) {
+		t.Error("New Relic versions are the agent's")
+	}
 	if !Extensions()["zend-opcache"] || extensionOf("stubs.php") != "" {
 		t.Error("extension names")
 	}

@@ -39,7 +39,7 @@ type World struct {
 	WorkDir string
 	// Extensions holds the PHP extensions the project or an installed
 	// package requires, suggests or requires for development (`ext-…`),
-	// named as the stubs name them (see FunctionExt): the project may run
+	// named as the stubs name them (see Function.Ext): the project may run
 	// a build of one of them that is not PHP's own.
 	Extensions map[string]bool
 }

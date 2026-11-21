@@ -27,3 +27,14 @@ func TestParse(t *testing.T) {
 	}()
 	MustParse("nope")
 }
+
+func TestNext(t *testing.T) {
+	for v, want := range map[Version]Version{699: PHP70, PHP56: PHP70, PHP74: PHP80, 799: PHP80, PHP84: PHP85} {
+		if got, ok := Next(v); got != want || !ok {
+			t.Errorf("Next(%v) = %v, %v", v, got, ok)
+		}
+	}
+	if _, ok := Next(Max); ok || Releases[0] != Min || Releases[len(Releases)-1] != Max {
+		t.Error("releases bounds")
+	}
+}

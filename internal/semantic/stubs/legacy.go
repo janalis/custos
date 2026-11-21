@@ -45,13 +45,18 @@ var bundled = map[string]bool{
 	"fileinfo": true, "filter": true, "fpm": true, "ftp": true, "gd": true, "gettext": true, "gmp": true,
 	"hash": true, "iconv": true, "intl": true, "json": true, "ldap": true, "libxml": true,
 	"mbstring": true, "mysqli": true, "odbc": true, "openssl": true, "pcntl": true, "pcre": true,
-	"pdo": true, "pgsql": true, "phar": true, "posix": true, "random": true,
+	"pdo": true, "pgsql": true, "phar": true, "phpdbg": true, "posix": true, "random": true,
 	"readline": true, "reflection": true, "session": true, "shmop": true, "simplexml": true,
 	"snmp": true, "soap": true, "sockets": true, "sodium": true, "spl": true, "sqlite3": true,
 	"standard": true, "sysvmsg": true, "sysvsem": true, "sysvshm": true, "tidy": true,
 	"tokenizer": true, "uri": true, "xml": true, "xmlreader": true, "xmlwriter": true, "xsl": true,
 	"zend-opcache": true, "zip": true, "zlib": true,
 }
+
+// ownVersions lists the extensions whose stubs date their declarations
+// with the extension's own releases, not PHP's: the index takes those as
+// available at every PHP version.
+var ownVersions = map[string]bool{"newrelic": true}
 
 // extensionOf names the extension of a stub file as Extensions does ("" for
 // a file outside an extension directory).
@@ -73,6 +78,9 @@ func markBuiltin(files []*index.FileSymbols) {
 		}
 		for _, fn := range f.Functions {
 			fn.Builtin, fn.Ext, fn.Bundled = true, ext, bundled[ext]
+			if ownVersions[ext] {
+				fn.Avail = index.Avail{}
+			}
 		}
 		for _, c := range f.Classes {
 			for _, m := range c.Methods {

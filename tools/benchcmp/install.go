@@ -36,7 +36,13 @@ func (b *bench) install(tools []Tool, corpora []Corpus, log io.Writer) error {
 	}
 	for _, c := range corpora {
 		dir := b.corpusDir(c)
-		if err := b.fresh(dir, c.Tag, log, func() error {
+		// The stamp tells an install with development packages apart, so
+		// that one made without them is redone.
+		stamp := c.Tag
+		if c.PHP != "" {
+			stamp += " with dev"
+		}
+		if err := b.fresh(dir, stamp, log, func() error {
 			if err := sh(log, "", "git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1", "--branch", c.Tag, c.Repo, dir); err != nil {
 				return err
 			}

@@ -125,19 +125,22 @@ func ExistenceChecked(ctx *analysis.Context, n syntax.Node, fqns ...string) bool
 }
 
 // constructorGuards reports whether n lies in an instance method of a class
-// whose constructor throws or exits under a condition making a check about
-// one of fqns: no instance runs the method without what the check asks
-// for. A constructor returning early still makes the instance.
+// (the constructor aside) whose constructor throws or exits when
+// extension_loaded() does not find an extension concerning one of fqns: no
+// instance runs the method without the extension. A constructor returning
+// early still makes the instance.
 func constructorGuards(ctx *analysis.Context, n syntax.Node, fqns []string) bool {
 	var method *syntax.Method
 	for p := n.Parent(); p != nil; p = p.Parent() {
 		switch p := p.(type) {
+		case *syntax.Function:
+			return false // callable without an instance
 		case *syntax.Method:
 			if method == nil {
 				method = p
 			}
 		case *syntax.ClassLike:
-			if method == nil || method.Modifiers.Has(syntax.TStatic) {
+			if method == nil || method.Modifiers.Has(syntax.TStatic) || strings.EqualFold(method.Name.Value, "__construct") {
 				return false
 			}
 			for _, m := range p.Members {
@@ -146,13 +149,31 @@ func constructorGuards(ctx *analysis.Context, n syntax.Node, fqns []string) bool
 					continue
 				}
 				for _, s := range ctor.Body.Stmts {
-					if check, ok := s.(*syntax.If); ok && aborts(check.Body) && guardIn(ctx, check.Cond, fqns) {
+					if check, ok := s.(*syntax.If); ok && aborts(check.Body) && extensionMissing(ctx, check.Cond, fqns) {
 						return true
 					}
 				}
 			}
 			return false
 		}
+	}
+	return false
+}
+
+// extensionMissing reports whether cond holds when extension_loaded() does
+// not find an extension concerning one of fqns: it is `!extension_loaded()`
+// of such an extension, or an `||` with one.
+func extensionMissing(ctx *analysis.Context, cond syntax.Expr, fqns []string) bool {
+	switch c := cond.(type) {
+	case *syntax.Paren:
+		return extensionMissing(ctx, c.Expr, fqns)
+	case *syntax.Binary:
+		if c.Op.Kind == syntax.TBooleanOr || c.Op.Kind == syntax.TOr {
+			return extensionMissing(ctx, c.Left, fqns) || extensionMissing(ctx, c.Right, fqns)
+		}
+	case *syntax.Unary:
+		call, ok := c.Expr.(*syntax.FuncCall)
+		return ok && c.Op.Kind == syntax.TExclaim && ctx.GlobalFunctionName(call) == "extension_loaded" && guardsCall(ctx, call, fqns)
 	}
 	return false
 }
@@ -229,15 +250,24 @@ func guardsCall(ctx *analysis.Context, call *syntax.FuncCall, fqns []string) boo
 				if leading := leadingWords(fqn); leading[subject] || leading[word] {
 					return true
 				}
-				// An extension whose name starts the name: `opendkim` for
-				// `OpenDKIMSign`.
-				if fn == "extension_loaded" && strings.HasPrefix(strings.ToLower(strings.TrimPrefix(fqn, `\`)), subject) {
+				if fn == "extension_loaded" && startsWord(strings.TrimPrefix(fqn, `\`), subject) {
 					return true
 				}
 			}
 		}
 	}
 	return false
+}
+
+// startsWord reports whether ext, an extension name, starts name up to a
+// word boundary: `opendkim` starts `OpenDKIMSign` and `opendkim_sign`, but
+// `mysql` does not start `mysqli_query`.
+func startsWord(name, ext string) bool {
+	if ext == "" || len(name) <= len(ext) || !strings.EqualFold(name[:len(ext)], ext) {
+		return false
+	}
+	next := name[len(ext)]
+	return next == '_' || next == '\\' || ('A' <= next && next <= 'Z')
 }
 
 // leadingWords are, lower case, the words an extension declaring fqn

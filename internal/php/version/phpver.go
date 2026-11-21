@@ -32,6 +32,20 @@ const (
 	Default = PHP84
 )
 
+// Releases are the supported versions, oldest first.
+var Releases = []Version{PHP53, PHP54, PHP55, PHP56, PHP70, PHP71, PHP72, PHP73, PHP74, PHP80, PHP81, PHP82, PHP83, PHP84, PHP85}
+
+// Next returns the first supported release after v, false when v is the
+// latest or later.
+func Next(v Version) (Version, bool) {
+	for _, r := range Releases {
+		if r > v {
+			return r, true
+		}
+	}
+	return 0, false
+}
+
 // AtLeast reports whether v >= o.
 func (v Version) AtLeast(o Version) bool { return v >= o }
 

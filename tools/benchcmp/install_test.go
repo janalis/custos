@@ -35,6 +35,9 @@ func TestInstall(t *testing.T) {
 	if n := strings.Count(log.String(), "installing"); n != 4 {
 		t.Errorf("%d installs, want 4:\n%s", n, log.String())
 	}
+	if stamp, _ := os.ReadFile(filepath.Join(work, "corpora", "old.version")); string(stamp) != "0.1.0 with dev" {
+		t.Errorf("check corpus stamp %q", stamp)
+	}
 	// Only a check corpus gets its development packages.
 	for name, dev := range map[string]bool{"app": false, "old": true} {
 		args, _ := os.ReadFile(filepath.Join(work, "corpora", name, "vendor", "args"))
