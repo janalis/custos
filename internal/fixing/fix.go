@@ -3,6 +3,7 @@ package fixing
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"sync"
 
@@ -242,7 +243,7 @@ func compatibleEdits(path string, src []byte, f *syntax.File, groups []fixGroup,
 	var kept []diagnostic.TextEdit
 	out, next = src, f
 	for _, g := range groups {
-		try := append(kept[:len(kept):len(kept)], g.edits...)
+		try := slices.Concat(kept, g.edits)
 		o, k := Apply(src, try)
 		t := syntax.ParseBest(path, o, opt)
 		if len(t.Errors) > len(f.Errors) {
