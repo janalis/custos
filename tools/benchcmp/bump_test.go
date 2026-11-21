@@ -50,7 +50,8 @@ func TestBump(t *testing.T) {
 	repo := gitRepo(t, false, "1.0.0", "1.1.0", "2.0.0-RC1")
 	base := packagist(t, map[string][]string{"a/a": {"2.0.0", "1.0.0"}, "b/b": {"3.0.0"}, "c/c": {"dev-main"}})
 	c := &Config{
-		Corpora:  []Corpus{{Name: "x", Repo: repo, Tag: "1.0.0"}},
+		// The check corpus keeps its tag: its repository is never read.
+		Corpora:  []Corpus{{Name: "x", Repo: repo, Tag: "1.0.0"}, {Name: "old", Repo: "file:///does/not/exist", Tag: "0.1.0", PHP: "5.6"}},
 		Packages: map[string]string{"a/a": "1.0.0", "b/b": "3.0.0"},
 	}
 	changes, err := bump(c, base)
@@ -58,7 +59,7 @@ func TestBump(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"x 1.0.0 → 1.1.0", "a/a 1.0.0 → 2.0.0"}
-	if !slices.Equal(changes, want) || c.Corpora[0].Tag != "1.1.0" || c.Packages["a/a"] != "2.0.0" {
+	if !slices.Equal(changes, want) || c.Corpora[0].Tag != "1.1.0" || c.Corpora[1].Tag != "0.1.0" || c.Packages["a/a"] != "2.0.0" {
 		t.Errorf("bump = %q, %+v", changes, c)
 	}
 

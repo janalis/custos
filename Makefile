@@ -126,12 +126,15 @@ cleanroom:
 fixcheck:
 	CUSTOS_FIXCHECK=$(FIXCHECK) CUSTOS_FIXCHECK_PHP=$(FIXCHECK_PHP) CUSTOS_PHP=$(PHP_BIN) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout 30m
 
-# Record the findings of every rule on the pinned benchmark corpora
-# (installed by `make compare`, or `go run ./tools/benchcmp install -tool
-# custos -corpus <name>`), then compare a later build with that record:
-# corpus-diff fails on any added or removed finding and writes them to
-# .cache/corpus-diff/<corpus>.diff. CORPORA= takes a comma-separated list.
-CORPORA ?= guzzle,composer,laravel
+# Record the findings of every rule on the pinned corpora of
+# bench/competitors.json (installed by `make compare`, or `go run
+# ./tools/benchcmp install -tool custos -corpus <name>`), then compare a
+# later build with that record: corpus-diff fails on any added or removed
+# finding and writes them to .cache/corpus-diff/<corpus>.diff. CORPORA=
+# takes a comma-separated list; by default corpus-diff takes every corpus,
+# including those checked at an old PHP version (`"php"`, e.g. swiftmailer
+# at 5.6), while compare and formatcheck take only the benchmark corpora.
+CORPORA ?=
 corpus-baseline: build
 	$(GO) run ./tools/corpusdiff -record -corpora "$(CORPORA)"
 

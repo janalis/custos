@@ -183,3 +183,10 @@ func TestSelectByName(t *testing.T) {
 		t.Errorf("no match: %v", err)
 	}
 }
+
+func TestMeasured(t *testing.T) {
+	corpora := []Corpus{{Name: "a"}, {Name: "old", PHP: "5.6"}, {Name: "b"}}
+	if got := measured(corpora); len(got) != 2 || got[0].Name != "a" || got[1].Name != "b" {
+		t.Errorf("measured = %+v", got)
+	}
+}

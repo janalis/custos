@@ -363,3 +363,14 @@ func TestRefusals(t *testing.T) {
 		t.Fatalf("%+v", got)
 	}
 }
+
+func TestSelectCorporaSkipsCheckCorpora(t *testing.T) {
+	config := filepath.Join(t.TempDir(), "competitors.json")
+	write(t, config, `{"corpora":[{"name":"c","paths":["src"]},{"name":"old","paths":["lib"],"php":"5.6"}]}`)
+	if got, err := selectCorpora(config, nil); err != nil || len(got) != 1 || got[0].Name != "c" {
+		t.Errorf("default: %+v %v", got, err)
+	}
+	if got, err := selectCorpora(config, []string{"old"}); err != nil || len(got) != 1 || got[0].PHP != "5.6" {
+		t.Errorf("named: %+v %v", got, err)
+	}
+}

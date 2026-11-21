@@ -26,6 +26,15 @@
       "paths": [
         "src"
       ]
+    },
+    {
+      "name": "swiftmailer",
+      "repo": "https://github.com/swiftmailer/swiftmailer.git",
+      "tag": "v5.4.12",
+      "paths": [
+        "lib"
+      ],
+      "php": "5.6"
     }
   ],
   "packages": {

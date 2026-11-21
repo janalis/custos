@@ -1,5 +1,6 @@
 // Command corpusdiff records the findings custos reports on the pinned
-// benchmark corpora (every rule, on each corpus's src) and compares a later
+// benchmark corpora (every rule, on each corpus's paths, at the corpus's
+// PHP version when the configuration sets one) and compares a later
 // run with that record, so a change that adds or removes findings on real
 // code is seen before it lands. `make corpus-baseline` records;
 // `make corpus-diff` compares and fails on any difference, writing the
@@ -30,19 +31,26 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("corpusdiff", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	record := fs.Bool("record", false, "record the findings instead of comparing them")
-	corpora := fs.String("corpora", "guzzle,composer,laravel", "comma-separated corpus names")
+	corpora := fs.String("corpora", "", "comma-separated corpus names (default: all of -config)")
+	config := fs.String("config", "bench/competitors.json", "benchmark configuration listing the corpora")
 	bin := fs.String("bin", "bin/custos", "custos binary")
 	dir := fs.String("dir", ".cache/bench/corpora", "directory of the installed corpora")
 	out := fs.String("out", ".cache/corpus-diff", "directory of the records")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
-		fmt.Fprintln(stderr, "usage: corpusdiff [-record] [-corpora list] [-bin path] [-dir dir] [-out dir]")
+		fmt.Fprintln(stderr, "usage: corpusdiff [-record] [-corpora list] [-config path] [-bin path] [-dir dir] [-out dir]")
+		return 2
+	}
+	selected, err := selectCorpora(*config, *corpora)
+	if err != nil {
+		fmt.Fprintln(stderr, "corpusdiff:", err)
 		return 2
 	}
 	// The binary runs from each corpus directory.
 	binary, _ := filepath.Abs(*bin)
 	status := 0
-	for name := range strings.SplitSeq(*corpora, ",") {
-		c := corpus{name: name, dir: filepath.Join(*dir, name), out: *out, bin: binary}
+	for _, sc := range selected {
+		name := sc.Name
+		c := corpus{name: name, dir: filepath.Join(*dir, name), out: *out, bin: binary, paths: sc.Paths, php: sc.PHP}
 		var differs bool
 		var err error
 		if *record {
@@ -64,6 +72,42 @@ func run(args []string, stdout, stderr io.Writer) int {
 // corpus is one installed corpus and where its record lives.
 type corpus struct {
 	name, dir, out, bin string
+	paths               []string // analyzed, relative to dir
+	php                 string   // target PHP version ("" for the corpus's own)
+}
+
+// configCorpus is a corpus of the benchmark configuration.
+type configCorpus struct {
+	Name  string   `json:"name"`
+	Paths []string `json:"paths"`
+	PHP   string   `json:"php"`
+}
+
+// selectCorpora reads the corpora of the benchmark configuration and keeps
+// the named ones (all when names is empty), in the configuration's order.
+func selectCorpora(config, names string) ([]configCorpus, error) {
+	data, err := os.ReadFile(config)
+	if err != nil {
+		return nil, err
+	}
+	var c struct {
+		Corpora []configCorpus `json:"corpora"`
+	}
+	if err := json.Unmarshal(data, &c); err != nil {
+		return nil, fmt.Errorf("%s: %w", config, err)
+	}
+	if names == "" {
+		return c.Corpora, nil
+	}
+	var out []configCorpus
+	for name := range strings.SplitSeq(names, ",") {
+		i := slices.IndexFunc(c.Corpora, func(cc configCorpus) bool { return cc.Name == name })
+		if i < 0 {
+			return nil, fmt.Errorf("unknown corpus %q in %s", name, config)
+		}
+		out = append(out, c.Corpora[i])
+	}
+	return out, nil
 }
 
 // recordPath is the file holding the corpus's recorded findings.
@@ -100,7 +144,11 @@ func (f finding) String() string {
 // findings runs custos on the corpus and returns its findings, one line
 // each (see finding.String), sorted.
 func (c corpus) findings() ([]string, error) {
-	cmd := exec.Command(c.bin, "analyse", "-all", "-no-cache", "-fail-on", "never", "-format", "json", "src")
+	args := []string{"analyse", "-all", "-no-cache", "-fail-on", "never", "-format", "json"}
+	if c.php != "" {
+		args = append(args, "-php", c.php)
+	}
+	cmd := exec.Command(c.bin, append(args, c.paths...)...)
 	cmd.Dir = c.dir
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr

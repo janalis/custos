@@ -112,10 +112,14 @@ func list(s string) []string {
 type corpus struct {
 	Name  string   `json:"name"`
 	Paths []string `json:"paths"`
+	// PHP marks a check corpus for an old PHP version, only formatted
+	// when named.
+	PHP string `json:"php"`
 }
 
 // selectCorpora reads the corpora of the benchmark configuration and keeps
-// the named ones (all when names is empty), in the configuration's order.
+// the named ones (all benchmark corpora when names is empty), in the
+// configuration's order.
 func selectCorpora(config string, names []string) ([]corpus, error) {
 	data, err := os.ReadFile(config)
 	if err != nil {
@@ -129,7 +133,7 @@ func selectCorpora(config string, names []string) ([]corpus, error) {
 	}
 	var out []corpus
 	for _, cp := range c.Corpora {
-		if len(names) == 0 || slices.Contains(names, cp.Name) {
+		if (len(names) == 0 && cp.PHP == "") || slices.Contains(names, cp.Name) {
 			out = append(out, cp)
 		}
 	}

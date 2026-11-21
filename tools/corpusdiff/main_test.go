@@ -17,14 +17,16 @@ func fixture(t *testing.T) (string, []string) {
 	t.Helper()
 	root := t.TempDir()
 	bin := filepath.Join(root, "custos")
-	script := "#!/bin/sh\ncat out.txt 2>/dev/null\necho failure >&2\nexit $(cat rc 2>/dev/null || echo 0)\n"
+	script := "#!/bin/sh\necho \"$@\" > args.txt\ncat out.txt 2>/dev/null\necho failure >&2\nexit $(cat rc 2>/dev/null || echo 0)\n"
 	write(t, bin, script)
 	if err := os.Chmod(bin, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	write(t, filepath.Join(root, "corpora", "c.version"), "1.0\n")
 	report(t, root, two, one)
-	return root, []string{"-corpora", "c", "-bin", bin, "-dir", filepath.Join(root, "corpora"), "-out", filepath.Join(root, "records")}
+	config := filepath.Join(root, "competitors.json")
+	write(t, config, `{"corpora": [{"name": "c", "paths": ["src", "lib"]}, {"name": "old", "paths": ["lib"], "php": "5.6"}]}`)
+	return root, []string{"-corpora", "c", "-config", config, "-bin", bin, "-dir", filepath.Join(root, "corpora"), "-out", filepath.Join(root, "records")}
 }
 
 func write(t *testing.T, path, body string) {
@@ -164,6 +166,36 @@ func TestErrors(t *testing.T) {
 				t.Fatalf("%d %q", code, stderr)
 			}
 		})
+	}
+}
+
+// TestConfiguredPathsAndVersion: custos analyzes the corpus's configured
+// paths, at its PHP version when it has one; no -corpora means all.
+func TestConfiguredPathsAndVersion(t *testing.T) {
+	root, args := fixture(t)
+	write(t, filepath.Join(root, "corpora", "old.version"), "0.1\n")
+	write(t, filepath.Join(root, "corpora", "old", "out.txt"), `{"findings": []}`)
+	if code, out, stderr := runWith(append(args[2:], "-record")...); code != 0 || out != "c 1.0: 2 findings recorded\nold 0.1: 0 findings recorded\n" {
+		t.Fatalf("%d %q %s", code, out, stderr)
+	}
+	for name, want := range map[string]string{"c": "-format json src lib", "old": "-format json -php 5.6 lib"} {
+		got, _ := os.ReadFile(filepath.Join(root, "corpora", name, "args.txt"))
+		if !strings.HasSuffix(strings.TrimSpace(string(got)), want) {
+			t.Errorf("%s: custos %s", name, got)
+		}
+	}
+}
+
+func TestConfigErrors(t *testing.T) {
+	root, args := fixture(t)
+	for name, extra := range map[string][]string{
+		"unknown corpus": {"-corpora", "nope"},
+		"no config":      {"-config", filepath.Join(root, "missing.json")},
+		"bad config":     {"-config", filepath.Join(root, "corpora", "c.version")},
+	} {
+		if code, _, stderr := runWith(append(args, extra...)...); code != 2 || !strings.HasPrefix(stderr, "corpusdiff:") {
+			t.Errorf("%s: %d %q", name, code, stderr)
+		}
 	}
 }
 

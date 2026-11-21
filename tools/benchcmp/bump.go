@@ -40,8 +40,9 @@ func atoi(s string) int {
 	return n
 }
 
-// bump moves every corpus tag and package version of c to its latest
-// stable release and returns one line per change.
+// bump moves every corpus tag (but those of check corpora for an old PHP
+// version) and package version of c to its latest stable release and
+// returns one line per change.
 func bump(c *Config, packagist string) ([]string, error) {
 	var changes []string
 	note := func(name, from, to string) {
@@ -50,6 +51,9 @@ func bump(c *Config, packagist string) ([]string, error) {
 		}
 	}
 	for i, corpus := range c.Corpora {
+		if corpus.PHP != "" {
+			continue // pinned to its last release supporting that PHP
+		}
 		tags, err := gitTags(corpus.Repo)
 		if err != nil {
 			return nil, err

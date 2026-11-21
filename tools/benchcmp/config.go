@@ -26,6 +26,22 @@ type Corpus struct {
 	Repo  string   `json:"repo"`
 	Tag   string   `json:"tag"`
 	Paths []string `json:"paths"`
+	// PHP, when set, makes the corpus a check corpus for that old PHP
+	// version: corpusdiff and fixcheck use it, while the benchmark leaves
+	// it out unless named and bump keeps its tag (its later releases need
+	// a newer PHP).
+	PHP string `json:"php,omitempty"`
+}
+
+// measured keeps the corpora the benchmark measures by default.
+func measured(corpora []Corpus) []Corpus {
+	var out []Corpus
+	for _, c := range corpora {
+		if c.PHP == "" {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // Tool is one measured command. Package names a Composer package of

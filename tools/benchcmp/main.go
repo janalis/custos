@@ -96,6 +96,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 			if err != nil {
 				return err
 			}
+			if *corpusFilter == "" {
+				corpora = measured(corpora)
+			}
 			if err := os.MkdirAll(*work, 0o755); err != nil {
 				return err
 			}
