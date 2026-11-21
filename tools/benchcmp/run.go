@@ -117,13 +117,22 @@ type bench struct {
 	custos  string // custos binary under test
 	timeout time.Duration
 	log     func(format string, args ...any)
+	// dev installs the corpora with their development packages, apart from
+	// the measured ones (see corpusDir), for corpusdiff: with every
+	// requirement installed, the rules needing a complete world run.
+	dev bool
 }
 
 func (b *bench) packageDir(pkg string) string {
 	return filepath.Join(b.work, "tools", strings.ReplaceAll(pkg, "/", "-"))
 }
 
-func (b *bench) corpusDir(c Corpus) string { return filepath.Join(b.work, "corpora", c.Name) }
+func (b *bench) corpusDir(c Corpus) string {
+	if b.dev {
+		return filepath.Join(b.work, "corpora-dev", c.Name)
+	}
+	return filepath.Join(b.work, "corpora", c.Name)
+}
 
 // measure runs every selected tool on every selected corpus.
 func (b *bench) measure(tools []Tool, corpora []Corpus) (*Results, error) {

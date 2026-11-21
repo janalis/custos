@@ -34,7 +34,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	corpora := fs.String("corpora", "", "comma-separated corpus names (default: all of -config)")
 	config := fs.String("config", "bench/competitors.json", "benchmark configuration listing the corpora")
 	bin := fs.String("bin", "bin/custos", "custos binary")
-	dir := fs.String("dir", ".cache/bench/corpora", "directory of the installed corpora")
+	dir := fs.String("dir", ".cache/bench/corpora-dev", "directory of the installed corpora (benchcmp install -dev)")
 	out := fs.String("out", ".cache/corpus-diff", "directory of the records")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
 		fmt.Fprintln(stderr, "usage: corpusdiff [-record] [-corpora list] [-config path] [-bin path] [-dir dir] [-out dir]")
@@ -117,7 +117,7 @@ func (c corpus) recordPath() string { return filepath.Join(c.out, c.name+".txt")
 func (c corpus) version() (string, error) {
 	b, err := os.ReadFile(c.dir + ".version")
 	if err != nil {
-		return "", fmt.Errorf("not installed (go run ./tools/benchcmp install -tool custos -corpus %s): %w", c.name, err)
+		return "", fmt.Errorf("not installed (go run ./tools/benchcmp install -dev -tool custos -corpus %s): %w", c.name, err)
 	}
 	return strings.TrimSpace(string(b)), nil
 }

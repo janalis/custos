@@ -44,6 +44,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	corpusFilter := fs.String("corpus", "", "comma-separated corpus names (default: all)")
 	from := fs.String("from", "", "adopt: configuration a benchmark run bumped")
 	resultsFrom := fs.String("results-from", "", "adopt: measurements of that run, written to -results")
+	dev := fs.Bool("dev", false, "install: the corpora with their development packages, under <work>/corpora-dev (for corpusdiff)")
 	if err := fs.Parse(args[1:]); err != nil || fs.NArg() != 0 {
 		fmt.Fprintln(stderr, usage)
 		return 2
@@ -107,6 +108,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			b := &bench{
 				cfg: c, work: *work, configs: *configs, custos: *custos, timeout: timeout,
 				log: func(f string, a ...any) { fmt.Fprintf(stderr, f+"\n", a...) },
+				dev: *dev,
 			}
 			switch sub {
 			case "bump":

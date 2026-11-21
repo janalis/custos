@@ -69,6 +69,16 @@ func TestInstall(t *testing.T) {
 		t.Errorf("failing composer install: %v", err)
 	}
 
+	// For corpusdiff, every corpus with its development packages, apart.
+	t.Setenv("FAKE_COMPOSER_FAIL", "")
+	b.dev = true
+	if err := b.install(nil, corpora[:1], &log); err != nil {
+		t.Fatalf("dev install: %v", err)
+	}
+	if args, _ := os.ReadFile(filepath.Join(work, "corpora-dev", "app", "vendor", "args")); strings.Contains(string(args), "--no-dev") {
+		t.Errorf("dev install: composer %s", args)
+	}
+
 	// The directory cannot be created.
 	file := filepath.Join(t.TempDir(), "file")
 	write(t, file, "")

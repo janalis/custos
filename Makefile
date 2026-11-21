@@ -127,19 +127,24 @@ fixcheck:
 	CUSTOS_FIXCHECK=$(FIXCHECK) CUSTOS_FIXCHECK_PHP=$(FIXCHECK_PHP) CUSTOS_PHP=$(PHP_BIN) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout 30m
 
 # Record the findings of every rule on the pinned corpora of
-# bench/competitors.json (installed by `make compare`, or `go run
-# ./tools/benchcmp install -tool custos -corpus <name>`), then compare a
-# later build with that record: corpus-diff fails on any added or removed
-# finding and writes them to .cache/corpus-diff/<corpus>.diff. CORPORA=
-# takes a comma-separated list; by default corpus-diff takes every corpus,
-# including those checked at an old PHP version (`"php"`, e.g. swiftmailer
-# at 5.6), which compare installs but neither measures nor formatchecks.
+# bench/competitors.json, then compare a later build with that record:
+# corpus-diff fails on any added or removed finding and writes them to
+# .cache/corpus-diff/<corpus>.diff. Both install the corpora with their
+# development packages under .cache/bench/corpora-dev, apart from the
+# measured ones, so that the rules needing every requirement installed
+# run. CORPORA= takes a comma-separated list; by default corpus-diff takes
+# every corpus, including those checked at an old PHP version (`"php"`,
+# e.g. swiftmailer at 5.6), which compare neither measures nor
+# formatchecks.
 CORPORA ?=
+CORPORA_DEV = .cache/bench/corpora-dev
 corpus-baseline: build
-	$(GO) run ./tools/corpusdiff -record -corpora "$(CORPORA)"
+	$(GO) run ./tools/benchcmp install -dev -tool custos -corpus "$(CORPORA)"
+	$(GO) run ./tools/corpusdiff -record -corpora "$(CORPORA)" -dir $(CORPORA_DEV)
 
 corpus-diff: build
-	$(GO) run ./tools/corpusdiff -corpora "$(CORPORA)"
+	$(GO) run ./tools/benchcmp install -dev -tool custos -corpus "$(CORPORA)"
+	$(GO) run ./tools/corpusdiff -corpora "$(CORPORA)" -dir $(CORPORA_DEV)
 
 # Format a copy of each corpus with each preset (PRESETS=, default all) and
 # run the preset's reference checker on it: PHP_CodeSniffer, PHP-CS-Fixer,

@@ -38,8 +38,9 @@ func (b *bench) install(tools []Tool, corpora []Corpus, log io.Writer) error {
 		dir := b.corpusDir(c)
 		// The stamp tells an install with development packages apart, so
 		// that one made without them is redone.
+		dev := b.dev || c.PHP != ""
 		stamp := c.Tag
-		if c.PHP != "" {
+		if dev {
 			stamp += " with dev"
 		}
 		if err := b.fresh(dir, stamp, log, func() error {
@@ -53,7 +54,7 @@ func (b *bench) install(tools []Tool, corpora []Corpus, log io.Writer) error {
 			// A check corpus gets its development packages too: with every
 			// requirement installed its world is complete, so the rules
 			// needing one run on it.
-			if c.PHP == "" {
+			if !dev {
 				args = append(args, "--no-dev")
 			}
 			return sh(log, dir, "composer", args...)
