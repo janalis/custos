@@ -13,6 +13,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   `custos format` keeps a file as written instead of producing such code.
 - `custos format` no longer turns the invalid `array($a, $b) = $x` into a
   `[$a, $b] = $x` destructuring (PHP 7.1).
+- `VariableFunctionsUsage` no longer rewrites `call_user_func($cb, …)` to
+  `$cb(…)` below PHP 7.0 when `$cb` may hold a `'Class::method'` string,
+  which `$cb()` cannot call before 7.0.
 
 ## [0.2.4] - 2026-11-21
 

@@ -142,8 +142,14 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, forward bool) (
 			}
 		}
 	} else { // D6b
-		if _, isVar := astquery.PlainVariableName(a0); isVar && ctx.PHP.Below(phpversion.PHP54) {
-			return "", false
+		if _, isVar := astquery.PlainVariableName(a0); isVar {
+			if ctx.PHP.Below(phpversion.PHP54) {
+				return "", false
+			}
+			// Before 7.0, $f() cannot call a 'Cls::m' string.
+			if t := ctx.TypeOf(a0); ctx.PHP.Below(phpversion.PHP70) && (t.IsUnknown() || t.HasAny("mixed", "string", "callable")) {
+				return "", false
+			}
 		}
 		first = a0
 	}

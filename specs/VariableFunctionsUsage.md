@@ -71,7 +71,11 @@ one imported from another namespace, or a qualified non-global name such as
     (unknown/partially unknown type, or such a member) → no report. `first` = 1st element, `second` = 2nd element (if any;
     further elements ignored).
   - **D6b** Otherwise: if `A0` is a simple variable and the PHP level is
-    **below 5.4** → no report. `first` = `A0`, no `second`.
+    **below 5.4** → no report. Below **7.0**, a simple variable must also
+    have a fully known type without `string`, `callable` or `mixed`, as in
+    D6a: before 7.0, calling a variable holding `'Cls::m'` fails, so only a
+    closure or an array callable can be called directly. `first` = `A0`, no
+    `second`.
 - **D7** `first` must be a string literal without interpolation or a simple
   variable; anything else (array access, property fetch, call, interpolated
   string, …) → **no report**, whatever `second` holds. Then compute the
@@ -151,7 +155,8 @@ lists, as upstream fixtures contain it.)
 - **E1b** Part B: an argument carries a call-time `&`.
 - **E1c** Part B: an argument binds to a by-reference parameter of the
   resolved callee (D5b), e.g. `call_user_func('sort', $rows)`.
-- **E2** Part B: `A0` is a variable and the level is below 5.4.
+- **E2** Part B: `A0` is a variable and the level is below 5.4, or below
+  7.0 with a type that is unknown or may be a string.
 - **E3** Part B: array callable whose object element is a variable with an
   unknown or string-containing type.
 - **E4** Part B: a callable string starting with `parent::`
@@ -224,7 +229,8 @@ None.
 
 ## PHP versions
 
-- Part B with a plain variable callable (D6b) requires level ≥ 5.4.
+- Part B with a plain variable callable (D6b) requires level ≥ 5.4, and
+  below 7.0 a variable known not to hold a string.
 - Part A skips arrays with non-integer keys from level 8.0 (D4a).
   Everything else is ungated. Upstream fixtures run at 5.3 and 5.4.
 
@@ -335,6 +341,12 @@ function sample(string $dir)
 ```
 
 ## Divergences
+
+- **Variable callables before PHP 7.0 (custos diverges, D6b).** Upstream
+  rewrites `call_user_func($cb, …)` to `$cb(…)` from 5.4 on. Before 7.0,
+  `$cb()` fails when `$cb` holds a `'Cls::m'` string, which
+  `call_user_func()` accepts. custos only reports a variable whose type
+  rules out a string (a closure, an array) below 7.0.
 
 - **Shadowed global functions (custos diverges, D7a).** A namespaced
   function that wraps the builtin of the same name (a test seam for

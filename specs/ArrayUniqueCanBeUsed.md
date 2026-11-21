@@ -67,8 +67,7 @@ by-value calls) does not withhold the report.
 
 ## Exceptions (no report)
 
-E1. PHP level below 7.2 (this includes the default level used by fixtures
-    without an explicit version, which is below 7.1).
+E1. PHP level below 7.2.
 E2. `array_count_values()` with zero or two-plus arguments.
 E3. Enclosing call is anything other than `array_keys`/`count` (e.g.
     `sizeof`, `array_flip`, `max`), or a method call (`$c->count(...)`).
