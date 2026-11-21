@@ -48,3 +48,26 @@ func nodeAt(f *syntax.File, s syntax.Span) syntax.Node {
 	})
 	return found
 }
+
+// TestUndeclaredEverywhereHosted: a file importing from a namespace whose
+// package loads a bundle of other code (PHPStan's phar) runs within that
+// package, which may provide any name.
+func TestUndeclaredEverywhereHosted(t *testing.T) {
+	e, err := analysis.NewEngine([]analysis.Rule{undeclaredProbe{}}, analysis.Config{Only: []string{"UndefinedClass"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := index.New(stubs.Index())
+	ix.SetWorld(index.World{Complete: true, Hosts: []string{`phpstan\`}})
+	ix.Freeze()
+	for src, want := range map[string]int{
+		`<?php namespace App; use PHPStan\Type\Type; new \PhpParser\Node\Identifier();`:             0,
+		`<?php namespace App; use PHPStan\{Type\Type, Analyser\Scope}; new \PhpParser\Node\Name();`: 0,
+		`<?php namespace App; use Other\Type; new \PhpParser\Node\Name();`:                          1,
+	} {
+		f := Parse(t, src)
+		if got := e.WithIndex(ix).Analyze(f); len(got) != want {
+			t.Errorf("%s: %d findings, want %d", src, len(got), want)
+		}
+	}
+}

@@ -30,6 +30,9 @@ func UndeclaredEverywhere(ctx *analysis.Context, function bool, fqns ...string) 
 	if !function && ix.DynamicAliases() {
 		return false
 	}
+	if len(world.Hosts) > 0 && ctx.Shared(hostedKey{}, func() any { return importsFrom(ctx.File, world.Hosts) }).(bool) {
+		return false
+	}
 	prefixes := ix.BuiltinPrefixes()
 	for _, fqn := range fqns {
 		fqn = strings.TrimPrefix(fqn, `\`)
@@ -55,6 +58,33 @@ func UndeclaredEverywhere(ctx *analysis.Context, function bool, fqns ...string) 
 		}
 	}
 	return true
+}
+
+type hostedKey struct{}
+
+// importsFrom reports whether file imports a name under one of namespaces
+// (lower case, ending in a backslash): such a file runs within the package
+// hosting them (see index.World.Hosts).
+func importsFrom(file *syntax.File, namespaces []string) bool {
+	found := false
+	syntax.InspectFile(file, func(n syntax.Node) bool {
+		u, ok := n.(*syntax.Use)
+		if !ok {
+			return !found
+		}
+		for _, item := range u.Items {
+			name := item.Name.Value
+			if u.Prefix != nil {
+				name = u.Prefix.Value + `\` + name
+			}
+			name = strings.ToLower(strings.TrimPrefix(name, `\`))
+			for _, ns := range namespaces {
+				found = found || strings.HasPrefix(name, ns)
+			}
+		}
+		return false
+	})
+	return found
 }
 
 // existenceChecks are the builtins whose first argument names a function

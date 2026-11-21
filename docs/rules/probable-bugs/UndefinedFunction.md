@@ -86,6 +86,11 @@ Reported:
   belong to an extension the stubs lack. A global name without an
   underscore, or with the prefix of a known family (`str_contians()`), is
   still reported.
+- A name in a namespace whose package registers an autoloader from a
+  file Composer loads (PHPStan's `PHPStan\`), which may load classes from
+  where the analysis does not look; when that autoloader loads a phar, any
+  name in a file importing from that namespace (a PHPStan extension), which
+  runs within the package and its bundled libraries.
 - Dynamic calls (`$fn()`, `call_user_func('foo')`) and names in strings.
 
 ## Fix

@@ -96,6 +96,11 @@ Reported:
 - Any name when an indexed file calls `class_alias()` with computed
   names, which may declare any alias, global (framework facades) or
   namespaced.
+- A name in a namespace whose package registers an autoloader from a
+  file Composer loads (PHPStan's `PHPStan\`), which may load classes from
+  where the analysis does not look; when that autoloader loads a phar, any
+  name in a file importing from that namespace (a PHPStan extension), which
+  runs within the package and its bundled libraries.
 - Names PHP does not load: `instanceof` and `catch` (they compare
   names; libraries use them for optional dependencies), parameter, return
   and property types (checked only against a value, and used for optional

@@ -1,10 +1,12 @@
 package project
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -260,6 +262,21 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 			if p = path.Join(dir, p); !g.indexed[p] || g.file[p] {
 				return false
 			}
+			// A package's file registering an autoloader loads classes from
+			// where the index does not look (PHPStan's from its phar): the
+			// namespace it declares is unseen, and with none any name is.
+			if !own {
+				ns, registers, bundle := autoloaderNamespace(read, p)
+				if registers && ns == "" {
+					return false
+				}
+				if registers {
+					w.Blind = append(w.Blind, strings.ToLower(ns)+`\`)
+				}
+				if bundle {
+					w.Hosts = append(w.Hosts, strings.ToLower(ns)+`\`)
+				}
+			}
 		}
 		return true
 	}
@@ -283,6 +300,25 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 		}
 	}
 	return w
+}
+
+// namespaceDecl matches the first namespace declaration of a file.
+var namespaceDecl = regexp.MustCompile(`(?m)^\s*namespace\s+([A-Za-z_\\][A-Za-z0-9_\\]*)\s*[;{]`)
+
+// autoloaderNamespace reports whether file calls spl_autoload_register(),
+// the namespace it declares first ("" for none), and whether it loads from
+// a phar, a bundle of other code. An unreadable file registers nothing
+// that can be told.
+func autoloaderNamespace(read func(string) ([]byte, error), file string) (ns string, registers, bundle bool) {
+	b, err := read(file)
+	if err != nil || !bytes.Contains(b, []byte("spl_autoload_register")) {
+		return "", false, false
+	}
+	bundle = bytes.Contains(b, []byte("phar://"))
+	if m := namespaceDecl.FindSubmatch(b); m != nil {
+		return strings.Trim(string(m[1]), `\`), true, bundle
+	}
+	return "", true, bundle
 }
 
 // stubExtension names the extension a Composer platform requirement names

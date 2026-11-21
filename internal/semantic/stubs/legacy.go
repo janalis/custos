@@ -70,7 +70,7 @@ var bundled = map[string]bool{
 	"jsonpath": false, "judy": false, "leveldb": false, "libevent": false, "libsodium": false,
 	"libvirt-php": false, "lua": false, "luasandbox": false, "lzf": false, "mailparse": false,
 	"mapscript": false, "maxminddb": false, "memcache": false, "memcached": false, "meminfo": false,
-	"ming": false, "mongo": false, "mongodb": false, "mosquitto-php": false, "mqseries": false,
+	"ming": false, "mongo": false, "mongodb": false, "mosquitto-php": false, "mqseries": false, //nolint:misspell // the extension is named so
 	"msgpack": false, "mysql_xdevapi": false, "ncurses": false, "newrelic": false, "oauth": false,
 	"opentelemetry": false, "pam": false, "parallel": false, "parle": false, "pcov": false,
 	"pdflib": false, "pq": false, "proctitle": false, "ps": false, "pthreads": false,

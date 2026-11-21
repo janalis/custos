@@ -42,6 +42,11 @@ type World struct {
 	// named as the stubs name them (see Function.Ext): the project may run
 	// a build of one of them that is not PHP's own.
 	Extensions map[string]bool
+	// Hosts lists namespaces (lower case, ending in a backslash) of
+	// packages whose autoloader loads a bundle of other code, such as
+	// PHPStan's phar: a file importing from one runs within that package,
+	// which may provide any name.
+	Hosts []string
 }
 
 // Dependency reports whether file lies in the vendor directory. A file

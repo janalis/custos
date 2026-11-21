@@ -72,6 +72,34 @@ func TestComposerWorldComplete(t *testing.T) {
 	}
 }
 
+// TestComposerWorldPackageAutoloader: a package's files entry registering
+// an autoloader (PHPStan's, loading from its phar) makes the namespace it
+// declares unseen; one without autoloader, or unreadable, changes nothing.
+func TestComposerWorldPackageAutoloader(t *testing.T) {
+	for src, blind := range map[string]bool{
+		"<?php declare(strict_types = 1);\n\nnamespace PHPStan;\n\nspl_autoload_register([Loader::class, 'load']);\n": true,
+		"<?php\nnamespace Acme\\Http;\nfunction helper() {}\n":                                                        false,
+		"": false,
+	} {
+		files := worldFiles()
+		addPackage(files, `{"name": "acme/z", "install-path": "../acme/http", "autoload": {"files": ["src/Client.php"]}}`)
+		if src != "" {
+			files["vendor/acme/http/src/Client.php"] = src
+		}
+		w := composerWorld(reader(files), []string{"src", "lib"}, worldIndexed, worldSkipped)
+		if !w.Complete || w.Unseen(`PHPStan\Type\ObjectType`) != blind || len(w.Hosts) != 0 {
+			t.Errorf("%q: %+v", src, w)
+		}
+	}
+	// Loading from a phar, the package hosts code importing from it.
+	files := worldFiles()
+	addPackage(files, `{"name": "acme/z", "install-path": "../acme/http", "autoload": {"files": ["src/Client.php"]}}`)
+	files["vendor/acme/http/src/Client.php"] = "<?php\nnamespace PHPStan;\nspl_autoload_register(function ($c) { require 'phar://' . __DIR__ . '/x.phar/a.php'; });\n"
+	if w := composerWorld(reader(files), []string{"src", "lib"}, worldIndexed, worldSkipped); !w.Complete || !slices.Equal(w.Hosts, []string{`phpstan\`}) {
+		t.Errorf("phar: %+v", w)
+	}
+}
+
 func TestComposerWorldIncomplete(t *testing.T) {
 	for name, edit := range map[string]func(map[string]string){
 		"no composer.json":         func(f map[string]string) { delete(f, "composer.json") },
@@ -94,6 +122,10 @@ func TestComposerWorldIncomplete(t *testing.T) {
 		},
 		"package classmap in tests": func(f map[string]string) {
 			addPackage(f, `{"name": "acme/y", "install-path": "../acme/http", "autoload": {"classmap": ["test/"]}}`)
+		},
+		"global autoloader": func(f map[string]string) {
+			addPackage(f, `{"name": "acme/z", "install-path": "../acme/http", "autoload": {"files": ["src/Client.php"]}}`)
+			f["vendor/acme/http/src/Client.php"] = "<?php\nspl_autoload_register(function ($c) {});\n"
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
