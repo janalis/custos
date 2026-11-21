@@ -179,11 +179,18 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 	for _, p := range packages {
 		platform = append(platform, p.Require)
 	}
+	required := map[string]bool{}
 	for _, require := range platform {
 		for name := range require {
-			if ext, ok := strings.CutPrefix(strings.ToLower(name), "ext-"); ok && !knownExtension(ext) {
+			ext, ok := strings.CutPrefix(strings.ToLower(name), "ext-")
+			if !ok {
+				continue
+			}
+			ext = stubExtension(ext)
+			if ext != "mysqlnd" && !stubs.Extensions()[ext] {
 				return index.World{}
 			}
+			required[ext] = true
 		}
 	}
 	files := map[string]bool{}
@@ -193,7 +200,7 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 		}
 	}
 	g := newGaps(indexed, skipped, vendor)
-	w := index.World{Complete: true}
+	w := index.World{Complete: true, Extensions: required}
 	inScope := func(p string) bool {
 		for _, s := range scope {
 			s = path.Clean(s)
@@ -278,19 +285,17 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 	return w
 }
 
-// knownExtension reports whether the stubs describe the extension a
-// Composer platform requirement names (lower case, after `ext-`). PDO
-// drivers belong to PDO, mysqlnd declares nothing of its own.
-func knownExtension(name string) bool {
+// stubExtension names the extension a Composer platform requirement names
+// (lower case, after `ext-`) as the stubs do: PDO drivers belong to PDO.
+// mysqlnd, which declares nothing of its own, keeps its name.
+func stubExtension(name string) string {
 	switch {
 	case strings.HasPrefix(name, "pdo_"):
-		name = "pdo"
+		return "pdo"
 	case name == "opcache":
-		name = "zend-opcache"
-	case name == "mysqlnd":
-		return true
+		return "zend-opcache"
 	}
-	return stubs.Extensions()[strings.ReplaceAll(name, " ", "-")]
+	return strings.ReplaceAll(name, " ", "-")
 }
 
 // gaps answers where the walks for the index left something out (paths

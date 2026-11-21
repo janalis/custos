@@ -7,7 +7,6 @@ import (
 	"compress/gzip"
 	_ "embed"
 	"encoding/gob"
-	"strings"
 	"sync"
 
 	"github.com/janalis/custos/internal/semantic/index"
@@ -61,8 +60,8 @@ func decode(b []byte) (*index.Index, map[string]bool, error) {
 	extensions := map[string]bool{}
 	for _, f := range files {
 		out.Add(f)
-		if dir, _, ok := strings.Cut(strings.TrimPrefix(f.Path, "stubs/"), "/"); ok {
-			extensions[strings.ReplaceAll(strings.ToLower(dir), " ", "-")] = true
+		if ext := extensionOf(f.Path); ext != "" {
+			extensions[ext] = true
 		}
 	}
 	out.Freeze()

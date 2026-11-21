@@ -97,7 +97,11 @@ func (a *adapter) engineFor(req Request) (*analysis.Engine, error) {
 		for path, src := range req.Companions {
 			ix.Add(index.Extract(syntax.Parse(path, src, parseOpts())))
 		}
-		ix.SetWorld(index.World{Complete: req.CompleteWorld, Vendor: req.Vendor})
+		w := index.World{Complete: req.CompleteWorld, Vendor: req.Vendor, Extensions: map[string]bool{}}
+		for _, ext := range req.Extensions {
+			w.Extensions[ext] = true
+		}
+		ix.SetWorld(w)
 		e = e.WithIndex(ix)
 	}
 	return e, nil

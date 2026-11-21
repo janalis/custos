@@ -136,6 +136,12 @@ type Function struct {
 	// Builtin marks a declaration of the embedded stubs (set when they are
 	// loaded): its documented types describe PHP itself, not user PHPDoc.
 	Builtin bool `json:"-"`
+	// Ext is the extension declaring a builtin (lower case, as Composer
+	// names it after `ext-`: "standard", "sodium"), and Bundled is set when
+	// that extension ships with PHP, so that the PHP versions of its
+	// declarations are PHP's own; both set when the stubs are loaded.
+	Ext     string `json:"-"`
+	Bundled bool   `json:"-"`
 	// CSPRNG is set when the body calls a cryptographically secure
 	// generator by name (random_bytes, openssl_random_pseudo_bytes,
 	// mcrypt_create_iv): an IV wrapper usable from other files.

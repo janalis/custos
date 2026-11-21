@@ -41,6 +41,9 @@ type Request struct {
 	CompleteWorld bool
 	// Vendor is the project's vendor directory (see index.World.Vendor).
 	Vendor string
+	// Extensions are the PHP extensions the project requires (see
+	// index.World.Extensions).
+	Extensions []string
 	// Assertions trusts assert() calls as guards (flow.assertions).
 	Assertions bool
 }

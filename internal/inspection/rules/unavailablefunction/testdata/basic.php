@@ -9,6 +9,8 @@ if (<error descr="str_contains() needs PHP 8.0; the project targets PHP 5.6.">st
 <error descr="array_key_last() needs PHP 7.3; the project targets PHP 5.6.">last</error>($items);
 $n = <error descr="intdiv() needs PHP 7.0; the project targets PHP 5.6.">intdiv</error>(7, 2);
 $bytes = <error descr="random_bytes() needs PHP 7.0; the project targets PHP 5.6.">random_bytes</error>(16);
+// Without ext-sodium required, the PECL build is not assumed.
+$box = <error descr="sodium_crypto_box_keypair() needs PHP 7.2; the project targets PHP 5.6.">sodium_crypto_box_keypair</error>();
 
 // A check about something else guards nothing here.
 if (function_exists('array_key_first')) {

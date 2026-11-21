@@ -37,6 +37,11 @@ type World struct {
 	// so that Dependency resolves them without asking the system on every
 	// call; empty to ask it.
 	WorkDir string
+	// Extensions holds the PHP extensions the project or an installed
+	// package requires, suggests or requires for development (`ext-…`),
+	// named as the stubs name them (see FunctionExt): the project may run
+	// a build of one of them that is not PHP's own.
+	Extensions map[string]bool
 }
 
 // Dependency reports whether file lies in the vendor directory. A file

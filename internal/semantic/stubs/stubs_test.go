@@ -76,9 +76,14 @@ func TestVersionedBuiltinMetadata(t *testing.T) {
 	if !ix.Function("is_real", phpversion.PHP74).Avail.In(phpversion.PHP74) || ix.Function("is_real", phpversion.PHP80).Avail.In(phpversion.PHP80) {
 		t.Fatal("is_real availability")
 	}
-	// The New Relic agent's @since tags are its own versions.
-	if !ix.Function("newrelic_create_distributed_trace_payload", phpversion.PHP56).Avail.In(phpversion.PHP56) || ix.Function("str_contains", phpversion.PHP74).Avail.In(phpversion.PHP74) {
-		t.Fatal("extension-versioned availability")
+	// Builtins know their extension, and whether it ships with PHP.
+	for name, want := range map[string]string{"str_contains": "core", "strlen": "core", "sodium_crypto_box": "sodium", "mb_strlen": "mbstring", "newrelic_notice_error": "newrelic"} {
+		if f := ix.Function(name, 0); f.Ext != want || f.Bundled != (want != "newrelic") {
+			t.Errorf("%s: extension %q, bundled %v", name, f.Ext, f.Bundled)
+		}
+	}
+	if !Extensions()["zend-opcache"] || extensionOf("stubs.php") != "" {
+		t.Error("extension names")
 	}
 	if ix.FindMethod("WeakMap", "offsetGet", phpversion.PHP74) != nil || ix.FindMethod("WeakMap", "offsetGet", phpversion.PHP80) == nil {
 		t.Fatal("WeakMap method availability")

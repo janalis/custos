@@ -9,13 +9,21 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 - `UnavailableFunction` reports a call to a function PHP only provides from
   a later version than the project targets (`str_contains()` in a PHP 5.6
-  project), unless the project or a package declares it (a polyfill) or a
-  `function_exists()` or PHP version check guards the call. Like
-  `UndefinedFunction`, it needs every Composer dependency installed, and it
-  stays silent when no target version is configured.
+  project) or removed before it (`each()` in a PHP 8 project), unless the
+  project or a package declares it (a polyfill) or a `function_exists()`
+  or PHP version check guards the call. Like `UndefinedFunction`, it needs
+  every Composer dependency installed, and it stays silent when no target
+  version is configured. Only extensions that ship with the latest PHP are
+  checked, and sodium or zip functions are left alone when the project
+  requires the extension, which PECL builds for older PHP.
 
 ### Fixed
 
+- `UndefinedClass` and `UndefinedFunction` no longer report names of an
+  optional extension used in an instance method when the class's
+  constructor throws unless `extension_loaded()` finds the extension, or
+  when the extension's name starts the name (`extension_loaded('opendkim')`
+  for `OpenDKIMSign`).
 - Quick-fixes and the formatter never make a file need a newer PHP version
   than the project targets (unless the file already needs that version):
   `custos fix` leaves out such a fix and still applies the others, the

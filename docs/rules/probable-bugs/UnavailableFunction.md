@@ -12,11 +12,14 @@ Group: [Probable bugs](/rules/#probable-bugs)
 
 Report a call to a function PHP only provides from a later version than the
 project targets, such as `str_contains()` in a project that supports PHP
-5.6. On the older versions the call throws an `Error` (a fatal error before
-PHP 7.0). Raise the project's minimum PHP version, install a polyfill or
-write the code without the function. The rule needs a complete view of the
+5.6, or that PHP removed before it, such as `each()` in a project on PHP
+8.x. Where the function is missing the call throws an `Error` (a fatal
+error before PHP 7.0). Change the project's PHP versions, install a
+polyfill or write the code without the function. The rule needs a complete view of the
 code the project can load, since a polyfill may declare the function, so it
-reports nothing unless every Composer dependency is installed.
+reports nothing unless every Composer dependency is installed. A polyfill
+Composer does not load (one a bootstrap script includes) counts only when
+it lies in the analyzed paths.
 
 ## Example
 
@@ -42,9 +45,9 @@ Reported:
   with the file's namespace and imports. An unqualified call in a namespace
   is concerned only when no function of the namespaced name exists, so that
   it reaches the global one.
-- PHP or a known extension declares the function, but only from a
-  version later than the target: no declaration of it is available at the
-  target version.
+- An extension that ships with PHP declares the function, but no
+  declaration of it is available at the target version: it comes in a
+  later version, or was removed in an earlier one.
 - Neither the analyzed project nor its installed packages declare a
   function of that name (a polyfill).
 - The project's world is complete, as for undefined functions: its
@@ -60,12 +63,17 @@ Reported:
   `is_callable()` (a literal name), or a call that a check about the PHP
   version or the function guards: a branch whose condition makes the
   check, or an earlier check that exits early, short-circuits or selects an
-  else arm.
-- A function PHP removed before the target version (`each()` targeting
-  PHP 8.0): an extension installed from PECL may declare it again.
-- A function of an extension that does not ship with PHP and whose
-  versions follow the extension's own releases rather than PHP's (the New
-  Relic agent's).
+  else arm, or, in an instance method, a check in the class's constructor
+  that throws or exits when it fails.
+- A function of an extension that does not ship with the latest PHP:
+  from PECL or a vendor, such as the New Relic agent, whose versions may
+  follow the extension's own releases rather than PHP's, or one PHP moved
+  to PECL (`mysql_connect()`, `mcrypt_encrypt()`, `imap_open()`), whose
+  PECL build may still declare what PHP removed.
+- A function of an extension PHP bundles that PECL also builds for
+  older PHP versions (sodium, zip), when the project or an installed
+  package requires that extension (`ext-sodium` in `composer.json`): the
+  project may run that build.
 - Dynamic calls (`$fn()`, `call_user_func('foo')`) and names in strings.
 
 ## Fix
@@ -76,7 +84,8 @@ decision.
 ## PHP versions
 
 All versions: the target version decides which functions are reported.
-Nothing is reported at the latest supported version, nor when no target
+At the latest supported version only removed functions are, and nothing
+is reported when no target
 version is configured (the command line, the custos configuration,
 `composer.json` or `.php-version`): the fallback version says nothing about
 where the code runs.

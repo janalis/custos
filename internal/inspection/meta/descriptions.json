@@ -1874,7 +1874,7 @@
     "fix": true
   },
   "UnavailableFunction": {
-    "summary": "Report a call to a function PHP only provides from a later version than the\nproject targets, such as `str_contains()` in a project that supports PHP\n5.6. On the older versions the call throws an `Error` (a fatal error before\nPHP 7.0). Raise the project's minimum PHP version, install a polyfill or\nwrite the code without the function. The rule needs a complete view of the\ncode the project can load, since a polyfill may declare the function, so it\nreports nothing unless every Composer dependency is installed."
+    "summary": "Report a call to a function PHP only provides from a later version than the\nproject targets, such as `str_contains()` in a project that supports PHP\n5.6, or that PHP removed before it, such as `each()` in a project on PHP\n8.x. Where the function is missing the call throws an `Error` (a fatal\nerror before PHP 7.0). Change the project's PHP versions, install a\npolyfill or write the code without the function. The rule needs a complete view of the\ncode the project can load, since a polyfill may declare the function, so it\nreports nothing unless every Composer dependency is installed. A polyfill\nComposer does not load (one a bootstrap script includes) counts only when\nit lies in the analyzed paths."
   },
   "UndeclaredDynamicProperty": {
     "phpMin": "8.2",

@@ -148,6 +148,9 @@ type fixtureConfig struct {
 	// VendorDir is the project's vendor directory, relative to the
 	// testdata directory like companions (default `vendor`).
 	VendorDir string `json:"vendorDir"`
+	// Extensions are the PHP extensions the project requires (`ext-…`),
+	// named as the stubs name them.
+	Extensions []string `json:"extensions"`
 	// Assertions trusts assert() calls as guards (flow.assertions).
 	Assertions bool `json:"assertions"`
 	// With lists other rules enabled in the same run, whose findings the
@@ -247,7 +250,7 @@ func ownCase(t *testing.T, rule, dir, f, cfgSuffix string) (req Request, marked,
 	fixed, _ = os.ReadFile(base + ".fixed" + ext)
 	req = Request{
 		Path: f, Rules: append([]string{rule}, cfg.With...), PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls, CompleteWorld: cfg.CompleteWorld,
-		Vendor: filepath.Join(dir, cmp.Or(cfg.VendorDir, "vendor")), Assertions: cfg.Assertions,
+		Vendor: filepath.Join(dir, cmp.Or(cfg.VendorDir, "vendor")), Assertions: cfg.Assertions, Extensions: cfg.Extensions,
 	}
 	for _, comp := range cfg.Companions {
 		p := filepath.Join(dir, comp)

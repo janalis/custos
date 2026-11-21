@@ -1,6 +1,7 @@
 package project
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -55,6 +56,10 @@ func TestComposerWorldComplete(t *testing.T) {
 	}
 	if !w.Unseen(`\App\Tests\Unit\CaseTest`) || w.Unseen(`App\Model`) {
 		t.Fatal("blind prefixes")
+	}
+	// Required extensions, as the stubs name them.
+	if got := slices.Sorted(maps.Keys(w.Extensions)); !slices.Equal(got, []string{"intl", "json", "mysqlnd", "pdo", "simplexml", "zend-opcache"}) {
+		t.Errorf("extensions: %q", got)
 	}
 	// Composer 1 writes a bare list, and the whole project in scope.
 	files := worldFiles()

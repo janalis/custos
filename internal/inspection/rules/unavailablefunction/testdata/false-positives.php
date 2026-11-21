@@ -6,7 +6,7 @@ strlen('x');
 array_column([], 'id');
 password_hash('secret', PASSWORD_DEFAULT);
 
-// Removed before the target, not introduced after it.
+// Removed from an extension PHP moved to PECL.
 mysql_connect();
 
 // The New Relic agent versions its functions on its own.

@@ -92,6 +92,7 @@ function total($a) {
 | `with` | Other rules enabled in the same run; their findings are marked up too (for rules that leave findings to one another). |
 | `vendorDir` | The project's vendor directory (Composer's `config.vendor-dir`), relative to the testdata directory; default `vendor`. Classes of companions under it belong to dependencies. |
 | `assertions` | `true` trusts `assert()` calls as guards, as the `flow.assertions` setting does. |
+| `extensions` | PHP extensions the project requires (`ext-…` in `composer.json`), named as the stubs name them (`sodium`, `zend-opcache`). |
 | `completeWorld` | `true` indexes the fixture and its companions as everything the project can load (see [the index world](./architecture#the-index-world)), so a name they do not declare exists nowhere. |
 
 ## Rules on other files
