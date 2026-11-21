@@ -114,3 +114,18 @@ func TestUnrestrictedBuiltinMethods(t *testing.T) {
 		t.Fatalf("unrestricted versioned method: %+v", method)
 	}
 }
+
+// TestExtensionsClassified: every extension of the stubs is classified as
+// shipping with PHP or not, and none classified is gone from them.
+func TestExtensionsClassified(t *testing.T) {
+	for ext := range Extensions() {
+		if _, ok := bundled[ext]; !ok {
+			t.Errorf("extension %q of the stubs: classify it in bundled", ext)
+		}
+	}
+	for ext := range bundled {
+		if !Extensions()[ext] {
+			t.Errorf("extension %q is not in the stubs", ext)
+		}
+	}
+}

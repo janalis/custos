@@ -33,24 +33,57 @@ func addPre80Failures(files []*index.FileSymbols) {
 	}
 }
 
-// bundled lists the extensions that ship with the latest PHP, named as
-// Extensions names them: the PHP versions the stubs give their
-// declarations are PHP's, and no other build of them declares what PHP
-// removed. Others are PECL or vendor extensions, whose stubs may give the
-// extension's own versions (the New Relic agent's 8.4), or extensions PHP
-// moved to PECL (imap, pspell, mysql, mcrypt…).
+// bundled classifies every extension the stubs describe, named as
+// Extensions names them: true for those shipping with the latest PHP (its
+// extensions and server APIs), whose declarations the stubs date by PHP
+// release and which no other build restores once PHP removes them; false
+// for PECL and vendor extensions, whose stubs may give the extension's own
+// versions (the New Relic agent's 8.4), and for those PHP moved to PECL,
+// whose PECL build may still declare what PHP removed. A test requires
+// every extension of the stubs to be classified, so that an update adding
+// one makes this decision.
 var bundled = map[string]bool{
+	// Shipping with PHP.
 	"bcmath": true, "bz2": true, "calendar": true, "com_dotnet": true, "core": true, "ctype": true,
 	"curl": true, "date": true, "dba": true, "dom": true, "enchant": true, "exif": true, "ffi": true,
-	"fileinfo": true, "filter": true, "fpm": true, "ftp": true, "gd": true, "gettext": true, "gmp": true,
+	"fileinfo": true, "filter": true, "ftp": true, "gd": true, "gettext": true, "gmp": true,
 	"hash": true, "iconv": true, "intl": true, "json": true, "ldap": true, "libxml": true,
 	"mbstring": true, "mysqli": true, "odbc": true, "openssl": true, "pcntl": true, "pcre": true,
-	"pdo": true, "pgsql": true, "phar": true, "phpdbg": true, "posix": true, "random": true,
-	"readline": true, "reflection": true, "session": true, "shmop": true, "simplexml": true,
-	"snmp": true, "soap": true, "sockets": true, "sodium": true, "spl": true, "sqlite3": true,
-	"standard": true, "sysvmsg": true, "sysvsem": true, "sysvshm": true, "tidy": true,
-	"tokenizer": true, "uri": true, "xml": true, "xmlreader": true, "xmlwriter": true, "xsl": true,
-	"zend-opcache": true, "zip": true, "zlib": true,
+	"pdo": true, "pgsql": true, "phar": true, "posix": true, "random": true, "readline": true,
+	"reflection": true, "session": true, "shmop": true, "simplexml": true, "snmp": true, "soap": true,
+	"sockets": true, "sodium": true, "spl": true, "sqlite3": true, "standard": true, "sysvmsg": true,
+	"sysvsem": true, "sysvshm": true, "tidy": true, "tokenizer": true, "uri": true, "xml": true,
+	"xmlreader": true, "xmlwriter": true, "xsl": true, "zend-opcache": true, "zip": true,
+	"zlib": true, "apache": true, "fpm": true, "litespeed": true, "phpdbg": true,
+	// Moved from PHP to PECL or dropped.
+	"imap": false, "interbase": false, "mcrypt": false, "mssql": false, "mysql": false, "oci8": false,
+	"pspell": false, "recode": false, "regex": false, "sqlite": false, "sybase": false, "wddx": false,
+	"xmlrpc": false,
+	// PECL and vendor extensions.
+	"aerospike": false, "amqp": false, "apcu": false, "ast": false, "blackfire": false,
+	"brotli": false, "cassandra": false, "couchbase": false, "couchbase_v2": false, "crypto": false,
+	"cubrid": false, "ddtrace": false, "decimal": false, "dio": false, "ds": false, "ds_v2": false,
+	"eio": false, "elastic_apm": false, "ev": false, "event": false, "excimer": false,
+	"expect": false, "fann": false, "ffmpeg": false, "frankenphp": false, "gearman": false,
+	"geoip": false, "geos": false, "gmagick": false, "gnupg": false, "grpc": false, "http": false,
+	"ibm_db2": false, "igbinary": false, "imagick": false, "inotify": false, "io": false,
+	"jsonpath": false, "judy": false, "leveldb": false, "libevent": false, "libsodium": false,
+	"libvirt-php": false, "lua": false, "luasandbox": false, "lzf": false, "mailparse": false,
+	"mapscript": false, "maxminddb": false, "memcache": false, "memcached": false, "meminfo": false,
+	"ming": false, "mongo": false, "mongodb": false, "mosquitto-php": false, "mqseries": false,
+	"msgpack": false, "mysql_xdevapi": false, "ncurses": false, "newrelic": false, "oauth": false,
+	"opentelemetry": false, "pam": false, "parallel": false, "parle": false, "pcov": false,
+	"pdflib": false, "pq": false, "proctitle": false, "ps": false, "pthreads": false,
+	"radius": false, "rar": false,
+	"rdkafka": false, "redis": false, "relay": false, "rpminfo": false, "rrd": false, "saxonc": false,
+	"simdjson": false, "simple_kafka_client": false, "snappy": false, "solr": false, "spltype": false,
+	"sqlsrv": false, "ssh2": false, "stats": false, "stomp": false, "suhosin": false,
+	"superglobals": false, "svm": false, "svn": false, "swoole": false, "sync": false, "uopz": false,
+	"uploadprogress": false, "uuid": false, "uv": false, "v8js": false, "win32service": false,
+	"winbinder": false, "wincache": false, "xcache": false, "xdebug": false, "xdiff": false,
+	"xhprof": false, "xlswriter": false, "xxtea": false, "yaf": false, "yaml": false, "yar": false,
+	"yaz": false, "zend": false, "zendcache": false, "zenddebugger": false, "zendutils": false,
+	"zmq": false, "zookeeper": false, "zstd": false,
 }
 
 // ownVersions lists the extensions whose stubs date their declarations
