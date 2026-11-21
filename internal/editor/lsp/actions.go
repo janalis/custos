@@ -156,7 +156,7 @@ func (s *Server) buildEdit(data actionData) *workspaceEdit {
 		if edits == nil {
 			return nil
 		}
-		if out, _ := fixing.Apply(text, edits); !fixing.WithinVersion(path, text, out, cfg.Parse()) {
+		if out, _ := fixing.Apply(text, edits); !fixing.WithinVersion(path, text, syntax.ParseBest(path, out, cfg.Parse()), cfg.Parse()) {
 			return nil
 		}
 	}

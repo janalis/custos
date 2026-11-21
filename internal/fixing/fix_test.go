@@ -134,12 +134,52 @@ func TestFixSourceRetriesFixesATooNewFixOverlapped(t *testing.T) {
 	}
 }
 
+// TestFixSourceChecksCompatibleFixesTogether: two fixes each fine at 5.3
+// alone form `**` (PHP 5.6) together, so only the first applies.
+func TestFixSourceChecksCompatibleFixesTogether(t *testing.T) {
+	src := "<?php $x = 2 *!$b-!$d;"
+	res := fixWithAt(t, phpversion.PHP53, src, func(n syntax.Node) []diagnostic.TextEdit {
+		sp := n.Span()
+		cur := srcOf(n)
+		switch cur[sp.Start:sp.End] {
+		case "!$b":
+			return []diagnostic.TextEdit{{Span: sp}}
+		case "!$d":
+			if cur[sp.Start-1] == '-' {
+				return []diagnostic.TextEdit{{Span: syntax.Span{Start: sp.Start - 1, End: sp.End}, NewText: "*$d"}}
+			}
+		}
+		return nil
+	})
+	if string(res.Source) != "<?php $x = 2 *-!$d;" {
+		t.Fatalf("got %q", res.Source)
+	}
+}
+
+// TestFixSourceRetriesFixesOnlyValidTogether: when a too-new fix forces
+// the fixes to be checked one by one, two fixes that are only valid
+// together are left for the next iteration instead of being lost.
+func TestFixSourceRetriesFixesOnlyValidTogether(t *testing.T) {
+	src := "<?php $a = !$b; $c = !$d + !$f;"
+	res := fixWithAt(t, phpversion.PHP56, src, func(n syntax.Node) []diagnostic.TextEdit {
+		sp := n.Span()
+		text := map[string]string{"!$b": "$b ?? 1", "!$d": "($d", "!$f": "$f)"}[srcOf(n)[sp.Start:sp.End]]
+		if text == "" {
+			return nil
+		}
+		return []diagnostic.TextEdit{{Span: sp, NewText: text}}
+	})
+	if string(res.Source) != "<?php $a = !$b; $c = ($d + $f);" {
+		t.Fatalf("got %q", res.Source)
+	}
+}
+
 func TestWithinVersion(t *testing.T) {
 	opt := syntax.Options{Version: phpversion.PHP56}
-	if !WithinVersion("x.php", []byte("<?php $a = !$b;"), []byte("<?php $a = (bool) $b;"), opt) {
+	if !WithinVersion("x.php", []byte("<?php $a = !$b;"), syntax.ParseBest("x.php", []byte("<?php $a = (bool) $b;"), opt), opt) {
 		t.Fatal("5.3 syntax rejected")
 	}
-	if WithinVersion("x.php", []byte("<?php $a = !$b;"), []byte("<?php $a = fn() => $b;"), opt) {
+	if WithinVersion("x.php", []byte("<?php $a = !$b;"), syntax.ParseBest("x.php", []byte("<?php $a = fn() => $b;"), opt), opt) {
 		t.Fatal("7.4 syntax accepted at 5.6")
 	}
 }
@@ -234,4 +274,12 @@ func TestFixSourceContextStopsWhenDone(t *testing.T) {
 	if res := FixSourceContext(ctx, e, "x.php", []byte("<?php $a = !$b;"), Options{}); res.Iterations != 0 || res.Applied != 0 {
 		t.Fatalf("got %+v", res)
 	}
+}
+
+// srcOf returns the source of the file n belongs to.
+func srcOf(n syntax.Node) string {
+	for n.Parent() != nil {
+		n = n.Parent()
+	}
+	return string(n.(*syntax.File).Src)
 }
