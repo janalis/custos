@@ -152,6 +152,9 @@ func (s *Server) buildEdit(data actionData) *workspaceEdit {
 		if edits == nil {
 			return nil
 		}
+		if out, _ := fixing.Apply(text, edits); !fixing.WithinVersion(path, text, out, cfg.Parse()) {
+			return nil
+		}
 	}
 	edit := docEdit(data.URI, data.Version, lines, edits)
 	s.mu.Lock()

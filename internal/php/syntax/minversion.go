@@ -72,7 +72,7 @@ func minVersion(f *File, n Node) phpversion.Version {
 	case *List:
 		at(listItemsVersion(x.Items))
 	case *ArrayItem:
-		if x.Unpack && !isDestructure(x.Parent()) {
+		if x.Unpack && !IsDestructuring(x.Parent()) {
 			at(phpversion.PHP74)
 		}
 	case *Arg:
@@ -492,7 +492,7 @@ func arrayVersion(x *Array) phpversion.Version {
 	if x.Short {
 		v = phpversion.PHP54
 	}
-	if !isDestructure(x) {
+	if !IsDestructuring(x) {
 		return v
 	}
 	if x.Short {
@@ -518,9 +518,9 @@ func listItemsVersion(items []*ArrayItem) phpversion.Version {
 	return v
 }
 
-// isDestructure reports whether n is an array pattern being assigned to: the
-// target of `=`, the value of a foreach, or nested in such a pattern.
-func isDestructure(n Node) bool {
+// IsDestructuring reports whether n is an array pattern being assigned to:
+// the target of `=`, the value of a foreach, or nested in such a pattern.
+func IsDestructuring(n Node) bool {
 	for {
 		switch p := n.Parent().(type) {
 		case *Assign:

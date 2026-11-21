@@ -5,6 +5,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Quick-fixes and the formatter never make a file need a newer PHP version
+  than the project targets: `custos fix`, the language server and MCP leave
+  out a fix that would (unless the file already needs that version), and
+  `custos format` keeps a file as written instead of producing such code.
+- `custos format` no longer turns the invalid `array($a, $b) = $x` into a
+  `[$a, $b] = $x` destructuring (PHP 7.1).
+
 ## [0.2.4] - 2026-11-21
 
 ### Added

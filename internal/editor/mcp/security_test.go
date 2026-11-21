@@ -19,6 +19,7 @@ import (
 	"github.com/janalis/custos/internal/inspection/meta"
 	"github.com/janalis/custos/internal/inspection/rules/possiblynullaccess"
 	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 	"github.com/janalis/custos/internal/project"
 	"github.com/janalis/custos/internal/project/baseline"
 	"github.com/janalis/custos/internal/project/config"
@@ -510,6 +511,16 @@ func TestPreparedFixValidationAndBudgets(t *testing.T) {
 	if _, err := s.prepare(ctx, w, cp, snap, Input{Choices: []Choice{{FindingID: "0"}}}); err == nil {
 		t.Fatal("unparsable fix")
 	}
+	// A selected fix needing a newer PHP version than the project's is refused.
+	target := snap.Config.PHP
+	snap.Config.PHP = phpversion.PHP56
+	if snap.Engine, err = analysis.NewEngine([]analysis.Rule{editRule{edit: "fn() => 1"}}, snap.Config.Analysis()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.prepare(ctx, w, cp, snap, Input{Choices: []Choice{{FindingID: "0"}}}); err == nil || !strings.Contains(err.Error(), "newer PHP version") {
+		t.Fatal("fix needing PHP 7.4 accepted at 5.6:", err)
+	}
+	snap.Config.PHP = target
 	engine, err = analysis.NewEngine([]analysis.Rule{editRule{crash: true}}, snap.Config.Analysis())
 	if err != nil {
 		t.Fatal(err)

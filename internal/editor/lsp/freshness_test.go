@@ -10,6 +10,7 @@ import (
 	"github.com/janalis/custos/internal/diagnostic"
 	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 	"github.com/janalis/custos/internal/semantic/index"
 	"github.com/janalis/custos/internal/testing/testbudget"
 )
@@ -278,5 +279,32 @@ func TestFixCommandRejectsReusedClientVersion(t *testing.T) {
 	waitFreshness(t, done)
 	if failure == nil || failure.Code != codeRequestFailed {
 		t.Fatal(failure)
+	}
+}
+
+// coalesceRule offers a fix that needs PHP 7.0.
+type coalesceRule struct{}
+
+func (coalesceRule) ID() string               { return "UnnecessarySemicolon" }
+func (coalesceRule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KNop} }
+func (coalesceRule) Check(ctx *analysis.Context, n syntax.Node) {
+	sp := n.Span()
+	ctx.Report(sp, "empty statement", diagnostic.Fix{Title: "Coalesce", Edits: func() []diagnostic.TextEdit {
+		return []diagnostic.TextEdit{{Span: sp, NewText: "$a ?? 1;"}}
+	}})
+}
+
+func TestActionNeedingNewerPHPIsRefused(t *testing.T) {
+	s := whiteBox(t, t.TempDir(), io.Discard, coalesceRule{})
+	uri := "file:///tmp/version.php"
+	openFresh(s, uri, "<?php ;")
+	if s.buildEdit(firstFreshAction(t, s, uri)) == nil {
+		t.Fatal("fix refused at the default version")
+	}
+	s.mu.Lock()
+	s.cfg.PHP = phpversion.PHP56
+	s.mu.Unlock()
+	if s.buildEdit(firstFreshAction(t, s, uri)) != nil {
+		t.Fatal("fix needing PHP 7.0 offered at 5.6")
 	}
 }

@@ -119,6 +119,9 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 		if len(out) > syntax.MaxFileSize || len(syntax.ParseBest(name, out, parse).Errors) > 0 {
 			return nil, errors.New("fix output is not parsable")
 		}
+		if !fixing.WithinVersion(name, src, out, parse) {
+			return nil, errors.New("fix output needs a newer PHP version than the project targets")
+		}
 		perm := os.FileMode(0o600)
 		if !cp.Buffer {
 			st, err := w.root.Lstat(name)

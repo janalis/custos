@@ -121,6 +121,11 @@ func (e *engine) syntaxRewrites(n syntax.Node) {
 	}
 	switch v := n.(type) {
 	case *syntax.Array:
+		if !v.Short && syntax.IsDestructuring(v) {
+			// `array(...) = $x` is invalid in every version: [...] would
+			// turn it into a 7.1 destructuring, so it stays as written.
+			break
+		}
 		if e.isDestructuring(v) {
 			// A destructuring target is a list: array() cannot be assigned to.
 			e.arraySyntax(v.Span(), v.Short, e.s.ListSyntax, phpversion.PHP71, "list_syntax")

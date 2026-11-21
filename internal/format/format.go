@@ -365,9 +365,19 @@ func (e *engine) verify(out []byte) string {
 			return fmt.Sprintf("token %d reads %q instead of %q", i, out[t.Start:t.End], wantText[i])
 		}
 	}
-	if f := syntax.Parse("", out, syntax.Options{Version: e.lex, Permissive: true}); len(f.Errors) > 0 {
+	f := syntax.Parse("", out, syntax.Options{Version: e.lex, Permissive: true})
+	if len(f.Errors) > 0 {
 		if g := syntax.Parse("", e.src, syntax.Options{Version: e.lex, Permissive: true}); len(g.Errors) < len(f.Errors) {
 			return "syntax error"
+		}
+	}
+	// Formatting must not introduce syntax the target PHP version lacks
+	// (e.g. a trailing comma in a call before 7.3).
+	if e.php < phpversion.Max {
+		if need, _ := syntax.RequiredVersion(f); need > e.php {
+			if had, _ := syntax.RequiredVersion(e.f); need > had {
+				return "needs PHP " + need.String()
+			}
 		}
 	}
 	return ""

@@ -7,6 +7,7 @@ import (
 	"github.com/janalis/custos/internal/diagnostic"
 	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 func TestApply(t *testing.T) {
@@ -66,11 +67,61 @@ func (r fixRule) Check(ctx *analysis.Context, n syntax.Node) {
 
 func fixWith(t *testing.T, src string, edits func(n syntax.Node) []diagnostic.TextEdit) Result {
 	t.Helper()
-	e, err := analysis.NewEngine([]analysis.Rule{fixRule{edits}}, analysis.Config{})
+	return fixWithAt(t, 0, src, edits)
+}
+
+func fixWithAt(t *testing.T, v phpversion.Version, src string, edits func(n syntax.Node) []diagnostic.TextEdit) Result {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{fixRule{edits}}, analysis.Config{PHP: v})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return FixSource(e, "x.php", []byte(src), Options{})
+	return FixSource(e, "x.php", []byte(src), Options{Parse: syntax.Options{Version: v}})
+}
+
+// coalesceFix rewrites `!$x` as `$x ?? 1` (PHP 7.0) when $x is $b, and as
+// `(bool) $x` otherwise.
+func coalesceFix(src string) func(n syntax.Node) []diagnostic.TextEdit {
+	return func(n syntax.Node) []diagnostic.TextEdit {
+		sp := n.Span()
+		v := src[sp.Start+1 : sp.End]
+		text := "(bool) " + v
+		if v == "$b" {
+			text = v + " ?? 1"
+		}
+		return []diagnostic.TextEdit{{Span: sp, NewText: text}}
+	}
+}
+
+func TestFixSourceKeepsTheTargetVersion(t *testing.T) {
+	for _, tc := range []struct {
+		v        phpversion.Version
+		src, out string
+	}{
+		// Each fix is checked on its own: the compatible one still applies.
+		{phpversion.PHP56, "<?php $a = !$b; $c = !$d;", "<?php $a = !$b; $c = (bool) $d;"},
+		{phpversion.PHP56, "<?php $a = !$b;", "<?php $a = !$b;"},
+		{phpversion.PHP70, "<?php $a = !$b;", "<?php $a = $b ?? 1;"},
+		// Code already needing 7.0 is not made worse by more of the same.
+		{phpversion.PHP56, "<?php $x = $y ?? 2; $a = !$b;", "<?php $x = $y ?? 2; $a = $b ?? 1;"},
+		{0, "<?php $a = !$b;", "<?php $a = $b ?? 1;"},
+		{phpversion.Max, "<?php $a = !$b;", "<?php $a = $b ?? 1;"},
+	} {
+		res := fixWithAt(t, tc.v, tc.src, coalesceFix(tc.src))
+		if string(res.Source) != tc.out {
+			t.Errorf("%s at %s: got %q", tc.src, tc.v, res.Source)
+		}
+	}
+}
+
+func TestWithinVersion(t *testing.T) {
+	opt := syntax.Options{Version: phpversion.PHP56}
+	if !WithinVersion("x.php", []byte("<?php $a = !$b;"), []byte("<?php $a = (bool) $b;"), opt) {
+		t.Fatal("5.3 syntax rejected")
+	}
+	if WithinVersion("x.php", []byte("<?php $a = !$b;"), []byte("<?php $a = fn() => $b;"), opt) {
+		t.Fatal("7.4 syntax accepted at 5.6")
+	}
 }
 
 func TestFixSourceSkipsCrashingFix(t *testing.T) {

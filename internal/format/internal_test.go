@@ -157,6 +157,31 @@ func TestVerify(t *testing.T) {
 	}
 }
 
+// TestVerifyTargetVersion refuses output needing a newer PHP version than
+// both the target and the input.
+func TestVerifyTargetVersion(t *testing.T) {
+	for src, want := range map[string]string{
+		"<?php\necho $a;\n":          "needs PHP 7.0",
+		"<?php\necho $a, $b ?? 2;\n": "",
+	} {
+		e := prepared(t, src)
+		e.php = phpversion.PHP56
+		for k := range e.sig {
+			if e.orig(k) == "$a" {
+				e.text[k] = "$a ?? 1"
+			}
+		}
+		out := strings.Replace(src, "$a", "$a ?? 1", 1)
+		if got := e.verify([]byte(out)); got != want {
+			t.Errorf("%q: got %q, want %q", out, got, want)
+		}
+		e.php = phpversion.Max
+		if got := e.verify([]byte(out)); got != "" {
+			t.Errorf("%q at max: %q", out, got)
+		}
+	}
+}
+
 // TestRefusedOutput covers a pass whose output the safety check refuses.
 func TestRefusedOutput(t *testing.T) {
 	defer func(f func(*engine, []byte) string) { checkOutput = f }(checkOutput)
@@ -228,5 +253,18 @@ func TestNewerSyntaxThanVersion(t *testing.T) {
 	res := Source("a.php", []byte(src), Options{PHP: phpversion.PHP74})
 	if res.Skipped != "" || string(res.Output) != src {
 		t.Fatalf("skipped %q, output %q", res.Skipped, res.Output)
+	}
+}
+
+// TestInvalidArrayDestructuringKept: `array(...) = $x` is invalid in every
+// version; shortening it would make it a 7.1 destructuring.
+func TestInvalidArrayDestructuringKept(t *testing.T) {
+	r, _ := Resolve("per", false)
+	src := "<?php\n\narray($a, $b) = $x;\n$c = array(1);\n"
+	for _, v := range []phpversion.Version{phpversion.PHP56, phpversion.Max} {
+		res := Source("a.php", []byte(src), Options{PHP: v, Settings: &r.Settings})
+		if want := "<?php\n\narray($a, $b) = $x;\n$c = [1];\n"; string(res.Output) != want || res.Skipped != "" {
+			t.Errorf("%s: got %q (%s)", v, res.Output, res.Skipped)
+		}
 	}
 }

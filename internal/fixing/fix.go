@@ -7,6 +7,7 @@ import (
 
 	"github.com/janalis/custos/internal/diagnostic"
 	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 )
 
 // Analyzer supplies findings for a parsed source file.
@@ -73,7 +74,9 @@ type Result struct {
 // changes or MaxIterations is reached. A fix applies whole or not at all:
 // one whose edits leave the source or overlap each other is skipped, and an
 // iteration whose result has more syntax errors than its input is undone
-// and ends the loop.
+// and ends the loop. Fixes that would make the source require a newer PHP
+// version than both the target and the input are left out (see
+// WithinVersion).
 func FixSource(e Analyzer, path string, src []byte, opt Options) Result {
 	return FixSourceContext(context.Background(), e, path, src, opt)
 }
@@ -85,6 +88,7 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 	f := syntax.ParseBest(path, src, opt.Parse)
 	for res.Iterations < MaxIterations && ctx.Err() == nil {
 		var edits []diagnostic.TextEdit
+		var groups [][]diagnostic.TextEdit
 		for _, fd := range e.Analyze(f) {
 			if len(fd.Fixes) == 0 || (opt.Filter != nil && !opt.Filter(fd)) {
 				continue
@@ -96,6 +100,7 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 				continue
 			}
 			edits = append(edits, fe...)
+			groups = append(groups, fe)
 		}
 		if len(edits) == 0 {
 			break
@@ -103,6 +108,15 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 		out, n := Apply(res.Source, edits)
 		res.Iterations++
 		next := syntax.ParseBest(path, out, opt.Parse)
+		if len(next.Errors) <= len(f.Errors) && !withinVersion(opt.Parse.Version, f, next) {
+			// Rare: keep only the fixes that are compatible on their own.
+			edits = compatibleEdits(path, res.Source, f, groups, opt.Parse)
+			out, n = Apply(res.Source, edits)
+			next = syntax.ParseBest(path, out, opt.Parse)
+			if n == 0 {
+				break
+			}
+		}
 		if len(next.Errors) > len(f.Errors) {
 			break
 		}
@@ -162,4 +176,41 @@ func overlapsAny(a, b []diagnostic.TextEdit) bool {
 		}
 	}
 	return false
+}
+
+// WithinVersion reports whether after, the result of fixing before, needs
+// no newer PHP version than both the parse target and before itself: a fix
+// must not introduce syntax the project's PHP version lacks, while code
+// that already needs a newer version is not made worse.
+func WithinVersion(path string, before, after []byte, opt syntax.Options) bool {
+	return withinVersion(opt.Version, syntax.ParseBest(path, before, opt), syntax.ParseBest(path, after, opt))
+}
+
+func withinVersion(target phpversion.Version, before, after *syntax.File) bool {
+	if target == 0 {
+		target = phpversion.Default
+	}
+	if target >= phpversion.Max {
+		return true
+	}
+	need, _ := syntax.RequiredVersion(after)
+	if need <= target {
+		return true
+	}
+	had, _ := syntax.RequiredVersion(before)
+	return need <= had
+}
+
+// compatibleEdits keeps the edit groups that, applied alone to src, neither
+// add syntax errors nor raise the required PHP version.
+func compatibleEdits(path string, src []byte, f *syntax.File, groups [][]diagnostic.TextEdit, opt syntax.Options) []diagnostic.TextEdit {
+	var kept []diagnostic.TextEdit
+	for _, g := range groups {
+		out, _ := Apply(src, g)
+		next := syntax.ParseBest(path, out, opt)
+		if len(next.Errors) <= len(f.Errors) && withinVersion(opt.Version, f, next) {
+			kept = append(kept, g...)
+		}
+	}
+	return kept
 }
