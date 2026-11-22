@@ -39,7 +39,7 @@ func (e *Env) never(call syntax.Node) bool {
 	} else {
 		declared = m.Return
 		if m.Final || m.Visibility == index.Private {
-			name = m.Class + "::" + m.Name
+			name = m.Key()
 		}
 		if within := syntax.EnclosingClass(call); within != nil && within.ClassKind == syntax.KindTrait && !m.Abstract && strings.EqualFold(m.Class, e.types.ClassFQN(within)) {
 			// A class using the trait can replace the method, whatever its

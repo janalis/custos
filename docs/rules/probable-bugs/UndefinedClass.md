@@ -111,7 +111,8 @@ Reported:
   declared in any analyzed file, a method possibly taken from a trait
   (under an alias too) or a parent class. A class known only when the code
   runs counts as each class it may be: `$this` and `static` as the class
-  and its subclasses (in a trait, the classes using it and theirs), `self`
+  and its subclasses, unless the method is private (in a trait, the
+  classes using it and theirs), `self`
   in a trait as the classes using it, and `parent` in a trait as their
   parents.
 - Names PHP does not load: `instanceof` and `catch` (they compare

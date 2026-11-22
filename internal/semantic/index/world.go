@@ -259,7 +259,7 @@ func (ix *Index) LoaderFacts(k string) *Loader {
 	}
 	var out *Loader
 	shared := true // out is still a file's own Loader
-	for _, c := range ix.loaderClasses(class) {
+	for _, c := range ix.loaderClasses(class, method) {
 		l := ix.methodLoader(c, method)
 		switch {
 		case l == nil:
@@ -284,9 +284,10 @@ func (ix *Index) LoaderFacts(k string) *Loader {
 // maxLoaderClasses caps the classes a callback's class may stand for.
 const maxLoaderClasses = 64
 
-// loaderClasses returns the classes the class part of a callback key
-// stands for (see lateMark).
-func (ix *Index) loaderClasses(class string) []string {
+// loaderClasses returns the classes the class part of a callback key for
+// method stands for (see lateMark). A subclass does not replace a private
+// method: PHP calls the one of the class registering it.
+func (ix *Index) loaderClasses(class, method string) []string {
 	name := strings.TrimLeft(class, lateMark+usersMark+parentMark)
 	var roots []string
 	switch class[:len(class)-len(name)] {
@@ -309,7 +310,10 @@ func (ix *Index) loaderClasses(class string) []string {
 	}
 	out := slices.Clone(roots)
 	for _, r := range roots {
-		for _, sub := range ix.Subclasses(r) {
+		if m := ix.FindMethod(r, method, 0); m != nil && m.Visibility == Private {
+			continue
+		}
+		for _, sub := range ix.Extending(r) {
 			if len(out) >= maxLoaderClasses {
 				return out
 			}
@@ -332,10 +336,7 @@ func (ix *Index) methodLoader(class, name string) *Loader {
 	if c == nil || m.Magic || m.Abstract {
 		return nil
 	}
-	if m.Declared != "" { // imported under a trait alias
-		name = key(m.Declared)
-	}
-	return ix.loader(c.File, key(c.FQN)+"::"+name)
+	return ix.loader(c.File, m.Key())
 }
 
 // traitUsers returns the classes and enums using trait, directly or

@@ -31,7 +31,7 @@ type Index struct {
 	// selfOut (lower method name -> classes declaring it with a documented
 	// receiver type after the call).
 	selfOut atomic.Pointer[map[string][]string]
-	// traitUsers (lower trait FQN -> class-likes using it).
+	// users (lower trait FQN -> class-likes using it).
 	users     atomic.Pointer[map[string][]string]
 	aliasedBy atomic.Pointer[map[string][]string]
 	// extending caches Extending by name, valid for the generation stored.

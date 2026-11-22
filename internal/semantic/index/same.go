@@ -35,11 +35,11 @@ func Fingerprint(fs *FileSymbols) [sha256.Size]byte {
 	if fs != nil {
 		x := *fs
 		x.Digest = 0
-		// Loaders describe the bodies of ordinary named functions, which
-		// edits change often, and only the Composer world reads them,
-		// built when the project is indexed (an editor buffer never
-		// rebuilds it): a body edit testing another prefix changes nothing
-		// the print guards.
+		// Loaders describe the bodies of ordinary named functions and
+		// methods, which edits change often, and only the Composer world
+		// reads them, built when the project is indexed (an editor buffer
+		// never rebuilds it): a body edit testing another prefix changes
+		// nothing the print guards.
 		x.Loaders = nil
 		buf = appendValue(buf, reflect.ValueOf(&x))
 	}

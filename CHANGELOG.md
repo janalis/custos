@@ -20,8 +20,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Data-flow analysis follows calls to a trait method imported under an
-  alias (`use T { boot as load; }`): what the method returns, taints or
-  never does reaches its callers, as for other methods. Two traits
+  alias (`use T { boot as load; }`): what the method returns or taints
+  reaches its callers, as for other methods, and a subclass aliasing
+  another method of the trait to that name replaces it. Two traits
   aliasing different methods of a shared trait to one name now conflict,
   as in PHP.
 - `UndefinedClass` and `UndefinedFunction` no longer report PHPStan's

@@ -210,14 +210,15 @@ func (e *Env) copies(call syntax.Node, m *index.Method) []*index.Method {
 // cannot be seen: a method meant to be replaced outside it is not known to
 // be. The answer is kept per receiver class and method.
 func (e *Env) replaced(receiver string, m *index.Method) bool {
-	return e.overrides(receiver, m.Name, m.Class)
+	return e.overrides(receiver, m.Name, m.Key())
 }
 
-// overrides is replaced for a method name and the class that declares the
-// method resolved: none when the receiver's class has no such method, which
-// a class extending it then must not have either.
-func (e *Env) overrides(receiver, method, declaring string) bool {
-	at := [2]string{strings.ToLower(receiver), strings.ToLower(declaring + "::" + method)}
+// overrides is replaced for a method name and the declaration the method
+// resolved was taken from (its index.Method Key): none when the receiver's
+// class has no such method, which a class extending it then must not have
+// either. A trait alias of another method of the same trait replaces it.
+func (e *Env) overrides(receiver, method, declared string) bool {
+	at := [2]string{strings.ToLower(receiver), strings.ToLower(method) + " " + declared}
 	if known, ok := e.overridden[at]; ok {
 		// The answer read the contracts of the subclasses: so does
 		// whatever reads it again.
@@ -228,7 +229,7 @@ func (e *Env) overrides(receiver, method, declaring string) bool {
 		e.overridden = map[[2]string]cachedAnswer{}
 	}
 	reads := e.begin()
-	replaced := e.override(receiver, method, declaring)
+	replaced := e.override(receiver, method, declared)
 	e.end(reads)
 	e.overridden[at] = cachedAnswer{holds: replaced, reads: reads}
 	return replaced
@@ -241,13 +242,13 @@ type cachedAnswer struct {
 	reads *readSet
 }
 
-func (e *Env) override(receiver, method, declaring string) bool {
+func (e *Env) override(receiver, method, declared string) bool {
 	ix := e.types.Index
 	return e.below(receiver, func(sub string) bool {
 		// The summaries read here depend on what each subclass declares.
 		e.contract(strings.ToLower(sub) + "::" + strings.ToLower(method))
 		other := ix.FindMethod(sub, method, e.types.PHP)
-		return ix.ClassCount(sub) != 1 || (other == nil) != (declaring == "") || other != nil && !strings.EqualFold(other.Class, declaring)
+		return ix.ClassCount(sub) != 1 || (other == nil) != (declared == "") || other != nil && other.Key() != declared
 	})
 }
 

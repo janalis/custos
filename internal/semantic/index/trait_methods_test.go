@@ -128,12 +128,15 @@ func TestTraitConflictsAndDiamonds(t *testing.T) {
  trait SameA { use Pair { a as load; } }
  class SameAliasDiamond { use PairA, SameA; }
  class AliasOfAlias { use PairA { load as run; } }
+ trait PlainPair { use Pair; }
+ trait SelfAliased { use Pair { a as public a; } }
+ class SelfAliasDiamond { use PlainPair, SelfAliased; }
  `))
 	if m := ix.FindMethod("Diamond", "f", 0); m == nil || m.Class != "RootTrait" {
 		t.Fatalf("diamond: %+v", m)
 	}
 	// Aliases keep the name the trait declares, through aliases of aliases.
-	for class, name := range map[string]string{"SameAliasDiamond": "load", "AliasOfAlias": "run"} {
+	for class, name := range map[string]string{"SameAliasDiamond": "load", "AliasOfAlias": "run", "SelfAliasDiamond": "a"} {
 		if m := ix.FindMethod(class, name, 0); m == nil || m.Key() != "pair::a" {
 			t.Fatalf("%s: %+v", class, m)
 		}

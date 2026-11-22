@@ -207,6 +207,8 @@ func TestLoaderFactsAtRunTime(t *testing.T) {
 		"parent in trait":   {`<?php trait T { function r() { spl_autoload_register([parent::class, 'load']); spl_autoload_register('parent::load'); spl_autoload_register(parent::load(...)); } } class Base { static ` + acme + ` } final class Loader extends Base { use T; } final class Other extends Base { use T; }`, []string{`acme\`}},
 		"this in trait":     {`<?php trait T { function r() { spl_autoload_register([$this, 'load']); } } trait U { use T; } class A { use U; ` + acme + ` } final class B extends A { ` + zed + ` } final class C { use T; use U; }`, []string{`acme\`, `zed\`}},
 		"unused trait":      {`<?php trait T { function r() { spl_autoload_register([self::class, 'load']); spl_autoload_register([parent::class, 'load']); spl_autoload_register([$this, 'load']); } } final class A { use T; ` + acme + ` }`, []string{`acme\`}},
+		"private":           {`<?php class Base { private ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } final class Sub extends Base { ` + acme + ` }`, []string{`zed\`}},
+		"aliased parent":    {`<?php class Base { ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } class_alias('Base', 'B2'); final class Sub extends B2 { ` + acme + ` }`, []string{`zed\`, `acme\`}},
 		"nothing to load":   {`<?php trait T { function r() { spl_autoload_register([parent::class, 'load']); spl_autoload_register([self::class, 'load']); } } trait U { function r() { spl_autoload_register(['static', 'load']); } } final class A { use T; }`, nil},
 	} {
 		prefixes, _ := loaded(c.src)
@@ -227,6 +229,17 @@ func TestLoaderFactsAtRunTime(t *testing.T) {
 	}
 	if _, phar := loaded(`<?php class Base { ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } final class Loader extends Base { function load($c) { require "phar://x/$c"; } }`); !phar {
 		t.Error("phar of a subclass")
+	}
+	// At most 64 classes: the subclass sorting last is left out.
+	for n, want := range map[int]int{10: 1, 100: 0} {
+		var src strings.Builder
+		src.WriteString(`<?php class Base { function r() { spl_autoload_register([$this, 'load']); } } final class Z extends Base { ` + acme + ` }`)
+		for i := range n {
+			fmt.Fprintf(&src, ` final class L%03d extends Base {}`, i)
+		}
+		if prefixes, _ := loaded(src.String()); len(prefixes) != want {
+			t.Errorf("%d subclasses: prefixes %q", n, prefixes)
+		}
 	}
 	var many strings.Builder
 	many.WriteString(`<?php class Base { function r() { spl_autoload_register([$this, 'load']); } }`)

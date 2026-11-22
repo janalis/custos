@@ -36,3 +36,17 @@ func TestTraitThisDispatch(t *testing.T) {
 		}
 	}
 }
+
+// A subclass aliasing another method of the same trait to the name
+// replaces the method; one aliasing the same method does not.
+func TestTraitAliasOverride(t *testing.T) {
+	for src, replaced := range map[string]bool{
+		`trait T { function a($x) {} function c($x) {} } class C { use T { c as b; } } class D extends C { use T { a as b; } }`: true,
+		`trait T { function a($x) {} function c($x) {} } class C { use T { c as b; } } class D extends C { use T { c as b; } }`: false,
+	} {
+		e, _ := closedEnvironment(t, src)
+		if m := e.types.Index.FindMethod("C", "b", e.types.PHP); m == nil || e.replaced("C", m) != replaced {
+			t.Errorf("%s: %+v replaced %v", src, m, !replaced)
+		}
+	}
+}
