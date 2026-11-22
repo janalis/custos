@@ -45,10 +45,10 @@ func (pdoAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !strings.EqualFold(pname.Value, "prepare") {
 		return
 	}
-	sole := soleArg(prep)
-	if _, ok := sole.(*syntax.VariadicPlaceholder); ok { // E7: a closure is created, nothing is prepared
+	if prep.Args.FirstClassCallable() { // E7: a closure is created, nothing is prepared
 		return
 	}
+	sole := soleArg(prep)
 	if !astquery.EquivalentFoldNames(ctx.File, as.Var, exec.Var) || !pdoPrepareResolves(ctx, prep) { // D6, D5
 		return
 	}

@@ -22,6 +22,11 @@ type extractor struct {
 	classTpl   map[string]bool   // class-level @template names of the class being extracted
 	methodTpl  map[string]bool   // @template names of the method being extracted
 	aliases    map[string]string // @phpstan-type / import-type names in scope (imported: importedAlias)
+	// prefixTests holds the prefixes named functions and methods test
+	// their first parameter for, and includers those that include a
+	// file: the candidate loaders (see Loaders).
+	prefixTests map[syntax.Node]*Loader
+	includers   []syntax.Node
 }
 
 // importedAlias marks in extractor.aliases a type alias the class imports:
@@ -76,6 +81,10 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 			x.class(n)
 		case *syntax.Function:
 			x.function(n)
+		case *syntax.Include:
+			if fn := syntax.EnclosingFuncLike(n); !slices.Contains(x.includers, fn) {
+				x.includers = append(x.includers, fn)
+			}
 		case *syntax.ConstStmt:
 			for _, c := range n.Consts {
 				fqn := c.Name.Value
@@ -110,9 +119,9 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 		}
 		return true
 	})
-	// Rare: mark the loaders naming a phar.
-	if len(x.out.Loaders) > 0 && bytes.Contains(f.Src, pharScheme) {
-		x.pharLoaders()
+	// Rare: functions and methods including a file.
+	if len(x.includers) > 0 {
+		x.loaders()
 	}
 	if len(calls) > 0 {
 		declared := make(map[string]bool, len(x.out.Functions))
@@ -205,7 +214,7 @@ func (x *extractor) callableKey(n syntax.Node) string {
 }
 
 // loaderTest records the prefix call tests, when it tests the first
-// parameter of the named function or method it lies in for a literal one.
+// parameter of the function-like it lies in for a literal one.
 func (x *extractor) loaderTest(call *syntax.FuncCall) {
 	fn := syntax.EnclosingFuncLike(call)
 	params := syntax.FuncLikeParams(fn)
@@ -213,39 +222,59 @@ func (x *extractor) loaderTest(call *syntax.FuncCall) {
 		return
 	}
 	p, ok := prefixTested(call, params[0].Var.Name)
-	k := ""
-	if ok {
-		k = x.callableKey(fn)
-	}
-	if k == "" {
+	if !ok {
 		return
 	}
-	if x.out.Loaders == nil {
-		x.out.Loaders = map[string]*Loader{}
+	if x.prefixTests == nil {
+		x.prefixTests = map[syntax.Node]*Loader{}
 	}
-	l := x.out.Loaders[k]
+	l := x.prefixTests[fn]
 	if l == nil {
 		l = &Loader{}
-		x.out.Loaders[k] = l
+		x.prefixTests[fn] = l
 	}
 	if len(l.Prefixes) < maxAutoloadPrefixes && !slices.Contains(l.Prefixes, p) {
 		l.Prefixes = append(l.Prefixes, p)
 	}
 }
 
-// pharLoaders marks the loaders of the file with a string naming a phar.
-func (x *extractor) pharLoaders() {
-	syntax.InspectFile(x.f, func(n syntax.Node) bool {
+// loaders records the named functions and methods that may be
+// autoloaders: those including a file that test their first parameter
+// for a literal prefix or name a phar.
+func (x *extractor) loaders() {
+	phars := bytes.Contains(x.f.Src, pharScheme)
+	for _, fn := range x.includers {
+		l := x.prefixTests[fn]
+		phar := phars && namesPhar(x.f.Src, fn)
+		k := x.callableKey(fn)
+		if l == nil && !phar || k == "" {
+			continue
+		}
+		if l == nil {
+			l = &Loader{}
+		}
+		l.Phar = phar
+		if x.out.Loaders == nil {
+			x.out.Loaders = map[string]*Loader{}
+		}
+		x.out.Loaders[k] = l
+	}
+}
+
+// namesPhar reports whether a string of n (src its file's source) names
+// a phar.
+func namesPhar(src []byte, n syntax.Node) bool {
+	found := false
+	syntax.Inspect(n, func(n syntax.Node) bool {
 		switch n.(type) {
 		case *syntax.Literal, *syntax.InterpolatedString:
 			sp := n.Span()
-			if l := x.out.Loaders[x.callableKey(syntax.EnclosingFuncLike(n))]; l != nil && bytes.Contains(x.f.Src[sp.Start:sp.End], pharScheme) {
-				l.Phar = true
-			}
+			found = found || bytes.Contains(src[sp.Start:sp.End], pharScheme)
 			return false
 		}
-		return true
+		return !found
 	})
+	return found
 }
 
 // join qualifies name with namespace ns.
@@ -276,15 +305,12 @@ func (x *extractor) classOf(e syntax.Expr, call syntax.Node) string {
 			return x.classFQN(call)
 		}
 	case *syntax.MagicConst:
-		if strings.EqualFold(x.text(v), "__CLASS__") {
+		if v.Token.Kind == syntax.TClassC {
 			return x.classFQN(call)
 		}
 	case *syntax.Name:
-		switch strings.ToLower(v.Value) {
-		case "self", "static":
-			return x.classFQN(call)
-		case "parent":
-			return ""
+		if c, ok := x.relative(v.Value, call); ok {
+			return c
 		}
 		return key(x.r.Class(v.Value, v.Span().Start))
 	case *syntax.ClassConstFetch:
@@ -295,9 +321,36 @@ func (x *extractor) classOf(e syntax.Expr, call syntax.Node) string {
 		return x.classOf(v.Class, call)
 	case *syntax.Literal:
 		s, _ := syntax.LiteralStringValue(v)
-		return key(s)
+		return x.stringClass(s, call)
 	}
 	return ""
+}
+
+// stringClass returns the key of the class a string names in a callable
+// written at call: fully qualified, or `self`, `static` or `parent`.
+func (x *extractor) stringClass(s string, call syntax.Node) string {
+	if c, ok := x.relative(s, call); ok {
+		return c
+	}
+	return key(s)
+}
+
+// relative resolves `self`, `static` and `parent` written at call to the
+// key of the class they name ("" outside a class, or for the parent of
+// one extending none); ok is false for another name. Inside a trait,
+// they name the trait.
+func (x *extractor) relative(name string, call syntax.Node) (class string, ok bool) {
+	switch strings.ToLower(name) {
+	case "self", "static":
+		return x.classFQN(call), true
+	case "parent":
+		c := syntax.EnclosingClass(call)
+		if c == nil || c.ClassKind != syntax.KindClass || len(c.Extends) == 0 {
+			return "", true
+		}
+		return key(x.r.Class(c.Extends[0].Value, c.Extends[0].Span().Start)), true
+	}
+	return "", false
 }
 
 // callback returns what the spl_autoload_register() call registers: a
@@ -328,9 +381,16 @@ func (x *extractor) callback(call *syntax.FuncCall) (body syntax.Node, param, k 
 	case *syntax.Literal: // 'fn' or 'Cls::method'
 		s, _ := syntax.LiteralStringValue(v)
 		if class, name, ok := strings.Cut(s, "::"); ok {
-			return nil, "", method(key(class), name)
+			return nil, "", method(x.stringClass(class, call), name)
 		}
 		return nil, "", key(s)
+	case *syntax.Binary: // __NAMESPACE__ . '\\fn'
+		ns, ok := v.Left.(*syntax.MagicConst)
+		lit, isLit := v.Right.(*syntax.Literal)
+		if ok && isLit && v.Op.Kind == syntax.TDot && ns.Token.Kind == syntax.TNsC {
+			name, _ := syntax.LiteralStringValue(lit)
+			return nil, "", key(x.r.Namespace(v.Span().Start) + name)
+		}
 	case *syntax.Array: // [$this, 'method'], [Cls::class, 'method']
 		if len(v.Items) == 2 && v.Items[0] != nil && v.Items[1] != nil {
 			if lit, ok := v.Items[1].Value.(*syntax.Literal); ok {

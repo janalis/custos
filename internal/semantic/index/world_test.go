@@ -162,9 +162,6 @@ func BenchmarkWorldDependency(b *testing.B) {
 	}
 }
 
-// TestExtractAutoloaders: the namespaces registering autoloaders, once
-// each; what their callbacks test the class name for, and whether they
-// name a phar.
 // loaded returns the class name prefixes the autoloaders of the first of
 // files load, with those of the callbacks the files declare, and whether
 // one names a phar.
@@ -188,6 +185,9 @@ func loaded(files ...string) (prefixes []string, phar bool) {
 	return prefixes, phar
 }
 
+// TestExtractAutoloaders: the namespaces registering autoloaders, once
+// each; what their callbacks test the class name for, and whether they
+// name a phar.
 func TestExtractAutoloaders(t *testing.T) {
 	src := `<?php
 namespace Tool { spl_autoload_register(fn ($c) => 1); \spl_autoload_register(fn ($c) => "phar://{$c}"); }
@@ -196,20 +196,26 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 	if !slices.Equal(fs.Autoloaders, []string{`tool\`, ""}) || !fs.Phar {
 		t.Errorf("autoloaders %q, phar %v", fs.Autoloaders, fs.Phar)
 	}
+	// A loader is a function or method including a file: BODY stands for
+	// one testing for Acme\.
+	const l = `{ if (strpos($c, 'Acme\\') === 0) { require "$c.php"; } }`
 	for name, src := range map[string]string{
 		"comment":         "<?php // spl_autoload_register('phar://x');\n$s = 'none';",
 		"phar elsewhere":  "<?php spl_autoload_register(fn ($c) => null); $p = 'phar://x';",
 		"not of the file": "<?php spl_autoload_register([Other::class, 'load']); spl_autoload_register('other'); spl_autoload_register($f); spl_autoload_register(); spl_autoload_register(...$a); $g = spl_autoload_register(...);",
 		"no class name":   "<?php spl_autoload_register(function () { strpos($x, 'Acme'); });",
-		"not first-class": "<?php final class L { function load($c) { strpos($c, 'Acme'); } function reg() { spl_autoload_register($this->load($x)); spl_autoload_register(self::load($x, $y)); spl_autoload_register(load()); spl_autoload_register($this->$m(...)); spl_autoload_register(self::$m(...)); spl_autoload_register($f(...)); } }",
-		"other receiver":  "<?php final class L { function load($c) { strpos($c, 'Acme'); } function reg($o) { spl_autoload_register($o->load(...)); spl_autoload_register($this?->load(...)); spl_autoload_register($$v->load(...)); spl_autoload_register([$o, 'load']); spl_autoload_register([parent::class, 'load']); spl_autoload_register([$this, $m]); spl_autoload_register([$this]); } }",
-		"other class":     "<?php final class L { static function load($c) { strpos($c, 'Acme'); } } spl_autoload_register(Other::load(...)); spl_autoload_register('Other::load'); spl_autoload_register([Other::class, 'load']); spl_autoload_register([L::{$k}, 'load']); spl_autoload_register(self::load(...)); new class { function load($c) { strpos($c, 'Acme'); } function r() { spl_autoload_register($this->load(...)); } };",
-		"other kind":      "<?php function zed($s) { strpos($s, 'Zed'); } final class L { function load($c) { strpos($c, 'Acme'); } } spl_autoload_register(load(...)); spl_autoload_register('load'); spl_autoload_register([L::class, 'zed']);",
-		"other argument":  "<?php function load($c) { strpos($c, 'Acme'); } spl_autoload_register(prepend: true, throw: load(...)); spl_autoload_register(fn () => 1, load(...));",
-		"not a loader":    "<?php $p = 'phar://x'; function load() { strpos($c, 'Acme'); } function other($c) { strpos($x, 'Acme'); $f = function ($c) { strpos($c, 'Acme'); }; } new class { function load($c) { strpos($c, 'Acme'); } }; spl_autoload_register('load'); spl_autoload_register('other');",
+		"not first-class": "<?php final class L { function load($c) BODY function reg() { spl_autoload_register($this->load($x)); spl_autoload_register(self::load($x, $y)); spl_autoload_register(load()); spl_autoload_register($this->$m(...)); spl_autoload_register(self::$m(...)); spl_autoload_register($f(...)); } }",
+		"other receiver":  "<?php final class L { function load($c) BODY function reg($o) { spl_autoload_register($o->load(...)); spl_autoload_register($this?->load(...)); spl_autoload_register($$v->load(...)); spl_autoload_register([$o, 'load']); spl_autoload_register([parent::class, 'load']); spl_autoload_register([$this, $m]); spl_autoload_register([$this]); } }",
+		"other class":     "<?php final class L { static function load($c) BODY } spl_autoload_register(Other::load(...)); spl_autoload_register('Other::load'); spl_autoload_register([Other::class, 'load']); spl_autoload_register([L::{$k}, 'load']); spl_autoload_register(self::load(...)); spl_autoload_register('parent::load'); new class { function load($c) BODY function r() { spl_autoload_register($this->load(...)); } };",
+		"other kind":      "<?php function zed($c) { if (strpos($c, 'Zed') === 0) { require 'z.php'; } } final class L { function load($c) BODY } spl_autoload_register(load(...)); spl_autoload_register('load'); spl_autoload_register([L::class, 'zed']);",
+		"other argument":  "<?php function load($c) BODY spl_autoload_register(prepend: true, throw: load(...)); spl_autoload_register(fn () => 1, load(...));",
+		"not a loader":    "<?php $p = 'phar://x'; function load() { strpos($c, 'Acme'); require 'x.php'; } function other($c) { strpos($c, 'Acme'); } function third($c) { require 'x.php'; $f = function ($c) { strpos($c, 'Acme'); }; } spl_autoload_register('load'); spl_autoload_register('other'); spl_autoload_register('third');",
+		"no method body":  "<?php interface I { function load($c); } /** @method void load(string $c) */ abstract class A implements I {} spl_autoload_register([A::class, 'load']); spl_autoload_register([A::class, 'missing']);",
 		"parent cycle":    "<?php class A extends B {} class B extends A {} spl_autoload_register([A::class, 'load']);",
 		"builtin":         "<?php spl_autoload_register('strlen');",
+		"computed":        "<?php spl_autoload_register(__DIR__ . '/load'); spl_autoload_register(__NAMESPACE__ . $f); spl_autoload_register($a . 'load'); spl_autoload_register(__NAMESPACE__ + 'load');",
 	} {
+		src = strings.ReplaceAll(src, " BODY ", " "+l+" ")
 		if prefixes, phar := loaded(src); phar || prefixes != nil {
 			t.Errorf("%s: prefixes %q, phar %v", name, prefixes, phar)
 		}
@@ -218,28 +224,33 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 	// literal, once each, not too short; not those of other strings.
 	for name, src := range map[string]string{
 		"closure": `<?php spl_autoload_register(function ($c) {
-	if (strpos($c, '\\Acme\\') === 0 || \str_starts_with($c, 'ACME\\') || strpos($c, $x) || strpos($c) || strpos($c, '\\') || strpos($c, '_A') || Foo::strpos($c, 'x') || strpos($c, ...$a) || in_array($c, ['Acme']) || strpos($other, 'Other') || strpos(...$c)) {}
+	if (strpos($c, '\\Acme\\') === 0 || \str_starts_with($c, 'ACME\\') || strpos($c, $x) || strpos($c) || strpos($c, '\\') || strpos($c, '_A') || strpos($c, '\\\\\\\\x') || Foo::strpos($c, 'x') || strpos($c, ...$a) || in_array($c, ['Acme']) || strpos($other, 'Other') || strpos(...$c)) {}
 });`,
-		"method":          `<?php namespace Tool; final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register([Loader::class, 'load']);`,
-		"static string":   `<?php final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register('Loader::load');`,
-		"this method":     `<?php function load($s) { strpos($s, 'Zed'); } final class Loader { function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register($this->load(...)); } }`,
-		"self method":     `<?php namespace Tool; final class Loader { static function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register(self::load(...)); } }`,
-		"named class":     `<?php namespace Tool; final class Loader { static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register(\Tool\Loader::load(...));`,
-		"array this":      `<?php final class Loader { function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register([$this, 'load']); } }`,
-		"array new":       `<?php final class Loader { function load($class) { strpos($class, 'Acme\\'); } static function register() { spl_autoload_register([new static(), 'load']); } }`,
-		"array magic":     `<?php final class Loader { function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register([__CLASS__, 'load']); } }`,
-		"array string":    `<?php final class Loader { static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register(['\Loader', 'load']);`,
-		"named argument":  `<?php function acme_load($class) { strpos($class, 'Acme\\'); } spl_autoload_register(prepend: true, callback: 'acme_load');`,
-		"function first":  `<?php namespace Tool; function acme_load($class) { strpos($class, 'Acme\\'); } spl_autoload_register(acme_load(...));`,
-		"global fallback": `<?php namespace Tool { spl_autoload_register(acme_load(...)); } namespace { function acme_load($class) { strpos($class, 'Acme\\'); } }`,
-		"function":        `<?php function acme_load($class) { str_starts_with($class, 'Acme\\'); } function other($s) { strpos($s, 'Zed'); } spl_autoload_register('acme_load');`,
+		"method":          `<?php namespace Tool; final class Loader { public static function load($c) BODY } spl_autoload_register([Loader::class, 'load']);`,
+		"static string":   `<?php final class Loader { public static function load($c) BODY } spl_autoload_register('Loader::load');`,
+		"this method":     `<?php function load($c) { if (strpos($c, 'Zed') === 0) { require 'z.php'; } } final class Loader { function load($c) BODY function register() { spl_autoload_register($this->load(...)); } }`,
+		"self method":     `<?php namespace Tool; final class Loader { static function load($c) BODY function register() { spl_autoload_register(self::load(...)); } }`,
+		"self string":     `<?php final class Loader { static function load($c) BODY function register() { spl_autoload_register('self::load'); spl_autoload_register(['static', 'load']); } }`,
+		"named class":     `<?php namespace Tool; final class Loader { static function load($c) BODY } spl_autoload_register(\Tool\Loader::load(...));`,
+		"array this":      `<?php final class Loader { function load($c) BODY function register() { spl_autoload_register([$this, 'load']); } }`,
+		"array new":       `<?php final class Loader { function load($c) BODY static function register() { spl_autoload_register([new static(), 'load']); } }`,
+		"array magic":     `<?php final class Loader { function load($c) BODY function register() { spl_autoload_register([__CLASS__, 'load']); } }`,
+		"array string":    `<?php final class Loader { static function load($c) BODY } spl_autoload_register(['\Loader', 'load']);`,
+		"parent":          `<?php namespace Tool; class Base { static function load($c) BODY } final class Loader extends Base { function register() { spl_autoload_register(parent::load(...)); spl_autoload_register([parent::class, 'load']); spl_autoload_register(['parent', 'load']); } }`,
+		"trait":           `<?php trait T { function load($c) BODY } final class Loader { use T; function register() { spl_autoload_register([$this, 'load']); } }`,
+		"tagged subclass": `<?php class Base { function load($c) BODY } /** @method void load(string $c) */ final class Loader extends Base { function register() { spl_autoload_register([$this, 'load']); } }`,
+		"named argument":  `<?php function acme_load($c) BODY spl_autoload_register(prepend: true, callback: 'acme_load');`,
+		"function first":  `<?php namespace Tool; function acme_load($c) BODY spl_autoload_register(acme_load(...));`,
+		"global fallback": `<?php namespace Tool { spl_autoload_register(acme_load(...)); } namespace { function acme_load($c) BODY }`,
+		"namespace":       `<?php namespace Tool; function acme_load($c) BODY spl_autoload_register(__NAMESPACE__ . '\acme_load');`,
+		"function":        `<?php function acme_load($c) { if (str_starts_with($c, 'Acme\\')) { include 'x.php'; } } function other($s) { strpos($s, 'Zed'); require 'z.php'; } spl_autoload_register('acme_load');`,
 	} {
-		if prefixes, _ := loaded(src); !slices.Equal(prefixes, []string{`acme\`}) {
+		if prefixes, _ := loaded(strings.ReplaceAll(src, " BODY ", " "+l+" ")); !slices.Equal(prefixes, []string{`acme\`}) {
 			t.Errorf("%s: prefixes %q", name, prefixes)
 		}
 	}
 	// A callback declared elsewhere: in another file, or by a parent
-	// class; its phar only when it names one.
+	// class; its phar only when it names one, with or without a prefix.
 	for name, files := range map[string][]string{
 		"other file": {
 			`<?php spl_autoload_register([Acme\Loader::class, 'load']);`,
@@ -247,13 +258,16 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		},
 		"inherited": {
 			`<?php final class Loader extends Base { function register() { spl_autoload_register([$this, 'load']); } }`,
-			`<?php class Base { function load($class) { strpos($class, 'Acme\\'); } function path() { return 'phar://x'; } } class Root {}`,
+			`<?php class Base { function load($c) { if (strpos($c, 'Acme\\') === 0) { require "$c.php"; } } function path() { require 'phar://x'; } } class Root {}`,
 		},
 	} {
 		prefixes, phar := loaded(files...)
 		if !slices.Equal(prefixes, []string{`acme\`}) || phar != (name == "other file") {
 			t.Errorf("%s: prefixes %q, phar %v", name, prefixes, phar)
 		}
+	}
+	if prefixes, phar := loaded(`<?php namespace PHPStan; function load($c) { require 'phar://x.phar/' . $c . '.php'; } spl_autoload_register('PHPStan\load');`); prefixes != nil || !phar {
+		t.Errorf("phar only: prefixes %q, phar %v", prefixes, phar)
 	}
 	var many strings.Builder
 	many.WriteString("<?php spl_autoload_register(function ($c) {")
@@ -265,9 +279,9 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		t.Errorf("%d prefixes kept", len(fs.AutoloadPrefixes))
 	}
 	many.Reset()
-	many.WriteString("<?php spl_autoload_register('load'); function load($c) {")
+	many.WriteString("<?php spl_autoload_register('load'); function load($c) { require 'x.php';")
 	for i := range 20 {
-		fmt.Fprintf(&many, " strpos($c, 'Pre%d'); strpos($c, 'Pre%d');", i, i)
+		fmt.Fprintf(&many, " strpos($c, 'Pre%d'); strpos($c, 'Pre%d'); require 'y.php';", i, i)
 		fmt.Fprintf(&many, " spl_autoload_register('f%d');", i)
 	}
 	many.WriteString(" }")

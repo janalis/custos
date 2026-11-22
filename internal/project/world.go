@@ -273,8 +273,8 @@ func composerWorld(read func(string) ([]byte, error), symbols func(string) *inde
 			// Rector's from its own vendor directory): the class name
 			// prefixes its callbacks test, wherever they are declared, and
 			// the namespace it registers in are unseen, and when a callback
-			// names a phar, it hosts the code written for it. A global autoloader hides no other name: it
-			// would hide every one.
+			// names a phar, it hosts the code written for it. A global
+			// autoloader hides no other name: it would hide every one.
 			if own {
 				continue
 			}

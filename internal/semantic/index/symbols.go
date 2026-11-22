@@ -528,9 +528,9 @@ type FileSymbols struct {
 	// namespaced function, then the global one). See Index.LoaderFacts.
 	AutoloadCallbacks []string `json:"autoloadCallbacks,omitempty"`
 	// Loaders maps the named functions and methods of the file (lower-case
-	// FQN, or `class::method`) that test their first parameter for a
-	// literal prefix, as an autoloader does with its class name, to what
-	// an autoloader registering them would load.
+	// FQN, or `class::method`) that may be autoloaders, including a file
+	// and testing their first parameter for a literal prefix or naming a
+	// phar, to what an autoloader registering them would load.
 	Loaders map[string]*Loader `json:"loaders,omitempty"`
 	// ClassAliasFallbacks records the namespaced function candidate for each
 	// provisional alias, keyed by its position in ClassAliases.
