@@ -14,6 +14,12 @@ func TestScale(t *testing.T) {
 	}
 }
 
+func TestCoverFactor(t *testing.T) {
+	if coverFactor("") != 1 || coverFactor("set") != 3 {
+		t.Errorf("factors %v, %v", coverFactor(""), coverFactor("set"))
+	}
+}
+
 func TestOf(t *testing.T) {
 	if d := Of(time.Second); d < time.Second {
 		t.Errorf("Of shrank the budget: %v", d)

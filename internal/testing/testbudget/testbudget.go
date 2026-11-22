@@ -7,6 +7,7 @@ package testbudget
 
 import (
 	"runtime"
+	"testing"
 	"time"
 )
 
@@ -15,12 +16,23 @@ import (
 const reference = 4 * time.Millisecond
 
 // Of returns d scaled by how much slower than the reference the machine is
-// right now (never less than d itself), and by raceFactor in a
-// race-detector build. It calibrates on every call (about 10 ms), so call
+// right now (never less than d itself), by raceFactor in a race-detector
+// build, and by coverFactor in a coverage build. It calibrates on every call (about 10 ms), so call
 // it right after the timed work: the load then is the load the work ran
 // under, not that of a quieter moment earlier in the run.
 func Of(d time.Duration) time.Duration {
-	return time.Duration(float64(d) * scale(calibrate(), reference) * raceFactor)
+	return time.Duration(float64(d) * scale(calibrate(), reference) * raceFactor * coverFactor(testing.CoverMode()))
+}
+
+// coverFactor scales budgets when tests record coverage (mode is not
+// empty): the counters of every instrumented package (make coverage
+// instruments them all) about double the time of branchy code, which the
+// uninstrumented calibration loop does not see.
+func coverFactor(mode string) float64 {
+	if mode != "" {
+		return 3
+	}
+	return 1
 }
 
 // scale is the slowdown factor of measured against ref, at least 1.
