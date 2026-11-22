@@ -25,7 +25,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   any name in a file written for it, count as possibly declared, through
   the command line, the language server and MCP alike. The class name
   prefixes such an autoloader tests count too, so Rector's classes in
-  `rector.php` are not reported either.
+  `rector.php` are not reported either, whether the callback is a closure,
+  a function or method of the same file, or a first-class callable
+  (`$this->load(...)`).
 - `UndefinedClass` and `UndefinedFunction` no longer report names of an
   optional extension used in an instance method when the class's
   constructor throws unless `extension_loaded()` finds the extension, or

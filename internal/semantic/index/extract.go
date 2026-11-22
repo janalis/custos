@@ -203,6 +203,18 @@ func callback(f *syntax.File, call *syntax.FuncCall) (syntax.Node, string) {
 				named, _ = syntax.LiteralStringValue(lit)
 			}
 		}
+	case *syntax.FuncCall: // first-class callables: load(...)
+		if n, ok := v.Name.(*syntax.Name); ok && firstClass(v.Args) {
+			named = n.Value
+		}
+	case *syntax.MethodCall: // $this->load(...)
+		if id, ok := v.Name.(*syntax.Identifier); ok && firstClass(v.Args) {
+			named = id.Value
+		}
+	case *syntax.StaticCall: // self::load(...)
+		if id, ok := v.Name.(*syntax.Identifier); ok && firstClass(v.Args) {
+			named = id.Value
+		}
 	}
 	named = strings.TrimPrefix(named, `\`)
 	named = named[strings.LastIndexByte(named, '\\')+1:]
@@ -225,6 +237,15 @@ func callback(f *syntax.File, call *syntax.FuncCall) (syntax.Node, string) {
 		return body == nil
 	})
 	return body, name
+}
+
+// firstClass tells whether args are the `(...)` of a first-class callable.
+func firstClass(args *syntax.ArgList) bool {
+	if args == nil || len(args.Args) != 1 {
+		return false
+	}
+	_, ok := args.Args[0].(*syntax.VariadicPlaceholder)
+	return ok
 }
 
 // minAutoloadPrefix is the shortest prefix kept: shorter ones (`\`, `_`)

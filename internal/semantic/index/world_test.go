@@ -178,6 +178,7 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		"phar elsewhere":  "<?php spl_autoload_register(fn ($c) => null); $p = 'phar://x';",
 		"not of the file": "<?php spl_autoload_register([Other::class, 'load']); spl_autoload_register('other'); spl_autoload_register($f); spl_autoload_register(); spl_autoload_register(...$a); $g = spl_autoload_register(...);",
 		"no class name":   "<?php spl_autoload_register(function () { strpos($x, 'Acme'); });",
+		"not first-class": "<?php final class L { function load($c) { strpos($c, 'Acme'); } function reg() { spl_autoload_register($this->load($x)); spl_autoload_register(self::load($x, $y)); spl_autoload_register(load()); spl_autoload_register($this->$m(...)); spl_autoload_register(self::$m(...)); spl_autoload_register($f(...)); } }",
 	} {
 		fs := index.Extract(syntax.Parse("b.php", []byte(src), syntax.Options{}))
 		if fs.Phar || fs.AutoloadPrefixes != nil {
@@ -190,9 +191,11 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		"closure": `<?php spl_autoload_register(function ($c) {
 	if (strpos($c, '\\Acme\\') === 0 || \str_starts_with($c, 'ACME\\') || strpos($c, $x) || strpos($c) || strpos($c, '\\') || strpos($c, '_A') || Foo::strpos($c, 'x') || strpos($c, ...$a) || in_array($c, ['Acme']) || strpos($other, 'Other') || strpos(...$c)) {}
 });`,
-		"method":        `<?php namespace Tool; final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register([Loader::class, 'load']);`,
-		"static string": `<?php final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register('Loader::load');`,
-		"function":      `<?php function acme_load($class) { str_starts_with($class, 'Acme\\'); } function other($s) { strpos($s, 'Zed'); } spl_autoload_register('acme_load');`,
+		"method":         `<?php namespace Tool; final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register([Loader::class, 'load']);`,
+		"static string":  `<?php final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register('Loader::load');`,
+		"first-class":    `<?php final class Loader { function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register($this->load(...)); spl_autoload_register(self::load(...)); } }`,
+		"function first": `<?php function acme_load($class) { strpos($class, 'Acme\\'); } spl_autoload_register(acme_load(...));`,
+		"function":       `<?php function acme_load($class) { str_starts_with($class, 'Acme\\'); } function other($s) { strpos($s, 'Zed'); } spl_autoload_register('acme_load');`,
 	} {
 		fs := index.Extract(syntax.Parse("l.php", []byte(src), syntax.Options{}))
 		if !slices.Equal(fs.AutoloadPrefixes, []string{`acme\`}) {
