@@ -2,7 +2,10 @@ package index
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/janalis/custos/internal/php/syntax"
 )
 
 // World says how much of the code a project can load its index holds. The
@@ -240,29 +243,142 @@ func ClassWord(name string) string {
 // LoaderFacts returns what the callable k, an AutoloadCallbacks entry,
 // would load as an autoloader (its Loader facts): those of the function,
 // or of the method with a body the class resolves the name to (its own,
-// a trait's or a parent's; not a @method tag). Nothing when the index does
-// not declare the callable.
+// a trait's or a parent's; not a @method tag). A class the code names only
+// when it runs (`$this`, `static`, `self` or `parent` in a trait) stands
+// for each class it may be, whose facts add up. Nothing when the index
+// does not declare the callable.
 func (ix *Index) LoaderFacts(k string) *Loader {
-	if class, method, ok := strings.Cut(k, "::"); ok {
-		m := ix.FindMethod(class, method, 0)
-		var c *Class // the declaring class
-		if m != nil {
-			c = ix.Class(m.Class, 0)
+	class, method, ok := strings.Cut(k, "::")
+	if !ok {
+		for alt := range strings.SplitSeq(k, "|") {
+			if f := ix.Function(alt, 0); f != nil {
+				return ix.loader(f.File, alt)
+			}
 		}
-		if c == nil || m.Magic || m.Abstract {
-			return nil
-		}
-		if m.Declared != "" { // imported under a trait alias
-			method = m.Declared
-		}
-		return ix.loader(c.File, key(c.FQN)+"::"+strings.ToLower(method))
+		return nil
 	}
-	for alt := range strings.SplitSeq(k, "|") {
-		if f := ix.Function(alt, 0); f != nil {
-			return ix.loader(f.File, alt)
+	var out *Loader
+	shared := true // out is still a file's own Loader
+	for _, c := range ix.loaderClasses(class) {
+		l := ix.methodLoader(c, method)
+		switch {
+		case l == nil:
+		case out == nil:
+			out = l
+		default:
+			if shared {
+				out = &Loader{Prefixes: slices.Clone(out.Prefixes), Phar: out.Phar}
+				shared = false
+			}
+			for _, p := range l.Prefixes {
+				if len(out.Prefixes) < maxAutoloadPrefixes && !slices.Contains(out.Prefixes, p) {
+					out.Prefixes = append(out.Prefixes, p)
+				}
+			}
+			out.Phar = out.Phar || l.Phar
 		}
 	}
-	return nil
+	return out
+}
+
+// maxLoaderClasses caps the classes a callback's class may stand for.
+const maxLoaderClasses = 64
+
+// loaderClasses returns the classes the class part of a callback key
+// stands for (see lateMark).
+func (ix *Index) loaderClasses(class string) []string {
+	name := strings.TrimLeft(class, lateMark+usersMark+parentMark)
+	var roots []string
+	switch class[:len(class)-len(name)] {
+	case "":
+		return []string{name}
+	case usersMark:
+		return ix.traitUsers(name)
+	case parentMark:
+		for _, u := range ix.traitUsers(name) {
+			if c := ix.Class(u, 0); c != nil && c.Parent != "" && !slices.Contains(roots, c.Parent) {
+				roots = append(roots, c.Parent)
+			}
+		}
+		return roots
+	}
+	if c := ix.Class(name, 0); c != nil && c.Kind == syntax.KindTrait {
+		roots = ix.traitUsers(name)
+	} else {
+		roots = []string{name}
+	}
+	out := slices.Clone(roots)
+	for _, r := range roots {
+		for _, sub := range ix.Subclasses(r) {
+			if len(out) >= maxLoaderClasses {
+				return out
+			}
+			if !slices.Contains(out, sub) {
+				out = append(out, sub)
+			}
+		}
+	}
+	return out
+}
+
+// methodLoader returns the Loader facts of the method with a body class
+// resolves name to (nil for none, or a @method tag).
+func (ix *Index) methodLoader(class, name string) *Loader {
+	m := ix.FindMethod(class, name, 0)
+	var c *Class // the declaring class
+	if m != nil {
+		c = ix.Class(m.Class, 0)
+	}
+	if c == nil || m.Magic || m.Abstract {
+		return nil
+	}
+	if m.Declared != "" { // imported under a trait alias
+		name = key(m.Declared)
+	}
+	return ix.loader(c.File, key(c.FQN)+"::"+name)
+}
+
+// traitUsers returns the classes and enums using trait, directly or
+// through other traits, at most maxLoaderClasses.
+func (ix *Index) traitUsers(trait string) []string {
+	var out []string
+	seen := map[string]bool{key(trait): true}
+	for queue := []string{trait}; len(queue) > 0; queue = queue[1:] {
+		for l := ix; l != nil; l = l.base {
+			for _, u := range l.table(&l.users, l.buildTraitUsers)[key(queue[0])] {
+				// The declaration the index serves decides: another one, or
+				// one a layer above replaced, may use other traits.
+				c := ix.Class(u, 0)
+				if seen[key(u)] || len(out) >= maxLoaderClasses || c == nil || !slices.ContainsFunc(c.Traits, func(t string) bool { return key(t) == key(queue[0]) }) {
+					continue
+				}
+				seen[key(u)] = true
+				if c.Kind == syntax.KindTrait {
+					queue = append(queue, u)
+				} else {
+					out = append(out, u)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// buildTraitUsers maps each trait, folded, to the class-likes of this
+// layer using it, sorted.
+func (ix *Index) buildTraitUsers() map[string][]string {
+	users := map[string][]string{}
+	for _, cs := range ix.classes {
+		for _, c := range cs {
+			for _, t := range c.Traits {
+				users[key(t)] = append(users[key(t)], c.FQN)
+			}
+		}
+	}
+	for _, list := range users {
+		slices.Sort(list)
+	}
+	return users
 }
 
 // loader returns the Loader facts of callable k declared in the file at

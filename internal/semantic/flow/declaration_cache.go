@@ -65,7 +65,7 @@ func (e *Env) lookupDeclaration(at syntax.Node) ([]index.Param, string, bool) {
 				// The using class may override the method: the declaration
 				// gives its parameters and a may-return, never a fixed body.
 				if m := e.types.Index.FindMethod(trait, id.Value, e.types.PHP); m != nil && !m.Magic && !m.Abstract {
-					return m.Params, strings.ToLower(m.Class + "::" + m.Name), true
+					return m.Params, m.Key(), true
 				}
 				return nil, "", false
 			}
@@ -74,7 +74,7 @@ func (e *Env) lookupDeclaration(at syntax.Node) ([]index.Param, string, bool) {
 			return nil, "", false
 		}
 		if m := e.types.Index.FindMethod(classes[0], id.Value, e.types.PHP); m != nil && !m.Magic {
-			return m.Params, strings.ToLower(m.Class + "::" + m.Name), true
+			return m.Params, m.Key(), true
 		}
 	case *syntax.StaticCall:
 		id, ok := n.Name.(*syntax.Identifier)
@@ -83,7 +83,7 @@ func (e *Env) lookupDeclaration(at syntax.Node) ([]index.Param, string, bool) {
 			return nil, "", false
 		}
 		if m := e.types.Index.FindMethod(e.named(class), id.Value, e.types.PHP); m != nil && !m.Magic {
-			return m.Params, strings.ToLower(m.Class + "::" + m.Name), true
+			return m.Params, m.Key(), true
 		}
 	case *syntax.New:
 		if class, ok := n.Class.(*syntax.Name); ok {

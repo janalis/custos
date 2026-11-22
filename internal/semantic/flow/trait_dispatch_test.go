@@ -22,6 +22,8 @@ func TestTraitThisDispatch(t *testing.T) {
 		{`trait T { function a($x) { return $x; } function f() { $o = $this; probe($o->a($_GET['x'])); } }`, false, false},
 		{`trait T { function __call($n, $a) { return $a[0]; } function f() { probe($this->a($_GET['x'])); } }`, false, false},
 		{`class C { function a($x) { return $x; } function f() { probe($this->a($_GET['x'])); } }`, true, true},
+		{`trait T { function a($x) { return $x; } } class C { use T { a as b; } function f() { probe($this->b($_GET['x'])); } }`, true, true},
+		{`trait T { function a($x) { return htmlspecialchars($x); } } class C { use T { a as b; } function f() { probe($this->b($_GET['x'])); } }`, true, false},
 	} {
 		e, f := closedEnvironment(t, probe+tc.src)
 		x := argument(callsNamed(f, "probe")[0])

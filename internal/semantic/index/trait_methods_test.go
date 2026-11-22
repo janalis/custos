@@ -121,11 +121,24 @@ func TestTraitConflictsAndDiamonds(t *testing.T) {
  class Ambiguous { use RootTrait, OtherTrait { f as alias; } }
  class DuplicateAlias { use RootTrait, OtherTrait { RootTrait::f as alias; OtherTrait::f as alias; } }
  class MissingAlias { use RootTrait { absent as alias; } }
+ trait Pair { function a() {} function b() {} }
+ trait PairA { use Pair { a as load; } }
+ trait PairB { use Pair { b as load; } }
+ class AliasDiamond { use PairA, PairB; }
+ trait SameA { use Pair { a as load; } }
+ class SameAliasDiamond { use PairA, SameA; }
+ class AliasOfAlias { use PairA { load as run; } }
  `))
 	if m := ix.FindMethod("Diamond", "f", 0); m == nil || m.Class != "RootTrait" {
 		t.Fatalf("diamond: %+v", m)
 	}
-	for _, tc := range []struct{ class, name string }{{"ChangedDiamond", "f"}, {"NestedBad", "f"}, {"AliasBad", "alias"}, {"Ambiguous", "alias"}, {"DuplicateAlias", "alias"}, {"MissingAlias", "alias"}} {
+	// Aliases keep the name the trait declares, through aliases of aliases.
+	for class, name := range map[string]string{"SameAliasDiamond": "load", "AliasOfAlias": "run"} {
+		if m := ix.FindMethod(class, name, 0); m == nil || m.Key() != "pair::a" {
+			t.Fatalf("%s: %+v", class, m)
+		}
+	}
+	for _, tc := range []struct{ class, name string }{{"ChangedDiamond", "f"}, {"NestedBad", "f"}, {"AliasBad", "alias"}, {"Ambiguous", "alias"}, {"DuplicateAlias", "alias"}, {"MissingAlias", "alias"}, {"AliasDiamond", "load"}} {
 		if m := ix.FindMethod(tc.class, tc.name, 0); m != nil {
 			t.Fatalf("%s: %+v", tc.class, m)
 		}

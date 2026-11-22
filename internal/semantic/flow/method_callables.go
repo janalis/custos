@@ -42,7 +42,7 @@ func (e *Env) captureMethod(at syntax.Node, receiver Value, f *frame) (*boundMet
 	if !known || target.method.ByRef {
 		return nil, false
 	}
-	return &boundMethod{name: strings.ToLower(target.method.Class + "::" + target.method.Name), params: target.method.Params, receiver: receiver}, true
+	return &boundMethod{name: target.method.Key(), params: target.method.Params, receiver: receiver}, true
 }
 
 func (e *Env) arrayMethodCallable(at syntax.Node, array *syntax.Array, f *frame, r *scopeResult) (*boundMethod, bool) {
@@ -98,7 +98,7 @@ func (e *Env) arrayMethodCallable(at syntax.Node, array *syntax.Array, f *frame,
 	if !resolved || target.method.ByRef {
 		return nil, false
 	}
-	return &boundMethod{name: strings.ToLower(target.method.Class + "::" + target.method.Name), params: target.method.Params, receiver: object}, true
+	return &boundMethod{name: target.method.Key(), params: target.method.Params, receiver: object}, true
 }
 
 func (e *Env) invokeBoundMethod(at syntax.Node, target *boundMethod, list *syntax.ArgList, values []Value, f *frame, r *scopeResult) (Value, map[uint32]State, bool) {
@@ -171,5 +171,5 @@ func (e *Env) invokableObject(expr syntax.Expr, receiver Value, at syntax.Node, 
 	if !known || target.method.ByRef {
 		return nil, false
 	}
-	return &boundMethod{name: strings.ToLower(target.method.Class + "::" + target.method.Name), params: target.method.Params, receiver: receiver}, true
+	return &boundMethod{name: target.method.Key(), params: target.method.Params, receiver: receiver}, true
 }

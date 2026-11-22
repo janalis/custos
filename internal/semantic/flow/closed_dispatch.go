@@ -79,7 +79,7 @@ func (e *Env) closedMethod(at syntax.Node, class, name string, static bool) (clo
 	if !found {
 		return closedContract{}, false
 	}
-	summary, known := e.contract(strings.ToLower(method.Class + "::" + method.Name))
+	summary, known := e.contract(method.Key())
 	if !known || !summary.Fixed || summary.Generator {
 		return closedContract{}, false
 	}

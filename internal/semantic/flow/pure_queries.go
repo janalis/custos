@@ -63,7 +63,7 @@ func (c *pureCompiler) staticCall(node *syntax.StaticCall) *pureExpr {
 	if !known || target.summary.pure == nil {
 		return nil
 	}
-	return c.projectCall(node, target.method.Class+"::"+target.method.Name, target.summary.pure, target.method.Params)
+	return c.projectCall(node, target.method.Key(), target.summary.pure, target.method.Params)
 }
 
 func (c *pureCompiler) match(node *syntax.Match) *pureExpr {
@@ -147,5 +147,5 @@ func (c *pureCompiler) instanceCall(node *syntax.MethodCall) *pureExpr {
 	if !known || target.method.Static || target.method.ByRef || target.summary.pure == nil {
 		return nil
 	}
-	return c.projectCall(node, target.method.Class+"::"+target.method.Name, target.summary.pure, target.method.Params)
+	return c.projectCall(node, target.method.Key(), target.summary.pure, target.method.Params)
 }

@@ -64,7 +64,7 @@ func (e *Env) sinkSummaryName(at syntax.Node) string {
 			if m.Magic || !e.visible(at, m) || !exact || meta.dispatch == nil || meta.dispatch.Methods[strings.ToLower(m.Name)].Count != 1 {
 				return ""
 			}
-			name := strings.ToLower(m.Class + "::" + m.Name)
+			name := m.Key()
 			if summary, ok := e.contract(name); ok && summary.Fixed {
 				return name
 			}

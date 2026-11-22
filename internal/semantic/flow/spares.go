@@ -103,7 +103,7 @@ func (e *Env) sparing(targets []*index.Method, list *syntax.ArgList, within bool
 		case !m.Builtin && within:
 			return false
 		case !m.Builtin:
-			if summary, ok := e.contract(strings.ToLower(m.Class + "::" + m.Name)); !ok || !summary.Spares {
+			if summary, ok := e.contract(m.Key()); !ok || !summary.Spares {
 				return false
 			}
 		case class == "closure" || class == "generator" || class == "fiber" || strings.HasPrefix(class, "reflection") || e.callbackGiven(list, m.Params):

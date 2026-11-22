@@ -273,18 +273,45 @@ func (x *extractor) classFQN(n syntax.Node) string {
 	return key(join(x.r.Namespace(c.Span().Start), c.Name.Value))
 }
 
-// classOf returns the key of the class e names in a callable written at
-// call: `$this`, `self`, `static`, `__CLASS__`, a name, a `::class`
-// fetch, a `new` or a string ("" when unknown).
+// Marks on the class of an AutoloadCallbacks key naming what it stands for
+// when the code runs (see Index.LoaderFacts): the class and its
+// subclasses, or for a trait the classes using it and their subclasses
+// (`$this`, `static`); the classes using a trait (`self` in it); their
+// parents (`parent` in a trait).
+const (
+	lateMark   = "+"
+	usersMark  = "="
+	parentMark = "^"
+)
+
+// self returns the class part of a callback key for the class or trait
+// call lies in, as `$this` or `static` (late) or `self` name it ("" outside
+// a named one).
+func (x *extractor) self(call syntax.Node, late bool) string {
+	c := x.classFQN(call)
+	switch {
+	case c == "":
+		return ""
+	case late:
+		return lateMark + c
+	case syntax.EnclosingClass(call).ClassKind == syntax.KindTrait:
+		return usersMark + c
+	}
+	return c
+}
+
+// classOf returns the class part of the callback key for the class e names
+// in a callable written at call: `$this`, `self`, `static`, `__CLASS__`, a
+// name, a `::class` fetch, a `new` or a string ("" when unknown).
 func (x *extractor) classOf(e syntax.Expr, call syntax.Node) string {
 	switch v := e.(type) {
 	case *syntax.Variable:
 		if v.Name == "this" && v.NameExpr == nil {
-			return x.classFQN(call)
+			return x.self(call, true)
 		}
 	case *syntax.MagicConst:
 		if v.Token.Kind == syntax.TClassC {
-			return x.classFQN(call)
+			return x.self(call, false)
 		}
 	case *syntax.Name:
 		if c, ok := x.relative(v.Value, call); ok {
@@ -314,15 +341,19 @@ func (x *extractor) stringClass(s string, call syntax.Node) string {
 }
 
 // relative resolves `self`, `static` and `parent` written at call to the
-// key of the class they name ("" outside a class, or for the parent of
-// one extending none); ok is false for another name. Inside a trait,
-// they name the trait.
+// class part of a callback key ("" outside a class, or for the parent of
+// one extending none); ok is false for another name.
 func (x *extractor) relative(name string, call syntax.Node) (class string, ok bool) {
 	switch strings.ToLower(name) {
-	case "self", "static":
-		return x.classFQN(call), true
+	case "self":
+		return x.self(call, false), true
+	case "static":
+		return x.self(call, true), true
 	case "parent":
 		c := syntax.EnclosingClass(call)
+		if c != nil && c.ClassKind == syntax.KindTrait {
+			return parentMark + x.classFQN(call), true
+		}
 		if c == nil || c.ClassKind != syntax.KindClass || len(c.Extends) == 0 {
 			return "", true
 		}
@@ -387,7 +418,7 @@ func (x *extractor) callback(call *syntax.FuncCall) (body syntax.Node, param, k 
 	case *syntax.MethodCall: // $this->load(...)
 		if id, ok := v.Name.(*syntax.Identifier); ok && !v.NullSafe && v.Args.FirstClassCallable() {
 			if self, ok := v.Var.(*syntax.Variable); ok && self.Name == "this" && self.NameExpr == nil {
-				return nil, "", method(x.classFQN(call), id.Value)
+				return nil, "", method(x.self(call, true), id.Value)
 			}
 		}
 	case *syntax.StaticCall: // self::load(...), Cls::load(...)

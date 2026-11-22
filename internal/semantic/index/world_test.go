@@ -178,11 +178,64 @@ func loaded(files ...string) (prefixes []string, phar bool) {
 	prefixes, phar = fs.AutoloadPrefixes, fs.Phar
 	for _, k := range fs.AutoloadCallbacks {
 		if l := ix.LoaderFacts(k); l != nil {
-			prefixes = append(prefixes, l.Prefixes...)
+			for _, p := range l.Prefixes {
+				if !slices.Contains(prefixes, p) {
+					prefixes = append(prefixes, p)
+				}
+			}
 			phar = phar || l.Phar
 		}
 	}
 	return prefixes, phar
+}
+
+// TestLoaderFactsAtRunTime: a callback class the code names only when it
+// runs stands for each class it may be: `$this` and `static` for the class
+// and its subclasses, `self` in a trait for the classes using it, `parent`
+// in a trait for their parents.
+func TestLoaderFactsAtRunTime(t *testing.T) {
+	const zed, acme = `function load($c) { strpos($c, 'Zed\\'); }`, `function load($c) { strpos($c, 'Acme\\'); }`
+	for name, c := range map[string]struct {
+		src  string
+		want []string
+	}{
+		"this overridden":   {`<?php class Base { ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"static overridden": {`<?php class Base { ` + zed + ` function r() { spl_autoload_register(['static', 'load']); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"new static":        {`<?php class Base { ` + zed + ` static function r() { spl_autoload_register([new static(), 'load']); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"this first-class":  {`<?php class Base { ` + zed + ` function r() { spl_autoload_register($this->load(...)); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"self in trait":     {`<?php trait T { ` + zed + ` function r() { spl_autoload_register([self::class, 'load']); spl_autoload_register([__CLASS__, 'load']); spl_autoload_register('self::load'); } } final class Loader { use T; ` + acme + ` }`, []string{`acme\`}},
+		"parent in trait":   {`<?php trait T { function r() { spl_autoload_register([parent::class, 'load']); spl_autoload_register('parent::load'); spl_autoload_register(parent::load(...)); } } class Base { static ` + acme + ` } final class Loader extends Base { use T; } final class Other extends Base { use T; }`, []string{`acme\`}},
+		"this in trait":     {`<?php trait T { function r() { spl_autoload_register([$this, 'load']); } } trait U { use T; } class A { use U; ` + acme + ` } final class B extends A { ` + zed + ` } final class C { use T; use U; }`, []string{`acme\`, `zed\`}},
+		"unused trait":      {`<?php trait T { function r() { spl_autoload_register([self::class, 'load']); spl_autoload_register([parent::class, 'load']); spl_autoload_register([$this, 'load']); } } final class A { use T; ` + acme + ` }`, []string{`acme\`}},
+		"nothing to load":   {`<?php trait T { function r() { spl_autoload_register([parent::class, 'load']); spl_autoload_register([self::class, 'load']); } } trait U { function r() { spl_autoload_register(['static', 'load']); } } final class A { use T; }`, nil},
+	} {
+		prefixes, _ := loaded(c.src)
+		slices.Sort(prefixes)
+		slices.Sort(c.want)
+		if !slices.Equal(prefixes, c.want) {
+			t.Errorf("%s: prefixes %q, want %q", name, prefixes, c.want)
+		}
+	}
+	// The declaration a layer above serves decides whether a class uses
+	// the trait.
+	base := index.New(stubs.Index())
+	base.Add(index.Extract(syntax.Parse("c.php", []byte(`<?php trait T { function r() { spl_autoload_register([self::class, 'load']); } } class C { use T; `+acme+` }`), syntax.Options{})))
+	top := index.New(base)
+	top.Add(index.Extract(syntax.Parse("c2.php", []byte(`<?php class C { `+acme+` }`), syntax.Options{})))
+	if l := base.LoaderFacts("=t::load"); l == nil || top.LoaderFacts("=t::load") != nil {
+		t.Errorf("layers: %v, %v", l, top.LoaderFacts("=t::load"))
+	}
+	if _, phar := loaded(`<?php class Base { ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } final class Loader extends Base { function load($c) { require "phar://x/$c"; } }`); !phar {
+		t.Error("phar of a subclass")
+	}
+	var many strings.Builder
+	many.WriteString(`<?php class Base { function r() { spl_autoload_register([$this, 'load']); } }`)
+	for i := range 2 * 64 {
+		fmt.Fprintf(&many, ` final class L%d extends Base { function load($c) { strpos($c, 'Pre%d'); } }`, i, i)
+	}
+	if prefixes, _ := loaded(many.String()); len(prefixes) != 16 {
+		t.Errorf("%d prefixes kept", len(prefixes))
+	}
 }
 
 // TestExtractAutoloaders: the namespaces registering autoloaders, once

@@ -19,6 +19,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Data-flow analysis follows calls to a trait method imported under an
+  alias (`use T { boot as load; }`): what the method returns, taints or
+  never does reaches its callers, as for other methods. Two traits
+  aliasing different methods of a shared trait to one name now conflict,
+  as in PHP.
 - `UndefinedClass` and `UndefinedFunction` no longer report PHPStan's
   classes, nor the libraries it bundles, in a PHPStan extension: a package
   whose autoloader loads classes from a phar now makes its namespace, and
@@ -30,7 +35,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   through `$this`, `self`, `parent` or its class, by an array, a string
   or a first-class callable such as `$this->load(...)`), declared in any
   file, a method possibly taken from a trait (under an alias too) or a
-  parent.
+  parent. `$this` and `static` stand for the class and its subclasses,
+  and `self` and `parent` in a trait for the classes using it and their
+  parents.
 - `UndefinedClass` and `UndefinedFunction` no longer report names of an
   optional extension used in an instance method when the class's
   constructor throws unless `extension_loaded()` finds the extension, or

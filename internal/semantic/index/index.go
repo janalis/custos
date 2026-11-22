@@ -30,7 +30,9 @@ type Index struct {
 	children atomic.Pointer[map[string][]string]
 	// selfOut (lower method name -> classes declaring it with a documented
 	// receiver type after the call).
-	selfOut   atomic.Pointer[map[string][]string]
+	selfOut atomic.Pointer[map[string][]string]
+	// traitUsers (lower trait FQN -> class-likes using it).
+	users     atomic.Pointer[map[string][]string]
 	aliasedBy atomic.Pointer[map[string][]string]
 	// extending caches Extending by name, valid for the generation stored.
 	extending sync.Map
@@ -401,6 +403,16 @@ func (f *Function) at(ver phpversion.Version) *Function {
 	cp.DocReturn = docAt(f.DocReturn, f.Return, r)
 	c, _ := verCopies.LoadOrStore(k, &cp)
 	return c.(*Function)
+}
+
+// Key names, lower case, the declaration m was taken from: its declaring
+// class and its name there (the original name of a trait alias copy).
+func (m *Method) Key() string {
+	name := m.Name
+	if m.Declared != "" {
+		name = m.Declared
+	}
+	return strings.ToLower(m.Class + "::" + name)
 }
 
 // at returns m with Return resolved for ver (m itself when unchanged).
@@ -832,6 +844,7 @@ func (ix *Index) table(p *atomic.Pointer[map[string][]string], build func() map[
 func (ix *Index) dropTables() {
 	ix.children.Store(nil)
 	ix.selfOut.Store(nil)
+	ix.users.Store(nil)
 	ix.aliasedBy.Store(nil)
 }
 

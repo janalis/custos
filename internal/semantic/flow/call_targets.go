@@ -12,7 +12,7 @@ import (
 // when the method is not resolved, and tells whether it is exactly known.
 func (e *Env) dispatched(call syntax.Node, followed uint8, name string) (string, bool) {
 	if m, sealed := e.dispatch(call, followed); m != nil {
-		return strings.ToLower(m.Class + "::" + m.Name), sealed
+		return m.Key(), sealed
 	}
 	return name, false
 }
