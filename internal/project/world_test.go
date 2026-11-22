@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/janalis/custos/internal/php/syntax"
 	"github.com/janalis/custos/internal/project/config"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 // worldFiles are the files of a project whose world is complete.
@@ -26,6 +28,18 @@ func worldFiles() map[string]string {
 			{"name": "acme/test", "autoload": {"classmap": ["src/"]}, "replace": {"acme/old": "*"}, "require": {"ext-pdo_mysql": "*", "ext-zend-opcache": "*", "ext-mysqlnd": "*", "ext-SimpleXML": "*", "ext-opcache": "*"}},
 			{"name": "acme/assets"}
 		], "dev": true}`,
+	}
+}
+
+// symbols extracts the declarations of the PHP files of files, as the
+// index holds them.
+func symbols(files map[string]string) func(string) *index.FileSymbols {
+	return func(name string) *index.FileSymbols {
+		src, ok := files[name]
+		if !ok || !strings.HasSuffix(name, ".php") {
+			return nil
+		}
+		return index.Extract(syntax.Parse(name, []byte(src), syntax.Options{}))
 	}
 }
 
@@ -50,7 +64,7 @@ var worldSkipped = Skipped{Dirs: []string{"vendor/acme/http/tests", "vendor/acme
 var worldIndexed = []string{"src/A.php", "src/helpers.php", "vendor/acme/http/src/Client.php", "vendor/acme/test/src/Case.php"}
 
 func TestComposerWorldComplete(t *testing.T) {
-	w := composerWorld(reader(worldFiles()), []string{"src", "lib"}, worldIndexed, worldSkipped)
+	w := composerWorld(reader(worldFiles()), symbols(worldFiles()), []string{"src", "lib"}, worldIndexed, worldSkipped)
 	if !w.Complete || !slices.Equal(w.Blind, []string{`app\tests\`, `acme\http\testing\`}) {
 		t.Fatalf("world: %+v", w)
 	}
@@ -67,7 +81,7 @@ func TestComposerWorldComplete(t *testing.T) {
 		{"name": "acme/http", "autoload": {"psr-4": {"Acme\\Http\\": "src/"}}, "provide": {"psr/log-implementation": "1.0"}},
 		{"name": "acme/test"}
 	]`
-	if w := composerWorld(reader(files), []string{"."}, worldIndexed, worldSkipped); !w.Complete || len(w.Blind) != 0 {
+	if w := composerWorld(reader(files), symbols(files), []string{"."}, worldIndexed, worldSkipped); !w.Complete || len(w.Blind) != 0 {
 		t.Fatalf("composer 1: %+v", w)
 	}
 }
@@ -80,6 +94,7 @@ func TestComposerWorldPackageAutoloader(t *testing.T) {
 		"<?php namespace PHPStan; spl_autoload_register(function ($c) {});\n":                                         true,
 		"<?php\nspl_autoload_register(function ($c) {}); // a global one hides nothing\n":                             false,
 		"<?php declare(strict_types = 1);\n\nnamespace PHPStan;\n\nspl_autoload_register([Loader::class, 'load']);\n": true,
+		"<?php\nnamespace PHPStan;\n// calls spl_autoload_register() on 'phar://' in a comment only\n":                false,
 		"<?php\nnamespace Acme\\Http;\nfunction helper() {}\n":                                                        false,
 		"": false,
 	} {
@@ -88,16 +103,24 @@ func TestComposerWorldPackageAutoloader(t *testing.T) {
 		if src != "" {
 			files["vendor/acme/http/src/Client.php"] = src
 		}
-		w := composerWorld(reader(files), []string{"src", "lib"}, worldIndexed, worldSkipped)
+		w := composerWorld(reader(files), symbols(files), []string{"src", "lib"}, worldIndexed, worldSkipped)
 		if !w.Complete || w.Unseen(`PHPStan\Type\ObjectType`) != blind || len(w.Hosts) != 0 {
 			t.Errorf("%q: %+v", src, w)
 		}
 	}
-	// Loading from a phar, the package hosts code importing from it.
+	// A global autoloader hides only the class name prefixes it tests.
 	files := worldFiles()
 	addPackage(files, `{"name": "acme/z", "install-path": "../acme/http", "autoload": {"files": ["src/Client.php"]}}`)
+	files["vendor/acme/http/src/Client.php"] = "<?php\nspl_autoload_register(function ($c) { if (strpos($c, 'RectorPrefix') === 0 || str_starts_with($c, 'Rector\\\\')) { require 'x.php'; } });\n"
+	w := composerWorld(reader(files), symbols(files), []string{"src", "lib"}, worldIndexed, worldSkipped)
+	if !w.Complete || !w.Unseen(`RectorPrefix202611\Foo`) || !w.Unseen(`Rector\Config\RectorConfig`) || w.Unseen(`Rectangle`) || w.Unseen(`App\Model`) {
+		t.Errorf("prefixes: %+v", w)
+	}
+	// Loading from a phar, the package hosts code importing from it.
+	files = worldFiles()
+	addPackage(files, `{"name": "acme/z", "install-path": "../acme/http", "autoload": {"files": ["src/Client.php"]}}`)
 	files["vendor/acme/http/src/Client.php"] = "<?php\nnamespace PHPStan;\nspl_autoload_register(function ($c) { require 'phar://' . __DIR__ . '/x.phar/a.php'; });\n"
-	if w := composerWorld(reader(files), []string{"src", "lib"}, worldIndexed, worldSkipped); !w.Complete || !slices.Equal(w.Hosts, []string{`phpstan\`}) {
+	if w = composerWorld(reader(files), symbols(files), []string{"src", "lib"}, worldIndexed, worldSkipped); !w.Complete || !slices.Equal(w.Hosts, []string{`phpstan\`}) {
 		t.Errorf("phar: %+v", w)
 	}
 }
@@ -129,7 +152,7 @@ func TestComposerWorldIncomplete(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			files := worldFiles()
 			edit(files)
-			if w := composerWorld(reader(files), []string{"src", "lib"}, worldIndexed, worldSkipped); w.Complete {
+			if w := composerWorld(reader(files), symbols(files), []string{"src", "lib"}, worldIndexed, worldSkipped); w.Complete {
 				t.Fatalf("complete world: %+v", w)
 			}
 		})
@@ -149,7 +172,7 @@ func TestComposerWorldGaps(t *testing.T) {
 		// file names no class PSR-4 can load.
 		Files: []string{"vendor/acme/http/src/Big.php", "src/Model/Huge.php", "src/Model/Other.php", "src/api.stub.php"},
 	}
-	w := composerWorld(reader(files), []string{"src", "lib"}, indexed, skipped)
+	w := composerWorld(reader(files), symbols(files), []string{"src", "lib"}, indexed, skipped)
 	want := []string{`app\legacy\`, `app\tests\`, `acme\old\`, `acme\http\tests\`, `acme\http\testing\`}
 	if !w.Complete || !slices.Equal(sortedCopy(w.Blind), sortedCopy(want)) ||
 		!slices.Equal(sortedCopy(w.BlindExact), []string{`acme\http\`, `app\model\`}) {
@@ -169,13 +192,13 @@ func TestComposerWorldGaps(t *testing.T) {
 	// A skipped file at the root of a PSR-4 directory hides the mapped
 	// namespace: it may declare anything below it.
 	kernel := Skipped{Files: []string{"src/Kernel.php"}}
-	w = composerWorld(reader(map[string]string{"composer.json": `{"autoload": {"psr-4": {"App\\": "src/"}}}`, "vendor/composer/installed.json": `{"packages": []}`}), []string{"src"}, nil, kernel)
+	w = composerWorld(reader(map[string]string{"composer.json": `{"autoload": {"psr-4": {"App\\": "src/"}}}`, "vendor/composer/installed.json": `{"packages": []}`}), symbols(nil), []string{"src"}, nil, kernel)
 	if !w.Complete || len(w.Blind) != 0 || !w.Unseen(`App\Kernel`) || !w.Unseen(`\App\Other`) || !w.Unseen(`App\Http\Missing`) || w.Unseen(`Kernel`) {
 		t.Fatalf("root file: %+v", w)
 	}
 	// The project root as a PSR-4 directory.
 	root := map[string]string{"composer.json": `{"autoload": {"psr-4": {"App\\": ""}}}`, "vendor/composer/installed.json": `{"packages": []}`}
-	if w := composerWorld(reader(root), []string{"."}, nil, Skipped{Dirs: []string{"src/Gen"}}); !w.Complete || !slices.Equal(w.Blind, []string{`app\src\gen\`}) {
+	if w := composerWorld(reader(root), symbols(root), []string{"."}, nil, Skipped{Dirs: []string{"src/Gen"}}); !w.Complete || !slices.Equal(w.Blind, []string{`app\src\gen\`}) {
 		t.Fatalf("root directory: %+v", w)
 	}
 	for name, edit := range map[string]func(*Skipped, *[]string){
@@ -195,7 +218,7 @@ func TestComposerWorldGaps(t *testing.T) {
 			s := Skipped{Dirs: slices.Clone(skipped.Dirs), Files: slices.Clone(skipped.Files)}
 			ix := slices.Clone(indexed)
 			edit(&s, &ix)
-			if w := composerWorld(reader(files), []string{"src", "lib"}, ix, s); w.Complete {
+			if w := composerWorld(reader(files), symbols(files), []string{"src", "lib"}, ix, s); w.Complete {
 				t.Fatalf("complete world: %+v", w)
 			}
 		})
@@ -218,10 +241,10 @@ func TestComposerWorldOnDisk(t *testing.T) {
 		indexed = append(indexed, filepath.Join(root, filepath.FromSlash(f)))
 	}
 	scope := []string{filepath.Join(root, "src"), filepath.Join(root, "lib")}
-	if w := ComposerWorld(root, scope, indexed, Skipped{Dirs: []string{filepath.Join(root, "vendor", "acme", "http", "tests")}}); !w.Complete {
+	if w := ComposerWorld(root, scope, indexed, Skipped{Dirs: []string{filepath.Join(root, "vendor", "acme", "http", "tests")}}, index.New(nil)); !w.Complete {
 		t.Fatalf("world: %+v", w)
 	}
-	if w := ComposerWorld(filepath.Join(root, "missing"), scope, indexed, Skipped{}); w.Complete || w.Vendor != filepath.Join(root, "missing", "vendor") {
+	if w := ComposerWorld(filepath.Join(root, "missing"), scope, indexed, Skipped{}, index.New(nil)); w.Complete || w.Vendor != filepath.Join(root, "missing", "vendor") {
 		t.Fatalf("world without composer.json: %+v", w)
 	}
 }
@@ -235,7 +258,7 @@ func TestComposerWorldVendorDir(t *testing.T) {
 	writeFile(t, filepath.Join(root, "libraries", "deps", "acme", "A.php"), "<?php class A {}")
 	writeFile(t, filepath.Join(root, "vendor", "B.php"), "<?php class B {}")
 	indexed, skipped := IndexSourcesSkipping(root, nil, nil, nil)
-	w := ComposerWorld(root, nil, indexed, skipped)
+	w := ComposerWorld(root, nil, indexed, skipped, index.New(nil))
 	if w.Complete || w.Vendor != filepath.Join(root, "libraries", "deps") {
 		t.Fatalf("world: %+v", w)
 	}
@@ -287,7 +310,7 @@ func TestComposerWorldVendorPathForms(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, r := range []string{cwd, "."} {
-		w := ComposerWorld(r, nil, nil, Skipped{})
+		w := ComposerWorld(r, nil, nil, Skipped{}, index.New(nil))
 		for file, want := range map[string]bool{
 			"vendor/acme/lib/Base.php":                              true,
 			filepath.Join(cwd, "vendor", "acme", "lib", "Base.php"): true,

@@ -500,6 +500,18 @@ type FileSymbols struct {
 	// DynamicAliases is set when the file calls class_alias() with names
 	// the index cannot read: it may declare any class name.
 	DynamicAliases bool `json:"dynAliases,omitempty"`
+	// Autoloaders lists, lower case and ending in a backslash ("" for the
+	// global one), the namespaces in which the file calls
+	// spl_autoload_register(): it may load classes from where the index
+	// does not look.
+	Autoloaders []string `json:"autoloaders,omitempty"`
+	// AutoloadPrefixes lists, lower case, the class name prefixes a file
+	// registering an autoloader tests with a literal (`strpos($class,
+	// 'Rector\\') === 0`, str_starts_with()): the names it likely loads.
+	AutoloadPrefixes []string `json:"autoloadPrefixes,omitempty"`
+	// Phar is set when a string literal of the file names a phar
+	// (`phar://`), a bundle of code the index does not read.
+	Phar bool `json:"phar,omitempty"`
 	// ClassAliasFallbacks records the namespaced function candidate for each
 	// provisional alias, keyed by its position in ClassAliases.
 	ClassAliasFallbacks map[int]string `json:"aliasFallbacks,omitempty"`

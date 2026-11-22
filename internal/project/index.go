@@ -194,7 +194,9 @@ func buildIndex(ctx context.Context, files []string, keep int, opt syntax.Option
 		if fs == nil {
 			unread = append(unread, files[i])
 		}
-		if fs != nil && len(fs.Classes)+len(fs.Functions)+len(fs.Constants)+len(fs.ClassAliases) > 0 {
+		// A file declaring nothing still matters when it registers an
+		// autoloader (see ComposerWorld).
+		if fs != nil && len(fs.Classes)+len(fs.Functions)+len(fs.Constants)+len(fs.ClassAliases)+len(fs.Autoloaders) > 0 {
 			ix.Add(fs)
 		}
 	}

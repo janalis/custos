@@ -114,6 +114,21 @@ func (w World) Unseen(fqn string) bool {
 	return false
 }
 
+// Symbols returns what the index holds of the file at path, in this layer
+// or a base, nil when none indexes it. The result is shared: callers must
+// not modify it.
+func (ix *Index) Symbols(path string) *FileSymbols {
+	for l := ix; l != nil; l = l.base {
+		locked := l.rlock()
+		fs := l.files[path]
+		l.runlock(locked)
+		if fs != nil {
+			return fs
+		}
+	}
+	return nil
+}
+
 type dynamicAliasesKey struct{}
 
 // DynamicAliases reports whether an indexed file calls class_alias() with

@@ -1,6 +1,7 @@
 package index
 
 import (
+	"bytes"
 	"slices"
 	"sort"
 	"strings"
@@ -87,6 +88,12 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 			if x.declarationBuiltin(n, nil) != "" {
 				calls = append(calls, n)
 			}
+
+		case *syntax.Literal:
+			if n.LitKind == syntax.LitString && !x.out.Phar {
+				sp := n.Span()
+				x.out.Phar = bytes.Contains(f.Src[sp.Start:sp.End], []byte("phar://"))
+			}
 		case *syntax.Global:
 			if syntax.EnclosingVariableScope(n) != nil {
 				// A name chosen at run time is not counted, as within a file:
@@ -115,7 +122,19 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 				x.define(call)
 			case "class_alias":
 				x.classAlias(call)
+			case "spl_autoload_register":
+				ns := strings.ToLower(x.r.Namespace(call.Span().Start))
+				if ns != "" {
+					ns += `\`
+				}
+				if !slices.Contains(x.out.Autoloaders, ns) {
+					x.out.Autoloaders = append(x.out.Autoloaders, ns)
+				}
 			}
+		}
+		// Rare: read the prefixes the autoloader tests in a second walk.
+		if len(x.out.Autoloaders) > 0 {
+			x.out.AutoloadPrefixes = autoloadPrefixes(f)
 		}
 		// Deferred define calls must retain source order relative to const
 		// declarations: duplicate declarations use the first indexed symbol.
@@ -124,6 +143,50 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 		})
 	}
 	return x.out
+}
+
+// maxAutoloadPrefixes caps the prefixes kept for one file.
+const maxAutoloadPrefixes = 16
+
+// autoloadPrefixes collects the prefixes the calls of f test (see
+// prefixTested), at most maxAutoloadPrefixes, once each.
+func autoloadPrefixes(f *syntax.File) []string {
+	var prefixes []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if call, ok := n.(*syntax.FuncCall); ok {
+			if p, ok := prefixTested(call); ok && !slices.Contains(prefixes, p) {
+				prefixes = append(prefixes, p)
+			}
+		}
+		return len(prefixes) < maxAutoloadPrefixes
+	})
+	return prefixes
+}
+
+// prefixTested returns, lower case, the literal prefix call tests a string
+// for: the needle of strpos() or str_starts_with(), when not empty.
+func prefixTested(call *syntax.FuncCall) (string, bool) {
+	name, ok := call.Name.(*syntax.Name)
+	if !ok || call.Args == nil || len(call.Args.Args) < 2 {
+		return "", false
+	}
+	fn := strings.ToLower(name.Value[strings.LastIndexByte(name.Value, '\\')+1:])
+	if fn != "strpos" && fn != "str_starts_with" {
+		return "", false
+	}
+	var value syntax.Expr // nil for a placeholder
+	if arg, ok := call.Args.Args[1].(*syntax.Arg); ok {
+		value = arg.Value
+	}
+	lit, ok := value.(*syntax.Literal)
+	if !ok {
+		return "", false
+	}
+	v, ok := syntax.LiteralStringValue(lit)
+	if !ok || v == "" {
+		return "", false
+	}
+	return strings.ToLower(strings.TrimPrefix(v, `\`)), true
 }
 
 func (x *extractor) text(n syntax.Node) string {

@@ -1,8 +1,11 @@
 package index_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/janalis/custos/internal/php/syntax"
@@ -156,5 +159,45 @@ func BenchmarkWorldDependency(b *testing.B) {
 		if w.Dependency("src/Model/Order.php") || !w.Dependency("vendor/acme/lib/Base.php") {
 			b.Fatal("wrong answer")
 		}
+	}
+}
+
+// TestExtractAutoloaders: the namespaces registering autoloaders, once each,
+// and a phar named in a string, not in a comment.
+func TestExtractAutoloaders(t *testing.T) {
+	src := `<?php
+namespace Tool { spl_autoload_register(fn ($c) => 1); \spl_autoload_register(fn ($c) => 2); $p = 'phar://' . __DIR__; }
+namespace { spl_autoload_register(fn ($c) => 3); }`
+	fs := index.Extract(syntax.Parse("a.php", []byte(src), syntax.Options{}))
+	if !slices.Equal(fs.Autoloaders, []string{`tool\`, ""}) || !fs.Phar {
+		t.Errorf("autoloaders %q, phar %v", fs.Autoloaders, fs.Phar)
+	}
+	fs = index.Extract(syntax.Parse("b.php", []byte("<?php // spl_autoload_register('phar://x');\n$s = 'none';"), syntax.Options{}))
+	if len(fs.Autoloaders) != 0 || fs.Phar {
+		t.Errorf("comment: autoloaders %q, phar %v", fs.Autoloaders, fs.Phar)
+	}
+	// The prefixes an autoloader tests, literal and once each; a file
+	// registering none keeps none.
+	loader := `<?php spl_autoload_register(function ($c) {
+	if (strpos($c, 'Acme\\') === 0 || \str_starts_with($c, 'ACME\\') || strpos($c, $x) || strpos($c) || strpos($c, '') || Foo::strpos($c, 'x') || strpos($c, ...$a) || in_array($c, ['Acme'])) {}
+});`
+	if fs := index.Extract(syntax.Parse("l.php", []byte(loader), syntax.Options{})); !slices.Equal(fs.AutoloadPrefixes, []string{`acme\`}) {
+		t.Errorf("prefixes %q", fs.AutoloadPrefixes)
+	}
+	if fs := index.Extract(syntax.Parse("n.php", []byte(`<?php if (strpos($s, 'Acme') === 0) {}`), syntax.Options{})); fs.AutoloadPrefixes != nil {
+		t.Errorf("no autoloader: prefixes %q", fs.AutoloadPrefixes)
+	}
+	var many strings.Builder
+	many.WriteString("<?php spl_autoload_register('f');")
+	for i := range 20 {
+		fmt.Fprintf(&many, " strpos($c, 'P%d');", i)
+	}
+	if fs := index.Extract(syntax.Parse("m.php", []byte(many.String()), syntax.Options{})); len(fs.AutoloadPrefixes) != 16 {
+		t.Errorf("%d prefixes kept", len(fs.AutoloadPrefixes))
+	}
+	ix := index.New(nil)
+	ix.Add(index.Extract(syntax.Parse("c.php", []byte(src), syntax.Options{})))
+	if top := index.New(ix); top.Symbols("c.php") == nil || top.Symbols("d.php") != nil {
+		t.Error("symbols by path")
 	}
 }

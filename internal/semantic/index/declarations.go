@@ -67,6 +67,8 @@ func (x *extractor) declarationBuiltin(call *syntax.FuncCall, declared map[strin
 		return "define"
 	case "class_alias":
 		return "class_alias"
+	case "spl_autoload_register":
+		return "spl_autoload_register"
 	}
 	return ""
 }

@@ -63,9 +63,6 @@ type Snapshot struct {
 	// (nil when absent), read for the index world (see composerWorld). It
 	// changes only with the installed packages, which VendorDigest covers.
 	installed []byte
-	// packageFiles holds the files autoload entries of the installed
-	// packages at capture time (see world).
-	packageFiles map[string][]byte
 	// unseen is what the capture walks left out (see Skipped).
 	unseen Skipped
 }
@@ -201,14 +198,6 @@ func capture(ctx context.Context, root *os.Root, rules []analysis.Rule, paths []
 	s.Files, s.OwnFiles, s.Vendor, s.Stats = l.selected, l.php, l.vendor, l.stats
 	if composer, ok := s.Sources["composer.json"]; ok {
 		s.installed, _ = ReadConfined(root, installedJSON(composer), MaxSnapshotBytes)
-		// The packages' files entries, where the world looks for
-		// autoloaders; they change only with the installed packages.
-		s.packageFiles = map[string][]byte{}
-		for _, name := range packageFiles(s.installed, vendorDirBytes(composer)) {
-			if b, err := ReadConfined(root, name, syntax.MaxFileSize); err == nil {
-				s.packageFiles[name] = b
-			}
-		}
 	}
 	s.Skipped, s.SkippedCount, s.unseen = l.skipped, l.skippedCount, l.unseen
 	if err := s.readVendor(ctx, extractVendor); err != nil {
@@ -558,24 +547,19 @@ func (s *Snapshot) world() index.World {
 	if s.installed == nil || s.SkippedCount > 0 {
 		return vendor
 	}
-	// composerWorld reads composer.json, the installed.json it names, then
-	// the packages' files entries.
+	// composerWorld reads composer.json, then the installed.json it names.
 	read := func(name string) ([]byte, error) {
-		switch {
-		case name == "composer.json":
+		if name == "composer.json" {
 			return composer, nil
-		case name == installedJSON(composer):
-			return s.installed, nil
 		}
-		// A file not captured holds no text, so registers no autoloader.
-		return s.packageFiles[name], nil
+		return s.installed, nil
 	}
 	scope := s.Paths
 	if len(scope) == 0 {
 		scope = s.Config.Paths
 	}
 	indexed := append(append([]string{}, s.OwnFiles...), s.Vendor...)
-	w := composerWorld(read, scope, indexed, s.unseen)
+	w := composerWorld(read, s.Index.Symbols, scope, indexed, s.unseen)
 	w.Vendor = vendor.Vendor
 	return w
 }

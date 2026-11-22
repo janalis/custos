@@ -92,8 +92,9 @@ Reported:
   a phar, any name in a file written for the package (lying in, importing
   from, or extending or implementing a fully qualified name of that
   namespace, such as a PHPStan extension), which runs within the package
-  and the libraries it bundles. An autoloader registered outside any
-  namespace changes nothing.
+  and the libraries it bundles. A name starting with a prefix such an
+  autoloader compares class names with (`strpos($class, 'RectorPrefix') ===
+  0`), wherever it is registered: Rector's loads its prefixed copies so.
 - Dynamic calls (`$fn()`, `call_user_func('foo')`) and names in strings.
 
 ## Fix

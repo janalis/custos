@@ -117,7 +117,7 @@ func (p *Project) prepare(keepTrees, report bool) (engine *analysis.Engine, sour
 	indexed, skipped := IndexSourcesSkipping(p.Options.Root, php, scope, p.Options.Exclude)
 	ix, read, parsed, unread := buildIndex(context.Background(), indexed, len(php), p.Options.Parse, inferOpt, cache, keepTrees)
 	skipped.Files = append(skipped.Files, unread...)
-	ix.SetWorld(ComposerWorld(p.Options.Root, scope, indexed, skipped))
+	ix.SetWorld(ComposerWorld(p.Options.Root, scope, indexed, skipped, ix))
 	ix.Freeze()
 	engine = engine.WithIndex(ix)
 	var snapshot *flow.Snapshot

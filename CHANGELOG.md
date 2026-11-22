@@ -23,7 +23,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   classes, nor the libraries it bundles, in a PHPStan extension: a package
   whose autoloader loads classes from a phar now makes its namespace, and
   any name in a file written for it, count as possibly declared, through
-  the command line, the language server and MCP alike.
+  the command line, the language server and MCP alike. The class name
+  prefixes such an autoloader tests count too, so Rector's classes in
+  `rector.php` are not reported either.
 - `UndefinedClass` and `UndefinedFunction` no longer report names of an
   optional extension used in an instance method when the class's
   constructor throws unless `extension_loaded()` finds the extension, or

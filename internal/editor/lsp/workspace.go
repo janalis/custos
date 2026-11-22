@@ -72,7 +72,7 @@ func (s *Server) buildIndex() {
 	indexed, skipped := project.IndexSourcesSkipping(cfg.Root, files, paths, cfg.Exclude)
 	ix, unread := buildIndexSymbols(ctx, cfg.Root, indexed, cfg.Parse(), cfg.Infer())
 	skipped.Files = append(skipped.Files, unread...)
-	ix.SetWorld(project.ComposerWorld(cfg.Root, paths, indexed, skipped))
+	ix.SetWorld(project.ComposerWorld(cfg.Root, paths, indexed, skipped, ix))
 	// The disk holds no unsaved edit: index the open buffers again, parsed
 	// outside the lock.
 	s.mu.Lock()

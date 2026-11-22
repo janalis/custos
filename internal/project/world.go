@@ -1,12 +1,10 @@
 package project
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -21,7 +19,7 @@ import (
 // directories whose PHP files are indexed, indexed the files of the index
 // and skipped what the walks and the indexing left out (paths absolute or
 // relative to the working directory).
-func ComposerWorld(root string, scope, indexed []string, skipped Skipped) index.World {
+func ComposerWorld(root string, scope, indexed []string, skipped Skipped, ix *index.Index) index.World {
 	// Abs fails only when the working directory is gone; Rel then fails
 	// for every path and the world stays incomplete.
 	absRoot, _ := filepath.Abs(root)
@@ -38,7 +36,16 @@ func ComposerWorld(root string, scope, indexed []string, skipped Skipped) index.
 	read := func(name string) ([]byte, error) {
 		return safeio.ReadFile(filepath.Join(absRoot, filepath.FromSlash(name)), 4*config.MaxFileSize)
 	}
-	w := composerWorld(read, rel(scope), rel(indexed), Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
+	// The world names files relative to root; the index keys them as
+	// indexed.
+	keys := make(map[string]string, len(indexed))
+	for _, p := range indexed {
+		if r := rel([]string{p}); len(r) == 1 {
+			keys[r[0]] = p
+		}
+	}
+	symbols := func(name string) *index.FileSymbols { return ix.Symbols(keys[name]) }
+	w := composerWorld(read, symbols, rel(scope), rel(indexed), Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
 	// Absolute like the other fields' base: index paths may be written
 	// either way (see index.World.Dependency).
 	w.Vendor = filepath.Join(absRoot, vendorDir(root))
@@ -133,7 +140,7 @@ func dirs(raw json.RawMessage) []string {
 // skipped, are blind; below a PSR-4 directory, so are the namespaces a
 // skipped directory maps, sub-namespaces included, and, exactly, those of
 // the directories holding files the walks or the indexing left out.
-func composerWorld(read func(string) ([]byte, error), scope, indexed []string, skipped Skipped) index.World {
+func composerWorld(read func(string) ([]byte, error), symbols func(string) *index.FileSymbols, scope, indexed []string, skipped Skipped) index.World {
 	b, err := read("composer.json")
 	if err != nil {
 		return index.World{}
@@ -257,18 +264,28 @@ func composerWorld(read func(string) ([]byte, error), scope, indexed []string, s
 			if p = path.Join(dir, p); !g.indexed[p] || g.file[p] {
 				return false
 			}
-			// A package's file registering an autoloader in a namespace
-			// loads classes from where the index does not look (PHPStan's
-			// from its phar): that namespace is unseen. A global
-			// autoloader (Rector's, for its prefixed copies) is left
-			// alone, as before: it would hide every name.
+			// A package's file registering an autoloader loads classes from
+			// where the index does not look (PHPStan's from its phar,
+			// Rector's from its own vendor directory): the class name
+			// prefixes it tests and the namespace it registers in are
+			// unseen, and when the file names a phar, it hosts the code
+			// written for it. A global autoloader hides no other name: it
+			// would hide every one.
 			if own {
 				continue
 			}
-			if ns, registers, bundle := autoloaderNamespace(read, p); registers && ns != "" {
-				w.Blind = append(w.Blind, strings.ToLower(ns)+`\`)
-				if bundle {
-					w.Hosts = append(w.Hosts, strings.ToLower(ns)+`\`)
+			fs := symbols(p)
+			if fs == nil {
+				continue
+			}
+			w.Blind = append(w.Blind, fs.AutoloadPrefixes...)
+			for _, ns := range fs.Autoloaders {
+				if ns == "" {
+					continue
+				}
+				w.Blind = append(w.Blind, ns)
+				if fs.Phar {
+					w.Hosts = append(w.Hosts, ns)
 				}
 			}
 		}
@@ -312,39 +329,6 @@ func (p composerManifest) dir(vendor string) string {
 		return path.Join(vendor, "composer", p.InstallPath)
 	}
 	return path.Join(vendor, p.Name)
-}
-
-// packageFiles lists the files entries of the packages installed.json
-// lists, relative to the project root: the files composerWorld reads to
-// find autoloaders.
-func packageFiles(installed []byte, vendor string) []string {
-	packages, _ := installedPackages(installed)
-	var out []string
-	for _, p := range packages {
-		for _, f := range p.Autoload.Files {
-			out = append(out, path.Join(p.dir(vendor), f))
-		}
-	}
-	return out
-}
-
-// namespaceDecl matches the first namespace declaration of a file.
-var namespaceDecl = regexp.MustCompile(`(?m)(?:^|[;{}]|<\?php)\s*namespace\s+([A-Za-z_\\][A-Za-z0-9_\\]*)\s*[;{]`)
-
-// autoloaderNamespace reports whether file calls spl_autoload_register(),
-// the namespace it declares first ("" for none), and whether it loads from
-// a phar, a bundle of other code. An unreadable file registers nothing
-// that can be told.
-func autoloaderNamespace(read func(string) ([]byte, error), file string) (ns string, registers, bundle bool) {
-	b, err := read(file)
-	if err != nil || !bytes.Contains(b, []byte("spl_autoload_register")) {
-		return "", false, false
-	}
-	bundle = bytes.Contains(b, []byte("phar://"))
-	if m := namespaceDecl.FindSubmatch(b); m != nil {
-		return strings.Trim(string(m[1]), `\`), true, bundle
-	}
-	return "", true, bundle
 }
 
 // stubExtension names the extension a Composer platform requirement names
