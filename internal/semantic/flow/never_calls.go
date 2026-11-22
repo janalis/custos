@@ -41,7 +41,7 @@ func (e *Env) never(call syntax.Node) bool {
 		if m.Final || m.Visibility == index.Private {
 			name = m.Key()
 		}
-		if within := syntax.EnclosingClass(call); within != nil && within.ClassKind == syntax.KindTrait && !m.Abstract && strings.EqualFold(m.Class, e.types.ClassFQN(within)) {
+		if e.traitReplaceable(call, m) {
 			// A class using the trait can replace the method, whatever its
 			// modifiers, with one that returns: only an abstract method
 			// binds the class to the declared type.

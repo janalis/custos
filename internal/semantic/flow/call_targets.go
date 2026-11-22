@@ -41,7 +41,10 @@ func (e *Env) resolve(call syntax.Node, followed uint8) (m *index.Method, receiv
 	if m == nil || !e.visible(call, m) {
 		return nil, "", false, false
 	}
-	sealed = m.Final || m.Visibility == index.Private || followed == followExact
+	// A class using the trait the call lies in may replace a method of a
+	// trait, whatever its modifiers.
+	replaceable := e.traitReplaceable(call, m)
+	sealed = (m.Final || m.Visibility == index.Private) && !replaceable || followed == followExact
 	// The class of the object the method is looked up on at run time is the
 	// receiver's, the enclosing one for `$this` and `static`, or one that
 	// extends it.
@@ -49,12 +52,23 @@ func (e *Env) resolve(call syntax.Node, followed uint8) (m *index.Method, receiv
 	receiver = e.types.ClassFQN(within)
 	if static, ok := call.(*syntax.StaticCall); ok {
 		class, _ := static.Class.(*syntax.Name)
-		sealed = sealed || !strings.EqualFold(class.Value, "static")
+		sealed = sealed || !strings.EqualFold(class.Value, "static") && !(replaceable && strings.EqualFold(class.Value, "self"))
 	} else if typed := e.types.TypeOf(call.(*syntax.MethodCall).Var).Classes(); len(typed) == 1 {
 		receiver, within = typed[0], nil
 	}
 	// A trait method runs in classes that are not known here.
 	return m, receiver, sealed, followed != followLoose && (within == nil || within.ClassKind != syntax.KindTrait)
+}
+
+// traitReplaceable reports that call lies in a trait and m, a method with a
+// body, comes from a trait: a class using the trait may declare its own.
+func (e *Env) traitReplaceable(call syntax.Node, m *index.Method) bool {
+	within := syntax.EnclosingClass(call)
+	if within == nil || within.ClassKind != syntax.KindTrait || m.Abstract {
+		return false
+	}
+	c := e.types.Index.Class(m.Class, e.types.PHP)
+	return c != nil && c.Kind == syntax.KindTrait
 }
 
 // What is known of the receiver of a method call.

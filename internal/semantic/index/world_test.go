@@ -199,17 +199,20 @@ func TestLoaderFactsAtRunTime(t *testing.T) {
 		src  string
 		want []string
 	}{
-		"this overridden":   {`<?php class Base { ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
-		"static overridden": {`<?php class Base { ` + zed + ` function r() { spl_autoload_register(['static', 'load']); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
-		"new static":        {`<?php class Base { ` + zed + ` static function r() { spl_autoload_register([new static(), 'load']); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
-		"this first-class":  {`<?php class Base { ` + zed + ` function r() { spl_autoload_register($this->load(...)); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
-		"self in trait":     {`<?php trait T { ` + zed + ` function r() { spl_autoload_register([self::class, 'load']); spl_autoload_register([__CLASS__, 'load']); spl_autoload_register('self::load'); } } final class Loader { use T; ` + acme + ` }`, []string{`acme\`}},
-		"parent in trait":   {`<?php trait T { function r() { spl_autoload_register([parent::class, 'load']); spl_autoload_register('parent::load'); spl_autoload_register(parent::load(...)); } } class Base { static ` + acme + ` } final class Loader extends Base { use T; } final class Other extends Base { use T; }`, []string{`acme\`}},
-		"this in trait":     {`<?php trait T { function r() { spl_autoload_register([$this, 'load']); } } trait U { use T; } class A { use U; ` + acme + ` } final class B extends A { ` + zed + ` } final class C { use T; use U; }`, []string{`acme\`, `zed\`}},
-		"unused trait":      {`<?php trait T { function r() { spl_autoload_register([self::class, 'load']); spl_autoload_register([parent::class, 'load']); spl_autoload_register([$this, 'load']); } } final class A { use T; ` + acme + ` }`, []string{`acme\`}},
-		"private":           {`<?php class Base { private ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } final class Sub extends Base { ` + acme + ` }`, []string{`zed\`}},
-		"aliased parent":    {`<?php class Base { ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } class_alias('Base', 'B2'); final class Sub extends B2 { ` + acme + ` }`, []string{`zed\`, `acme\`}},
-		"nothing to load":   {`<?php trait T { function r() { spl_autoload_register([parent::class, 'load']); spl_autoload_register([self::class, 'load']); } } trait U { function r() { spl_autoload_register(['static', 'load']); } } final class A { use T; }`, nil},
+		"this overridden":    {`<?php class Base { ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"static overridden":  {`<?php class Base { ` + zed + ` function r() { spl_autoload_register(['static', 'load']); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"new static":         {`<?php class Base { ` + zed + ` static function r() { spl_autoload_register([new static(), 'load']); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"this first-class":   {`<?php class Base { ` + zed + ` function r() { spl_autoload_register($this->load(...)); } } final class Loader extends Base { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"self in trait":      {`<?php trait T { ` + zed + ` function r() { spl_autoload_register([self::class, 'load']); spl_autoload_register([__CLASS__, 'load']); spl_autoload_register('self::load'); } } final class Loader { use T; ` + acme + ` }`, []string{`acme\`}},
+		"parent in trait":    {`<?php trait T { function r() { spl_autoload_register([parent::class, 'load']); spl_autoload_register('parent::load'); spl_autoload_register(parent::load(...)); } } class Base { static ` + acme + ` } final class Loader extends Base { use T; } final class Other extends Base { use T; }`, []string{`acme\`}},
+		"this in trait":      {`<?php trait T { function r() { spl_autoload_register([$this, 'load']); } } trait U { use T; } class A { use U; ` + acme + ` } final class B extends A { ` + zed + ` } final class C { use T; use U; }`, []string{`acme\`, `zed\`}},
+		"unused trait":       {`<?php trait T { function r() { spl_autoload_register([self::class, 'load']); spl_autoload_register([parent::class, 'load']); spl_autoload_register([$this, 'load']); } } final class A { use T; ` + acme + ` }`, []string{`acme\`}},
+		"private":            {`<?php class Base { private ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } final class Sub extends Base { ` + acme + ` }`, []string{`zed\`}},
+		"private of a trait": {`<?php trait T { private ` + zed + ` } class Base { use T; function r() { spl_autoload_register([new static(), 'load']); } } final class Sub extends Base { ` + acme + ` }`, []string{`zed\`}},
+		"inherited private":  {`<?php class P { private ` + zed + ` } class R extends P { function r() { spl_autoload_register([$this, 'load']); } } final class S extends R { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"static private":     {`<?php class Base { private static ` + zed + ` function r() { spl_autoload_register(static::load(...)); spl_autoload_register('static::load'); } } final class Sub extends Base { static ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"aliased parent":     {`<?php class Base { ` + zed + ` function r() { spl_autoload_register([$this, 'load']); } } class_alias('Base', 'B2'); final class Sub extends B2 { ` + acme + ` }`, []string{`zed\`, `acme\`}},
+		"nothing to load":    {`<?php trait T { function r() { spl_autoload_register([parent::class, 'load']); spl_autoload_register([self::class, 'load']); } } trait U { function r() { spl_autoload_register(['static', 'load']); } } final class A { use T; }`, nil},
 	} {
 		prefixes, _ := loaded(c.src)
 		slices.Sort(prefixes)
@@ -300,6 +303,7 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		"named class":     `<?php namespace Tool; final class Loader { static function load($c) BODY } spl_autoload_register(\Tool\Loader::load(...));`,
 		"array this":      `<?php final class Loader { function load($c) BODY function register() { spl_autoload_register([$this, 'load']); } }`,
 		"array new":       `<?php final class Loader { function load($c) BODY static function register() { spl_autoload_register([new static(), 'load']); } }`,
+		"array new named": `<?php final class Loader { function load($c) BODY } spl_autoload_register([new Loader(), 'load']);`,
 		"array magic":     `<?php final class Loader { function load($c) BODY function register() { spl_autoload_register([__CLASS__, 'load']); } }`,
 		"array string":    `<?php final class Loader { static function load($c) BODY } spl_autoload_register(['\Loader', 'load']);`,
 		"parent":          `<?php namespace Tool; class Base { static function load($c) BODY } final class Loader extends Base { function register() { spl_autoload_register(parent::load(...)); spl_autoload_register([parent::class, 'load']); spl_autoload_register(['parent', 'load']); } }`,

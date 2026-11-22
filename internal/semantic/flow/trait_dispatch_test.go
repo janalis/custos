@@ -23,6 +23,10 @@ func TestTraitThisDispatch(t *testing.T) {
 		{`trait T { function __call($n, $a) { return $a[0]; } function f() { probe($this->a($_GET['x'])); } }`, false, false},
 		{`class C { function a($x) { return $x; } function f() { probe($this->a($_GET['x'])); } }`, true, true},
 		{`trait T { function a($x) { return $x; } } class C { use T { a as b; } function f() { probe($this->b($_GET['x'])); } }`, true, true},
+		{`trait T { private function a($x) { return $x; } function f() { probe($this->a($_GET['x'])); } }`, true, true},
+		{`trait T { final function a($x) { return $x; } function f() { probe($this->a($_GET['x'])); } }`, true, true},
+		{`trait T { private static function a($x) { return $x; } function f() { probe(self::a($_GET['x'])); } }`, true, true},
+		{`trait T { private function boot($x) { return $x; } } trait U { use T { boot as private a; } function f() { probe($this->a($_GET['x'])); } }`, true, true},
 		{`trait T { function a($x) { return htmlspecialchars($x); } } class C { use T { a as b; } function f() { probe($this->b($_GET['x'])); } }`, true, false},
 	} {
 		e, f := closedEnvironment(t, probe+tc.src)

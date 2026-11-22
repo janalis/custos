@@ -269,6 +269,7 @@ func TestGuardsOutsideBranches(t *testing.T) {
 		{"call chained after a static call after a null-safe link", `$u=scandir($a); $x = $o?->q::make()->r(count($u)); probe($u);`, false, false},
 		{"offset of a class constant after a null-safe link", `$u=scandir($a); $x = $o?->q::C[count($u)]; probe($u);`, false, false},
 		{"offset of a static property", `$u=scandir($a); $x = Reg::$tbl[count($u)]; probe($u);`, true, true},
+		{"private method of another trait, aliased", `trait Base { private function boot() { throw new E; } } trait Tr { use Base { boot as private fail; } function f($a) { $u=fopen($a,'r'); if ($u === false) { $this->fail(); } probe($u); } }`, false, false},
 		{"returning trait method", `trait Tr { private function fail() { throw new E; } function f($a) { $u=fopen($a,'r'); if ($u === false) { $this->fail(); } probe($u); } }`, false, false},
 		{"offset of a property", `$u=scandir($a); $x = $o->list[count($u)]; probe($u);`, true, true},
 		{"method call argument", `$u=scandir($a); $o->p->add(count($u)); probe($u);`, true, true},

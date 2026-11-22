@@ -1,6 +1,7 @@
 package index
 
 import (
+	"cmp"
 	"strings"
 
 	"github.com/janalis/custos/internal/php/syntax"
@@ -244,5 +245,5 @@ func adaptMethod(m *Method, a TraitAdaptation) *Method {
 // Repeated imports of the same declaration through a trait diamond do not
 // conflict unless one branch changed its modifiers.
 func sameTraitMethod(a, b *Method) bool {
-	return a == b || (a.Class != "" && a.Class == b.Class && a.Name == b.Name && a.Key() == b.Key() && a.Visibility == b.Visibility && a.Final == b.Final)
+	return a == b || (a.Class != "" && a.Class == b.Class && a.Name == b.Name && strings.EqualFold(cmp.Or(a.Declared, a.Name), cmp.Or(b.Declared, b.Name)) && a.Visibility == b.Visibility && a.Final == b.Final)
 }

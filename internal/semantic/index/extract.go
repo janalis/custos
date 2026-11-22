@@ -275,25 +275,27 @@ func (x *extractor) classFQN(n syntax.Node) string {
 
 // Marks on the class of an AutoloadCallbacks key naming what it stands for
 // when the code runs (see Index.LoaderFacts): the class and its
-// subclasses, or for a trait the classes using it and their subclasses
-// (`$this`, `static`); the classes using a trait (`self` in it); their
-// parents (`parent` in a trait).
+// subclasses, or for a trait the classes using it and their subclasses,
+// through an object (`$this`, `new static`, which keeps a private method
+// of the class) or `static`; the classes using a trait (`self` in it);
+// their parents (`parent` in a trait).
 const (
-	lateMark   = "+"
+	objectMark = "+"
+	staticMark = "*"
 	usersMark  = "="
 	parentMark = "^"
 )
 
 // self returns the class part of a callback key for the class or trait
-// call lies in, as `$this` or `static` (late) or `self` name it ("" outside
-// a named one).
-func (x *extractor) self(call syntax.Node, late bool) string {
+// call lies in, as `$this` (objectMark), `static` (staticMark) or `self`
+// (mark "") name it ("" outside a named one).
+func (x *extractor) self(call syntax.Node, mark string) string {
 	c := x.classFQN(call)
 	switch {
 	case c == "":
 		return ""
-	case late:
-		return lateMark + c
+	case mark != "":
+		return mark + c
 	case syntax.EnclosingClass(call).ClassKind == syntax.KindTrait:
 		return usersMark + c
 	}
@@ -307,11 +309,11 @@ func (x *extractor) classOf(e syntax.Expr, call syntax.Node) string {
 	switch v := e.(type) {
 	case *syntax.Variable:
 		if v.Name == "this" && v.NameExpr == nil {
-			return x.self(call, true)
+			return x.self(call, objectMark)
 		}
 	case *syntax.MagicConst:
 		if v.Token.Kind == syntax.TClassC {
-			return x.self(call, false)
+			return x.self(call, "")
 		}
 	case *syntax.Name:
 		if c, ok := x.relative(v.Value, call); ok {
@@ -323,6 +325,9 @@ func (x *extractor) classOf(e syntax.Expr, call syntax.Node) string {
 			return x.classOf(v.Class, call)
 		}
 	case *syntax.New:
+		if n, ok := v.Class.(*syntax.Name); ok && strings.EqualFold(n.Value, "static") {
+			return x.self(call, objectMark)
+		}
 		return x.classOf(v.Class, call)
 	case *syntax.Literal:
 		s, _ := syntax.LiteralStringValue(v)
@@ -346,9 +351,9 @@ func (x *extractor) stringClass(s string, call syntax.Node) string {
 func (x *extractor) relative(name string, call syntax.Node) (class string, ok bool) {
 	switch strings.ToLower(name) {
 	case "self":
-		return x.self(call, false), true
+		return x.self(call, ""), true
 	case "static":
-		return x.self(call, true), true
+		return x.self(call, staticMark), true
 	case "parent":
 		c := syntax.EnclosingClass(call)
 		if c != nil && c.ClassKind == syntax.KindTrait {
@@ -418,7 +423,7 @@ func (x *extractor) callback(call *syntax.FuncCall) (body syntax.Node, param, k 
 	case *syntax.MethodCall: // $this->load(...)
 		if id, ok := v.Name.(*syntax.Identifier); ok && !v.NullSafe && v.Args.FirstClassCallable() {
 			if self, ok := v.Var.(*syntax.Variable); ok && self.Name == "this" && self.NameExpr == nil {
-				return nil, "", method(x.self(call, true), id.Value)
+				return nil, "", method(x.self(call, objectMark), id.Value)
 			}
 		}
 	case *syntax.StaticCall: // self::load(...), Cls::load(...)

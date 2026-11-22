@@ -1,6 +1,7 @@
 package index
 
 import (
+	"cmp"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -285,10 +286,12 @@ func (ix *Index) LoaderFacts(k string) *Loader {
 const maxLoaderClasses = 64
 
 // loaderClasses returns the classes the class part of a callback key for
-// method stands for (see lateMark). A subclass does not replace a private
-// method: PHP calls the one of the class registering it.
+// method stands for (see objectMark). Through an object, a subclass does
+// not replace a private method the class declares or takes from a trait:
+// PHP calls the one of the class registering it.
 func (ix *Index) loaderClasses(class, method string) []string {
-	name := strings.TrimLeft(class, lateMark+usersMark+parentMark)
+	mark := class[:1]
+	name := strings.TrimLeft(class, objectMark+staticMark+usersMark+parentMark)
 	var roots []string
 	switch class[:len(class)-len(name)] {
 	case "":
@@ -310,7 +313,7 @@ func (ix *Index) loaderClasses(class, method string) []string {
 	}
 	out := slices.Clone(roots)
 	for _, r := range roots {
-		if m := ix.FindMethod(r, method, 0); m != nil && m.Visibility == Private {
+		if m := ix.FindMethod(r, method, 0); mark == objectMark && m != nil && m.Visibility == Private && key(cmp.Or(m.TypeClass, m.Class)) == key(r) {
 			continue
 		}
 		for _, sub := range ix.Extending(r) {
