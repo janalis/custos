@@ -89,6 +89,16 @@ func TestSameDeclarationsIgnoresDigest(t *testing.T) {
 	}
 }
 
+// TestSameDeclarationsIgnoresLoaders: a loader testing another prefix
+// changes no declaration.
+func TestSameDeclarationsIgnoresLoaders(t *testing.T) {
+	a := &FileSymbols{Path: "a.php", Loaders: map[string]*Loader{"load": {Prefixes: []string{"acme"}}}}
+	b := &FileSymbols{Path: "a.php", Loaders: map[string]*Loader{"load": {Prefixes: []string{"zed"}}}}
+	if !SameDeclarations(a, b) || a.Loaders == nil {
+		t.Fatal("loaders compared or cleared")
+	}
+}
+
 // Fingerprint runs on every analyzed file when indexing (the flow cache)
 // and on every editor update (SameDeclarations).
 func BenchmarkFingerprint(b *testing.B) {

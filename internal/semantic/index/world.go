@@ -239,13 +239,15 @@ func ClassWord(name string) string {
 
 // LoaderFacts returns what the callable k, an AutoloadCallbacks entry,
 // would load as an autoloader (its Loader facts): those of the function,
-// or of the method with a body the nearest of the class, its traits and
-// its parents declares (not a @method tag). Nothing when the index does
+// or of the method with a body the class resolves the name to (its own,
+// a trait's or a parent's; not a @method tag). Nothing when the index does
 // not declare the callable.
 func (ix *Index) LoaderFacts(k string) *Loader {
 	if class, method, ok := strings.Cut(k, "::"); ok {
+		m := ix.FindMethod(class, method, 0)
+		// The declaring class is one of the ancestors.
 		for _, c := range ix.Ancestors(class, 0) {
-			if m := c.Methods[method]; m != nil && !m.Magic && !m.Abstract {
+			if m != nil && !m.Magic && !m.Abstract && key(c.FQN) == key(m.Class) {
 				return ix.loader(c.File, key(c.FQN)+"::"+method)
 			}
 		}

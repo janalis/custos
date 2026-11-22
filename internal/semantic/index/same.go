@@ -35,6 +35,10 @@ func Fingerprint(fs *FileSymbols) [sha256.Size]byte {
 	if fs != nil {
 		x := *fs
 		x.Digest = 0
+		// Only the Composer world reads loaders, through the callbacks of
+		// package files, which the caches key by size and time: a body
+		// edit testing another prefix changes nothing the print guards.
+		x.Loaders = nil
 		buf = appendValue(buf, reflect.ValueOf(&x))
 	}
 	return sha256.Sum256(buf)

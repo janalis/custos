@@ -22,11 +22,6 @@ type extractor struct {
 	classTpl   map[string]bool   // class-level @template names of the class being extracted
 	methodTpl  map[string]bool   // @template names of the method being extracted
 	aliases    map[string]string // @phpstan-type / import-type names in scope (imported: importedAlias)
-	// prefixTests holds the prefixes named functions and methods test
-	// their first parameter for, and includers those that include a
-	// file: the candidate loaders (see Loaders).
-	prefixTests map[syntax.Node]*Loader
-	includers   []syntax.Node
 }
 
 // importedAlias marks in extractor.aliases a type alias the class imports:
@@ -81,10 +76,6 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 			x.class(n)
 		case *syntax.Function:
 			x.function(n)
-		case *syntax.Include:
-			if fn := syntax.EnclosingFuncLike(n); !slices.Contains(x.includers, fn) {
-				x.includers = append(x.includers, fn)
-			}
 		case *syntax.ConstStmt:
 			for _, c := range n.Consts {
 				fqn := c.Name.Value
@@ -119,9 +110,9 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 		}
 		return true
 	})
-	// Rare: functions and methods including a file.
-	if len(x.includers) > 0 {
-		x.loaders()
+	// Rare: mark the loaders naming a phar.
+	if bytes.Contains(f.Src, pharScheme) {
+		x.pharLoaders()
 	}
 	if len(calls) > 0 {
 		declared := make(map[string]bool, len(x.out.Functions))
@@ -214,67 +205,54 @@ func (x *extractor) callableKey(n syntax.Node) string {
 }
 
 // loaderTest records the prefix call tests, when it tests the first
-// parameter of the function-like it lies in for a literal one.
+// parameter of the named function or method it lies in for a literal one.
 func (x *extractor) loaderTest(call *syntax.FuncCall) {
 	fn := syntax.EnclosingFuncLike(call)
 	params := syntax.FuncLikeParams(fn)
 	if len(params) == 0 || params[0].Var == nil {
 		return
 	}
-	p, ok := prefixTested(call, params[0].Var.Name)
-	if !ok {
-		return
-	}
-	if x.prefixTests == nil {
-		x.prefixTests = map[syntax.Node]*Loader{}
-	}
-	l := x.prefixTests[fn]
-	if l == nil {
-		l = &Loader{}
-		x.prefixTests[fn] = l
-	}
-	if len(l.Prefixes) < maxAutoloadPrefixes && !slices.Contains(l.Prefixes, p) {
-		l.Prefixes = append(l.Prefixes, p)
+	if p, ok := prefixTested(call, params[0].Var.Name); ok {
+		if l := x.loader(fn); l != nil && len(l.Prefixes) < maxAutoloadPrefixes && !slices.Contains(l.Prefixes, p) {
+			l.Prefixes = append(l.Prefixes, p)
+		}
 	}
 }
 
-// loaders records the named functions and methods that may be
-// autoloaders: those including a file that test their first parameter
-// for a literal prefix or name a phar.
-func (x *extractor) loaders() {
-	phars := bytes.Contains(x.f.Src, pharScheme)
-	for _, fn := range x.includers {
-		l := x.prefixTests[fn]
-		phar := phars && namesPhar(x.f.Src, fn)
-		k := x.callableKey(fn)
-		if l == nil && !phar || k == "" {
-			continue
-		}
-		if l == nil {
-			l = &Loader{}
-		}
-		l.Phar = phar
-		if x.out.Loaders == nil {
-			x.out.Loaders = map[string]*Loader{}
-		}
-		x.out.Loaders[k] = l
-	}
-}
-
-// namesPhar reports whether a string of n (src its file's source) names
-// a phar.
-func namesPhar(src []byte, n syntax.Node) bool {
-	found := false
-	syntax.Inspect(n, func(n syntax.Node) bool {
+// pharLoaders marks the named functions and methods with a string naming
+// a phar in their own body (not in a closure they define).
+func (x *extractor) pharLoaders() {
+	syntax.InspectFile(x.f, func(n syntax.Node) bool {
 		switch n.(type) {
 		case *syntax.Literal, *syntax.InterpolatedString:
 			sp := n.Span()
-			found = found || bytes.Contains(src[sp.Start:sp.End], pharScheme)
+			if bytes.Contains(x.f.Src[sp.Start:sp.End], pharScheme) {
+				if l := x.loader(syntax.EnclosingFuncLike(n)); l != nil {
+					l.Phar = true
+				}
+			}
 			return false
 		}
-		return !found
+		return true
 	})
-	return found
+}
+
+// loader returns the Loader facts of the named function or method fn,
+// created on first use (nil for another function-like).
+func (x *extractor) loader(fn syntax.Node) *Loader {
+	k := x.callableKey(fn)
+	if k == "" {
+		return nil
+	}
+	if x.out.Loaders == nil {
+		x.out.Loaders = map[string]*Loader{}
+	}
+	l := x.out.Loaders[k]
+	if l == nil {
+		l = &Loader{}
+		x.out.Loaders[k] = l
+	}
+	return l
 }
 
 // join qualifies name with namespace ns.
