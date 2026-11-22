@@ -19,10 +19,4 @@ func ExitInvocation(e Expr) bool {
 	return false
 }
 
-func exitArgsInvoke(args *ArgList) bool {
-	if args == nil || len(args.Args) != 1 {
-		return true
-	}
-	_, callable := args.Args[0].(*VariadicPlaceholder)
-	return !callable
-}
+func exitArgsInvoke(args *ArgList) bool { return !args.FirstClassCallable() }

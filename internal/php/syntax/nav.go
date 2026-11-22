@@ -91,3 +91,13 @@ func IsNullConst(e Expr) bool {
 	c, ok := e.(*ConstFetch)
 	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
 }
+
+// FirstClassCallable reports whether a is the `(...)` of a first-class
+// callable (`f(...)`, `$o->m(...)`, `C::m(...)`).
+func (a *ArgList) FirstClassCallable() bool {
+	if a == nil || len(a.Args) != 1 {
+		return false
+	}
+	_, ok := a.Args[0].(*VariadicPlaceholder)
+	return ok
+}

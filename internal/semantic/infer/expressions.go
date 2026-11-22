@@ -34,27 +34,18 @@ func (e *Env) TypeOf(x syntax.Expr) types.Type {
 	return t
 }
 
-// isFirstClassCallable reports `f(...)`-style argument lists.
-func isFirstClassCallable(a *syntax.ArgList) bool {
-	if a == nil || len(a.Args) != 1 {
-		return false
-	}
-	_, ok := a.Args[0].(*syntax.VariadicPlaceholder)
-	return ok
-}
-
 func (e *Env) infer(x syntax.Expr) types.Type {
 	switch n := x.(type) {
 	case *syntax.FuncCall:
-		if isFirstClassCallable(n.Args) {
+		if n.Args.FirstClassCallable() {
 			return e.firstClassCallableType(n)
 		}
 	case *syntax.MethodCall:
-		if isFirstClassCallable(n.Args) {
+		if n.Args.FirstClassCallable() {
 			return e.firstClassCallableType(n)
 		}
 	case *syntax.StaticCall:
-		if isFirstClassCallable(n.Args) {
+		if n.Args.FirstClassCallable() {
 			return e.firstClassCallableType(n)
 		}
 	}

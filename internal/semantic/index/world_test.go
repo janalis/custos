@@ -179,6 +179,10 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		"not of the file": "<?php spl_autoload_register([Other::class, 'load']); spl_autoload_register('other'); spl_autoload_register($f); spl_autoload_register(); spl_autoload_register(...$a); $g = spl_autoload_register(...);",
 		"no class name":   "<?php spl_autoload_register(function () { strpos($x, 'Acme'); });",
 		"not first-class": "<?php final class L { function load($c) { strpos($c, 'Acme'); } function reg() { spl_autoload_register($this->load($x)); spl_autoload_register(self::load($x, $y)); spl_autoload_register(load()); spl_autoload_register($this->$m(...)); spl_autoload_register(self::$m(...)); spl_autoload_register($f(...)); } }",
+		"other receiver":  "<?php final class L { function load($c) { strpos($c, 'Acme'); } function reg($o) { spl_autoload_register($o->load(...)); spl_autoload_register($this?->load(...)); spl_autoload_register($$v->load(...)); spl_autoload_register([$o, 'load']); spl_autoload_register([parent::class, 'load']); spl_autoload_register([$this, $m]); spl_autoload_register([$this]); } }",
+		"other class":     "<?php final class L { static function load($c) { strpos($c, 'Acme'); } } spl_autoload_register(Other::load(...)); spl_autoload_register('Other::load'); spl_autoload_register([Other::class, 'load']); spl_autoload_register([L::{$k}, 'load']); spl_autoload_register(self::load(...)); new class { function load($c) { strpos($c, 'Acme'); } function r() { spl_autoload_register($this->load(...)); } };",
+		"other kind":      "<?php function zed($s) { strpos($s, 'Zed'); } final class L { function load($c) { strpos($c, 'Acme'); } } spl_autoload_register(load(...)); spl_autoload_register('load'); spl_autoload_register([L::class, 'zed']);",
+		"other argument":  "<?php function load($c) { strpos($c, 'Acme'); } spl_autoload_register(prepend: true, throw: load(...)); spl_autoload_register(fn () => 1, load(...));",
 	} {
 		fs := index.Extract(syntax.Parse("b.php", []byte(src), syntax.Options{}))
 		if fs.Phar || fs.AutoloadPrefixes != nil {
@@ -191,11 +195,19 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		"closure": `<?php spl_autoload_register(function ($c) {
 	if (strpos($c, '\\Acme\\') === 0 || \str_starts_with($c, 'ACME\\') || strpos($c, $x) || strpos($c) || strpos($c, '\\') || strpos($c, '_A') || Foo::strpos($c, 'x') || strpos($c, ...$a) || in_array($c, ['Acme']) || strpos($other, 'Other') || strpos(...$c)) {}
 });`,
-		"method":         `<?php namespace Tool; final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register([Loader::class, 'load']);`,
-		"static string":  `<?php final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register('Loader::load');`,
-		"first-class":    `<?php final class Loader { function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register($this->load(...)); spl_autoload_register(self::load(...)); } }`,
-		"function first": `<?php function acme_load($class) { strpos($class, 'Acme\\'); } spl_autoload_register(acme_load(...));`,
-		"function":       `<?php function acme_load($class) { str_starts_with($class, 'Acme\\'); } function other($s) { strpos($s, 'Zed'); } spl_autoload_register('acme_load');`,
+		"method":          `<?php namespace Tool; final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register([Loader::class, 'load']);`,
+		"static string":   `<?php final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register('Loader::load');`,
+		"this method":     `<?php function load($s) { strpos($s, 'Zed'); } final class Loader { function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register($this->load(...)); } }`,
+		"self method":     `<?php namespace Tool; final class Loader { static function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register(self::load(...)); } }`,
+		"named class":     `<?php namespace Tool; final class Loader { static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register(\Tool\Loader::load(...));`,
+		"array this":      `<?php final class Loader { function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register([$this, 'load']); } }`,
+		"array new":       `<?php final class Loader { function load($class) { strpos($class, 'Acme\\'); } static function register() { spl_autoload_register([new static(), 'load']); } }`,
+		"array magic":     `<?php final class Loader { function load($class) { strpos($class, 'Acme\\'); } function register() { spl_autoload_register([__CLASS__, 'load']); } }`,
+		"array string":    `<?php final class Loader { static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register(['\Loader', 'load']);`,
+		"named argument":  `<?php function acme_load($class) { strpos($class, 'Acme\\'); } spl_autoload_register(prepend: true, callback: 'acme_load');`,
+		"function first":  `<?php namespace Tool; function acme_load($class) { strpos($class, 'Acme\\'); } spl_autoload_register(acme_load(...));`,
+		"global fallback": `<?php namespace Tool { spl_autoload_register(acme_load(...)); } namespace { function acme_load($class) { strpos($class, 'Acme\\'); } }`,
+		"function":        `<?php function acme_load($class) { str_starts_with($class, 'Acme\\'); } function other($s) { strpos($s, 'Zed'); } spl_autoload_register('acme_load');`,
 	} {
 		fs := index.Extract(syntax.Parse("l.php", []byte(src), syntax.Options{}))
 		if !slices.Equal(fs.AutoloadPrefixes, []string{`acme\`}) {

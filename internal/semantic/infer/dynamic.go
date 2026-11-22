@@ -19,7 +19,7 @@ import (
 func (e *Env) noteDynamic(n syntax.Node, sv *scopeVars) {
 	switch n := n.(type) {
 	case *syntax.FuncCall:
-		if isFirstClassCallable(n.Args) {
+		if n.Args.FirstClassCallable() {
 			return
 		}
 		f := e.ResolveFunction(n)

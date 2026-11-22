@@ -61,7 +61,7 @@ func (e *Env) assertsOf(x syntax.Expr) *callAsserts {
 func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 	switch n := x.(type) {
 	case *syntax.FuncCall:
-		if isFirstClassCallable(n.Args) {
+		if n.Args.FirstClassCallable() {
 			return nil
 		}
 		f := e.ResolveFunction(n)
@@ -71,7 +71,7 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 		return &callAsserts{asserts: f.Asserts, params: f.Params, ft: f.Tpl, args: n.Args}
 	case *syntax.MethodCall:
 		id, ok := n.Name.(*syntax.Identifier)
-		if !ok || isFirstClassCallable(n.Args) {
+		if !ok || n.Args.FirstClassCallable() {
 			return nil
 		}
 		recv := e.TypeOf(n.Var)
@@ -95,7 +95,7 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 	}
 	n := x.(*syntax.StaticCall) // assertsOf admits only the three call kinds
 	id, ok := n.Name.(*syntax.Identifier)
-	if !ok || isFirstClassCallable(n.Args) {
+	if !ok || n.Args.FirstClassCallable() {
 		return nil
 	}
 	cls := e.classRef(n.Class)
