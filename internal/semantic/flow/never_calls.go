@@ -26,10 +26,8 @@ func (e *Env) never(call syntax.Node) bool {
 			return false
 		}
 	}
-	if list != nil && len(list.Args) == 1 {
-		if _, callable := list.Args[0].(*syntax.VariadicPlaceholder); callable {
-			return false
-		}
+	if list.FirstClassCallable() {
+		return false
 	}
 	declared, name := "", ""
 	if fn, ok := call.(*syntax.FuncCall); ok {

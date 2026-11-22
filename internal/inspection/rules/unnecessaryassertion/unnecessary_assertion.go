@@ -339,13 +339,13 @@ func uaDeclaredReturn(ctx *analysis.Context, e syntax.Expr) (types.Type, bool) {
 	switch x := e.(type) {
 	case *syntax.FuncCall:
 		f := ctx.Types().ResolveFunction(x)
-		if f == nil || uaFirstClassCallable(x.Args) {
+		if f == nil || x.Args.FirstClassCallable() {
 			return types.Unknown, false
 		}
 		ret, doc = f.Return, f.DocReturn
 	case *syntax.MethodCall, *syntax.StaticCall:
 		c, ok := phpunit.AsPuCall(x)
-		if !ok || uaFirstClassCallable(c.Args) {
+		if !ok || c.Args.FirstClassCallable() {
 			return types.Unknown, false
 		}
 		if mc, ok := x.(*syntax.MethodCall); ok {
@@ -406,16 +406,6 @@ func uaDeclaredReturn(ctx *analysis.Context, e syntax.Expr) (types.Type, bool) {
 		t = types.Of(atoms...)
 	}
 	return t, true
-}
-
-// uaFirstClassCallable reports whether list is the `(...)` of a first-class
-// callable: such an expression yields a Closure, not the call's result.
-func uaFirstClassCallable(list *syntax.ArgList) bool {
-	if list == nil || len(list.Args) != 1 {
-		return false
-	}
-	_, ok := list.Args[0].(*syntax.VariadicPlaceholder)
-	return ok
 }
 
 // uaInternalTypeMatches reports whether a value of the single declared type

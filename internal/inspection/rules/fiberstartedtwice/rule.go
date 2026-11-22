@@ -38,11 +38,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // fiberStartCallable recognizes `$fiber->start(...)`, which only creates a
 // closure and starts nothing.
 func fiberStartCallable(c *syntax.MethodCall) bool {
-	if c.Args == nil || len(c.Args.Args) != 1 {
-		return false
-	}
-	_, callable := c.Args.Args[0].(*syntax.VariadicPlaceholder)
-	return callable
+	return c.Args.FirstClassCallable()
 }
 
 // fiberStartRebound reports whether the receiver variable of second may hold

@@ -22,10 +22,8 @@ func (e *Env) BuiltinAssert(call *syntax.FuncCall) bool {
 	if f == nil || !f.Builtin || !strings.EqualFold(f.FQN, "assert") {
 		return false
 	}
-	if call.Args != nil && len(call.Args.Args) == 1 {
-		if _, closure := call.Args.Args[0].(*syntax.VariadicPlaceholder); closure {
-			return false
-		}
+	if call.Args.FirstClassCallable() {
+		return false
 	}
 	return true
 }

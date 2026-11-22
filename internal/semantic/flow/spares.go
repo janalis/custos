@@ -34,11 +34,9 @@ func (e *Env) Spares(call syntax.Node) bool {
 func (e *Env) spares(call syntax.Node, followed uint8, within bool) bool {
 	ix := e.types.Index
 	if list := arguments(call); list != nil {
-		if len(list.Args) == 1 {
-			if _, callable := list.Args[0].(*syntax.VariadicPlaceholder); callable {
-				// `f(...)` only makes a closure: nothing is called.
-				return true
-			}
+		if list.FirstClassCallable() {
+			// `f(...)` only makes a closure: nothing is called.
+			return true
 		}
 		if shares(list) {
 			return false

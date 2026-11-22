@@ -117,11 +117,7 @@ func debugCallableSyntax(n syntax.Node) bool {
 	case *syntax.StaticCall:
 		args = x.Args
 	}
-	if args == nil || len(args.Args) != 1 {
-		return false
-	}
-	_, ok := args.Args[0].(*syntax.VariadicPlaceholder)
-	return ok
+	return args.FirstClassCallable()
 }
 
 // debugHasEntry compares case-insensitively: PHP function, class and method

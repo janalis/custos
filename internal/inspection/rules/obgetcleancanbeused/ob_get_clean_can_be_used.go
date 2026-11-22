@@ -81,11 +81,7 @@ func (obGetCleanCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 // isCallableRef reports whether c is the first-class callable `f(...)`, which
 // creates a closure instead of calling f.
 func isCallableRef(c *syntax.FuncCall) bool {
-	if len(c.Args.Args) != 1 {
-		return false
-	}
-	_, ok := c.Args.Args[0].(*syntax.VariadicPlaceholder)
-	return ok
+	return c.Args.FirstClassCallable()
 }
 
 // evaluation classifies how get is evaluated inside the statement ps. always

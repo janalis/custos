@@ -118,16 +118,14 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	if receiver != nil {
 		rv = e.eval(receiver, f, r, depth+chainDepth(receiver))
 	}
-	if args != nil && len(args.Args) == 1 {
-		if _, callable := args.Args[0].(*syntax.VariadicPlaceholder); callable {
-			// `f(...)` only makes a closure: nothing is called.
-			e.captureCallable(n, rv, f, r)
-			value := Value{Complete: true, Expr: n.(syntax.Expr), plain: true, deep: true}
-			if _, known := r.callables[value.Expr]; known || r.boundMethods[value.Expr] != nil {
-				value.setTargets(oneCallableTarget(value.Expr))
-			}
-			return value
+	if args.FirstClassCallable() {
+		// `f(...)` only makes a closure: nothing is called.
+		e.captureCallable(n, rv, f, r)
+		value := Value{Complete: true, Expr: n.(syntax.Expr), plain: true, deep: true}
+		if _, known := r.callables[value.Expr]; known || r.boundMethods[value.Expr] != nil {
+			value.setTargets(oneCallableTarget(value.Expr))
 		}
+		return value
 	}
 	followed := followTyped
 	closedFollowed := followTyped
