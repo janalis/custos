@@ -85,7 +85,11 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 				x.out.Constants = append(x.out.Constants, &Constant{FQN: fqn, Value: x.text(c.Value), ValueType: constArrayDoc(c.Value, nil), File: f.Path, Span: c.Span()})
 			}
 		case *syntax.FuncCall:
-			if x.declarationBuiltin(n, nil) != "" {
+			switch x.declarationBuiltin(n, nil) {
+			case "":
+			case prefixTest:
+				x.loaderTest(n)
+			default:
 				calls = append(calls, n)
 			}
 
@@ -106,6 +110,10 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 		}
 		return true
 	})
+	// Rare: mark the loaders naming a phar.
+	if len(x.out.Loaders) > 0 && bytes.Contains(f.Src, pharScheme) {
+		x.pharLoaders()
+	}
 	if len(calls) > 0 {
 		declared := make(map[string]bool, len(x.out.Functions))
 		for _, fn := range x.out.Functions {
@@ -142,17 +150,24 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 	return x.out
 }
 
-// maxAutoloadPrefixes caps the prefixes kept for one file.
+// maxAutoloadPrefixes caps the prefixes kept for one file, or for one of
+// its loaders, and the callbacks kept for one file.
 const maxAutoloadPrefixes = 16
 
+// pharScheme starts a path inside a phar.
+var pharScheme = []byte("phar://")
+
 // autoloaders reads the callbacks the spl_autoload_register() calls of the
-// file register (closures, arrow functions, and functions or methods of
-// the file named by a string, an array or a first-class callable): the
-// class name prefixes they test, and whether they name a phar.
+// file register: for closures and arrow functions, the class name
+// prefixes they test and whether they name a phar; for functions and
+// methods named by a string, an array or a first-class callable, which
+// one (see Index.LoaderFacts).
 func (x *extractor) autoloaders(calls []*syntax.FuncCall) {
-	decls := x.callables()
 	for _, call := range calls {
-		body, param := x.callback(call, decls)
+		body, param, k := x.callback(call)
+		if k != "" && len(x.out.AutoloadCallbacks) < maxAutoloadPrefixes && !slices.Contains(x.out.AutoloadCallbacks, k) {
+			x.out.AutoloadCallbacks = append(x.out.AutoloadCallbacks, k)
+		}
 		if body == nil {
 			continue
 		}
@@ -164,30 +179,73 @@ func (x *extractor) autoloaders(calls []*syntax.FuncCall) {
 				}
 			case *syntax.Literal, *syntax.InterpolatedString:
 				sp := n.Span()
-				x.out.Phar = x.out.Phar || bytes.Contains(x.f.Src[sp.Start:sp.End], []byte("phar://"))
+				x.out.Phar = x.out.Phar || bytes.Contains(x.f.Src[sp.Start:sp.End], pharScheme)
 			}
 			return true
 		})
 	}
 }
 
-// callables maps the functions (by lower-case FQN) and the methods of
-// named classes (by lower-case `class FQN::method`) the file declares to
-// their declarations.
-func (x *extractor) callables() map[string]syntax.Node {
-	decls := map[string]syntax.Node{}
+// prefixTest is what declarationBuiltin returns for strpos() and
+// str_starts_with(), which a loader tests its class name with.
+const prefixTest = "prefix test"
+
+// callableKey returns the Loaders key of a named function or method
+// declaration ("" for another node, or a method of an anonymous class).
+func (x *extractor) callableKey(n syntax.Node) string {
+	switch d := n.(type) {
+	case *syntax.Function:
+		return key(join(x.r.Namespace(d.Span().Start), d.Name.Value))
+	case *syntax.Method:
+		if c := x.classFQN(d); c != "" {
+			return c + "::" + key(d.Name.Value)
+		}
+	}
+	return ""
+}
+
+// loaderTest records the prefix call tests, when it tests the first
+// parameter of the named function or method it lies in for a literal one.
+func (x *extractor) loaderTest(call *syntax.FuncCall) {
+	fn := syntax.EnclosingFuncLike(call)
+	params := syntax.FuncLikeParams(fn)
+	if len(params) == 0 || params[0].Var == nil {
+		return
+	}
+	p, ok := prefixTested(call, params[0].Var.Name)
+	k := ""
+	if ok {
+		k = x.callableKey(fn)
+	}
+	if k == "" {
+		return
+	}
+	if x.out.Loaders == nil {
+		x.out.Loaders = map[string]*Loader{}
+	}
+	l := x.out.Loaders[k]
+	if l == nil {
+		l = &Loader{}
+		x.out.Loaders[k] = l
+	}
+	if len(l.Prefixes) < maxAutoloadPrefixes && !slices.Contains(l.Prefixes, p) {
+		l.Prefixes = append(l.Prefixes, p)
+	}
+}
+
+// pharLoaders marks the loaders of the file with a string naming a phar.
+func (x *extractor) pharLoaders() {
 	syntax.InspectFile(x.f, func(n syntax.Node) bool {
-		switch n := n.(type) {
-		case *syntax.Function:
-			decls[strings.ToLower(join(x.r.Namespace(n.Span().Start), n.Name.Value))] = n
-		case *syntax.Method:
-			if c := x.classFQN(n); c != "" {
-				decls[c+"::"+strings.ToLower(n.Name.Value)] = n
+		switch n.(type) {
+		case *syntax.Literal, *syntax.InterpolatedString:
+			sp := n.Span()
+			if l := x.out.Loaders[x.callableKey(syntax.EnclosingFuncLike(n))]; l != nil && bytes.Contains(x.f.Src[sp.Start:sp.End], pharScheme) {
+				l.Phar = true
 			}
+			return false
 		}
 		return true
 	})
-	return decls
 }
 
 // join qualifies name with namespace ns.
@@ -198,19 +256,19 @@ func join(ns, name string) string {
 	return ns + `\` + name
 }
 
-// classFQN returns, lower case, the FQN of the named class n lies in (""
-// outside one or in an anonymous class).
+// classFQN returns the key of the named class n lies in ("" outside one
+// or in an anonymous class).
 func (x *extractor) classFQN(n syntax.Node) string {
 	c := syntax.EnclosingClass(n)
 	if c == nil || c.Name == nil {
 		return ""
 	}
-	return strings.ToLower(join(x.r.Namespace(c.Span().Start), c.Name.Value))
+	return key(join(x.r.Namespace(c.Span().Start), c.Name.Value))
 }
 
-// classOf returns, lower case, the FQN of the class e names in a callable
-// written at call: `$this`, `self`, `static`, `__CLASS__`, a name, a
-// `::class` fetch, a `new` or a string ("" when unknown).
+// classOf returns the key of the class e names in a callable written at
+// call: `$this`, `self`, `static`, `__CLASS__`, a name, a `::class`
+// fetch, a `new` or a string ("" when unknown).
 func (x *extractor) classOf(e syntax.Expr, call syntax.Node) string {
 	switch v := e.(type) {
 	case *syntax.Variable:
@@ -228,7 +286,7 @@ func (x *extractor) classOf(e syntax.Expr, call syntax.Node) string {
 		case "parent":
 			return ""
 		}
-		return strings.ToLower(x.r.Class(v.Value, v.Span().Start))
+		return key(x.r.Class(v.Value, v.Span().Start))
 	case *syntax.ClassConstFetch:
 		if id, ok := v.Name.(*syntax.Identifier); ok && strings.EqualFold(id.Value, "class") {
 			return x.classOf(v.Class, call)
@@ -237,18 +295,17 @@ func (x *extractor) classOf(e syntax.Expr, call syntax.Node) string {
 		return x.classOf(v.Class, call)
 	case *syntax.Literal:
 		s, _ := syntax.LiteralStringValue(v)
-		return strings.ToLower(strings.TrimPrefix(s, `\`))
+		return key(s)
 	}
 	return ""
 }
 
-// callback returns the declaration of the callable the
-// spl_autoload_register() call registers and the name of its parameter
-// receiving the class name (nil when the callable is not one of the
-// file's, or takes no parameter). A function or method is the file's
-// own when the callable names it exactly: a function by its name, a
-// method by its class (`$this`, `self::`, a class name) and its name.
-func (x *extractor) callback(call *syntax.FuncCall, decls map[string]syntax.Node) (syntax.Node, string) {
+// callback returns what the spl_autoload_register() call registers: a
+// closure or arrow function with the name of its parameter receiving the
+// class name, or the key of the function or method it names exactly (an
+// AutoloadCallbacks entry): a function by its name, a method by its class
+// (`$this`, `self::`, a class name) and its name.
+func (x *extractor) callback(call *syntax.FuncCall) (body syntax.Node, param, k string) {
 	var callable syntax.Expr
 	for i, a := range call.Args.Args {
 		arg, ok := a.(*syntax.Arg)
@@ -256,63 +313,51 @@ func (x *extractor) callback(call *syntax.FuncCall, decls map[string]syntax.Node
 			callable = arg.Value
 		}
 	}
-	param := func(params []*syntax.Param) string {
-		if len(params) == 0 || params[0].Var == nil {
+	method := func(class, name string) string {
+		if class == "" {
 			return ""
 		}
-		return params[0].Var.Name
-	}
-	var keys []string // candidate declarations, in order
-	method := func(class, name string) {
-		if class != "" {
-			keys = append(keys, class+"::"+strings.ToLower(name))
-		}
+		return class + "::" + key(name)
 	}
 	switch v := callable.(type) {
-	case *syntax.Closure:
-		return v, param(v.Params)
-	case *syntax.ArrowFunction:
-		return v, param(v.Params)
+	case *syntax.Closure, *syntax.ArrowFunction:
+		if params := syntax.FuncLikeParams(v); len(params) > 0 && params[0].Var != nil {
+			param = params[0].Var.Name
+		}
+		return v, param, ""
 	case *syntax.Literal: // 'fn' or 'Cls::method'
 		s, _ := syntax.LiteralStringValue(v)
-		s = strings.TrimPrefix(s, `\`)
 		if class, name, ok := strings.Cut(s, "::"); ok {
-			method(strings.ToLower(class), name)
-		} else {
-			keys = append(keys, strings.ToLower(s))
+			return nil, "", method(key(class), name)
 		}
+		return nil, "", key(s)
 	case *syntax.Array: // [$this, 'method'], [Cls::class, 'method']
 		if len(v.Items) == 2 && v.Items[0] != nil && v.Items[1] != nil {
 			if lit, ok := v.Items[1].Value.(*syntax.Literal); ok {
 				name, _ := syntax.LiteralStringValue(lit)
-				method(x.classOf(v.Items[0].Value, call), name)
+				return nil, "", method(x.classOf(v.Items[0].Value, call), name)
 			}
 		}
-	case *syntax.FuncCall: // load(...)
+	case *syntax.FuncCall: // load(...): the namespaced function, else the global one
 		if n, ok := v.Name.(*syntax.Name); ok && v.Args.FirstClassCallable() {
 			fqn, fallback := x.r.Function(n.Value, n.Span().Start)
-			keys = append(keys, strings.ToLower(fqn), strings.ToLower(fallback))
+			if k = key(fqn); fallback != "" {
+				k += "|" + key(fallback)
+			}
+			return nil, "", k
 		}
 	case *syntax.MethodCall: // $this->load(...)
 		if id, ok := v.Name.(*syntax.Identifier); ok && !v.NullSafe && v.Args.FirstClassCallable() {
 			if self, ok := v.Var.(*syntax.Variable); ok && self.Name == "this" && self.NameExpr == nil {
-				method(x.classFQN(call), id.Value)
+				return nil, "", method(x.classFQN(call), id.Value)
 			}
 		}
 	case *syntax.StaticCall: // self::load(...), Cls::load(...)
 		if id, ok := v.Name.(*syntax.Identifier); ok && v.Args.FirstClassCallable() {
-			method(x.classOf(v.Class, call), id.Value)
+			return nil, "", method(x.classOf(v.Class, call), id.Value)
 		}
 	}
-	for _, k := range keys {
-		switch d := decls[k].(type) {
-		case *syntax.Function:
-			return d, param(d.Params)
-		case *syntax.Method:
-			return d, param(d.Params)
-		}
-	}
-	return nil, ""
+	return nil, "", ""
 }
 
 // minAutoloadPrefix is the shortest prefix kept: shorter ones (`\`, `_`)
@@ -342,8 +387,10 @@ func prefixTested(call *syntax.FuncCall, param string) (string, bool) {
 	if v, ok := haystack.(*syntax.Variable); !ok || v.Name != param {
 		return "", false
 	}
+	// Decoding never lengthens a quoted string: a short one is rejected
+	// before.
 	lit, ok := needle.(*syntax.Literal)
-	if !ok {
+	if !ok || len(lit.Raw) < minAutoloadPrefix+2 {
 		return "", false
 	}
 	v, _ := syntax.LiteralStringValue(lit)

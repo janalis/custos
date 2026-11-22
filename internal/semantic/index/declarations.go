@@ -69,6 +69,8 @@ func (x *extractor) declarationBuiltin(call *syntax.FuncCall, declared map[strin
 		return "class_alias"
 	case "spl_autoload_register":
 		return "spl_autoload_register"
+	case "strpos", "str_starts_with":
+		return prefixTest
 	}
 	return ""
 }

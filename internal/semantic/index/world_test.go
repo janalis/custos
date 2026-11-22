@@ -165,6 +165,29 @@ func BenchmarkWorldDependency(b *testing.B) {
 // TestExtractAutoloaders: the namespaces registering autoloaders, once
 // each; what their callbacks test the class name for, and whether they
 // name a phar.
+// loaded returns the class name prefixes the autoloaders of the first of
+// files load, with those of the callbacks the files declare, and whether
+// one names a phar.
+func loaded(files ...string) (prefixes []string, phar bool) {
+	ix := index.New(stubs.Index())
+	var fs *index.FileSymbols
+	for i, src := range files {
+		f := index.Extract(syntax.Parse(fmt.Sprintf("f%d.php", i), []byte(src), syntax.Options{}))
+		ix.Add(f)
+		if i == 0 {
+			fs = f
+		}
+	}
+	prefixes, phar = fs.AutoloadPrefixes, fs.Phar
+	for _, k := range fs.AutoloadCallbacks {
+		if l := ix.LoaderFacts(k); l != nil {
+			prefixes = append(prefixes, l.Prefixes...)
+			phar = phar || l.Phar
+		}
+	}
+	return prefixes, phar
+}
+
 func TestExtractAutoloaders(t *testing.T) {
 	src := `<?php
 namespace Tool { spl_autoload_register(fn ($c) => 1); \spl_autoload_register(fn ($c) => "phar://{$c}"); }
@@ -183,10 +206,12 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		"other class":     "<?php final class L { static function load($c) { strpos($c, 'Acme'); } } spl_autoload_register(Other::load(...)); spl_autoload_register('Other::load'); spl_autoload_register([Other::class, 'load']); spl_autoload_register([L::{$k}, 'load']); spl_autoload_register(self::load(...)); new class { function load($c) { strpos($c, 'Acme'); } function r() { spl_autoload_register($this->load(...)); } };",
 		"other kind":      "<?php function zed($s) { strpos($s, 'Zed'); } final class L { function load($c) { strpos($c, 'Acme'); } } spl_autoload_register(load(...)); spl_autoload_register('load'); spl_autoload_register([L::class, 'zed']);",
 		"other argument":  "<?php function load($c) { strpos($c, 'Acme'); } spl_autoload_register(prepend: true, throw: load(...)); spl_autoload_register(fn () => 1, load(...));",
+		"not a loader":    "<?php $p = 'phar://x'; function load() { strpos($c, 'Acme'); } function other($c) { strpos($x, 'Acme'); $f = function ($c) { strpos($c, 'Acme'); }; } new class { function load($c) { strpos($c, 'Acme'); } }; spl_autoload_register('load'); spl_autoload_register('other');",
+		"parent cycle":    "<?php class A extends B {} class B extends A {} spl_autoload_register([A::class, 'load']);",
+		"builtin":         "<?php spl_autoload_register('strlen');",
 	} {
-		fs := index.Extract(syntax.Parse("b.php", []byte(src), syntax.Options{}))
-		if fs.Phar || fs.AutoloadPrefixes != nil {
-			t.Errorf("%s: prefixes %q, phar %v", name, fs.AutoloadPrefixes, fs.Phar)
+		if prefixes, phar := loaded(src); phar || prefixes != nil {
+			t.Errorf("%s: prefixes %q, phar %v", name, prefixes, phar)
 		}
 	}
 	// The prefixes a registered callback tests its class name for, by
@@ -209,9 +234,25 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		"global fallback": `<?php namespace Tool { spl_autoload_register(acme_load(...)); } namespace { function acme_load($class) { strpos($class, 'Acme\\'); } }`,
 		"function":        `<?php function acme_load($class) { str_starts_with($class, 'Acme\\'); } function other($s) { strpos($s, 'Zed'); } spl_autoload_register('acme_load');`,
 	} {
-		fs := index.Extract(syntax.Parse("l.php", []byte(src), syntax.Options{}))
-		if !slices.Equal(fs.AutoloadPrefixes, []string{`acme\`}) {
-			t.Errorf("%s: prefixes %q", name, fs.AutoloadPrefixes)
+		if prefixes, _ := loaded(src); !slices.Equal(prefixes, []string{`acme\`}) {
+			t.Errorf("%s: prefixes %q", name, prefixes)
+		}
+	}
+	// A callback declared elsewhere: in another file, or by a parent
+	// class; its phar only when it names one.
+	for name, files := range map[string][]string{
+		"other file": {
+			`<?php spl_autoload_register([Acme\Loader::class, 'load']);`,
+			`<?php namespace Acme; final class Loader { static function load($class) { if (strpos($class, 'Acme\\') === 0) { require "phar://acme.phar/{$class}.php"; } } static function other($c) { strpos($c, 'Zed'); } }`,
+		},
+		"inherited": {
+			`<?php final class Loader extends Base { function register() { spl_autoload_register([$this, 'load']); } }`,
+			`<?php class Base { function load($class) { strpos($class, 'Acme\\'); } function path() { return 'phar://x'; } } class Root {}`,
+		},
+	} {
+		prefixes, phar := loaded(files...)
+		if !slices.Equal(prefixes, []string{`acme\`}) || phar != (name == "other file") {
+			t.Errorf("%s: prefixes %q, phar %v", name, prefixes, phar)
 		}
 	}
 	var many strings.Builder
@@ -222,6 +263,19 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 	many.WriteString(" });")
 	if fs := index.Extract(syntax.Parse("m.php", []byte(many.String()), syntax.Options{})); len(fs.AutoloadPrefixes) != 16 {
 		t.Errorf("%d prefixes kept", len(fs.AutoloadPrefixes))
+	}
+	many.Reset()
+	many.WriteString("<?php spl_autoload_register('load'); function load($c) {")
+	for i := range 20 {
+		fmt.Fprintf(&many, " strpos($c, 'Pre%d'); strpos($c, 'Pre%d');", i, i)
+		fmt.Fprintf(&many, " spl_autoload_register('f%d');", i)
+	}
+	many.WriteString(" }")
+	if prefixes, _ := loaded(many.String()); len(prefixes) != 16 {
+		t.Errorf("%d loader prefixes kept", len(prefixes))
+	}
+	if fs := index.Extract(syntax.Parse("m.php", []byte(many.String()), syntax.Options{})); len(fs.AutoloadCallbacks) != 16 {
+		t.Errorf("%d callbacks kept", len(fs.AutoloadCallbacks))
 	}
 	ix := index.New(nil)
 	ix.Add(index.Extract(syntax.Parse("c.php", []byte(src), syntax.Options{})))

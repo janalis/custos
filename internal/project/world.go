@@ -49,7 +49,7 @@ func ComposerWorld(root string, scope, indexed []string, skipped Skipped, ix *in
 		}
 	}
 	symbols := func(name string) *index.FileSymbols { return ix.Symbols(keys[name]) }
-	w := composerWorld(read, symbols, rel(scope), relIndexed, Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
+	w := composerWorld(read, symbols, ix.LoaderFacts, rel(scope), relIndexed, Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
 	// Absolute like the other fields' base: index paths may be written
 	// either way (see index.World.Dependency).
 	w.Vendor = filepath.Join(absRoot, vendorDir(root))
@@ -144,7 +144,7 @@ func dirs(raw json.RawMessage) []string {
 // skipped, are blind; below a PSR-4 directory, so are the namespaces a
 // skipped directory maps, sub-namespaces included, and, exactly, those of
 // the directories holding files the walks or the indexing left out.
-func composerWorld(read func(string) ([]byte, error), symbols func(string) *index.FileSymbols, scope, indexed []string, skipped Skipped) index.World {
+func composerWorld(read func(string) ([]byte, error), symbols func(string) *index.FileSymbols, loader func(string) *index.Loader, scope, indexed []string, skipped Skipped) index.World {
 	b, err := read("composer.json")
 	if err != nil {
 		return index.World{}
@@ -271,9 +271,9 @@ func composerWorld(read func(string) ([]byte, error), symbols func(string) *inde
 			// A package's file registering an autoloader loads classes from
 			// where the index does not look (PHPStan's from its phar,
 			// Rector's from its own vendor directory): the class name
-			// prefixes it tests and the namespace it registers in are
-			// unseen, and when the file names a phar, it hosts the code
-			// written for it. A global autoloader hides no other name: it
+			// prefixes its callbacks test, wherever they are declared, and
+			// the namespace it registers in are unseen, and when a callback
+			// names a phar, it hosts the code written for it. A global autoloader hides no other name: it
 			// would hide every one.
 			if own {
 				continue
@@ -283,12 +283,19 @@ func composerWorld(read func(string) ([]byte, error), symbols func(string) *inde
 				continue
 			}
 			w.AutoloadedClasses = append(w.AutoloadedClasses, fs.AutoloadPrefixes...)
+			phar := fs.Phar
+			for _, k := range fs.AutoloadCallbacks {
+				if l := loader(k); l != nil {
+					w.AutoloadedClasses = append(w.AutoloadedClasses, l.Prefixes...)
+					phar = phar || l.Phar
+				}
+			}
 			for _, ns := range fs.Autoloaders {
 				if ns == "" {
 					continue
 				}
 				w.AutoloadedClasses = append(w.AutoloadedClasses, ns)
-				if fs.Phar {
+				if phar {
 					w.Hosts = append(w.Hosts, ns)
 				}
 			}

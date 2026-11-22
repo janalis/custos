@@ -236,3 +236,44 @@ func ClassWord(name string) string {
 	}
 	return strings.ToLower(name)
 }
+
+// maxLoaderParents bounds the parent classes LoaderFacts climbs (a cycle
+// of declarations cannot hold it).
+const maxLoaderParents = 32
+
+// LoaderFacts returns what the callable k, an AutoloadCallbacks entry,
+// would load as an autoloader (its Loader facts): those of the function,
+// or of the method as the class or its nearest parent declaring it does.
+// Nothing when the index does not declare the callable.
+func (ix *Index) LoaderFacts(k string) *Loader {
+	if class, method, ok := strings.Cut(k, "::"); ok {
+		c := ix.Class(class, 0)
+		for range maxLoaderParents {
+			if c == nil {
+				return nil
+			}
+			if c.Methods[method] != nil {
+				return ix.loader(c.File, key(c.FQN)+"::"+method)
+			}
+			c = ix.Class(c.Parent, 0)
+		}
+		return nil
+	}
+	for alt := range strings.SplitSeq(k, "|") {
+		if f := ix.Function(alt, 0); f != nil {
+			return ix.loader(f.File, alt)
+		}
+	}
+	return nil
+}
+
+// loader returns the Loader facts of callable k declared in the file at
+// path (none when the file has no loader, or was removed since the
+// declaration was found).
+func (ix *Index) loader(path, k string) *Loader {
+	fs := ix.Symbols(path)
+	if fs == nil || fs.Loaders == nil {
+		return nil
+	}
+	return fs.Loaders[k]
+}

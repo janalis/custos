@@ -152,24 +152,31 @@ func BenchmarkExtractDeclarationCalls(b *testing.B) {
 }
 
 // BenchmarkExtractStringTests: a file full of string literals and strpos()
-// tests, with and without an autoloader (whose tested prefixes are read).
+// tests of functions' first parameters (by short needles, or by ones long
+// enough to be loader prefixes), with and without an autoloader.
 func BenchmarkExtractStringTests(b *testing.B) {
-	for _, loader := range []bool{false, true} {
-		b.Run(fmt.Sprintf("autoloader=%v", loader), func(b *testing.B) {
-			var src strings.Builder
-			src.WriteString("<?php namespace App;\n")
-			if loader {
-				src.WriteString("spl_autoload_register(fn ($c) => null);\n")
-			}
-			for i := range 1000 {
-				fmt.Fprintf(&src, "function f%d($s) { return strpos($s, 'P%d') === 0 ? 'yes' : \"no\"; }\n", i, i%8)
-			}
-			f := syntax.Parse("bench.php", []byte(src.String()), syntax.Options{Version: phpversion.PHP85})
-			b.ReportAllocs()
-			b.ResetTimer()
-			for b.Loop() {
-				Extract(f)
-			}
-		})
+	for _, needle := range []string{"P", "Prefix"} {
+		for _, loader := range []bool{false, true} {
+			b.Run(fmt.Sprintf("needle=%s/autoloader=%v", needle, loader), func(b *testing.B) {
+				benchmarkExtractStringTests(b, needle, loader)
+			})
+		}
+	}
+}
+
+func benchmarkExtractStringTests(b *testing.B, needle string, loader bool) {
+	var src strings.Builder
+	src.WriteString("<?php namespace App;\n")
+	if loader {
+		src.WriteString("spl_autoload_register(fn ($c) => null);\n")
+	}
+	for i := range 1000 {
+		fmt.Fprintf(&src, "function f%d($s) { return strpos($s, '%s%d') === 0 ? 'yes' : \"no\"; }\n", i, needle, i%8)
+	}
+	f := syntax.Parse("bench.php", []byte(src.String()), syntax.Options{Version: phpversion.PHP85})
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		Extract(f)
 	}
 }

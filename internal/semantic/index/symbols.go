@@ -336,6 +336,13 @@ type TypeImport struct {
 	Name string `json:"name"`
 }
 
+// Loader is what a function or method would load as an autoloader: the
+// class name prefixes it tests (lower case), and whether it names a phar.
+type Loader struct {
+	Prefixes []string `json:"prefixes"`
+	Phar     bool     `json:"phar,omitempty"`
+}
+
 // Class is a class, interface, trait or enum.
 type Class struct {
 	InterfacesVer    []VerInterfaces        `json:"ifacesVer,omitempty"`
@@ -505,13 +512,26 @@ type FileSymbols struct {
 	// spl_autoload_register(): it may load classes from where the index
 	// does not look.
 	Autoloaders []string `json:"autoloaders,omitempty"`
-	// AutoloadPrefixes lists, lower case, the class name prefixes a file
-	// registering an autoloader tests with a literal (`strpos($class,
-	// 'Rector\\') === 0`, str_starts_with()): the names it likely loads.
+	// AutoloadPrefixes lists, lower case, the class name prefixes the
+	// closures and arrow functions the file registers as autoloaders test
+	// with a literal (`strpos($class, 'Rector\\') === 0`,
+	// str_starts_with()): the names it likely loads.
 	AutoloadPrefixes []string `json:"autoloadPrefixes,omitempty"`
-	// Phar is set when a string literal of the file names a phar
-	// (`phar://`), a bundle of code the index does not read.
+	// Phar is set when a string of a closure or arrow function the file
+	// registers as an autoloader names a phar (`phar://`), a bundle of
+	// code the index does not read.
 	Phar bool `json:"phar,omitempty"`
+	// AutoloadCallbacks lists the callables the file's
+	// spl_autoload_register() calls register by name without the file
+	// declaring them: a lower-case `class::method` (the method may be
+	// inherited) or function FQN, alternatives separated by `|` (a
+	// namespaced function, then the global one). See Index.LoaderFacts.
+	AutoloadCallbacks []string `json:"autoloadCallbacks,omitempty"`
+	// Loaders maps the named functions and methods of the file (lower-case
+	// FQN, or `class::method`) that test their first parameter for a
+	// literal prefix, as an autoloader does with its class name, to what
+	// an autoloader registering them would load.
+	Loaders map[string]*Loader `json:"loaders,omitempty"`
 	// ClassAliasFallbacks records the namespaced function candidate for each
 	// provisional alias, keyed by its position in ClassAliases.
 	ClassAliasFallbacks map[int]string `json:"aliasFallbacks,omitempty"`

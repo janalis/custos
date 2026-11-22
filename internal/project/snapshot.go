@@ -559,7 +559,7 @@ func (s *Snapshot) world() index.World {
 		scope = s.Config.Paths
 	}
 	indexed := append(append([]string{}, s.OwnFiles...), s.Vendor...)
-	w := composerWorld(read, s.Index.Symbols, scope, indexed, s.unseen)
+	w := composerWorld(read, s.Index.Symbols, s.Index.LoaderFacts, scope, indexed, s.unseen)
 	w.Vendor = vendor.Vendor
 	return w
 }
