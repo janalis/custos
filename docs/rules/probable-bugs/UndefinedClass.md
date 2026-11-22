@@ -102,9 +102,10 @@ Reported:
   a phar, any name in a file written for the package (lying in, importing
   from, or extending or implementing a fully qualified name of that
   namespace, such as a PHPStan extension), which runs within the package
-  and the libraries it bundles. A name starting with a prefix such an
-  autoloader compares class names with (`strpos($class, 'RectorPrefix') ===
-  0`), wherever it is registered: Rector's loads its prefixed copies so.
+  and the libraries it bundles. A name starting with a prefix, of three
+  characters at least, that the callback such an autoloader registers
+  compares its class name with (`strpos($class, 'RectorPrefix') === 0`),
+  wherever it is registered: Rector's loads its prefixed copies so.
 - Names PHP does not load: `instanceof` and `catch` (they compare
   names; libraries use them for optional dependencies), parameter, return
   and property types (checked only against a value, and used for optional

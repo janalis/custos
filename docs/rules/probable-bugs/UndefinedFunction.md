@@ -86,15 +86,12 @@ Reported:
   belong to an extension the stubs lack. A global name without an
   underscore, or with the prefix of a known family (`str_contians()`), is
   still reported.
-- A name in a namespace whose package registers an autoloader, in that
-  namespace, from a file Composer loads (PHPStan's `PHPStan\`): it may load
-  classes from where the analysis does not look. When that autoloader loads
-  a phar, any name in a file written for the package (lying in, importing
-  from, or extending or implementing a fully qualified name of that
-  namespace, such as a PHPStan extension), which runs within the package
-  and the libraries it bundles. A name starting with a prefix such an
-  autoloader compares class names with (`strpos($class, 'RectorPrefix') ===
-  0`), wherever it is registered: Rector's loads its prefixed copies so.
+- Any name in a file written for a package whose autoloader, registered
+  in a namespace from a file Composer loads, loads a phar (PHPStan's
+  `PHPStan\`): a file lying in, importing from, or extending or
+  implementing a fully qualified name of that namespace, such as a PHPStan
+  extension, runs within the package and the libraries it bundles. An
+  autoloader loads classes only, so it hides no other function.
 - Dynamic calls (`$fn()`, `call_user_func('foo')`) and names in strings.
 
 ## Fix

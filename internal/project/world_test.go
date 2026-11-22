@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"maps"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/janalis/custos/internal/php/syntax"
 	"github.com/janalis/custos/internal/project/config"
 	"github.com/janalis/custos/internal/semantic/index"
+	"github.com/janalis/custos/internal/semantic/infer"
 )
 
 // worldFiles are the files of a project whose world is complete.
@@ -104,7 +106,7 @@ func TestComposerWorldPackageAutoloader(t *testing.T) {
 			files["vendor/acme/http/src/Client.php"] = src
 		}
 		w := composerWorld(reader(files), symbols(files), []string{"src", "lib"}, worldIndexed, worldSkipped)
-		if !w.Complete || w.Unseen(`PHPStan\Type\ObjectType`) != blind || len(w.Hosts) != 0 {
+		if !w.Complete || w.UnseenClass(`PHPStan\Type\ObjectType`) != blind || w.Unseen(`PHPStan\helper`) || len(w.Hosts) != 0 {
 			t.Errorf("%q: %+v", src, w)
 		}
 	}
@@ -113,7 +115,7 @@ func TestComposerWorldPackageAutoloader(t *testing.T) {
 	addPackage(files, `{"name": "acme/z", "install-path": "../acme/http", "autoload": {"files": ["src/Client.php"]}}`)
 	files["vendor/acme/http/src/Client.php"] = "<?php\nspl_autoload_register(function ($c) { if (strpos($c, 'RectorPrefix') === 0 || str_starts_with($c, 'Rector\\\\')) { require 'x.php'; } });\n"
 	w := composerWorld(reader(files), symbols(files), []string{"src", "lib"}, worldIndexed, worldSkipped)
-	if !w.Complete || !w.Unseen(`RectorPrefix202611\Foo`) || !w.Unseen(`Rector\Config\RectorConfig`) || w.Unseen(`Rectangle`) || w.Unseen(`App\Model`) {
+	if !w.Complete || !w.UnseenClass(`RectorPrefix202611\Foo`) || !w.UnseenClass(`Rector\Config\RectorConfig`) || w.UnseenClass(`Rectangle`) || w.UnseenClass(`App\Model`) || w.Unseen(`Rector\helper`) {
 		t.Errorf("prefixes: %+v", w)
 	}
 	// Loading from a phar, the package hosts code importing from it.
@@ -320,6 +322,33 @@ func TestComposerWorldVendorPathForms(t *testing.T) {
 			if got := w.Dependency(file); got != want {
 				t.Errorf("root %s: Dependency(%s) = %v, want %v", r, file, got, want)
 			}
+		}
+	}
+}
+
+// TestComposerWorldIndexedAutoloader: ComposerWorld finds a package's
+// autoloader through the index, whichever form, absolute or relative to
+// the working directory, the indexed paths take.
+func TestComposerWorldIndexedAutoloader(t *testing.T) {
+	root := t.TempDir()
+	for name, src := range map[string]string{
+		"composer.json":                  `{"require-dev": {"acme/tool": "*"}}`,
+		"vendor/composer/installed.json": `{"packages": [{"name": "acme/tool", "install-path": "../acme/tool", "autoload": {"files": ["bootstrap.php"]}}]}`,
+		"vendor/acme/tool/bootstrap.php": "<?php\nspl_autoload_register(function ($class) { if (strpos($class, 'ToolPrefix') === 0) { require 'x.php'; } });\n",
+		"src/A.php":                      "<?php\nfinal class A {}\n",
+	} {
+		writeFile(t, filepath.Join(root, filepath.FromSlash(name)), src)
+	}
+	files := []string{filepath.Join(root, "src", "A.php"), filepath.Join(root, "vendor", "acme", "tool", "bootstrap.php")}
+	t.Chdir(root)
+	for _, form := range [][]string{files, {"src/A.php", "vendor/acme/tool/bootstrap.php"}} {
+		ix, unread := BuildIndexUnread(context.Background(), form, syntax.Options{}, infer.Options{}, nil)
+		if len(unread) != 0 {
+			t.Fatal(unread)
+		}
+		w := ComposerWorld(root, []string{filepath.Join(root, "src")}, form, Skipped{}, ix)
+		if !w.Complete || !w.UnseenClass(`ToolPrefix123\Thing`) || w.UnseenClass(`Other\Thing`) {
+			t.Errorf("%q: %+v", form, w)
 		}
 	}
 }

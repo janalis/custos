@@ -37,7 +37,7 @@ func UndeclaredEverywhere(ctx *analysis.Context, function bool, fqns ...string) 
 	prefixes := ix.BuiltinPrefixes()
 	for _, fqn := range fqns {
 		fqn = strings.TrimPrefix(fqn, `\`)
-		if fqn == "" || world.Unseen(fqn) {
+		if fqn == "" || function && world.Unseen(fqn) || !function && world.UnseenClass(fqn) {
 			return false
 		}
 		if function && ix.Function(fqn, 0) != nil || !function && ix.Class(fqn, 0) != nil {

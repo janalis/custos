@@ -38,14 +38,18 @@ func ComposerWorld(root string, scope, indexed []string, skipped Skipped, ix *in
 	}
 	// The world names files relative to root; the index keys them as
 	// indexed.
+	relIndexed := make([]string, 0, len(indexed))
 	keys := make(map[string]string, len(indexed))
 	for _, p := range indexed {
-		if r := rel([]string{p}); len(r) == 1 {
-			keys[r[0]] = p
+		abs, _ := filepath.Abs(p)
+		if r, err := filepath.Rel(absRoot, abs); err == nil {
+			r = filepath.ToSlash(r)
+			relIndexed = append(relIndexed, r)
+			keys[r] = p
 		}
 	}
 	symbols := func(name string) *index.FileSymbols { return ix.Symbols(keys[name]) }
-	w := composerWorld(read, symbols, rel(scope), rel(indexed), Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
+	w := composerWorld(read, symbols, rel(scope), relIndexed, Skipped{Dirs: rel(skipped.Dirs), Files: rel(skipped.Files)})
 	// Absolute like the other fields' base: index paths may be written
 	// either way (see index.World.Dependency).
 	w.Vendor = filepath.Join(absRoot, vendorDir(root))
@@ -278,12 +282,12 @@ func composerWorld(read func(string) ([]byte, error), symbols func(string) *inde
 			if fs == nil {
 				continue
 			}
-			w.Blind = append(w.Blind, fs.AutoloadPrefixes...)
+			w.AutoloadedClasses = append(w.AutoloadedClasses, fs.AutoloadPrefixes...)
 			for _, ns := range fs.Autoloaders {
 				if ns == "" {
 					continue
 				}
-				w.Blind = append(w.Blind, ns)
+				w.AutoloadedClasses = append(w.AutoloadedClasses, ns)
 				if fs.Phar {
 					w.Hosts = append(w.Hosts, ns)
 				}

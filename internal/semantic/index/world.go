@@ -42,6 +42,12 @@ type World struct {
 	// named as the stubs name them (see Function.Ext): the project may run
 	// a build of one of them that is not PHP's own.
 	Extensions map[string]bool
+	// AutoloadedClasses lists, lower case, the class name prefixes a
+	// package's autoloader may load from where the index does not look: the
+	// namespace it registers in (ending in a backslash) and the prefixes it
+	// tests the class name for (Rector's `rectorprefix`). An autoloader
+	// declares classes only, so these hide no function (see UnseenClass).
+	AutoloadedClasses []string
 	// Hosts lists namespaces (lower case, ending in a backslash) of
 	// packages whose autoloader loads a bundle of other code, such as
 	// PHPStan's phar: a file importing from one runs within that package,
@@ -94,6 +100,18 @@ func (ix *Index) World() World {
 		}
 	}
 	return World{}
+}
+
+// UnseenClass is Unseen for a class-like name, which a package's
+// autoloader may also declare (see AutoloadedClasses).
+func (w World) UnseenClass(fqn string) bool {
+	k := strings.ToLower(strings.TrimPrefix(fqn, `\`))
+	for _, prefix := range w.AutoloadedClasses {
+		if strings.HasPrefix(k, prefix) {
+			return true
+		}
+	}
+	return w.Unseen(fqn)
 }
 
 // Unseen reports whether the class-like or function fqn lies in a namespace

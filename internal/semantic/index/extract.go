@@ -89,11 +89,6 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 				calls = append(calls, n)
 			}
 
-		case *syntax.Literal:
-			if n.LitKind == syntax.LitString && !x.out.Phar {
-				sp := n.Span()
-				x.out.Phar = bytes.Contains(f.Src[sp.Start:sp.End], []byte("phar://"))
-			}
 		case *syntax.Global:
 			if syntax.EnclosingVariableScope(n) != nil {
 				// A name chosen at run time is not counted, as within a file:
@@ -116,6 +111,7 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 		for _, fn := range x.out.Functions {
 			declared[key(fn.FQN)] = true
 		}
+		var loaders []*syntax.FuncCall
 		for _, call := range calls {
 			switch x.declarationBuiltin(call, declared) {
 			case "define":
@@ -130,11 +126,12 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 				if !slices.Contains(x.out.Autoloaders, ns) {
 					x.out.Autoloaders = append(x.out.Autoloaders, ns)
 				}
+				loaders = append(loaders, call)
 			}
 		}
-		// Rare: read the prefixes the autoloader tests in a second walk.
-		if len(x.out.Autoloaders) > 0 {
-			x.out.AutoloadPrefixes = autoloadPrefixes(f)
+		// Rare: read the autoloaders' callbacks.
+		if len(loaders) > 0 {
+			x.autoloaders(loaders)
 		}
 		// Deferred define calls must retain source order relative to const
 		// declarations: duplicate declarations use the first indexed symbol.
@@ -148,45 +145,125 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 // maxAutoloadPrefixes caps the prefixes kept for one file.
 const maxAutoloadPrefixes = 16
 
-// autoloadPrefixes collects the prefixes the calls of f test (see
-// prefixTested), at most maxAutoloadPrefixes, once each.
-func autoloadPrefixes(f *syntax.File) []string {
-	var prefixes []string
-	syntax.InspectFile(f, func(n syntax.Node) bool {
-		if call, ok := n.(*syntax.FuncCall); ok {
-			if p, ok := prefixTested(call); ok && !slices.Contains(prefixes, p) {
-				prefixes = append(prefixes, p)
-			}
+// autoloaders reads the callbacks the spl_autoload_register() calls of the
+// file register (closures, arrow functions, and functions or methods of
+// the file named by a string or an array): the class name prefixes they
+// test, and whether they name a phar.
+func (x *extractor) autoloaders(calls []*syntax.FuncCall) {
+	for _, call := range calls {
+		body, param := callback(x.f, call)
+		if body == nil {
+			continue
 		}
-		return len(prefixes) < maxAutoloadPrefixes
-	})
-	return prefixes
+		syntax.Inspect(body, func(n syntax.Node) bool {
+			switch n := n.(type) {
+			case *syntax.FuncCall:
+				if p, ok := prefixTested(n, param); ok && len(x.out.AutoloadPrefixes) < maxAutoloadPrefixes && !slices.Contains(x.out.AutoloadPrefixes, p) {
+					x.out.AutoloadPrefixes = append(x.out.AutoloadPrefixes, p)
+				}
+			case *syntax.Literal, *syntax.InterpolatedString:
+				sp := n.Span()
+				x.out.Phar = x.out.Phar || bytes.Contains(x.f.Src[sp.Start:sp.End], []byte("phar://"))
+			}
+			return true
+		})
+	}
 }
 
-// prefixTested returns, lower case, the literal prefix call tests a string
-// for: the needle of strpos() or str_starts_with(), when not empty.
-func prefixTested(call *syntax.FuncCall) (string, bool) {
+// callback returns the body of the callable spl_autoload_register() call
+// registers and the name of its parameter receiving the class name (nil
+// when the callable is not one of the file's, or takes no parameter).
+func callback(f *syntax.File, call *syntax.FuncCall) (syntax.Node, string) {
+	if call.Args == nil || len(call.Args.Args) == 0 {
+		return nil, ""
+	}
+	arg, ok := call.Args.Args[0].(*syntax.Arg)
+	if !ok {
+		return nil, ""
+	}
+	param := func(params []*syntax.Param) string {
+		if len(params) == 0 || params[0].Var == nil {
+			return ""
+		}
+		return params[0].Var.Name
+	}
+	var named string // a function or method declared in the file
+	switch v := arg.Value.(type) {
+	case *syntax.Closure:
+		return v, param(v.Params)
+	case *syntax.ArrowFunction:
+		return v, param(v.Params)
+	case *syntax.Literal:
+		s, _ := syntax.LiteralStringValue(v)
+		named = s[strings.LastIndex(s, "::")+1:]
+		named = strings.TrimPrefix(named, ":")
+	case *syntax.Array:
+		if len(v.Items) == 2 && v.Items[1] != nil {
+			if lit, ok := v.Items[1].Value.(*syntax.Literal); ok {
+				named, _ = syntax.LiteralStringValue(lit)
+			}
+		}
+	}
+	named = strings.TrimPrefix(named, `\`)
+	named = named[strings.LastIndexByte(named, '\\')+1:]
+	if named == "" {
+		return nil, ""
+	}
+	var body syntax.Node
+	var name string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.Function:
+			if body == nil && strings.EqualFold(n.Name.Value, named) {
+				body, name = n, param(n.Params)
+			}
+		case *syntax.Method:
+			if body == nil && strings.EqualFold(n.Name.Value, named) {
+				body, name = n, param(n.Params)
+			}
+		}
+		return body == nil
+	})
+	return body, name
+}
+
+// minAutoloadPrefix is the shortest prefix kept: shorter ones (`\`, `_`)
+// would hide too many names.
+const minAutoloadPrefix = 3
+
+// prefixTested returns, lower case, the literal prefix call tests the class
+// name in variable param for: the needle of strpos() or str_starts_with()
+// on it, of at least minAutoloadPrefix characters once leading backslashes
+// are dropped.
+func prefixTested(call *syntax.FuncCall, param string) (string, bool) {
 	name, ok := call.Name.(*syntax.Name)
-	if !ok || call.Args == nil || len(call.Args.Args) < 2 {
+	if param == "" || !ok || call.Args == nil || len(call.Args.Args) < 2 {
 		return "", false
 	}
 	fn := strings.ToLower(name.Value[strings.LastIndexByte(name.Value, '\\')+1:])
 	if fn != "strpos" && fn != "str_starts_with" {
 		return "", false
 	}
-	var value syntax.Expr // nil for a placeholder
-	if arg, ok := call.Args.Args[1].(*syntax.Arg); ok {
-		value = arg.Value
+	var haystack, needle syntax.Expr // nil for a placeholder
+	if arg, ok := call.Args.Args[0].(*syntax.Arg); ok {
+		haystack = arg.Value
 	}
-	lit, ok := value.(*syntax.Literal)
+	if arg, ok := call.Args.Args[1].(*syntax.Arg); ok {
+		needle = arg.Value
+	}
+	if v, ok := haystack.(*syntax.Variable); !ok || v.Name != param {
+		return "", false
+	}
+	lit, ok := needle.(*syntax.Literal)
 	if !ok {
 		return "", false
 	}
-	v, ok := syntax.LiteralStringValue(lit)
-	if !ok || v == "" {
+	v, _ := syntax.LiteralStringValue(lit)
+	v = strings.TrimLeft(v, `\`)
+	if len(v) < minAutoloadPrefix {
 		return "", false
 	}
-	return strings.ToLower(strings.TrimPrefix(v, `\`)), true
+	return strings.ToLower(v), true
 }
 
 func (x *extractor) text(n syntax.Node) string {

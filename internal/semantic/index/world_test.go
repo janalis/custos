@@ -162,36 +162,49 @@ func BenchmarkWorldDependency(b *testing.B) {
 	}
 }
 
-// TestExtractAutoloaders: the namespaces registering autoloaders, once each,
-// and a phar named in a string, not in a comment.
+// TestExtractAutoloaders: the namespaces registering autoloaders, once
+// each; what their callbacks test the class name for, and whether they
+// name a phar.
 func TestExtractAutoloaders(t *testing.T) {
 	src := `<?php
-namespace Tool { spl_autoload_register(fn ($c) => 1); \spl_autoload_register(fn ($c) => 2); $p = 'phar://' . __DIR__; }
-namespace { spl_autoload_register(fn ($c) => 3); }`
+namespace Tool { spl_autoload_register(fn ($c) => 1); \spl_autoload_register(fn ($c) => "phar://{$c}"); }
+namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 	fs := index.Extract(syntax.Parse("a.php", []byte(src), syntax.Options{}))
 	if !slices.Equal(fs.Autoloaders, []string{`tool\`, ""}) || !fs.Phar {
 		t.Errorf("autoloaders %q, phar %v", fs.Autoloaders, fs.Phar)
 	}
-	fs = index.Extract(syntax.Parse("b.php", []byte("<?php // spl_autoload_register('phar://x');\n$s = 'none';"), syntax.Options{}))
-	if len(fs.Autoloaders) != 0 || fs.Phar {
-		t.Errorf("comment: autoloaders %q, phar %v", fs.Autoloaders, fs.Phar)
+	for name, src := range map[string]string{
+		"comment":         "<?php // spl_autoload_register('phar://x');\n$s = 'none';",
+		"phar elsewhere":  "<?php spl_autoload_register(fn ($c) => null); $p = 'phar://x';",
+		"not of the file": "<?php spl_autoload_register([Other::class, 'load']); spl_autoload_register('other'); spl_autoload_register($f); spl_autoload_register(); spl_autoload_register(...$a); $g = spl_autoload_register(...);",
+		"no class name":   "<?php spl_autoload_register(function () { strpos($x, 'Acme'); });",
+	} {
+		fs := index.Extract(syntax.Parse("b.php", []byte(src), syntax.Options{}))
+		if fs.Phar || fs.AutoloadPrefixes != nil {
+			t.Errorf("%s: prefixes %q, phar %v", name, fs.AutoloadPrefixes, fs.Phar)
+		}
 	}
-	// The prefixes an autoloader tests, literal and once each; a file
-	// registering none keeps none.
-	loader := `<?php spl_autoload_register(function ($c) {
-	if (strpos($c, 'Acme\\') === 0 || \str_starts_with($c, 'ACME\\') || strpos($c, $x) || strpos($c) || strpos($c, '') || Foo::strpos($c, 'x') || strpos($c, ...$a) || in_array($c, ['Acme'])) {}
-});`
-	if fs := index.Extract(syntax.Parse("l.php", []byte(loader), syntax.Options{})); !slices.Equal(fs.AutoloadPrefixes, []string{`acme\`}) {
-		t.Errorf("prefixes %q", fs.AutoloadPrefixes)
-	}
-	if fs := index.Extract(syntax.Parse("n.php", []byte(`<?php if (strpos($s, 'Acme') === 0) {}`), syntax.Options{})); fs.AutoloadPrefixes != nil {
-		t.Errorf("no autoloader: prefixes %q", fs.AutoloadPrefixes)
+	// The prefixes a registered callback tests its class name for, by
+	// literal, once each, not too short; not those of other strings.
+	for name, src := range map[string]string{
+		"closure": `<?php spl_autoload_register(function ($c) {
+	if (strpos($c, '\\Acme\\') === 0 || \str_starts_with($c, 'ACME\\') || strpos($c, $x) || strpos($c) || strpos($c, '\\') || strpos($c, '_A') || Foo::strpos($c, 'x') || strpos($c, ...$a) || in_array($c, ['Acme']) || strpos($other, 'Other') || strpos(...$c)) {}
+});`,
+		"method":        `<?php namespace Tool; final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register([Loader::class, 'load']);`,
+		"static string": `<?php final class Loader { public static function load($class) { strpos($class, 'Acme\\'); } } spl_autoload_register('Loader::load');`,
+		"function":      `<?php function acme_load($class) { str_starts_with($class, 'Acme\\'); } function other($s) { strpos($s, 'Zed'); } spl_autoload_register('acme_load');`,
+	} {
+		fs := index.Extract(syntax.Parse("l.php", []byte(src), syntax.Options{}))
+		if !slices.Equal(fs.AutoloadPrefixes, []string{`acme\`}) {
+			t.Errorf("%s: prefixes %q", name, fs.AutoloadPrefixes)
+		}
 	}
 	var many strings.Builder
-	many.WriteString("<?php spl_autoload_register('f');")
+	many.WriteString("<?php spl_autoload_register(function ($c) {")
 	for i := range 20 {
-		fmt.Fprintf(&many, " strpos($c, 'P%d');", i)
+		fmt.Fprintf(&many, " strpos($c, 'Pre%d');", i)
 	}
+	many.WriteString(" });")
 	if fs := index.Extract(syntax.Parse("m.php", []byte(many.String()), syntax.Options{})); len(fs.AutoloadPrefixes) != 16 {
 		t.Errorf("%d prefixes kept", len(fs.AutoloadPrefixes))
 	}
