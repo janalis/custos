@@ -89,9 +89,9 @@ unless every Composer dependency is installed.
   wherever it is registered: Rector's loads its prefixed copies so. The
   callback is a closure, or a function or method that the registration
   names exactly (`[$this, 'load']`, `parent::load(...)`, `'Loader::load'`),
-  declared in any analyzed file, a method possibly taken from a trait or a
-  parent class; `self`, `static` and `parent` name the class, or trait,
-  where the registration is written.
+  declared in any analyzed file, a method possibly taken from a trait
+  (under an alias too) or a parent class; `$this`, `self`, `static` and
+  `parent` name the class, or trait, where the registration is written.
 - E6. Names PHP does not load: `instanceof` and `catch` (they compare
   names; libraries use them for optional dependencies), parameter, return
   and property types (checked only against a value, and used for optional

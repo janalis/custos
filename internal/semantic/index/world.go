@@ -245,13 +245,17 @@ func ClassWord(name string) string {
 func (ix *Index) LoaderFacts(k string) *Loader {
 	if class, method, ok := strings.Cut(k, "::"); ok {
 		m := ix.FindMethod(class, method, 0)
-		// The declaring class is one of the ancestors.
-		for _, c := range ix.Ancestors(class, 0) {
-			if m != nil && !m.Magic && !m.Abstract && key(c.FQN) == key(m.Class) {
-				return ix.loader(c.File, key(c.FQN)+"::"+method)
-			}
+		var c *Class // the declaring class
+		if m != nil {
+			c = ix.Class(m.Class, 0)
 		}
-		return nil
+		if c == nil || m.Magic || m.Abstract {
+			return nil
+		}
+		if m.Declared != "" { // imported under a trait alias
+			method = m.Declared
+		}
+		return ix.loader(c.File, key(c.FQN)+"::"+strings.ToLower(method))
 	}
 	for alt := range strings.SplitSeq(k, "|") {
 		if f := ix.Function(alt, 0); f != nil {

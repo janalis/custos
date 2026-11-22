@@ -239,6 +239,7 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 		"parent":          `<?php namespace Tool; class Base { static function load($c) BODY } final class Loader extends Base { function register() { spl_autoload_register(parent::load(...)); spl_autoload_register([parent::class, 'load']); spl_autoload_register(['parent', 'load']); } }`,
 		"trait":           `<?php trait T { function load($c) BODY } final class Loader { use T; function register() { spl_autoload_register([$this, 'load']); } }`,
 		"nested trait":    `<?php trait T2 { function load($c) BODY } trait T { use T2; } class P { function load($c) { strpos($c, 'Zed\\'); } } final class Loader extends P { use T; function register() { spl_autoload_register([$this, 'load']); } }`,
+		"trait alias":     `<?php trait T { function boot($c) BODY } final class Loader { use T { boot as load; } function register() { spl_autoload_register([$this, 'load']); } }`,
 		"tagged subclass": `<?php class Base { function load($c) BODY } /** @method void load(string $c) */ final class Loader extends Base { function register() { spl_autoload_register([$this, 'load']); } }`,
 		"named argument":  `<?php function acme_load($c) BODY spl_autoload_register(prepend: true, callback: 'acme_load');`,
 		"function first":  `<?php namespace Tool; function acme_load($c) BODY spl_autoload_register(acme_load(...));`,
@@ -257,13 +258,17 @@ namespace { spl_autoload_register(fn ($c) => 3); $p = 'phar://' . __DIR__; }`
 			`<?php spl_autoload_register([Acme\Loader::class, 'load']);`,
 			`<?php namespace Acme; final class Loader { static function load($class) { if (strpos($class, 'Acme\\') === 0) { require "phar://acme.phar/{$class}.php"; } } static function other($c) { strpos($c, 'Zed'); } }`,
 		},
+		"trait alias": {
+			`<?php final class Loader { use Acme\Boot { Acme\Boot::boot as protected load; } function register() { spl_autoload_register([$this, 'load']); } }`,
+			`<?php namespace Acme; trait Boot { function boot($c) { if (strpos($c, 'Acme\\') === 0) { require "phar://acme.phar/{$c}.php"; } } }`,
+		},
 		"inherited": {
 			`<?php final class Loader extends Base { function register() { spl_autoload_register([$this, 'load']); } }`,
 			`<?php class Base { function load($c) { if (strpos($c, 'Acme\\') === 0) { require "$c.php"; } } function path() { return 'phar://x'; } } class Root {}`,
 		},
 	} {
 		prefixes, phar := loaded(files...)
-		if !slices.Equal(prefixes, []string{`acme\`}) || phar != (name == "other file") {
+		if !slices.Equal(prefixes, []string{`acme\`}) || phar != (name != "inherited") {
 			t.Errorf("%s: prefixes %q, phar %v", name, prefixes, phar)
 		}
 	}

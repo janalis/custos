@@ -227,6 +227,9 @@ func adaptMethod(m *Method, a TraitAdaptation) *Method {
 	}
 	copy := *m
 	if a.Alias != "" {
+		if copy.Declared == "" {
+			copy.Declared = m.Name
+		}
 		copy.Name = a.Alias
 	}
 	if a.Visibility != nil {

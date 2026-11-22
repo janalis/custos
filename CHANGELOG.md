@@ -29,7 +29,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   or a function or method that the registration names exactly (a method
   through `$this`, `self`, `parent` or its class, by an array, a string
   or a first-class callable such as `$this->load(...)`), declared in any
-  file, a method possibly taken from a trait or a parent.
+  file, a method possibly taken from a trait (under an alias too) or a
+  parent.
 - `UndefinedClass` and `UndefinedFunction` no longer report names of an
   optional extension used in an instance method when the class's
   constructor throws unless `extension_loaded()` finds the extension, or

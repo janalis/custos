@@ -162,7 +162,10 @@ type Method struct {
 	Class    string    `json:"-"` // declaring class FQN
 	// TypeClass is the effective trait-import owner on transient lookup copies.
 	// Class remains the original declaration for templates and body analysis.
-	TypeClass  string     `json:"-"`
+	TypeClass string `json:"-"`
+	// Declared is the name in the declaring class on transient copies a
+	// trait alias renames ("" otherwise).
+	Declared   string     `json:"-"`
 	Visibility Visibility `json:"vis,omitempty"`
 	Static     bool       `json:"static,omitempty"`
 	Abstract   bool       `json:"abstract,omitempty"`
