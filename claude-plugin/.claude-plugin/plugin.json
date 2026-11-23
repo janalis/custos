@@ -9,7 +9,7 @@
   "license": "MIT",
   "lspServers": {
     "custos": {
-      "command": "custos",
+      "command": "${CLAUDE_PLUGIN_ROOT}/scripts/custos",
       "args": ["lsp"],
       "extensionToLanguage": {
         ".php": "php"
@@ -18,7 +18,7 @@
   },
   "mcpServers": {
     "custos": {
-      "command": "custos",
+      "command": "${CLAUDE_PLUGIN_ROOT}/scripts/custos",
       "args": ["mcp"]
     }
   }

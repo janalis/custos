@@ -11,7 +11,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `custos` plugin runs `custos mcp` for the agent, reports custos findings
   for each PHP file Claude edits, and runs `custos lsp` when no other plugin
   handles PHP files (`claude plugin marketplace add janalis/custos`, then
-  `claude plugin install custos@custos`).
+  `claude plugin install custos@custos`). It prefers the project's
+  Composer-installed custos to the one on `PATH`.
 
 ## [0.2.5] - 2026-11-22
 
