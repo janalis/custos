@@ -1,5 +1,5 @@
 {
-  "description": "Report custos findings for a PHP file after Claude edits it",
+  "description": "Report custos findings for a PHP file after Claude edits it, and forget them when the session ends",
   "hooks": {
     "PostToolUse": [
       {
@@ -9,6 +9,17 @@
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/analyse-edited-file\"",
             "timeout": 60
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/forget-session\"",
+            "timeout": 10
           }
         ]
       }

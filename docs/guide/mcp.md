@@ -30,7 +30,9 @@ After each `Edit`, `MultiEdit` or `Write` of a `.php` file, a hook runs
 `custos analyse` on that file and passes its findings to Claude: all of
 them the first time Claude edits the file in a session, then only the
 findings the edit added, at most 40 at a time. It needs `jq`, and stays
-silent when there is nothing new. The plugin also declares the [language server](./editors), but Claude Code runs a single language server
+silent when there is nothing new. What it reported is kept in a private
+directory under `TMPDIR`, removed when the session ends, or after 7 days
+without use for a session that did not end cleanly. The plugin also declares the [language server](./editors), but Claude Code runs a single language server
 per file extension: while another plugin, such as `php-lsp`, handles `.php`,
 the custos one does not start, and the hook still reports findings. Restart
 Claude Code after installing.
