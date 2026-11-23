@@ -17,10 +17,14 @@ claude plugin marketplace add janalis/custos
 claude plugin install custos@custos
 ```
 
-The plugin runs the project's Composer launcher, `vendor/bin/custos` next
-to the nearest `composer.json` above the directory Claude Code starts in,
-and otherwise `custos` from your `PATH`; the workspace root is then chosen
-as described below.
+The plugin runs `custos` from your `PATH`, from the directory Claude Code
+starts in; the workspace root is then chosen as described below. To use a
+Composer installation instead, set `CUSTOS_PROJECT_LAUNCHER=1` in Claude
+Code's environment, for example in the `env` of `~/.claude/settings.json`:
+the plugin then runs `vendor/bin/custos` next to the nearest
+`composer.json` above that directory, searched no higher than the git root
+or your home directory. That runs code from the repository as soon as
+Claude Code starts in it, so turn it on only for repositories you trust.
 After each `Edit`, `MultiEdit` or `Write` of a `.php` file, a hook runs
 `custos analyse` on that file and passes its findings to Claude; it needs
 `jq`, and stays silent when the file has none. The plugin also declares the

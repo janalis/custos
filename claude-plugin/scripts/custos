@@ -1,16 +1,20 @@
 #!/bin/sh
-# Run the custos of the project Claude Code works in: the Composer launcher
-# (vendor/bin/custos) next to the nearest composer.json above the working
-# directory when the project has one, else custos from PATH.
-dir=$PWD
-while :; do
-    if [ -f "$dir/composer.json" ]; then
-        if [ -x "$dir/vendor/bin/custos" ]; then exec "$dir/vendor/bin/custos" "$@"; fi
-        break
-    fi
-    [ "$dir" != / ] || break
-    dir=$(dirname "$dir")
-done
+# Run custos from PATH. With CUSTOS_PROJECT_LAUNCHER=1, run the project's
+# Composer launcher instead when it has one: vendor/bin/custos next to the
+# nearest composer.json above the working directory, searched no higher than
+# the git root or the home directory. That runs code from the repository, so
+# it is off unless you turn it on.
+if [ "${CUSTOS_PROJECT_LAUNCHER:-}" = 1 ]; then
+    dir=$PWD
+    while :; do
+        if [ -f "$dir/composer.json" ]; then
+            if [ -x "$dir/vendor/bin/custos" ]; then exec "$dir/vendor/bin/custos" "$@"; fi
+            break
+        fi
+        if [ -e "$dir/.git" ] || [ "$dir" = "${HOME:-/}" ] || [ "$dir" = / ]; then break; fi
+        dir=$(dirname "$dir")
+    done
+fi
 if command -v custos >/dev/null 2>&1; then exec custos "$@"; fi
-printf '%s\n' 'custos: not found; install it globally or with Composer (composer require --dev janalis/custos).' >&2
+printf '%s\n' 'custos: not found; install it, or set CUSTOS_PROJECT_LAUNCHER=1 to use the project'"'"'s vendor/bin/custos.' >&2
 exit 127
