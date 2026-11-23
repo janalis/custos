@@ -24,7 +24,10 @@ Code's environment, for example in the `env` of `~/.claude/settings.json`:
 the plugin then runs `vendor/bin/custos` next to the nearest
 `composer.json` above that directory, searched no higher than the git root
 or your home directory; outside your home directory, only that directory
-itself is searched. That runs code from the repository as soon as
+itself is searched. The edit hook starts this search from the edited
+file's directory when it is inside the one Claude Code starts in, and may
+go up to that one, so each package of a monorepo uses its own launcher.
+That runs code from the repository as soon as
 Claude Code starts in it, so turn it on only for repositories you trust.
 After each `Edit`, `MultiEdit` or `Write` of a `.php` file, a hook runs
 `custos analyse` on that file and passes its findings to Claude: all of

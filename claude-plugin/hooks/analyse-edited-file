@@ -25,7 +25,9 @@ fi
 [ -f "$file" ] || exit 0
 
 # Findings come first; a blank line and the summary follow them.
-findings=$("$custos" analyse --fail-on never -- "$file" 2>/dev/null | sed '/^$/,$d') || exit 0
+# In a monorepo, the project of the edited file picks its Composer launcher.
+findings=$(CUSTOS_LAUNCHER_FROM=$(dirname "$file") "$custos" analyse --fail-on never -- "$file" 2>/dev/null |
+    sed '/^$/,$d') || exit 0
 
 # Findings reported earlier in this session, kept in a private directory.
 state=
