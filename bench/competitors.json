@@ -6,7 +6,7 @@
     {
       "name": "guzzle",
       "repo": "https://github.com/guzzle/guzzle.git",
-      "tag": "8.5.2",
+      "tag": "8.6.0",
       "paths": [
         "src"
       ]
@@ -38,14 +38,14 @@
     }
   ],
   "packages": {
-    "carthage-software/mago": "1.60.2",
+    "carthage-software/mago": "1.61.0",
     "friendsofphp/php-cs-fixer": "v3.95.32",
-    "laravel/pint": "v1.32.1",
+    "laravel/pint": "v1.32.3",
     "phan/phan": "6.0.11",
     "phpstan/phpstan": "2.3.7",
     "rector/rector": "2.8.5",
     "squizlabs/php_codesniffer": "4.0.4",
-    "vimeo/psalm": "7.12.0"
+    "vimeo/psalm": "7.16.0"
   },
   "tools": [
     {
