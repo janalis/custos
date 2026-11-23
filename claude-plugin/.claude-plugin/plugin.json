@@ -21,5 +21,12 @@
       "command": "${CLAUDE_PLUGIN_ROOT}/scripts/custos",
       "args": ["mcp"]
     }
+  },
+  "network": {
+    "hosts": [
+      "github.com",
+      "release-assets.githubusercontent.com",
+      "objects.githubusercontent.com"
+    ]
   }
 }
