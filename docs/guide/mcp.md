@@ -6,6 +6,27 @@ PHP, Composer scripts or shell commands requested by source or PHPDoc.
 Conversation history belongs to the agent host; checkpoints keep analysis
 evidence across server restarts.
 
+## Claude Code
+
+The repository is a Claude Code plugin marketplace. Its `custos` plugin
+gives Claude the MCP tools below and reports custos findings for each PHP
+file Claude edits:
+
+```sh
+claude plugin marketplace add janalis/custos
+claude plugin install custos@custos
+```
+
+The plugin runs `custos` from your `PATH`, from the directory Claude Code
+starts in, so the workspace root is found as for a global installation.
+After each `Edit`, `MultiEdit` or `Write` of a `.php` file, a hook runs
+`custos analyse` on that file and passes its findings to Claude; it needs
+`jq`, and stays silent when the file has none. The plugin also declares the
+[language server](./editors), but Claude Code runs a single language server
+per file extension: while another plugin, such as `php-lsp`, handles `.php`,
+the custos one does not start, and the hook still reports findings. Restart
+Claude Code after installing.
+
 ## Local client setup
 
 Configure your client's MCP process entry, adapting its configuration format:

@@ -5,6 +5,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A Claude Code plugin: the repository is a plugin marketplace, and its
+  `custos` plugin runs `custos mcp` for the agent, reports custos findings
+  for each PHP file Claude edits, and runs `custos lsp` when no other plugin
+  handles PHP files (`claude plugin marketplace add janalis/custos`, then
+  `claude plugin install custos@custos`).
+
 ## [0.2.5] - 2026-11-22
 
 ### Added

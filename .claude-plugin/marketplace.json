@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "custos",
+  "description": "Claude Code plugin for custos, PHP inspections and fixes",
+  "owner": {
+    "name": "The custos authors"
+  },
+  "plugins": [
+    {
+      "name": "custos",
+      "description": "PHP inspections, quick-fixes and formatting from custos (language server and MCP tools)",
+      "source": "./claude-plugin",
+      "category": "development"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "description": "Report custos findings for a PHP file after Claude edits it",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/analyse-edited-file\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

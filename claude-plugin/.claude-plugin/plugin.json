@@ -1,0 +1,25 @@
+{
+  "name": "custos",
+  "description": "PHP inspections, quick-fixes and formatting from custos (language server and MCP tools)",
+  "author": {
+    "name": "The custos authors"
+  },
+  "homepage": "https://github.com/janalis/custos",
+  "repository": "https://github.com/janalis/custos",
+  "license": "MIT",
+  "lspServers": {
+    "custos": {
+      "command": "custos",
+      "args": ["lsp"],
+      "extensionToLanguage": {
+        ".php": "php"
+      }
+    }
+  },
+  "mcpServers": {
+    "custos": {
+      "command": "custos",
+      "args": ["mcp"]
+    }
+  }
+}

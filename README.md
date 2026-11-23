@@ -76,6 +76,12 @@ More in the guide: [command line](https://janalis.github.io/custos/guide/cli),
 [MCP setup](https://janalis.github.io/custos/guide/mcp) and the
 [rule reference](https://janalis.github.io/custos/rules/).
 
+For Claude Code, one plugin adds the MCP tools and reports findings after each edit:
+
+```sh
+claude plugin install custos --marketplace janalis/custos
+```
+
 ## How it compares
 
 custos reports and fixes problems, and formats code.

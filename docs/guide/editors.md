@@ -156,6 +156,12 @@ With the [LSP](https://packagecontrol.io/packages/LSP) package, in
                     :server-id 'custos)))
 ```
 
+## Claude Code
+
+The custos plugin for Claude Code declares the language server, and
+reports findings after each edit even when another PHP language server
+handles `.php`; see [AI agents](./mcp#claude-code).
+
 ## Composer installs
 
 If custos is installed with Composer, use `vendor/bin/custos` (or its

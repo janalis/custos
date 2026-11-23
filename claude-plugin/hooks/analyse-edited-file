@@ -1,0 +1,23 @@
+#!/bin/sh
+# PostToolUse hook: after Claude edits a PHP file, run custos on that file and
+# hand its findings back to Claude as additional context. Claude Code runs one
+# language server per file extension, so this also works next to another PHP
+# language server. It never blocks the edit: any failure exits 0 silently.
+command -v custos >/dev/null 2>&1 || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
+
+input=$(cat) || exit 0
+file=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null) || exit 0
+cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null) || exit 0
+case $file in *.php) ;; *) exit 0 ;; esac
+# custos finds the project root from the working directory, as on the CLI.
+if [ -n "$cwd" ]; then cd "$cwd" 2>/dev/null || exit 0; fi
+[ -f "$file" ] || exit 0
+
+# Findings come first; a blank line and the summary follow them.
+findings=$(custos analyse --fail-on never -- "$file" 2>/dev/null | sed '/^$/,$d') || exit 0
+[ -n "$findings" ] || exit 0
+
+printf 'custos findings in %s after this edit:\n%s\n' "$file" "$findings" | jq -Rs '{
+  hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: .}
+}'
