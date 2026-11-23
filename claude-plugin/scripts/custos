@@ -1,17 +1,23 @@
 #!/bin/sh
 # Run custos from PATH. With CUSTOS_PROJECT_LAUNCHER=1, run the project's
 # Composer launcher instead when it has one: vendor/bin/custos next to the
-# nearest composer.json above the working directory, searched no higher than
-# the git root or the home directory. That runs code from the repository, so
-# it is off unless you turn it on.
+# nearest composer.json above the working directory. The search goes up no
+# higher than the git root or the home directory, and outside the home
+# directory it only looks at the working directory itself. That runs code
+# from the repository, so it is off unless you turn it on.
 if [ "${CUSTOS_PROJECT_LAUNCHER:-}" = 1 ]; then
-    dir=$PWD
-    while :; do
+    # Physical paths, so that symlinks and trailing slashes cannot hide HOME.
+    home=$(cd "${HOME:-/nonexistent}" 2>/dev/null && pwd -P) || home=
+    dir=$(pwd -P 2>/dev/null) || dir=
+    while [ -n "$dir" ]; do
         if [ -f "$dir/composer.json" ]; then
             if [ -x "$dir/vendor/bin/custos" ]; then exec "$dir/vendor/bin/custos" "$@"; fi
             break
         fi
-        if [ -e "$dir/.git" ] || [ "$dir" = "${HOME:-/}" ] || [ "$dir" = / ]; then break; fi
+        [ ! -e "$dir/.git" ] || break
+        # Go up only from strictly inside the home directory.
+        case $home in ''|/) break ;; esac
+        case $dir/ in "$home"/?*) ;; *) break ;; esac
         dir=$(dirname "$dir")
     done
 fi

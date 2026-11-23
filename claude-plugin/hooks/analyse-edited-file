@@ -11,13 +11,27 @@ file=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null) || exit 0
 case $file in *.php) ;; *) exit 0 ;; esac
 # custos finds the project root from the working directory, as on the CLI.
-if [ -n "$cwd" ]; then cd "$cwd" 2>/dev/null || exit 0; fi
+if [ -n "$cwd" ]; then
+    cd "$cwd" 2>/dev/null || exit 0
+    # Relative paths keep each finding line short.
+    case $file in "$cwd"/*) file=${file#"$cwd"/} ;; esac
+fi
 [ -f "$file" ] || exit 0
 
 # Findings come first; a blank line and the summary follow them.
 findings=$("$custos" analyse --fail-on never -- "$file" 2>/dev/null | sed '/^$/,$d') || exit 0
 [ -n "$findings" ] || exit 0
 
-printf 'custos findings in %s after this edit:\n%s\n' "$file" "$findings" | jq -Rs '{
+# Claude Code cuts hook context above 10,000 characters to a short preview:
+# send at most 40 lines of at most 200 characters each.
+max=40
+count=$(printf '%s\n' "$findings" | wc -l | tr -d ' ')
+{
+    printf 'custos findings in %s after this edit:\n' "$file"
+    printf '%s\n' "$findings" | head -n "$max" | cut -c 1-200
+    if [ "$count" -gt "$max" ]; then
+        printf '... and %s more; run custos analyse %s to see them all.\n' "$((count - max))" "$file"
+    fi
+} | jq -Rs '{
   hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: .}
 }'

@@ -23,12 +23,13 @@ Composer installation instead, set `CUSTOS_PROJECT_LAUNCHER=1` in Claude
 Code's environment, for example in the `env` of `~/.claude/settings.json`:
 the plugin then runs `vendor/bin/custos` next to the nearest
 `composer.json` above that directory, searched no higher than the git root
-or your home directory. That runs code from the repository as soon as
+or your home directory; outside your home directory, only that directory
+itself is searched. That runs code from the repository as soon as
 Claude Code starts in it, so turn it on only for repositories you trust.
 After each `Edit`, `MultiEdit` or `Write` of a `.php` file, a hook runs
-`custos analyse` on that file and passes its findings to Claude; it needs
-`jq`, and stays silent when the file has none. The plugin also declares the
-[language server](./editors), but Claude Code runs a single language server
+`custos analyse` on that file and passes its first 40 findings to Claude;
+it needs `jq`, and stays silent when the file has none. The plugin also
+declares the [language server](./editors), but Claude Code runs a single language server
 per file extension: while another plugin, such as `php-lsp`, handles `.php`,
 the custos one does not start, and the hook still reports findings. Restart
 Claude Code after installing.
