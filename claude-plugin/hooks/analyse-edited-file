@@ -7,8 +7,15 @@
 # The first edit of a file in a session reports all its findings; later edits
 # report only the findings that were not there before. A finding is matched by
 # its rule and message, without its position, since edits move lines.
+#
+# With CUSTOS_CROSS_FILE=1, it also analyses the whole project and reports the
+# findings the edit added in other files, against the project's findings at
+# the previous edit, or at the start of the session (hooks/record-project).
 command -v jq >/dev/null 2>&1 || exit 0
-custos=$(dirname "$0")/../scripts/custos
+here=$(dirname "$0")
+# shellcheck source-path=SCRIPTDIR source=../scripts/session-state
+. "$here/../scripts/session-state"
+custos=$here/../scripts/custos
 
 input=$(cat) || exit 0
 file=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null) || exit 0
@@ -30,17 +37,11 @@ findings=$(CUSTOS_LAUNCHER_FROM=$(dirname "$file") "$custos" analyse --fail-on n
     sed '/^$/,$d') || exit 0
 
 # Findings reported earlier in this session, kept in a private directory.
-state=
-case $session in
-    ''|*[!A-Za-z0-9_-]*) ;;
-    *)
-        base=${TMPDIR:-/tmp}/custos-claude-$(id -u)
-        if { mkdir -m 700 "$base" 2>/dev/null || [ -d "$base" ]; } &&
-            [ ! -L "$base" ] && [ -n "$(find "$base" -prune -user "$(id -u)" ! -perm -020 ! -perm -002)" ] &&
-            mkdir -p "$base/$session" 2>/dev/null; then
-            state=$base/$session/$key
-        fi ;;
-esac
+dir=
+if custos_session_ok "$session" && base=$(custos_state_base) && mkdir -p "$base/$session" 2>/dev/null; then
+    dir=$base/$session
+fi
+state=${dir:+$dir/$key}
 earlier=0
 if [ -n "$state" ] && [ -f "$state" ]; then
     # Keep the findings whose rule and message were not reported before,
@@ -57,21 +58,42 @@ if [ -n "$state" ]; then
     printf '%s\n' "$findings" | awk 'NF { if (match($0, /:[0-9]+:[0-9]+: /)) print substr($0, RSTART + RLENGTH) }' \
         > "$state.tmp" 2>/dev/null && mv -f "$state.tmp" "$state" 2>/dev/null
 fi
-[ -n "$new" ] || exit 0
+
+# Findings the edit added in other files, the same way, by path, rule and
+# message. Without earlier project findings, this edit only records them.
+others=
+if [ "${CUSTOS_CROSS_FILE:-}" = 1 ] && [ -n "$dir" ] && current=$(custos_project_findings "$custos"); then
+    project=$dir/project
+    if [ -f "$project" ]; then
+        others=$(printf '%s\n' "$current" | awk -F '\t' -v prev="$project" -v self="$file" '
+            BEGIN { while ((getline line < prev) > 0) { split(line, f, "\t"); seen[f[1] "\t" f[2]]++ } }
+            NF && $1 != self { k = $1 "\t" $2; if (seen[k] > 0) { seen[k]--; next } print $3 }')
+    fi
+    printf '%s\n' "$current" > "$project.tmp" 2>/dev/null && mv -f "$project.tmp" "$project" 2>/dev/null
+fi
+[ -n "$new" ] || [ -n "$others" ] || exit 0
 
 # Claude Code cuts hook context above 10,000 characters to a short preview:
-# send at most 40 lines of at most 200 characters each.
+# send at most 40 findings of at most 200 characters each.
 max=40
-count=$(printf '%s\n' "$new" | grep -c .)
+nnew=0; [ -z "$new" ] || nnew=$(printf '%s\n' "$new" | grep -c .)
+nothers=0; [ -z "$others" ] || nothers=$(printf '%s\n' "$others" | grep -c .)
+room=$((max - nnew)); [ "$room" -gt 0 ] || room=0
 {
-    if [ "$earlier" -gt 0 ]; then
-        printf 'New custos findings in %s after this edit (%s reported earlier remain):\n' "$file" "$earlier"
+    if [ "$nnew" -gt 0 ]; then
+        if [ "$earlier" -gt 0 ]; then
+            printf 'New custos findings in %s after this edit (%s reported earlier remain):\n' "$file" "$earlier"
+        else
+            printf 'custos findings in %s after this edit:\n' "$file"
+        fi
+        printf '%s\n' "$new" | head -n "$max" | cut -c 1-200
+        [ "$nothers" -eq 0 ] || [ "$room" -eq 0 ] || printf 'In other files:\n'
     else
-        printf 'custos findings in %s after this edit:\n' "$file"
+        printf 'New custos findings in other files after this edit of %s:\n' "$file"
     fi
-    printf '%s\n' "$new" | head -n "$max" | cut -c 1-200
-    if [ "$count" -gt "$max" ]; then
-        printf '... and %s more; run custos analyse %s to see them all.\n' "$((count - max))" "$file"
+    [ "$nothers" -eq 0 ] || [ "$room" -eq 0 ] || printf '%s\n' "$others" | head -n "$room" | cut -c 1-200
+    if [ $((nnew + nothers)) -gt "$max" ]; then
+        printf '... and %s more; run custos analyse to see them all.\n' "$((nnew + nothers - max))"
     fi
 } | jq -Rs '{
   hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: .}

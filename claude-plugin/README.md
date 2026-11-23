@@ -20,10 +20,14 @@ and `jq` for its hooks.
   `MultiEdit` or `Write` of a `.php` file, it runs `custos analyse` on that
   file and passes the findings to Claude: all of them on the first edit of the
   file in a session, then only the ones the edit added, at most 40 at a time.
-  It never blocks an edit.
+  With `CUSTOS_CROSS_FILE=1`, it also analyses the whole project and reports
+  the findings the edit added in other files. It never blocks an edit.
+- **SessionStart hook** (`hooks/record-project`): only with
+  `CUSTOS_CROSS_FILE=1`, records the project's findings in the background, so
+  that the first edit has something to compare with.
 - **SessionEnd hook** (`hooks/forget-session`): removes what the edit hook
   remembered for the session. That state is a list of finding messages per
-  file, kept in a directory of your own under `TMPDIR`; state of sessions that
+  file and, with `CUSTOS_CROSS_FILE=1`, for the project, kept in a directory of your own under `TMPDIR`; state of sessions that
   did not end cleanly is removed after 7 days.
 
 All of them go through `scripts/custos`, which runs `custos` from `PATH`.

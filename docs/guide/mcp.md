@@ -37,8 +37,17 @@ them the first time Claude edits the file in a session, then only the
 findings the edit added, at most 40 at a time. It needs `jq`, and stays
 silent when there is nothing new. What it reported is kept in a private
 directory under `TMPDIR`, removed when the session ends, or after 7 days
-without use for a session that did not end cleanly. The plugin also declares the [language server](./editors), but Claude Code runs a single language server
-per file extension: while another plugin, such as `php-lsp`, handles `.php`,
+without use for a session that did not end cleanly.
+
+With `CUSTOS_CROSS_FILE=1`, the hook also analyses the whole project, as
+`custos.json` configures it, and reports the findings an edit added in other
+files, such as callers of a function whose signature changed. A hook records
+the project's findings in the background when the session starts, so the
+first edit is compared with them. On a project of 2,000 files, this adds
+about 3 seconds to each edit of a PHP file.
+
+The plugin also declares the [language server](./editors), but Claude Code
+runs a single language server per file extension: while another plugin, such as `php-lsp`, handles `.php`,
 the custos one does not start, and the hook still reports findings. Restart
 Claude Code after installing.
 

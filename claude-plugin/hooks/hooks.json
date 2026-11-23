@@ -1,6 +1,17 @@
 {
-  "description": "Report custos findings for a PHP file after Claude edits it, and forget them when the session ends",
+  "description": "Report custos findings after Claude edits a PHP file, and forget them when the session ends",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/record-project\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|MultiEdit|Write",

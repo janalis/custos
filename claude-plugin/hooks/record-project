@@ -1,0 +1,29 @@
+#!/bin/sh
+# SessionStart hook, with CUSTOS_CROSS_FILE=1: record the project's findings in
+# the background, so that the edit hook can tell which findings in other files
+# an edit adds. Starting Claude Code never waits for it.
+[ "${CUSTOS_CROSS_FILE:-}" = 1 ] || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
+here=$(dirname "$0")
+# shellcheck source-path=SCRIPTDIR source=../scripts/session-state
+. "$here/../scripts/session-state"
+
+input=$(cat) || exit 0
+session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null) || exit 0
+cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null) || exit 0
+custos_session_ok "$session" || exit 0
+{ [ -n "$cwd" ] && cd "$cwd" 2>/dev/null; } || exit 0
+base=$(custos_state_base) || exit 0
+mkdir -p "$base/$session" 2>/dev/null || exit 0
+project=$base/$session/project
+# A resumed session keeps what it recorded.
+[ ! -e "$project" ] || exit 0
+
+(
+    current=$(custos_project_findings "$here/../scripts/custos") || exit 0
+    printf '%s\n' "$current" > "$project.base.$$" || exit 0
+    # ln never replaces a file: state an edit wrote meanwhile is newer.
+    ln "$project.base.$$" "$project" 2>/dev/null
+    rm -f "$project.base.$$"
+) </dev/null >/dev/null 2>&1 &
+exit 0

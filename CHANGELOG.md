@@ -12,7 +12,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   for each PHP file Claude edits, and runs `custos lsp` when no other plugin
   handles PHP files (`claude plugin marketplace add janalis/custos`, then
   `claude plugin install custos@custos`). It runs custos from `PATH`, or
-  with `CUSTOS_PROJECT_LAUNCHER=1` the project's Composer launcher.
+  with `CUSTOS_PROJECT_LAUNCHER=1` the project's Composer launcher. With
+  `CUSTOS_CROSS_FILE=1`, it also reports the findings an edit adds in other
+  files of the project.
 
 ## [0.2.5] - 2026-11-22
 

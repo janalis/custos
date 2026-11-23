@@ -1,0 +1,31 @@
+# Shared by the hooks (sourced): the private session state directory and the
+# whole-project findings.
+
+# Print the per-user directory kept for session state, creating it; fail when
+# it is not a private directory of the user's own.
+custos_state_base() {
+    _custos_base=${TMPDIR:-/tmp}/custos-claude-$(id -u)
+    { mkdir -m 700 "$_custos_base" 2>/dev/null || [ -d "$_custos_base" ]; } || return 1
+    [ ! -L "$_custos_base" ] || return 1
+    [ -n "$(find "$_custos_base" -prune -user "$(id -u)" ! -perm -020 ! -perm -002)" ] || return 1
+    printf '%s\n' "$_custos_base"
+}
+
+# Succeed for a session ID that is safe as a directory name.
+custos_session_ok() {
+    case $1 in ''|*[!A-Za-z0-9_-]*) return 1 ;; esac
+}
+
+# Print the findings of the project, as configured in custos.json, one per
+# line: path, rule and message, and the finding as printed, separated by
+# tabs. Paths inside the working directory are made relative to it. $1 is the
+# custos launcher. Fails when custos does not run.
+custos_project_findings() {
+    _custos_out=$("$1" analyse --fail-on never 2>/dev/null) || return 1
+    printf '%s\n' "$_custos_out" | sed '/^$/,$d' | awk -v top="$PWD/" '
+        match($0, /:[0-9]+:[0-9]+: /) {
+            path = substr($0, 1, RSTART - 1)
+            if (index(path, top) == 1) path = substr(path, length(top) + 1)
+            print path "\t" substr($0, RSTART + RLENGTH) "\t" path substr($0, RSTART)
+        }'
+}
