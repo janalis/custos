@@ -15,7 +15,7 @@ custos_session_ok "$session" || exit 0
 { [ -n "$cwd" ] && cd "$cwd" 2>/dev/null; } || exit 0
 base=$(custos_state_base) || exit 0
 mkdir -p "$base/$session" 2>/dev/null || exit 0
-project=$base/$session/project
+project=$(custos_project_state "$base/$session")
 # A resumed session keeps what it recorded.
 [ ! -e "$project" ] || exit 0
 

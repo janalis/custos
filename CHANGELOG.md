@@ -13,8 +13,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   handles PHP files (`claude plugin marketplace add janalis/custos`, then
   `claude plugin install custos@custos`). It runs custos from `PATH`, or
   with `CUSTOS_PROJECT_LAUNCHER=1` the project's Composer launcher. With
-  `CUSTOS_CROSS_FILE=1`, it also reports the findings an edit adds in other
-  files of the project.
+  `CUSTOS_CROSS_FILE=1`, it also reports the findings that appeared in other
+  files of the project since the previous edit.
 
 ## [0.2.5] - 2026-11-22
 

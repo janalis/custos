@@ -25,31 +25,38 @@ the plugin then runs `vendor/bin/custos` next to the nearest
 `composer.json` above that directory, searched no higher than the git root
 or your home directory; outside your home directory, only that directory
 itself is searched. The edit hook starts this search from the edited
-file's directory when it is inside the one Claude Code starts in, and may
-go up to that one, so each package of a monorepo uses its own launcher;
-files under a `vendor` directory or in a git submodule use the launcher
-of the directory Claude Code starts in.
-That runs code from the repository as soon as
-Claude Code starts in it, so turn it on only for repositories you trust.
+file's directory when it is inside Claude Code's current working directory,
+and may go up to that one, so each package of a monorepo uses its own
+launcher; files under a `vendor` directory or in a git submodule use the
+launcher of the current working directory. That runs code from the
+repository as soon as Claude Code starts in it, so turn it on only for
+repositories you trust.
+
 After each `Edit`, `MultiEdit` or `Write` of a `.php` file, a hook runs
 `custos analyse` on that file and passes its findings to Claude: all of
 them the first time Claude edits the file in a session, then only the
-findings the edit added, at most 40 at a time. It needs `jq`, and stays
-silent when there is nothing new. What it reported is kept in a private
-directory under `TMPDIR`, removed when the session ends, or after 7 days
-without use for a session that did not end cleanly.
+findings that were not there before, at most 40 lines at a time. Findings
+are matched by rule and message, since edits move lines; when a finding
+repeats and its count rose, every occurrence is listed after a line saying
+how many are new. The hook needs `jq`, and stays silent when there is
+nothing new. What it reported is kept in a private directory under
+`TMPDIR`, removed when the session ends, or after 7 days without use for a
+session that did not end cleanly.
 
 With `CUSTOS_CROSS_FILE=1`, the hook also analyses the whole project, as
-`custos.json` configures it, and reports the findings an edit added in other
-files, such as callers of a function whose signature changed. A hook records
-the project's findings in the background when the session starts, so the
-first edit is compared with them. On a project of 2,000 files, this adds
-about 3 seconds to each edit of a PHP file.
+`custos.json` configures it, and reports the findings that appeared in
+other files since the previous edit, such as callers of a function whose
+signature changed. Anything that changed those files in between counts
+too: a command Claude ran, a `git checkout`, or your own editor. A hook
+records the project's findings in the background when the session starts;
+until that is done, or after Claude changes directory, an edit only
+records the project's findings for the next one. On a project of 2,000
+files, this adds about 3 seconds to each edit of a PHP file.
 
 The plugin also declares the [language server](./editors), but Claude Code
-runs a single language server per file extension: while another plugin, such as `php-lsp`, handles `.php`,
-the custos one does not start, and the hook still reports findings. Restart
-Claude Code after installing.
+runs a single language server per file extension: while another plugin,
+such as `php-lsp`, handles `.php`, the custos one does not start, and the
+hook still reports findings. Restart Claude Code after installing.
 
 ## Local client setup
 
