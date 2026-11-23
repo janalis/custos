@@ -8,7 +8,8 @@ evidence across server restarts.
 
 ## Claude Code
 
-The repository is a Claude Code plugin marketplace. Its `custos` plugin
+The repository is a Claude Code plugin marketplace. Its `custos` plugin,
+developed in [janalis/custos-claude-plugin](https://github.com/janalis/custos-claude-plugin),
 gives Claude the MCP tools below and reports custos findings for each PHP
 file Claude edits:
 

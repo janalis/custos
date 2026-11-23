@@ -8,7 +8,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 
 - A Claude Code plugin: the repository is a plugin marketplace, and its
-  `custos` plugin runs `custos mcp` for the agent, reports custos findings
+  `custos` plugin, developed in
+  [janalis/custos-claude-plugin](https://github.com/janalis/custos-claude-plugin),
+  runs `custos mcp` for the agent, reports custos findings
   for each PHP file Claude edits, and runs `custos lsp` when no other plugin
   handles PHP files (`claude plugin marketplace add janalis/custos`, then
   `claude plugin install custos@custos`). It runs custos from `PATH`, or

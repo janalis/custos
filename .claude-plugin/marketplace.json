@@ -9,8 +9,12 @@
     {
       "name": "custos",
       "description": "PHP inspections, quick-fixes and formatting from custos (language server and MCP tools)",
-      "source": "./claude-plugin",
-      "category": "development"
+      "source": {
+        "source": "github",
+        "repo": "janalis/custos-claude-plugin"
+      },
+      "category": "development",
+      "homepage": "https://github.com/janalis/custos-claude-plugin"
     }
   ]
 }
