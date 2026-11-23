@@ -5,6 +5,21 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A `foreach` key is `int|string` only when the subject is an array. A
+  subject that may be an iterator (untyped, `Traversable`, `iterable`, or a
+  generator yielding untyped keys) leaves the key's type unknown, and
+  `$map ?? []` over a `WeakMap` joins the map's object keys to the array's,
+  so `MemberAccessOnNonObject` and the other proven-level type rules no
+  longer report a method call on such a key
+  ([#53](https://github.com/janalis/custos/issues/53)).
+- A template bound to objects (`@template T of object`) no longer takes a
+  scalar or an array from an argument:
+  `new \ReflectionClass($key)->newInstanceWithoutConstructor()` with an
+  `int|string` key is an `object`, not an `int`
+  ([#54](https://github.com/janalis/custos/issues/54)).
+
 ## [0.2.6] - 2026-11-24
 
 ### Added

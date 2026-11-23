@@ -63,7 +63,7 @@ function values() { yield 1; yield 2; return 'done'; }
 function keyed() { yield 'x' => 'a'; yield 'y' => 'b'; }
 function bare() { yield; }
 function unknown($x) { yield $x; }
-function unknownKey($k) { yield $k => 1; }
+function unknownKey($k) { yield $k => 1; } // a generator's key may be anything, an object too
 function delegated() { yield from ['x' => 1, 'y' => 2]; }
 function delegatedGenerator() { yield from values(); }
 function mixedDelegation($x) { yield 1; yield from $x; }
@@ -88,7 +88,7 @@ function run() {
  foreach((new Source())->items() as $v) { t('method', $v); }
 }
 `, map[string]string{
-		"identity": `\Generator`, "dead": `\Generator`, "nested": "int", "recursive": `\Generator`, "key": "int", "value": "int", "stringKey": "string", "stringValue": "string", "bare": "null", "unknownKeyKnown": "int", "unknownValue": "?unknown", "unknownKey": "int|string", "knownValue": "int", "delegatedKey": "string", "delegatedValue": "int", "delegatedGenerator": "int", "mixedDelegation": "?unknown", "closure": "int", "arrow": "string", "method": "int",
+		"identity": `\Generator`, "dead": `\Generator`, "nested": "int", "recursive": `\Generator`, "key": "int", "value": "int", "stringKey": "string", "stringValue": "string", "bare": "null", "unknownKeyKnown": "int", "unknownValue": "?unknown", "unknownKey": "?unknown", "knownValue": "int", "delegatedKey": "string", "delegatedValue": "int", "delegatedGenerator": "int", "mixedDelegation": "?unknown", "closure": "int", "arrow": "string", "method": "int",
 	})
 }
 

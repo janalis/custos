@@ -360,17 +360,17 @@ func (e *Env) foreachElem(x syntax.Expr) types.Type {
 	return e.shapeElem(t, x)
 }
 
-// foreachKey is the key type of `foreach (x as $k => …)`: int|string, or
-// only the kinds of keys a sealed shape lists plus those the element writes
-// into variable x reaching the loop may add.
+// foreachKey is the key type of `foreach (x as $k => …)`: for an array,
+// int|string, or only the kinds of keys a sealed shape lists plus those the
+// element writes into variable x reaching the loop may add; for anything
+// else, the key type its iteration binds, or unknown, since an iterator may
+// yield keys of any type.
 func (e *Env) foreachKey(x syntax.Expr) types.Type {
 	anyKey := types.Of("int", "string")
 	t := e.baseType(x)
 	if !t.Without("null", "false").IsArrayLike() {
-		if k, _ := e.iterTypes(t); !k.IsUnknown() {
-			return k
-		}
-		return anyKey
+		k, _ := e.iterTypes(t)
+		return k
 	}
 	key := t.ArrayKey()
 	if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {

@@ -75,11 +75,45 @@ func (e *Env) bindCallSkipping(ft *index.FuncTemplates, params []index.Param, ar
 	}
 	mb := tplBindings{}
 	for name, ts := range found {
-		if u := types.Union(ts...); !u.IsUnknown() && !u.Has("mixed") {
+		bound := ""
+		for _, tp := range ft.Templates {
+			if tp.Name == name {
+				bound = tp.Bound
+			}
+		}
+		u := withinBound(types.Union(ts...), bound)
+		if !u.IsUnknown() && !u.Has("mixed") {
 			mb[name] = u
 		}
 	}
 	return mb
+}
+
+// withinBound drops from bt the members a template bound to objects cannot
+// take: `new \ReflectionClass($key)` matches its int|string argument against
+// `@param T|class-string<T>`, and an int left bound to `T of object` typed
+// the instance it creates as an int. A binding left empty stays unbound, so
+// the template takes its bound. Other bounds keep bt as it is.
+func withinBound(bt types.Type, bound string) types.Type {
+	if bound == "" || bt.IsUnknown() || !objectOnly(types.FromDoc(bound, nil)) {
+		return bt
+	}
+	var drop []string
+	for _, a := range bt.Atoms() {
+		if !objectAtom(a) && a != "mixed" {
+			drop = append(drop, a)
+		}
+	}
+	if len(drop) == 0 {
+		return bt
+	}
+	return bt.Without(drop...)
+}
+
+// objectAtom reports a type member that is an object: `object` or a class
+// (not an array of a class), as objectOnly reads them.
+func objectAtom(a string) bool {
+	return a == "object" || strings.HasPrefix(a, `\`) && !strings.HasSuffix(a, "[]")
 }
 
 // substFuncTemplates parses doc type text whose `\~~T` atoms are method

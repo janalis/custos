@@ -189,7 +189,7 @@ function f() {
 		"never":          "?unknown",         // only never-typed writes into []
 		"callRef":        "int[]<int<1, 1>>", // call-time pass-by-reference (PHP < 5.4)
 		"manyKey":        "?unknown",         // past maxVarDefs element writes
-		"manyForeachKey": "int|string",
+		"manyForeachKey": "?unknown",         // past the cap $w is not known to be an array: it may be an iterator
 		"manyForeachVal": "?unknown",
 	})
 	expectShapes(t, got2, map[string]string{"neg84": "string[]<string<len 1, 1>>{-5: string<len 1, 1>, -4: string<len 1, 1>}"})
