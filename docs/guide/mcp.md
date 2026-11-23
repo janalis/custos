@@ -26,7 +26,9 @@ the plugin then runs `vendor/bin/custos` next to the nearest
 or your home directory; outside your home directory, only that directory
 itself is searched. The edit hook starts this search from the edited
 file's directory when it is inside the one Claude Code starts in, and may
-go up to that one, so each package of a monorepo uses its own launcher.
+go up to that one, so each package of a monorepo uses its own launcher;
+files under a `vendor` directory or in a git submodule use the launcher
+of the directory Claude Code starts in.
 That runs code from the repository as soon as
 Claude Code starts in it, so turn it on only for repositories you trust.
 After each `Edit`, `MultiEdit` or `Write` of a `.php` file, a hook runs

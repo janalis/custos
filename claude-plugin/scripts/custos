@@ -12,9 +12,17 @@ if [ "${CUSTOS_PROJECT_LAUNCHER:-}" = 1 ]; then
     home=$(cd "${HOME:-/nonexistent}" 2>/dev/null && pwd -P) || home=
     top=$(pwd -P 2>/dev/null) || top=
     dir=$(cd "${CUSTOS_LAUNCHER_FROM:-.}" 2>/dev/null && pwd -P) || dir=
-    # A start outside the working directory falls back to it.
+    # A start outside the working directory, or in a dependency under a
+    # vendor directory, falls back to the working directory. Without a
+    # working directory, nothing is searched.
     case $dir/ in "$top"/*) ;; *) dir=$top ;; esac
+    case ${dir#"$top"}/ in */vendor/*) dir=$top ;; esac
+    [ -n "$top" ] || dir=
     while [ -n "$dir" ]; do
+        # A git submodule or nested repository is another project.
+        if [ "$dir" != "$top" ] && [ -e "$dir/.git" ]; then
+            case $dir/ in "$top"/?*) dir=$top; continue ;; esac
+        fi
         if [ -f "$dir/composer.json" ]; then
             if [ -x "$dir/vendor/bin/custos" ]; then exec "$dir/vendor/bin/custos" "$@"; fi
             break
