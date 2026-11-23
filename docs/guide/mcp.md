@@ -27,9 +27,10 @@ or your home directory; outside your home directory, only that directory
 itself is searched. That runs code from the repository as soon as
 Claude Code starts in it, so turn it on only for repositories you trust.
 After each `Edit`, `MultiEdit` or `Write` of a `.php` file, a hook runs
-`custos analyse` on that file and passes its first 40 findings to Claude;
-it needs `jq`, and stays silent when the file has none. The plugin also
-declares the [language server](./editors), but Claude Code runs a single language server
+`custos analyse` on that file and passes its findings to Claude: all of
+them the first time Claude edits the file in a session, then only the
+findings the edit added, at most 40 at a time. It needs `jq`, and stays
+silent when there is nothing new. The plugin also declares the [language server](./editors), but Claude Code runs a single language server
 per file extension: while another plugin, such as `php-lsp`, handles `.php`,
 the custos one does not start, and the hook still reports findings. Restart
 Claude Code after installing.

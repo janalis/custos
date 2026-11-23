@@ -3,13 +3,19 @@
 # hand its findings back to Claude as additional context. Claude Code runs one
 # language server per file extension, so this also works next to another PHP
 # language server. It never blocks the edit: any failure exits 0 silently.
+#
+# The first edit of a file in a session reports all its findings; later edits
+# report only the findings that were not there before. A finding is matched by
+# its rule and message, without its position, since edits move lines.
 command -v jq >/dev/null 2>&1 || exit 0
 custos=$(dirname "$0")/../scripts/custos
 
 input=$(cat) || exit 0
 file=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null) || exit 0
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null) || exit 0
+session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null) || exit 0
 case $file in *.php) ;; *) exit 0 ;; esac
+key=$(printf '%s' "$file" | cksum | tr ' ' -)
 # custos finds the project root from the working directory, as on the CLI.
 if [ -n "$cwd" ]; then
     cd "$cwd" 2>/dev/null || exit 0
@@ -20,15 +26,48 @@ fi
 
 # Findings come first; a blank line and the summary follow them.
 findings=$("$custos" analyse --fail-on never -- "$file" 2>/dev/null | sed '/^$/,$d') || exit 0
-[ -n "$findings" ] || exit 0
+
+# Findings reported earlier in this session, kept in a private directory.
+state=
+case $session in
+    ''|*[!A-Za-z0-9_-]*) ;;
+    *)
+        base=${TMPDIR:-/tmp}/custos-claude-$(id -u)
+        if { mkdir -m 700 "$base" 2>/dev/null || [ -d "$base" ]; } &&
+            [ ! -L "$base" ] && [ -n "$(find "$base" -prune -user "$(id -u)" ! -perm -020 ! -perm -002)" ] &&
+            mkdir -p "$base/$session" 2>/dev/null; then
+            state=$base/$session/$key
+        fi ;;
+esac
+earlier=0
+if [ -n "$state" ] && [ -f "$state" ]; then
+    # Keep the findings whose rule and message were not reported before,
+    # counting repeats: two identical findings where there was one is new.
+    new=$(printf '%s\n' "$findings" | awk -v prev="$state" '
+        function strip(s) { if (match(s, /:[0-9]+:[0-9]+: /)) s = substr(s, RSTART + RLENGTH); return s }
+        BEGIN { while ((getline line < prev) > 0) seen[line]++ }
+        NF { k = strip($0); if (seen[k] > 0) { seen[k]--; next } print }')
+    earlier=$(($(printf '%s\n' "$findings" | grep -c .) - $(printf '%s\n' "$new" | grep -c .)))
+else
+    new=$findings
+fi
+if [ -n "$state" ]; then
+    printf '%s\n' "$findings" | awk 'NF { if (match($0, /:[0-9]+:[0-9]+: /)) print substr($0, RSTART + RLENGTH) }' \
+        > "$state.tmp" 2>/dev/null && mv -f "$state.tmp" "$state" 2>/dev/null
+fi
+[ -n "$new" ] || exit 0
 
 # Claude Code cuts hook context above 10,000 characters to a short preview:
 # send at most 40 lines of at most 200 characters each.
 max=40
-count=$(printf '%s\n' "$findings" | wc -l | tr -d ' ')
+count=$(printf '%s\n' "$new" | grep -c .)
 {
-    printf 'custos findings in %s after this edit:\n' "$file"
-    printf '%s\n' "$findings" | head -n "$max" | cut -c 1-200
+    if [ "$earlier" -gt 0 ]; then
+        printf 'New custos findings in %s after this edit (%s reported earlier remain):\n' "$file" "$earlier"
+    else
+        printf 'custos findings in %s after this edit:\n' "$file"
+    fi
+    printf '%s\n' "$new" | head -n "$max" | cut -c 1-200
     if [ "$count" -gt "$max" ]; then
         printf '... and %s more; run custos analyse %s to see them all.\n' "$((count - max))" "$file"
     fi
