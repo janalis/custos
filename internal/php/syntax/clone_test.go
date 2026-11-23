@@ -23,9 +23,15 @@ func TestCloneArguments(t *testing.T) {
 		{`clone($a, $b, $c)`, 3, "$a", "$b"},
 		{`clone(unknown: $a)`, 1, "", ""},
 		{`clone(&$a)`, 1, "$a", ""},
+		// Partial applications (8.6) build a closure: nothing is cloned.
+		{`clone(?)`, 1, "", ""},
+		{`clone(?, $b)`, 2, "", ""},
+		{`clone($a, ?)`, 2, "", ""},
+		{`clone(withProperties: $b, object: ?)`, 2, "", ""},
+		{`clone($a, ...)`, 2, "", ""},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
-			f := parse(t, "<?php "+tc.src+";", phpversion.PHP85)
+			f := parse(t, "<?php "+tc.src+";", phpversion.Max)
 			if len(f.Errors) != 0 {
 				t.Fatal(f.Errors)
 			}

@@ -118,7 +118,9 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 		}
 		// An oversized output parses to an error too.
 		tree := syntax.ParseBest(name, out, parse)
-		if len(tree.Errors) > 0 {
+		// Compile errors the source already had (`f(a: 1, 2)`) leave the
+		// tree whole; the fix must add no error.
+		if tree.Recovered() || len(tree.Errors) > 0 && tree.ParsesWorse(syntax.ParseBest(name, src, parse)) {
 			return nil, errors.New("fix output is not parsable")
 		}
 		if !fixing.WithinVersion(name, src, tree, parse) {

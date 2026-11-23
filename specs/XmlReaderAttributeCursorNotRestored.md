@@ -41,7 +41,7 @@ None.
 
 ## PHP versions
 
-Apply throughout PHP 5.3–8.5 only where the extension API and syntax exist.  Do not flag API unavailability through this rule.
+Apply on every supported PHP version only where the extension API and syntax exist.  Do not flag API unavailability through this rule.
 
 ## Examples
 

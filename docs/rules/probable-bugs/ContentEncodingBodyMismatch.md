@@ -46,7 +46,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5.
+Available on every supported PHP version.
 
 ## Configure
 

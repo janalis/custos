@@ -46,7 +46,9 @@ None.
 
 ## PHP versions
 
-Available throughout supported PHP 5.3–8.5 where the referenced builtin/extension is available. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
+Available on every supported PHP version where the referenced builtin/extension is available. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
+
+From PHP 8.6 a partial application (`exec($cmd, ...)`) counts as the call each use of the closure makes: the arguments it binds are checked, and an argument left to a `?` or a trailing `...` comes with each call, unknown.
 
 ## Examples
 

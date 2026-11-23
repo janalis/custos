@@ -244,3 +244,7 @@ func sivtKeyword(meth *syntax.Method, m *index.Method) string {
 	}
 	return "static"
 }
+
+// PartialCalls: a first-class callable or partial application refers to
+// its callee as a call does.
+func (staticInvocationViaThis) PartialCalls() {}

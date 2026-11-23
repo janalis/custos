@@ -45,7 +45,7 @@ func (pdoAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !strings.EqualFold(pname.Value, "prepare") {
 		return
 	}
-	if prep.Args.FirstClassCallable() { // E7: a closure is created, nothing is prepared
+	if prep.Args.Partial() { // E7: a closure is created, nothing is prepared
 		return
 	}
 	sole := soleArg(prep)

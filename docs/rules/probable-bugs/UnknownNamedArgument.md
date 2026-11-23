@@ -27,7 +27,7 @@ Reported:
 
 ## Detection
 
-- Report a named argument absent from every resolved target parameter list where no target has a variadic parameter. Parameter names are compared case-sensitively.
+- Report a named argument absent from every resolved target parameter list where no target has a variadic parameter. Parameter names are compared case-sensitively. A named placeholder of a partial application (`f(name: ?)`, PHP 8.6) is a named argument too: PHP binds it when it builds the closure.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 - D4. The resolved targets of a call are every declaration PHP may bind it to:
@@ -36,7 +36,7 @@ Reported:
   - a `static::` call: the method of the enclosing class plus those of its indexed subtypes, as for an instance call;
   - a call through a named class, `self` or `parent`: only the method that class resolves.
 - Subtypes are not consulted when the nominal method is private or final, or its receiver class is final: no override can replace it.
-- D6. A builtin target counts only when its stub parameter names are verified: the declaration belongs to an extension bundled with PHP whose stub names were compared with the engine's reflection, and it is not one of the listed builtins whose stub is known to differ (`session_set_cookie_params`, `dba_fetch`, `ldap_sasl_bind`, `IntlCalendar::set`).
+- D6. A builtin target counts only when its stub parameter names are verified: the declaration belongs to an extension bundled with PHP whose stub names were compared with the engine's reflection, and it is not one of the listed builtins whose stub is known to differ (`session_set_cookie_params`, `dba_fetch`, `ldap_sasl_bind`, `IntlCalendar::set`, and `openssl_sign` and `openssl_verify`, whose PHP 8.6 `salt_length` the stub lacks).
 
 ## Exceptions (no report)
 

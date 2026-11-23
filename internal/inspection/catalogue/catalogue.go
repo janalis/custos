@@ -133,6 +133,7 @@ import (
 	"github.com/janalis/custos/internal/inspection/rules/deflatestreamneverfinished"
 	"github.com/janalis/custos/internal/inspection/rules/degradedswitch"
 	"github.com/janalis/custos/internal/inspection/rules/deprecatedconstructorstyle"
+	"github.com/janalis/custos/internal/inspection/rules/deprecatedfeature"
 	"github.com/janalis/custos/internal/inspection/rules/deprecatedinioptions"
 	"github.com/janalis/custos/internal/inspection/rules/detachedsignaturepassedtocombinedverifier"
 	"github.com/janalis/custos/internal/inspection/rules/directoryconstantcanbeused"
@@ -691,6 +692,7 @@ func All() []analysis.Rule {
 		classconstantcanbeused.New(),
 		constantcanbeused.New(),
 		deprecatedconstructorstyle.New(),
+		deprecatedfeature.New(),
 		directoryconstantcanbeused.New(),
 		dynamiccallstoscopeintrospection.New(),
 		elvisoperatorcanbeused.New(),

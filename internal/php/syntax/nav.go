@@ -92,12 +92,67 @@ func IsNullConst(e Expr) bool {
 	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
 }
 
+// Partial reports whether a holds a placeholder: the call only creates a
+// closure and invokes nothing. That covers first-class callables
+// (`f(...)`) and partial function applications (`f(?, 2)`, `f(1, ...)`,
+// PHP 8.6).
+func (a *ArgList) Partial() bool {
+	if a == nil {
+		return false
+	}
+	for _, x := range a.Args {
+		switch x.(type) {
+		case *VariadicPlaceholder, *ArgPlaceholder:
+			return true
+		}
+	}
+	return false
+}
+
 // FirstClassCallable reports whether a is the `(...)` of a first-class
-// callable (`f(...)`, `$o->m(...)`, `C::m(...)`).
+// callable (`f(...)`, `$o->m(...)`, `C::m(...)`): the closure keeps the
+// callee's whole signature. See Partial for every closure-creating list.
 func (a *ArgList) FirstClassCallable() bool {
 	if a == nil || len(a.Args) != 1 {
 		return false
 	}
 	_, ok := a.Args[0].(*VariadicPlaceholder)
 	return ok
+}
+
+// RecoveryError returns the first error the parser recovered from, which
+// may have dropped or reshaped code; compile errors leave the tree whole.
+func (f *File) RecoveryError() (Error, bool) {
+	for _, e := range f.Errors {
+		if !e.Compile {
+			return e, true
+		}
+	}
+	return Error{}, false
+}
+
+// Recovered reports whether the parser recovered from an error in f: its
+// tree may lack or misplace code. A file with only compile errors is whole.
+func (f *File) Recovered() bool {
+	_, ok := f.RecoveryError()
+	return ok
+}
+
+// RecoveryErrorCount is the number of errors the parser recovered from,
+// compile errors aside.
+func (f *File) RecoveryErrorCount() int {
+	n := 0
+	for _, e := range f.Errors {
+		if !e.Compile {
+			n++
+		}
+	}
+	return n
+}
+
+// ParsesWorse reports whether f, a changed version of orig, parses worse:
+// more errors, or more the parser recovered from, as when a parse error
+// takes the place of a compile error at the same position.
+func (f *File) ParsesWorse(orig *File) bool {
+	return len(f.Errors) > len(orig.Errors) || f.RecoveryErrorCount() > orig.RecoveryErrorCount()
 }

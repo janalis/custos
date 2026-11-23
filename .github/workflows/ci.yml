@@ -15,7 +15,7 @@ jobs:
       # (token_get_all, php -l): keep it at version.Max.
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.5"
+          php-version: "8.6"
           coverage: none
       # markdownlint (part of `make lint`) comes from the docs site's packages.
       - uses: actions/setup-node@v4

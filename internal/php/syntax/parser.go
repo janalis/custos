@@ -1,7 +1,9 @@
 package syntax
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"unsafe"
 
 	phpversion "github.com/janalis/custos/internal/php/version"
@@ -36,6 +38,9 @@ func (f *File) Memo(key any, fn func() any) any {
 type Error struct {
 	Span Span
 	Msg  string
+	// Compile marks an error PHP raises when it compiles code its grammar
+	// accepts (`f(a: 1, 2)`, `new C(...)`), rather than a parse error.
+	Compile bool
 }
 
 func (e Error) Error() string { return fmt.Sprintf("%d: %s", e.Span.Start, e.Msg) }
@@ -81,11 +86,20 @@ func Parse(path string, src []byte, opt Options) *File {
 	}
 	f := &File{Path: path, Src: src, Version: opt.Version, Tokens: toks}
 	f.Stmts = p.parseTopStmts()
+	// Lexer errors come first and some compile errors are only known after
+	// later arguments or members parsed: report them all in source order.
+	byStart := func(a, b Error) int { return cmp.Compare(a.Span.Start, b.Span.Start) }
+	if !slices.IsSortedFunc(p.errs, byStart) {
+		slices.SortStableFunc(p.errs, byStart)
+	}
 	if len(p.errs) > MaxErrors {
 		// Garbage input yields an error per token: keep the report bounded.
+		// The tree is whole when every error, reported or not, was a
+		// compile error.
 		p.errs = append(p.errs[:MaxErrors:MaxErrors], Error{
-			Span: p.errs[MaxErrors].Span,
-			Msg:  fmt.Sprintf("more than %d syntax errors; the rest are not reported", MaxErrors),
+			Span:    p.errs[MaxErrors].Span,
+			Msg:     fmt.Sprintf("more than %d syntax errors; the rest are not reported", MaxErrors),
+			Compile: !p.recovered,
 		})
 	}
 	if p.tooDeep || !linkParsedParents(f) {
@@ -117,6 +131,8 @@ type parser struct {
 	eof      Token
 	// permissive accepts removed legacy syntax regardless of ver.
 	permissive bool
+	// recovered records a parse error, even one past MaxErrors.
+	recovered bool
 	// inDefault is set while parsing a property or parameter default: a
 	// `{` after it opens the property hooks, never a legacy `$a{0}` offset.
 	inDefault bool
@@ -190,11 +206,29 @@ func (p *parser) describe(t Token) string {
 }
 
 func (p *parser) errorAt(t Token, msg string) {
-	// One error per position keeps cascades readable.
-	if n := len(p.errs); n > MaxErrors || n > 0 && p.errs[n-1].Span.Start == t.Start {
+	p.report(Error{Span: Span{t.Start, t.End}, Msg: msg})
+}
+
+// compileErrorAt is errorAt for an error PHP raises at compile time.
+func (p *parser) compileErrorAt(t Token, msg string) {
+	p.report(Error{Span: Span{t.Start, t.End}, Msg: msg, Compile: true})
+}
+
+func (p *parser) report(e Error) {
+	p.recovered = p.recovered || !e.Compile
+	n := len(p.errs)
+	if n > MaxErrors {
 		return // beyond MaxErrors+1 errors nothing more is kept (see Parse)
 	}
-	p.errs = append(p.errs, Error{Span: Span{t.Start, t.End}, Msg: msg})
+	// One error per position keeps cascades readable; a parse error there
+	// prevails over a compile error, which presumes the code parsed.
+	if n > 0 && p.errs[n-1].Span.Start == e.Span.Start {
+		if p.errs[n-1].Compile && !e.Compile {
+			p.errs[n-1] = e
+		}
+		return
+	}
+	p.errs = append(p.errs, e)
 }
 
 // text normally aliases the retained source buffer; metadata-only parses

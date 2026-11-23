@@ -44,7 +44,7 @@ None. Choosing a repair requires intent or additional runtime information.
 
 ## PHP versions
 
-Available throughout supported PHP 5.3–8.5 where the referenced builtin/extension is available. The null-argument getter form (E1b) is recognized from PHP 8.0 only. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
+Available on every supported PHP version where the referenced builtin/extension is available. The null-argument getter form (E1b) is recognized from PHP 8.0 only. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
 
 ## Configure
 

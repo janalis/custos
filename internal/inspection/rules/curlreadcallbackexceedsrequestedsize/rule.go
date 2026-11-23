@@ -24,7 +24,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 func check(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+	if ctx.File.Recovered() || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)

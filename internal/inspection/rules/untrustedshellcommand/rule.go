@@ -178,3 +178,7 @@ func scalarCall(ctx *analysis.Context, c *syntax.FuncCall) bool {
 	return semanticquery.NativeBuiltinName(ctx, c) != "" &&
 		ctx.TypeOf(c).OnlyOf("int", "float", "bool", "false", "true", "null")
 }
+
+// PartialCalls: a partial application binds the arguments it is written
+// with, and every call of the closure passes them to the sink.
+func (rule) PartialCalls() {}

@@ -16,6 +16,7 @@ TXT;
     $h = "${x}";
     $i = $o?->__toString();
     $j = Foo::__toString();
+    $k = $o->__toString(...$none); // unpacked arguments: not a plain call
     settype($x, 'INT');
     settype($x, $type);
 }

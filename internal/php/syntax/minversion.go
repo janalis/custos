@@ -59,6 +59,9 @@ func minVersion(f *File, n Node) phpversion.Version {
 		at(signatureVersion(f, x, x.Params, x.ReturnType, nil))
 	case *Method:
 		at(signatureVersion(f, x, x.Params, x.ReturnType, nil))
+		if c, ok := x.Parent().(*ClassLike); ok && c.ClassKind == KindEnum && x.Name != nil && strings.EqualFold(x.Name.Value, "__debugInfo") {
+			at(phpversion.PHP86) // an enum may declare __debugInfo() from 8.6
+		}
 	case *Closure:
 		if x.Static {
 			at(phpversion.PHP54)
@@ -84,6 +87,11 @@ func minVersion(f *File, n Node) phpversion.Version {
 		}
 	case *VariadicPlaceholder:
 		at(phpversion.PHP81)
+		if l, ok := x.Parent().(*ArgList); ok && len(l.Args) > 1 {
+			at(phpversion.PHP86) // f(1, ...): partial application
+		}
+	case *ArgPlaceholder:
+		at(phpversion.PHP86)
 	case *ArgList:
 		if len(x.Args) > 0 && trailingComma(f, x, x.Args[len(x.Args)-1]) {
 			at(phpversion.PHP73)
@@ -103,6 +111,7 @@ func minVersion(f *File, n Node) phpversion.Version {
 	case *PropertyFetch:
 		at(nullsafeVersion(x.NullSafe))
 		at(dereferenceVersion(x.Var))
+		at(constantWriteVersion(x))
 	case *MethodCall:
 		at(nullsafeVersion(x.NullSafe))
 		at(dereferenceVersion(x.Var))
@@ -215,11 +224,18 @@ func propertyVersion(x *Property) phpversion.Version {
 	if x.Type != nil {
 		v = maxVersion(v, maxVersion(phpversion.PHP74, typeVersion(x.Type)))
 	}
-	if x.Modifiers.Has(TReadonly) {
+	readonly := x.Modifiers.Has(TReadonly)
+	if readonly {
 		v = maxVersion(v, phpversion.PHP81)
+	}
+	if c, ok := x.Parent().(*ClassLike); ok && c.Modifiers.Has(TReadonly) {
+		readonly = true
 	}
 	for _, p := range x.Props {
 		v = maxVersion(v, initializerVersion(p.Default))
+		if readonly && p.Default != nil {
+			v = maxVersion(v, phpversion.PHP86) // a readonly property's default value
+		}
 	}
 	return v
 }
@@ -546,6 +562,71 @@ func listItemsVersion(items []*ArrayItem) phpversion.Version {
 		}
 	}
 	return v
+}
+
+// constantWriteVersion: writing through a property of an object a constant
+// holds, directly or in an array (`O->p = 1`, `C::K['k']->p[] = 1`,
+// `unset(O[0]->p)`), needs PHP 8.6. Passing such a property to a reference
+// parameter (`sort(O->list)`) does too, but only the callee's declaration
+// tells it from passing a value: syntax alone stays at the lower version,
+// as MinVersion promises when unsure.
+func constantWriteVersion(x *PropertyFetch) phpversion.Version {
+	if x.NullSafe || !constantRooted(x.Var) || !written(x) {
+		return phpversion.Min
+	}
+	return phpversion.PHP86
+}
+
+// constantRooted reports whether e reads a constant through offsets and
+// properties only.
+func constantRooted(e Expr) bool {
+	for {
+		switch x := e.(type) {
+		case *ConstFetch, *ClassConstFetch:
+			return true
+		case *ArrayDimFetch:
+			e = x.Var
+		case *PropertyFetch:
+			if x.NullSafe {
+				return false
+			}
+			e = x.Var
+		default:
+			return false
+		}
+	}
+}
+
+// written reports whether e, or a property or offset of it, is written:
+// assigned (any operator, or bound by reference, also as an array item),
+// incremented, unset, or a foreach or destructuring target.
+func written(e Expr) bool {
+	var n Node = e
+	for {
+		switch p := n.Parent().(type) {
+		case *PropertyFetch:
+			if p.Var != n {
+				return false
+			}
+		case *ArrayDimFetch:
+			if p.Var != n {
+				return false
+			}
+		case *Assign:
+			return p.Var == n || p.ByRef && p.Value == n
+		case *IncDec:
+			return true
+		case *Unset:
+			return true
+		case *Foreach:
+			return p.Key == n || p.Value == n
+		case *ArrayItem:
+			return p.Value == n && (p.ByRef || IsDestructuring(p.Value))
+		default:
+			return false
+		}
+		n = n.Parent()
+	}
 }
 
 // IsDestructuring reports whether n is an array pattern being assigned to:

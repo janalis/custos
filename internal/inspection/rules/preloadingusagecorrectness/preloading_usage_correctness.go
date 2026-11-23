@@ -142,6 +142,9 @@ func preloadRunsCodeAfter(ctx *analysis.Context, inc *syntax.Include) bool {
 				fqn, fallback := ctx.Names().Const(x.Name.Value, x.Span().Start)
 				found = !preloadKnownConst(ctx, fqn, fallback, x.Span().Start)
 			case *syntax.FuncCall:
+				if x.Args.Partial() { // a closure is made, no code runs
+					break
+				}
 				name := ctx.GlobalFunctionName(x)
 				if c, ok := preloadConstName(x); ok && (name == "defined" || name == "constant") {
 					found = !preloadKnownConst(ctx, c, "", x.Span().Start)

@@ -191,8 +191,8 @@ func analyzeSource(engine fixing.Analyzer, path string, src []byte, opt syntax.O
 		result.Findings, result.Incomplete = analysis.Findings, analysis.Incomplete
 	} else {
 		result.Findings = engine.Analyze(file)
-		if len(file.Errors) > 0 {
-			result.Incomplete = []diagnostic.AnalysisIssue{{Reason: "syntax-recovery", Span: file.Errors[0].Span}}
+		if e, ok := file.RecoveryError(); ok {
+			result.Incomplete = []diagnostic.AnalysisIssue{{Reason: "syntax-recovery", Span: e.Span}}
 		}
 	}
 	return result

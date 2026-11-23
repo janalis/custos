@@ -162,8 +162,17 @@ func checkEqualsArgs(ctx *analysis.Context, call syntax.Node, name string, args 
 	many := len(args) > 3
 	for i, a := range args {
 		idx := i
-		if arg, ok := a.(*syntax.Arg); ok && arg.Name != nil {
-			p, known := equalsParamIndex[arg.Name.Value]
+		var named *syntax.Identifier
+		switch arg := a.(type) {
+		case *syntax.VariadicPlaceholder:
+			continue // `...` passes the rest when the closure is called
+		case *syntax.Arg:
+			named = arg.Name
+		case *syntax.ArgPlaceholder:
+			named = arg.Name
+		}
+		if named != nil {
+			p, known := equalsParamIndex[named.Value]
 			if !known {
 				continue
 			}
@@ -190,3 +199,7 @@ func checkEqualsArgs(ctx *analysis.Context, call syntax.Node, name string, args 
 		ctx.ReportNode(a, msg)
 	}
 }
+
+// PartialCalls: a first-class callable or partial application refers to
+// its callee as a call does.
+func (phpUnitDeprecations) PartialCalls() {}

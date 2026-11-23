@@ -51,7 +51,7 @@ func TestPostfixReceiverGrammar(t *testing.T) {
 		} {
 			t.Run(receiver.text+operation.text, func(t *testing.T) {
 				src := "<?php $result = " + receiver.text + operation.text + "; $after = 1;"
-				for _, version := range []phpversion.Version{phpversion.PHP80, phpversion.PHP85} {
+				for _, version := range []phpversion.Version{phpversion.PHP80, phpversion.Max} {
 					for _, mode := range []string{"strict", "permissive", "adaptive"} {
 						opt := Options{Version: version, Permissive: mode == "permissive"}
 						var f *File
@@ -102,7 +102,7 @@ func TestPostfixReceiverGrammar(t *testing.T) {
 
 func TestPostfixNewReceiverCompatibility(t *testing.T) {
 	for _, expression := range []string{"new C()->field", "new C()[0]", "new C()::FIELD", "new class {}->field"} {
-		for _, version := range []phpversion.Version{phpversion.PHP84, phpversion.PHP85} {
+		for _, version := range []phpversion.Version{phpversion.PHP84, phpversion.Max} {
 			f := parse(t, "<?php $result = "+expression+"; $after = 1;", version)
 			if len(f.Errors) != 0 {
 				t.Fatalf("%s: %s: %v", version, expression, f.Errors)
@@ -138,6 +138,6 @@ func BenchmarkPostfixReceiverGrammar(b *testing.B) {
 	b.SetBytes(int64(len(src)))
 	b.ReportAllocs()
 	for b.Loop() {
-		Parse("postfix.php", src, Options{Version: phpversion.PHP85})
+		Parse("postfix.php", src, Options{Version: phpversion.Max})
 	}
 }

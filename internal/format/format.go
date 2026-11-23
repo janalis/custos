@@ -88,14 +88,15 @@ func sourceOnce(path string, src []byte, opt Options) (Result, bool) {
 	}
 	lex := php
 	f := syntax.Parse(path, src, syntax.Options{Version: php})
-	if len(f.Errors) > 0 {
+	if f.Recovered() {
 		// Code newer than the configured version: parse it, and lex the
 		// output, as the newest version reads it.
-		if g := syntax.Parse(path, src, syntax.Options{Version: phpversion.Max, Permissive: true}); len(g.Errors) < len(f.Errors) {
+		if g := syntax.Parse(path, src, syntax.Options{Version: phpversion.Max, Permissive: true}); g.RecoveryErrorCount() < f.RecoveryErrorCount() {
 			f, lex = g, phpversion.Max
 		}
 	}
-	if n := len(f.Errors); n > 0 {
+	// Compile errors (`f(a: 1, 2)`) leave the tree whole: it formats.
+	if n := f.RecoveryErrorCount(); n > 0 {
 		return Result{Output: src, Skipped: plural(n, "syntax error")}, false
 	}
 	toks := f.Tokens
@@ -367,7 +368,7 @@ func (e *engine) verify(out []byte) string {
 	}
 	f := syntax.Parse("", out, syntax.Options{Version: e.lex, Permissive: true})
 	if len(f.Errors) > 0 {
-		if g := syntax.Parse("", e.src, syntax.Options{Version: e.lex, Permissive: true}); len(g.Errors) < len(f.Errors) {
+		if g := syntax.Parse("", e.src, syntax.Options{Version: e.lex, Permissive: true}); f.ParsesWorse(g) {
 			return "syntax error"
 		}
 	}

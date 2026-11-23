@@ -47,7 +47,7 @@ func TestUnsetAndIssetGrammar(t *testing.T) {
 		{"isset($x + 1);", true, true, ""},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
-			for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.PHP85} {
+			for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.Max} {
 				src := "<?php " + tc.statement + " $after = 1;"
 				checkOperandDeclarationGrammar(t, src, version, tc.valid, tc.compile, tc.errorText, func(f *File) {
 					// Retain all operands even if a middle operand is invalid.

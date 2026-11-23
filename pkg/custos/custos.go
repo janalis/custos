@@ -89,6 +89,12 @@ type Info struct {
 	Summary  string   // shown by custos explain and in SARIF output
 	HasFix   bool     // the rule offers quick-fixes
 	PHPMin   string   // minimum target PHP version, documentation only
+	// PartialCalls has the rule also check calls that only build a closure:
+	// first-class callables and partial applications (`f(...)`, `f(?, 1)`,
+	// PHP 8.6), whose ArgList.Partial() is true and whose arguments may be
+	// ArgPlaceholder or VariadicPlaceholder nodes. Without it, such calls
+	// never reach the rule.
+	PartialCalls bool
 }
 
 // NewRule returns a rule calling check for each node of the given kinds.
@@ -111,7 +117,11 @@ func NewRule(info Info, kinds []ast.NodeKind, check func(ctx *Context, n ast.Nod
 	if len(kinds) == 0 || check == nil {
 		return nil, errors.New("custos: a rule needs node kinds and a check")
 	}
-	return &goRule{info: info, kinds: slices.Clone(kinds), check: check}, nil
+	r := &goRule{info: info, kinds: slices.Clone(kinds), check: check}
+	if info.PartialCalls {
+		return &partialGoRule{r}, nil
+	}
+	return r, nil
 }
 
 // MustRule is NewRule for rules declared at startup: it panics on an
@@ -153,6 +163,14 @@ type goRule struct {
 func (r *goRule) ID() string                     { return r.info.ID }
 func (r *goRule) Kinds() []ast.NodeKind          { return r.kinds }
 func (r *goRule) Check(ctx *Context, n ast.Node) { r.check(ctx, n) }
+
+// partialGoRule is a goRule with Info.PartialCalls.
+type partialGoRule struct{ *goRule }
+
+var _ analysis.PartialCallRule = partialGoRule{}
+
+// PartialCalls marks the rule for the engine (see Info.PartialCalls).
+func (partialGoRule) PartialCalls() {}
 
 // Facts returns the rule's facts.
 func (r *goRule) Facts() Facts {

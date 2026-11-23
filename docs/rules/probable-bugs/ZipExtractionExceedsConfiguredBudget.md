@@ -44,7 +44,7 @@ All edits use exact byte ranges and preserve comments and evaluation order. Offe
 
 ## PHP versions
 
-Requires PHP 5.3 or later and the referenced extension API. Respect method-specific introduction versions within PHP 5.3–8.5; unsupported optional APIs cannot establish facts. Named arguments require PHP 8.0 or later.
+Requires PHP 5.3 or later and the referenced extension API. Respect method-specific introduction versions within the supported PHP versions; unsupported optional APIs cannot establish facts. Named arguments require PHP 8.0 or later.
 
 ## Options
 

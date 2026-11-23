@@ -422,6 +422,10 @@ func (e *engine) node(n syntax.Node) {
 		}
 	case *syntax.VariadicPlaceholder:
 		e.setRole(e.at(v.Span().Start), roleSpread)
+	case *syntax.ArgPlaceholder:
+		if v.Name != nil {
+			e.setRole(e.find(v.Name.Span().End, v.Span().End, syntax.TColon), roleNamedColon)
+		}
 	case *syntax.ArgList:
 		e.argList(v)
 	case *syntax.ArrayItem:

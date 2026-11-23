@@ -1,5 +1,5 @@
 // Package syntax implements a lossless, error-tolerant, version-aware PHP
-// lexer and parser (PHP 5.3 – 8.5).
+// lexer and parser (PHP 5.3 – 8.6).
 //
 // The token stream covers the source contiguously (trivia included), so any
 // byte range can be edited precisely and every node maps back to exact bytes.

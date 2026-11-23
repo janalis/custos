@@ -66,9 +66,13 @@ const (
 	ArgumentUnknown
 )
 
-// CallArgumentBinding finds a positional or named argument. Unpacking,
-// placeholders and duplicate bindings cannot establish absence or a value.
-// Names from the index may include the parameter's leading dollar sign.
+// CallArgumentBinding finds a positional or named argument. Unpacking and
+// duplicate bindings cannot establish absence or a value. In a partial
+// application (`f(?, $x)`, PHP 8.6) a `?` takes its position or name with
+// no value, and a trailing `...` leaves every argument not written before
+// it to the closure's call: such arguments are unknown, the written ones
+// bound. Names from the index may include the parameter's leading dollar
+// sign.
 func CallArgumentBinding(list *syntax.ArgList, position int, name string) (syntax.Expr, ArgumentState) {
 	if list == nil {
 		return nil, ArgumentMissing
@@ -77,8 +81,25 @@ func CallArgumentBinding(list *syntax.ArgList, position int, name string) (synta
 	var result syntax.Expr
 	pos := 0
 	for _, node := range list.Args {
-		arg, ok := node.(*syntax.Arg)
-		if !ok || arg.Unpack {
+		switch hole := node.(type) {
+		case *syntax.VariadicPlaceholder:
+			if result == nil {
+				return nil, ArgumentUnknown
+			}
+			return result, ArgumentBound
+		case *syntax.ArgPlaceholder:
+			matches := hole.Name != nil && hole.Name.Value == name
+			if hole.Name == nil {
+				matches = pos == position
+				pos++
+			}
+			if matches {
+				return nil, ArgumentUnknown
+			}
+			continue
+		}
+		arg := node.(*syntax.Arg)
+		if arg.Unpack {
 			return nil, ArgumentUnknown
 		}
 		matches := arg.Name != nil && arg.Name.Value == name

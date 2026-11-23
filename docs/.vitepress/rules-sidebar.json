@@ -358,6 +358,10 @@
         "link": "/rules/language-level-migration/DeprecatedConstructorStyle"
       },
       {
+        "text": "DeprecatedFeature",
+        "link": "/rules/language-level-migration/DeprecatedFeature"
+      },
+      {
         "text": "DirectoryConstantCanBeUsed",
         "link": "/rules/language-level-migration/DirectoryConstantCanBeUsed"
       },

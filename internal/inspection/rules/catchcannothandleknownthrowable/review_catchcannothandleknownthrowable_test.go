@@ -50,7 +50,8 @@ func TestReviewCatchCannotHandleKnownThrowableArguments(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			opt := syntax.Options{Version: phpversion.PHP85}
 			f := syntax.ParseBest("review.php", []byte(tc.src), opt)
-			if len(f.Errors) != 0 {
+			// `new Error(...)` cannot compile; its recovered tree is still analyzed.
+			if len(f.Errors) != 0 && tc.name != "first-class callable" {
 				t.Fatalf("invalid probe: %v", f.Errors)
 			}
 			if got := e.Analyze(f); len(got) != tc.want {

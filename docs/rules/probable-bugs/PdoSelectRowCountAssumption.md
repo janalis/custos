@@ -43,7 +43,7 @@ No automatic fix: replacing the query changes result shape, cost and transaction
 
 ## PHP versions
 
-Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). `PDO::query()`, `PDO::prepare()` and `PDOStatement::rowCount()` exist across that whole range, so the rule behaves the same for every target version. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
+Apply only on PHP versions supporting the referenced APIs and syntax (within the supported PHP versions). `PDO::query()`, `PDO::prepare()` and `PDOStatement::rowCount()` exist across that whole range, so the rule behaves the same for every target version. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
 ## Configure
 

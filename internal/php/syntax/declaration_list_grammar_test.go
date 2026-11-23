@@ -40,7 +40,7 @@ func TestDeclarationListGrammar(t *testing.T) {
 	} {
 		t.Run(tc.declaration, func(t *testing.T) {
 			src := "<?php " + tc.declaration + " $after = 1;"
-			for _, version := range []phpversion.Version{tc.minimum, phpversion.PHP85} {
+			for _, version := range []phpversion.Version{tc.minimum, phpversion.Max} {
 				for _, mode := range []string{"strict", "permissive", "adaptive"} {
 					t.Run(fmt.Sprintf("%s/%s", version, mode), func(t *testing.T) {
 						opt := Options{Version: version, Permissive: mode == "permissive"}
@@ -98,6 +98,6 @@ func BenchmarkDeclarationListGrammar(b *testing.B) {
 	b.SetBytes(int64(len(src)))
 	b.ReportAllocs()
 	for b.Loop() {
-		Parse("declaration-lists.php", src, Options{Version: phpversion.PHP85})
+		Parse("declaration-lists.php", src, Options{Version: phpversion.Max})
 	}
 }

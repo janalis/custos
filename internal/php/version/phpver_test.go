@@ -9,7 +9,7 @@ func TestParse(t *testing.T) {
 			t.Errorf("Parse(%q) = %v, %v; want %v", s, v, err, want)
 		}
 	}
-	for _, s := range []string{"8", "x.1", "8.x", "4.4", "9.0", "8.-1", "8.100", "5.2", "8.6", "5.7", "5.99", "6.0", "6.99", "7.5", "7.99"} {
+	for _, s := range []string{"8", "x.1", "8.x", "4.4", "9.0", "8.-1", "8.100", "5.2", "8.7", "5.7", "5.99", "6.0", "6.99", "7.5", "7.99"} {
 		if _, err := Parse(s); err == nil {
 			t.Errorf("Parse(%q) accepted", s)
 		}
@@ -29,7 +29,7 @@ func TestParse(t *testing.T) {
 }
 
 func TestNext(t *testing.T) {
-	for v, want := range map[Version]Version{699: PHP70, PHP56: PHP70, PHP74: PHP80, 799: PHP80, PHP84: PHP85} {
+	for v, want := range map[Version]Version{699: PHP70, PHP56: PHP70, PHP74: PHP80, 799: PHP80, PHP84: PHP85, PHP85: PHP86} {
 		if got, ok := Next(v); got != want || !ok {
 			t.Errorf("Next(%v) = %v, %v", v, got, ok)
 		}

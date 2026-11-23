@@ -20,11 +20,18 @@ func (rule) Kinds() []syntax.NodeKind {
 
 func (rule) Semantic() {}
 
+// PartialCalls: PHP checks a partial application's count when it builds
+// the closure.
+func (rule) PartialCalls() {}
+
 // written is what a call passes: its positional arguments and the names
-// of its named ones.
+// of its named ones. A partial application (`f(?, 1)`, PHP 8.6) binds its
+// `?` placeholders as arguments; a trailing `...` (rest) leaves the
+// parameters after them to the closure's call.
 type written struct {
-	positional []*syntax.Arg
-	named      map[string]bool
+	positional    []syntax.Expr
+	named         map[string]bool
+	partial, rest bool
 }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
@@ -56,6 +63,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	missing, _ := bind(targets[0].Params, args)
+	if args.rest {
+		missing = nil
+	}
 	limit := 0
 	for _, t := range targets {
 		lacking, bound := bind(t.Params, args)
@@ -66,7 +76,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			missing = nil
 		}
 		accepted, capped := maximum(t.Params)
-		if !capped || !t.Builtin && (!ctx.Bool("strictUserArgs") || t.ReadsArgs) {
+		// A partial application rejects extra arguments for every callee.
+		if !capped || !t.Builtin && !args.partial && (!ctx.Bool("strictUserArgs") || t.ReadsArgs) {
 			limit = -1
 		} else if limit >= 0 {
 			limit = max(limit, accepted)
@@ -94,7 +105,23 @@ func arguments(list *syntax.ArgList) (written, bool) {
 	if list == nil {
 		return args, true
 	}
+	if list.FirstClassCallable() {
+		return written{}, false
+	}
+	args.partial = list.Partial()
 	for _, node := range list.Args {
+		switch x := node.(type) {
+		case *syntax.VariadicPlaceholder:
+			args.rest = true
+			continue
+		case *syntax.ArgPlaceholder:
+			if x.Name != nil {
+				args.named[x.Name.Value] = true
+			} else {
+				args.positional = append(args.positional, x)
+			}
+			continue
+		}
 		arg, ok := node.(*syntax.Arg)
 		if !ok || arg.Unpack || arg.Value == nil {
 			return written{}, false

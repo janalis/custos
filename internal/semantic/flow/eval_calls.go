@@ -127,6 +127,28 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 		return value
 	}
+	if args.Partial() {
+		// `f(?, $x)` only makes a closure binding the written arguments, as a
+		// closure's `use` list does: they are evaluated, nothing is called.
+		// One bound to a reference parameter stays bound by reference, so
+		// each call of the closure may write it (`preg_match('/a/', ?, $m)`).
+		params, _, known := e.declaration(n)
+		positions := parameters(args, params, nil)
+		for i, x := range args.Args {
+			a, ok := x.(*syntax.Arg)
+			if !ok {
+				continue
+			}
+			e.eval(a, f, r, depth+1)
+			if p := positions[i]; known && p >= 0 && !params[p].ByRef {
+				continue
+			}
+			if name := rootVariable(a.Value); name != "" {
+				f.alias(name, aliasHeld)
+			}
+		}
+		return Value{Complete: true, Expr: n.(syntax.Expr)}
+	}
 	followed := followTyped
 	closedFollowed := followTyped
 	if receiver != nil {

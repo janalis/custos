@@ -15,3 +15,6 @@ $d = #[Pure] static function () {};
 exit;
 die('x');
 $x = clone($y);
+$p = f(?, 2);
+$q = f(1, ...);
+$r = f(b: ?, a: 1, ...);

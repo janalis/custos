@@ -28,7 +28,7 @@
 ---
 
 custos finds probable bugs, performance and security issues, needless
-complexity and outdated constructs in PHP code (PHP 5.3 to 8.5), and fixes
+complexity and outdated constructs in PHP code (PHP 5.3 to 8.6), and fixes
 many of them for you. It also formats code, following PER, PSR-12, Symfony,
 Laravel or Drupal style presets that `.editorconfig` and `custos.json` can
 adjust. It is written in Go with its own PHP parser and type

@@ -56,7 +56,12 @@ func (r *semanticSeqRule) CheckFile(ctx *analysis.Context) { r.checkFile(ctx) }
 // Fingerprint identifies the rule's definition (see analysis.Fingerprinted).
 func (r *rule) Fingerprint() string { return r.fingerprint }
 
-func (r *rule) ID() string               { return r.id }
+func (r *rule) ID() string { return r.id }
+
+// PartialCalls: a pattern matches what is written, so `f(...)` written in a
+// pattern also matches a first-class callable or a partial application of
+// f. A metavariable never matches a `?` placeholder.
+func (r *rule) PartialCalls()            {}
 func (r *rule) Kinds() []syntax.NodeKind { return r.kinds }
 
 // Facts returns the rule's catalogue facts.

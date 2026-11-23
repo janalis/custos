@@ -287,3 +287,7 @@ func uqFoldName(ctx *analysis.Context, e syntax.Expr) (text string, exact bool) 
 	}
 	return "", false
 }
+
+// PartialCalls: a first-class callable or partial application refers to
+// its callee as a call does.
+func (unqualifiedReference) PartialCalls() {}

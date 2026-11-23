@@ -54,11 +54,8 @@ func (cryptographicallySecureRandomness) Check(ctx *analysis.Context, n syntax.N
 	if len(args) != 2 {
 		return
 	}
-	second := astquery.ArgValue(args[1])
-	if second == nil {
-		return
-	}
-	if !openssl { // D4
+	second := args[1].(*syntax.Arg).Value // placeholders never reach a rule: partial applications are not dispatched
+	if !openssl {                         // D4
 		if c, ok := second.(*syntax.ConstFetch); ok && c.Name != nil && astquery.LastNamePart(c.Name.Value) != "MCRYPT_DEV_RANDOM" {
 			ctx.ReportNode(second, "Prefer MCRYPT_DEV_RANDOM as the entropy source.")
 		}

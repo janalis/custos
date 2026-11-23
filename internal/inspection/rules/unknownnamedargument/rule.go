@@ -47,7 +47,7 @@ var verifiedStubs = map[string]bool{
 // reduced to one form, renamed parameters).
 var driftedStubs = map[string]bool{
 	"session_set_cookie_params": true, "dba_fetch": true, "ldap_sasl_bind": true,
-	"intlcalendar::set": true,
+	"intlcalendar::set": true, "openssl_sign": true, "openssl_verify": true,
 }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
@@ -73,10 +73,18 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !targets(ctx, n, overrides, names) {
 			return
 		}
-		var unknown []*syntax.Arg
+		var unknown []syntax.Node
 		for _, node := range args.Args {
-			if arg, ok := node.(*syntax.Arg); ok && arg.Name != nil && !names[arg.Name.Value] {
-				unknown = append(unknown, arg)
+			// A named placeholder (`f(name: ?)`, PHP 8.6) binds by name too.
+			var name *syntax.Identifier
+			switch arg := node.(type) {
+			case *syntax.Arg:
+				name = arg.Name
+			case *syntax.ArgPlaceholder:
+				name = arg.Name
+			}
+			if name != nil && !names[name.Value] {
+				unknown = append(unknown, node)
 			}
 		}
 		if !overrides && len(unknown) > 0 {
@@ -215,3 +223,7 @@ func trustedStub(file, callee string) bool {
 }
 
 func (rule) Semantic() {}
+
+// PartialCalls: PHP binds a partial application's named placeholders when
+// it builds the closure.
+func (rule) PartialCalls() {}

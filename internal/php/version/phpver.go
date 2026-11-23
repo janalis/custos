@@ -1,4 +1,4 @@
-// Package version models target PHP language versions (5.3 – 8.5).
+// Package version models target PHP language versions (5.3 – 8.6).
 package version
 
 import (
@@ -26,14 +26,15 @@ const (
 	PHP83 Version = 803
 	PHP84 Version = 804
 	PHP85 Version = 805
+	PHP86 Version = 806
 
 	Min     = PHP53
-	Max     = PHP85
+	Max     = PHP86
 	Default = PHP84
 )
 
 // Releases are the supported versions, oldest first.
-var Releases = []Version{PHP53, PHP54, PHP55, PHP56, PHP70, PHP71, PHP72, PHP73, PHP74, PHP80, PHP81, PHP82, PHP83, PHP84, PHP85}
+var Releases = []Version{PHP53, PHP54, PHP55, PHP56, PHP70, PHP71, PHP72, PHP73, PHP74, PHP80, PHP81, PHP82, PHP83, PHP84, PHP85, PHP86}
 
 // Next returns the first supported release after v, false when v is the
 // latest or later.

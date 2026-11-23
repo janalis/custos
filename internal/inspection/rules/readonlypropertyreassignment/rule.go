@@ -10,6 +10,7 @@ import (
 	"github.com/janalis/custos/internal/inspection/flowquery"
 	"github.com/janalis/custos/internal/php/syntax"
 	phpversion "github.com/janalis/custos/internal/php/version"
+	"github.com/janalis/custos/internal/semantic/index"
 )
 
 type rule struct{}
@@ -50,6 +51,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if ok && strings.EqualFold(method.Name.Value, "__clone") && ctx.PHP.AtLeast(phpversion.PHP83) {
 		return
 	}
+	if initializedByDefault(ctx, assign, strings.TrimPrefix(classes[0], `\`), property) {
+		ctx.ReportNode(fetch, message)
+		return
+	}
 	statement, ok := assign.Parent().(*syntax.ExprStmt)
 	if !ok {
 		return
@@ -82,6 +87,23 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if astquery.Equivalent(ctx.File, prior.Var, assign.Var) {
 		ctx.ReportNode(fetch, message)
 	}
+}
+
+// initializedByDefault reports whether the property is initialized by its
+// declared default value (PHP 8.6), so that no write may follow, wherever it
+// is. A subclass may redeclare a non-private property without the default:
+// only a private property written in its own class, or one of a final
+// class, is settled. Elsewhere a private name is another property.
+func initializedByDefault(ctx *analysis.Context, at syntax.Node, class string, property *index.Property) bool {
+	if ctx.PHP.Below(phpversion.PHP86) || !property.HasDefault || property.Promoted {
+		return false
+	}
+	if property.Visibility == index.Private {
+		scope := syntax.EnclosingClass(at)
+		return scope != nil && strings.EqualFold(strings.TrimPrefix(ctx.Types().ClassFQN(scope), `\`), strings.TrimPrefix(property.Class, `\`))
+	}
+	c := ctx.Index().Class(class, ctx.PHP)
+	return c != nil && c.Final
 }
 
 func (rule) Semantic() {}

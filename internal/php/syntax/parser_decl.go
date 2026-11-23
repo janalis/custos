@@ -1,5 +1,11 @@
 package syntax
 
+import (
+	"strings"
+
+	phpversion "github.com/janalis/custos/internal/php/version"
+)
+
 // ---- attributes ---------------------------------------------------------------------
 
 func (p *parser) parseAttributes() []*AttributeGroup {
@@ -17,6 +23,7 @@ func (p *parser) parseAttributes() []*AttributeGroup {
 			a := &Attribute{Name: p.parseName()}
 			if p.at(TLParen) {
 				a.Args = p.parseArgs()
+				p.noClosure(a.Args, "an attribute argument cannot create a closure")
 			}
 			g.Attrs = append(g.Attrs, fin(p, a, as))
 			if _, ok := p.accept(TComma); !ok || p.pos == before {
@@ -292,6 +299,7 @@ func (p *parser) parseAnonymousClass(attrs []*AttributeGroup) *ClassLike {
 	p.expect(TClass)
 	if p.at(TLParen) {
 		n.Args = p.parseArgs()
+		p.noClosure(n.Args, "new cannot create a closure")
 	}
 	p.parseClassClauses(n)
 	p.parseClassBody(n)
@@ -328,9 +336,28 @@ func (p *parser) parseClassBody(n *ClassLike) {
 	for !p.at(TRBrace) && !p.at(TEOF) {
 		// parseMember always consumes a token: `;`, use, attributes, case,
 		// modifiers, const/function, a type, or skipTo past a bad token.
-		n.Members = append(n.Members, p.parseMember())
+		m := p.parseMember()
+		n.Members = append(n.Members, m)
+		if method, ok := m.(*Method); ok && n.ClassKind == KindEnum && method.Name != nil && p.enumForbids(method.Name.Value) {
+			sp := method.Name.Span()
+			p.compileErrorAt(Token{Start: sp.Start, End: sp.End}, "an enum cannot declare "+method.Name.Value+"()")
+		}
 	}
 	p.expect(TRBrace)
+}
+
+// enumForbids reports a magic method an enum may not declare: its cases are
+// singletons that cannot be built, cloned, serialized or given state.
+// PHP 8.6 allows __debugInfo.
+func (p *parser) enumForbids(name string) bool {
+	switch strings.ToLower(name) {
+	case "__construct", "__destruct", "__clone", "__get", "__set", "__isset", "__unset", "__tostring",
+		"__serialize", "__unserialize", "__sleep", "__wakeup", "__set_state":
+		return true
+	case "__debuginfo":
+		return p.ver.Below(phpversion.PHP86)
+	}
+	return false
 }
 
 func (p *parser) parseMember() Stmt {

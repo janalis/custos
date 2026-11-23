@@ -46,7 +46,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5.
+Available on every supported PHP version.
 
 ## Configure
 

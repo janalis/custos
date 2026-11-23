@@ -39,6 +39,13 @@ Reported:
 - Arguments bind as PHP binds them: positional arguments fill the
   parameters in order, named arguments fill the parameter of that name. A
   `new` written without parentheses passes no argument.
+- D2a. A partial application (PHP 8.6: `f(?, 2)`, `f(name: ?)`,
+  `f(1, ...)`) is checked when it builds its closure, as PHP checks it: each
+  `?` binds like an argument at its position or name. A trailing `...`
+  leaves the parameters not yet bound to the closure's call, so it is never
+  too few. Too many is reported for every callee, functions and methods of
+  the project included, since PHP rejects extra arguments there even when
+  the body reads them.
 - D3. The declarations a call may bind to:
   - a function call: the single declaration of the function the call
     reaches (the namespaced function, else the global fallback);
@@ -67,7 +74,7 @@ Reported:
 ## Exceptions (no report)
 
 - A call that unpacks arguments (`...$args`), a first-class callable
-  (`f(...)`), or a named argument that matches no parameter or is collected
+  (`f(...)` alone), or a named argument that matches no parameter or is collected
   by a variadic parameter.
 - Callees that cannot be resolved: a dynamic name, a receiver of unknown
   or mixed type, a union receiver whose classes disagree on the parameter
@@ -82,8 +89,8 @@ Reported:
   enum.
 - An override in a subtype that accepts the call (fewer required
   parameters, a variadic parameter) makes the call valid.
-- Extra arguments to a function or method of the project: PHP allows
-  them, and the callee may read them with `func_get_args()`. With the
+- Extra arguments to a function or method of the project in a call
+  (not a partial application, see D2a): PHP allows them, and the callee may read them with `func_get_args()`. With the
   `strictUserArgs` option, still silent when a declaration has no body, or
   its body calls `func_get_args()`, `func_get_arg()` or `func_num_args()`,
   includes another file or evaluates code.

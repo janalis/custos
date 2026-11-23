@@ -17,7 +17,7 @@ func (obGetCleanCanBeUsed) Semantic()                {}
 func (obGetCleanCanBeUsed) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (obGetCleanCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	end, ok := astquery.IsFuncNamedFold(n, "ob_end_clean") // D1
-	if !ok || isCallableRef(end) {
+	if !ok {
 		return
 	}
 	stmt, ok := end.Parent().(*syntax.ExprStmt)
@@ -39,7 +39,7 @@ func (obGetCleanCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 		case *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
 			return false // D5: other scopes, not run as part of the statement
 		case *syntax.FuncCall:
-			if c, ok := astquery.IsFuncNamedFold(x, "ob_get_contents"); ok && !isCallableRef(c) {
+			if c, ok := astquery.IsFuncNamedFold(x, "ob_get_contents"); ok {
 				if get == nil {
 					get = c
 				}
@@ -76,12 +76,6 @@ func (obGetCleanCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 		},
 	})
-}
-
-// isCallableRef reports whether c is the first-class callable `f(...)`, which
-// creates a closure instead of calling f.
-func isCallableRef(c *syntax.FuncCall) bool {
-	return c.Args.FirstClassCallable()
 }
 
 // evaluation classifies how get is evaluated inside the statement ps. always

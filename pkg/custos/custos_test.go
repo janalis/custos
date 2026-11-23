@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/janalis/custos/internal/inspection/analysis"
+
 	"github.com/janalis/custos/pkg/custos/ast"
 )
 
@@ -120,4 +122,18 @@ func TestNewRule(t *testing.T) {
 		}
 	}()
 	MustRule(Info{ID: "bad"}, kinds, check)
+}
+
+// TestPartialCallsOptIn: only a rule asking for it receives calls that
+// build a closure.
+func TestPartialCallsOptIn(t *testing.T) {
+	check := func(*Context, ast.Node) {}
+	plain := MustRule(Info{ID: "Plain"}, []ast.NodeKind{ast.KFuncCall}, check)
+	partial := MustRule(Info{ID: "Partial", PartialCalls: true}, []ast.NodeKind{ast.KFuncCall}, check)
+	if _, ok := plain.(analysis.PartialCallRule); ok {
+		t.Fatal("a rule receives partial applications only on request")
+	}
+	if _, ok := partial.(analysis.PartialCallRule); !ok || partial.ID() != "Partial" {
+		t.Fatal("PartialCalls opts the rule in")
+	}
 }

@@ -29,6 +29,7 @@ Reported:
 
 - Report assignment to a resolved readonly instance property already initialized on every reachable incoming path.
 - Every writing assignment operator counts as a repeated write: plain `=` and the compound operators (`+=`, `-=`, `.=`, ...) all fail on an initialized readonly property. The null-coalescing assignment `??=` is the exception, see E3.
+- From PHP 8.6 a readonly property may declare a default value, which initializes it when the object is created: any write to it then fails, in the constructor too. Report a write to such a property when no subclass can redeclare it without the default: the property is private and written in its own class, or the receiver's class is final. A parameter promoted to a property brings no property default.
 - Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or code too complex to analyze cannot establish definite facts.
 
@@ -37,6 +38,7 @@ Reported:
 - A first permitted initialization, version-permitted clone reinitialization, unknown initialization state and reflection operations are excluded.
 - Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
+- A write to a non-private readonly property with a default in a class that is not final: a subclass may redeclare the property without the default, and the write is then the first initialization.
 - E3. A `??=` assignment is never reported. It writes only when the stored value is null, and the adjacent-assignment proof establishes that the property is initialized, not that it holds null; on a non-null value the statement is a no-op and PHP raises nothing.
 
 ## Fix

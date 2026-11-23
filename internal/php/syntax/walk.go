@@ -69,6 +69,10 @@ func Children(n Node, fn func(Node)) {
 			fn(n.Name)
 		}
 		e(n.Value)
+	case *ArgPlaceholder:
+		if n.Name != nil {
+			fn(n.Name)
+		}
 	case *ArgList:
 		exprs(n.Args)
 	case *FuncCall:

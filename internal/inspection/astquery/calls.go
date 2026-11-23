@@ -54,7 +54,8 @@ func ArgValues(list *syntax.ArgList) ([]syntax.Expr, bool) {
 }
 
 // ParentFuncCall returns the plain function call that has e directly (no
-// parentheses in between) as one of its arguments, or nil.
+// parentheses in between) as one of its arguments, or nil. A partial
+// application (`f(?, e)`) calls nothing: nil.
 func ParentFuncCall(e syntax.Node) *syntax.FuncCall {
 	arg, ok := e.Parent().(*syntax.Arg)
 	if !ok || arg.Value != e {
@@ -63,6 +64,9 @@ func ParentFuncCall(e syntax.Node) *syntax.FuncCall {
 	// An Arg's parent is always its ArgList (the parser builds Args there
 	// only).
 	call, _ := arg.Parent().Parent().(*syntax.FuncCall)
+	if call != nil && call.Args.Partial() {
+		return nil
+	}
 	return call
 }
 

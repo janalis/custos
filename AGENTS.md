@@ -93,6 +93,7 @@ make architecture   # package boundaries, complete inspection catalogue, rule pa
 make examples       # build the example programs using the public Go API (pkg/custos)
 make verify         # definition of done: architecture + lint + test + examples + fixtures + coverage + cleanroom
 make stubs          # rebuild embedded PHP stubs index
+make deprecations   # regenerate DeprecatedFeature's table (DEPRECATION_PHP="8.0=/path/php ..."; one binary per release)
 make corpus-baseline / corpus-diff  # record every rule's findings on the pinned bench corpora / fail on any change (CORPORA= filter)
 make typecov        # share of unknown inferred types on the bench corpora, by kind and cause (.cache/typecov/)
 make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable output (FIXCHECK=php adds php -l samples; ~1-4 min)
@@ -131,7 +132,7 @@ go generate ./internal/php/syntax  # regenerate node kinds after editing ast.go
 - Messages: short, imperative, our own wording; no `[EA]` prefix.
 - Prose is US English (`behavior`, `analyze`); "custos" stays lowercase,
   user docs say "rule" and "quick-fix". The `analyse` command keeps its name.
-- PHP versions 5.3–8.5 supported: version-gate rules via `meta`/spec thresholds.
+- PHP versions 5.3–8.6 supported: version-gate rules via `meta`/spec thresholds.
 - New code ships with tests covering every statement (`make coverage`);
   timing limits in tests use `testbudget.Of(d)` (load-scaled) against
   `testbudget.CPU()` for compute-bound work, and hard

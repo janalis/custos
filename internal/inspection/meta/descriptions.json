@@ -444,6 +444,10 @@
     "summary": "A method named after its class used to act as the constructor (PHP 4 style).\nThis form is deprecated since PHP 7.0 and no longer a constructor in PHP 8.0;\nthe method should be called `__construct`.",
     "fix": true
   },
+  "DeprecatedFeature": {
+    "phpMin": "8.0",
+    "summary": "Report code that uses a feature PHP deprecates at the target version: PHP\nemits a deprecation notice for it, and a later major version removes it.\nThe rule covers PHP's own functions, methods and constants deprecated from\nPHP 8.0 on, and the language deprecations of PHP 8.6."
+  },
   "DeprecatedIniOptions": {
     "summary": "Reading, changing or restoring an ini directive that the targeted PHP version\nhas deprecated or removed is either a no-op or a future breakage. Point out\nsuch directives, naming the version and the replacement when there is one."
   },

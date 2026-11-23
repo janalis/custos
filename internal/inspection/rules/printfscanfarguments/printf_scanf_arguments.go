@@ -38,10 +38,7 @@ func (printfScanfArguments) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || len(call.Args.Args) < pos+1 {
 		return
 	}
-	arg, ok := call.Args.Args[pos].(*syntax.Arg)
-	if !ok || arg.Value == nil {
-		return
-	}
+	arg := call.Args.Args[pos].(*syntax.Arg) // placeholders never reach a rule: partial applications are not dispatched
 	a := arg.Value
 
 	// D2: every possible format must be a known literal (custos diverges).

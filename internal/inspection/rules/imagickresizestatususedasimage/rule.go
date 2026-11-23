@@ -27,7 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !astquery.Mentions(ctx.File, "resizeImage") {
 		return
 	}
-	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+	if ctx.File.Recovered() || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	var e syntax.Expr

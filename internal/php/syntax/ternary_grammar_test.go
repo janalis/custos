@@ -27,7 +27,7 @@ func TestTernaryChainGrammar(t *testing.T) {
 		{"$a ? $b : ($c ?: $d)", false},
 		{"$a ?: ($b ? $c : $d)", false},
 	} {
-		for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.PHP74, phpversion.PHP80, phpversion.PHP85} {
+		for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.PHP74, phpversion.PHP80, phpversion.Max} {
 			t.Run(fmt.Sprintf("%s/%s", tc.expr, version), func(t *testing.T) {
 				src := "<?php " + tc.expr + "; $after = 1;"
 				invalid := tc.invalid && version.AtLeast(phpversion.PHP80)

@@ -284,7 +284,7 @@ func (e *engine) trailingCommas() {
 		single := !multi && e.oneLine(o, c)
 		switch {
 		case multi && !hasComma && ok && contains(e.s.TrailingComma, kind) && last > o:
-			if e.kind(last) == syntax.TComma || e.frozenUnit(last) || strings.HasSuffix(e.text[last], ",") {
+			if e.kind(last) == syntax.TComma || e.frozenUnit(last) || strings.HasSuffix(e.text[last], ",") || e.restoreComma(last, c) {
 				continue
 			}
 			e.rewrite(last, e.text[last]+",", "trailing_comma")
@@ -293,6 +293,20 @@ func (e *engine) trailingCommas() {
 			e.gaps[last+1].drop = false // the space before the closing bracket follows the spacing rules
 		}
 	}
+}
+
+// restoreComma brings back the comma between last and c that an earlier
+// round removed while the list was on one line, now that it is split: the
+// source's comma stays, rather than a new one after the last item.
+func (e *engine) restoreComma(last, c int) bool {
+	for k := last + 1; k < c; k++ {
+		if e.deleted[k] && e.kind(k) == syntax.TComma && e.textRule[k] == "single_line_trailing_comma" {
+			// The removal already kept the gap after the comma.
+			e.text[k], e.textRule[k], e.deleted[k], e.group[k] = ",", "", false, 0
+			return true
+		}
+	}
+	return false
 }
 
 func contains(list []string, v string) bool {

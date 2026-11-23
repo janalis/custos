@@ -121,7 +121,7 @@ func FuzzLex(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, s string) {
-		for _, v := range []phpversion.Version{phpversion.PHP56, phpversion.PHP74, phpversion.PHP85} {
+		for _, v := range []phpversion.Version{phpversion.PHP56, phpversion.PHP74, phpversion.Max} {
 			src := []byte(s)
 			toks, _ := Lex(src, LexOptions{Version: v, ShortOpenTag: strings.Contains(s, "short")})
 			checkContiguous(t, src, toks)

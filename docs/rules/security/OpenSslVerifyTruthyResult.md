@@ -52,7 +52,7 @@ F1. Replace direct truthiness condition with (originalCall === 1); preserve all 
 
 ## PHP versions
 
-Available throughout supported PHP 5.3–8.5 where the referenced builtin/extension is available. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
+Available on every supported PHP version where the referenced builtin/extension is available. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
 
 ## Configure
 

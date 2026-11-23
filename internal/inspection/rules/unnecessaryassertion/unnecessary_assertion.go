@@ -339,13 +339,13 @@ func uaDeclaredReturn(ctx *analysis.Context, e syntax.Expr) (types.Type, bool) {
 	switch x := e.(type) {
 	case *syntax.FuncCall:
 		f := ctx.Types().ResolveFunction(x)
-		if f == nil || x.Args.FirstClassCallable() {
+		if f == nil || x.Args.Partial() {
 			return types.Unknown, false
 		}
 		ret, doc = f.Return, f.DocReturn
 	case *syntax.MethodCall, *syntax.StaticCall:
 		c, ok := phpunit.AsPuCall(x)
-		if !ok || c.Args.FirstClassCallable() {
+		if !ok || c.Args.Partial() {
 			return types.Unknown, false
 		}
 		if mc, ok := x.(*syntax.MethodCall); ok {

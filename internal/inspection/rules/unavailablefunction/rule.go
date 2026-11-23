@@ -69,3 +69,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	removed, _ := phpversion.Next(f.Avail.To)
 	ctx.ReportNode(name, global+"() was removed in PHP "+removed.String()+target)
 }
+
+// PartialCalls: a first-class callable or partial application refers to
+// its callee as a call does.
+func (rule) PartialCalls() {}

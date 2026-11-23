@@ -26,11 +26,8 @@ func (realpathInStreamContext) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ctx.IsGlobalFunctionCall(call, "realpath") || call.Args == nil || len(call.Args.Args) != 1 {
 		return
 	}
-	arg, ok := call.Args.Args[0].(*syntax.Arg)
-	if !ok || arg.Value == nil {
-		return
-	}
-	if realpathTestContext(ctx, call) { // D2
+	arg := call.Args.Args[0].(*syntax.Arg) // placeholders never reach a rule: partial applications are not dispatched
+	if realpathTestContext(ctx, call) {    // D2
 		return
 	}
 	parent, _ := astquery.ParentSkipParens(call)

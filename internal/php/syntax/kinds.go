@@ -18,6 +18,7 @@ const (
 	KConstFetch
 	KArg
 	KVariadicPlaceholder
+	KArgPlaceholder
 	KArgList
 	KFuncCall
 	KMethodCall
@@ -118,6 +119,7 @@ func (*ClassConstFetch) Kind() NodeKind     { return KClassConstFetch }
 func (*ConstFetch) Kind() NodeKind          { return KConstFetch }
 func (*Arg) Kind() NodeKind                 { return KArg }
 func (*VariadicPlaceholder) Kind() NodeKind { return KVariadicPlaceholder }
+func (*ArgPlaceholder) Kind() NodeKind      { return KArgPlaceholder }
 func (*ArgList) Kind() NodeKind             { return KArgList }
 func (*FuncCall) Kind() NodeKind            { return KFuncCall }
 func (*MethodCall) Kind() NodeKind          { return KMethodCall }
@@ -218,6 +220,7 @@ var nodeKindNames = [...]string{
 	KConstFetch:          "ConstFetch",
 	KArg:                 "Arg",
 	KVariadicPlaceholder: "VariadicPlaceholder",
+	KArgPlaceholder:      "ArgPlaceholder",
 	KArgList:             "ArgList",
 	KFuncCall:            "FuncCall",
 	KMethodCall:          "MethodCall",

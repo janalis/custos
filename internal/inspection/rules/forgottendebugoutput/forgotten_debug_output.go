@@ -83,9 +83,6 @@ func (forgottenDebugOutput) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	entries := ctx.Memo("entries", func() any { return debugEntries(ctx) }).([]string)
-	if debugCallableSyntax(n) { // E5: f(...) only creates a Closure
-		return
-	}
 	switch x := n.(type) {
 	case *syntax.FuncCall:
 		name := astquery.CallLastName(x)
@@ -104,20 +101,6 @@ func (forgottenDebugOutput) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.StaticCall:
 		debugCheckMethod(ctx, x, x.Name, x.Class, entries)
 	}
-}
-
-// debugCallableSyntax reports a first-class callable `f(...)`.
-func debugCallableSyntax(n syntax.Node) bool {
-	var args *syntax.ArgList
-	switch x := n.(type) {
-	case *syntax.FuncCall:
-		args = x.Args
-	case *syntax.MethodCall:
-		args = x.Args
-	case *syntax.StaticCall:
-		args = x.Args
-	}
-	return args.FirstClassCallable()
 }
 
 // debugHasEntry compares case-insensitively: PHP function, class and method

@@ -18,7 +18,7 @@ and never open its sources while implementing a rule. Read the
 ## Setup
 
 You need Go 1.27 or later, `make`, `git` and Node 20+ (for the
-documentation site and the Markdown linter). PHP 8.5 is optional: the syntax
+documentation site and the Markdown linter). PHP 8.6 is optional: the syntax
 tests compare custos' lexer and parser with it when it is installed, and
 skip that comparison otherwise; CI installs it.
 
@@ -58,9 +58,10 @@ code compiles.
 | `make compare` / `make compare-doc` | Compare custos with other PHP tools on the projects of `bench/competitors.json` (needs PHP with `ast` and `pcntl`, Composer and git; `TOOL=` / `CORPUS=` filter), or only regenerate `docs/guide/benchmark.md` and the README comparison from `bench/results.json` and `bench/features.json`. The weekly `benchmark` workflow bumps versions, reruns it and opens a pull request. |
 | `make corpus-baseline` / `make corpus-diff` | Record the findings of every rule on the pinned corpora of `bench/competitors.json`, then compare a later build with the record: added and removed findings are listed by rule and written to `.cache/corpus-diff/`. `CORPORA=` filters. Both first install the corpora with their development packages under `.cache/bench/corpora-dev` (`benchcmp install -dev`), apart from the measured copies, so that every corpus's world is complete and the rules needing one run. A corpus with a `php` version (swiftmailer, at 5.6) is analyzed at that version; the benchmark and `make formatcheck` leave it out unless named, and `benchcmp bump` keeps its tag. |
 | `make typecov` | Measure the share of expressions whose inferred type is unknown on the benchmark corpora, by kind and cause (`.cache/typecov/run.summary`; `TYPECOV=` takes `root=srcdir` pairs separated by `;`). |
-| `make fixcheck` | Apply every quick-fix on the projects in `CUSTOS_CORPUS` and require the result to still parse, to need no newer PHP version than the target, and each fix to remove its finding. `FIXCHECK_PHP=5.6` sets the target (default 8.5); with `FIXCHECK=php`, `PHP_BIN` names a php binary of that version to lint the results with. The swiftmailer corpus (`.cache/bench/corpora/swiftmailer/lib`) is the 5.6 one. |
+| `make fixcheck` | Apply every quick-fix on the projects in `CUSTOS_CORPUS` and require the result to still parse, to need no newer PHP version than the target, and each fix to remove its finding. `FIXCHECK_PHP=5.6` sets the target (default 8.6, the newest supported version); with `FIXCHECK=php`, `PHP_BIN` names a php binary of that version to lint the results with. The swiftmailer corpus (`.cache/bench/corpora/swiftmailer/lib`) is the 5.6 one. |
 | `make formatcheck` | Format a copy of each benchmark corpus with each preset and run the style checker the preset follows on it (see [Formatter compliance](#formatter-compliance)). Needs PHP and Composer; `CORPORA=` and `PRESETS=` filter. Not part of `make verify`. |
 | `make stubs` | Rebuild the embedded PHP builtin symbol index from phpstorm-stubs. |
+| `make deprecations` | Regenerate DeprecatedFeature's table of PHP's deprecated functions, methods and constants. `DEPRECATION_PHP` lists one PHP binary per release from 8.0 on as `VERSION=PATH`; rerun it for each PHP release. |
 
 AST node kinds are generated (by `tools/genkinds`): run
 `go generate ./internal/php/syntax` after changing
@@ -201,7 +202,7 @@ prints every count and remaining finding for scripts:
   diverge and document it (see [Divergences](./clean-room#divergences)).
 - **Standard library first**: no new dependency without a clear reason.
 - **Messages** are short, imperative and in our own words.
-- Supported PHP versions are 5.3 to 8.5: gate version-dependent rules on the
+- Supported PHP versions are 5.3 to 8.6: gate version-dependent rules on the
   target version.
 - **Order of checks**: `make rules-doc` when a spec, a rule's fixtures or rule
   status changes, then `make verify`. The status table's conformance column

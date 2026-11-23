@@ -9,7 +9,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
 
-.PHONY: architecture examples coverage fixcheck formatcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
+.PHONY: architecture deprecations examples coverage fixcheck formatcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -78,6 +78,13 @@ fuzz:
 		done; \
 	done
 
+# Regenerate DeprecatedFeature's table of PHP's deprecated functions,
+# methods and constants by running one PHP binary per release from 8.0 on:
+# DEPRECATION_PHP="8.0=/path/to/php8.0 8.1=/path/to/php8.1 ...".
+DEPRECATION_PHP ?=
+deprecations:
+	$(GO) run ./tools/gendeprecations $(foreach p,$(DEPRECATION_PHP),-php $(p))
+
 # Rebuild the embedded builtin symbol index from phpstorm-stubs (Apache-2.0).
 stubs:
 	@ls -d .cache/stubs-src/*phpstorm-stubs* >/dev/null 2>&1 || \
@@ -122,7 +129,7 @@ cleanroom:
 # of directories) and require the result to still parse, to need no newer PHP
 # than the target, and each fix to remove its finding (FIXCHECK=php
 # additionally runs php -l on samples). FIXCHECK_PHP=5.6 sets the target
-# (default 8.5); PHP_BIN is the php binary of that version FIXCHECK=php uses.
+# (default: the newest supported version); PHP_BIN is the php binary of that version FIXCHECK=php uses.
 fixcheck:
 	CUSTOS_FIXCHECK=$(FIXCHECK) CUSTOS_FIXCHECK_PHP=$(FIXCHECK_PHP) CUSTOS_PHP=$(PHP_BIN) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout 30m
 

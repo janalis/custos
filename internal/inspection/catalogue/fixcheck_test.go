@@ -38,7 +38,7 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 		t.Skip("set CUSTOS_FIXCHECK=1 (or run `make fixcheck`); CUSTOS_FIXCHECK=php also lints samples with php -l")
 	}
 	phpLint := os.Getenv("CUSTOS_FIXCHECK") == "php"
-	target, err := phpversion.Parse(cmp.Or(os.Getenv("CUSTOS_FIXCHECK_PHP"), phpversion.PHP85.String()))
+	target, err := phpversion.Parse(cmp.Or(os.Getenv("CUSTOS_FIXCHECK_PHP"), phpversion.Max.String()))
 	if err != nil {
 		t.Fatal(err)
 	}

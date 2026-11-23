@@ -325,7 +325,11 @@ func (p *parser) parsePostfix(e Expr, start uint32) Expr {
 			name := p.parseMemberName()
 			nullsafe := t.Kind == TNullsafeObjectOperator
 			if p.at(TLParen) {
-				e = fin(p, put(&p.slabs.sMethodCall, MethodCall{Var: e, Name: name, NullSafe: nullsafe, Args: p.parseArgs()}), start)
+				args := p.parseArgs()
+				if nullsafe {
+					p.noClosure(args, "a nullsafe call cannot create a closure")
+				}
+				e = fin(p, put(&p.slabs.sMethodCall, MethodCall{Var: e, Name: name, NullSafe: nullsafe, Args: args}), start)
 			} else {
 				e = fin(p, put(&p.slabs.sPropertyFetch, PropertyFetch{Var: e, Name: name, NullSafe: nullsafe}), start)
 			}
@@ -511,22 +515,53 @@ func (p *parser) parseArgs() *ArgList {
 	start := p.start()
 	p.expect(TLParen)
 	n := put(&p.slabs.sArgList, ArgList{})
+	// Partial function application (8.6): `?` stands for one argument and
+	// `...` closes the list after other arguments.
+	partial := p.ver.AtLeast(phpversion.PHP86)
+	ends := func(i int) bool { k := p.peekKind(i); return k == TComma || k == TRParen }
+	// The last variadic placeholder, placeholder and unpacking seen, when
+	// their flag is set; kept by value so that parsing allocates nothing.
+	var variadic, placeholder, unpack Token
+	var hasVariadic, hasPlaceholder, hasUnpack, named bool
 	for !p.at(TRParen) && !p.at(TEOF) {
 		before := p.pos
 		as := p.start()
+		// Reported once, on the argument that follows the placeholder.
+		if hasVariadic && n.Args[len(n.Args)-1].Span().Start == variadic.Start {
+			p.compileErrorAt(variadic, "a variadic placeholder must be the last argument")
+		}
+		first := p.tok()
+		positional := !((p.at(TString) || p.kind().IsKeyword()) && p.peekKind(1) == TColon)
 		switch {
-		case p.at(TEllipsis) && p.peekKind(1) == TRParen:
-			if len(n.Args) != 0 {
+		case !positional:
+			named = true
+		case named && p.at(TEllipsis) && !ends(1):
+			p.compileErrorAt(first, "arguments cannot be unpacked after a named argument")
+		case named && !p.at(TEllipsis):
+			p.compileErrorAt(first, "a positional argument cannot follow a named argument")
+		}
+		switch {
+		case p.at(TEllipsis) && (p.peekKind(1) == TRParen || partial && ends(1)):
+			if len(n.Args) != 0 && !partial {
 				p.errorAt(p.tok(), "callable placeholders require an otherwise empty argument list")
 			}
-			p.advance()
+			variadic = p.advance()
+			placeholder, hasVariadic, hasPlaceholder = variadic, true, true
 			n.Args = append(n.Args, fin(p, &VariadicPlaceholder{}, as))
 		case p.at(TEllipsis):
-			p.advance()
+			unpack, hasUnpack = p.advance(), true
 			n.Args = append(n.Args, fin(p, put(&p.slabs.sArg, Arg{Unpack: true, Value: p.parseExpr(precLowest)}), as))
+		case partial && p.at(TQuestion) && ends(1):
+			placeholder, hasPlaceholder = p.advance(), true
+			n.Args = append(n.Args, fin(p, &ArgPlaceholder{}, as))
 		case (p.at(TString) || p.kind().IsKeyword()) && p.peekKind(1) == TColon:
 			id := p.parseIdentifier()
 			p.advance()
+			if partial && p.at(TQuestion) && ends(1) {
+				placeholder, hasPlaceholder = p.advance(), true
+				n.Args = append(n.Args, fin(p, &ArgPlaceholder{Name: id}, as))
+				break
+			}
 			n.Args = append(n.Args, fin(p, put(&p.slabs.sArg, Arg{Name: id, Value: p.parseExpr(precLowest)}), as))
 		case p.at(TAmpersand):
 			p.advance()
@@ -537,6 +572,13 @@ func (p *parser) parseArgs() *ArgList {
 		if _, ok := p.accept(TComma); !ok || p.pos == before {
 			break
 		}
+	}
+	if hasPlaceholder && hasUnpack && partial {
+		later := placeholder
+		if unpack.Start > later.Start {
+			later = unpack
+		}
+		p.compileErrorAt(later, "a partial application cannot unpack arguments")
 	}
 	p.expect(TRParen)
 	return fin(p, n, start)
@@ -624,8 +666,22 @@ func (p *parser) parseNew() *New {
 	n.Class = p.parseClassRef(true)
 	if p.at(TLParen) {
 		n.Args = p.parseArgs()
+		p.noClosure(n.Args, "new cannot create a closure")
 	}
 	return fin(p, n, start)
+}
+
+// noClosure reports a placeholder in args where PHP cannot create a
+// closure: on `new`, on a nullsafe method call and in an attribute.
+func (p *parser) noClosure(args *ArgList, msg string) {
+	for _, x := range args.Args {
+		switch x.(type) {
+		case *VariadicPlaceholder, *ArgPlaceholder:
+			sp := x.Span()
+			p.compileErrorAt(Token{Start: sp.Start, End: sp.End}, msg)
+			return
+		}
+	}
 }
 
 func (p *parser) parsePrimary() Expr {
@@ -947,12 +1003,12 @@ func (p *parser) parseEncapsVar() Expr {
 // bindCloneArgs keeps compatibility aliases without losing argument metadata.
 // Unpacking prevents a reliable static binding, including preceding arguments.
 func bindCloneArgs(n *Clone) {
+	if n.Args.Partial() { // clone(...), clone(?, $with): a closure, nothing is cloned
+		return
+	}
 	position := 0
 	for _, value := range n.Args.Args {
-		arg, ok := value.(*Arg)
-		if !ok {
-			continue
-		}
+		arg := value.(*Arg) // placeholders made the list partial above
 		if arg.Unpack {
 			n.Expr, n.With = nil, nil
 			return

@@ -31,7 +31,7 @@ func (e *Env) countExpressions(scope syntax.Node) (values, before int) {
 			*syntax.Try, *syntax.Finally, *syntax.Switch, *syntax.Case, *syntax.Label, *syntax.Goto, *syntax.Break, *syntax.Continue:
 		case syntax.Expr:
 			switch n := x.(type) {
-			case *syntax.Name, *syntax.Identifier, *syntax.ArgList, *syntax.VariadicPlaceholder:
+			case *syntax.Name, *syntax.Identifier, *syntax.ArgList, *syntax.VariadicPlaceholder, *syntax.ArgPlaceholder:
 			case *syntax.Variable:
 				assignment, target := n.Parent().(*syntax.Assign)
 				if !target || assignment.Var != n || assignment.Op.Kind != syntax.TEqual || n.NameExpr != nil {

@@ -20,25 +20,19 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+	if ctx.File.Recovered() || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
-	if fiberStartCallable(c) || semanticquery.FiberConstruction(ctx, c, "start") == nil {
+	if semanticquery.FiberConstruction(ctx, c, "start") == nil {
 		return
 	}
 	for _, first := range semanticquery.EarlierMethodCalls(ctx, c, c.Var, "Fiber", "start") {
-		if !fiberStartCallable(first) && !fiberStartRebound(ctx, first, c) {
+		if !fiberStartRebound(ctx, first, c) {
 			ctx.ReportNode(c, message)
 			return
 		}
 	}
-}
-
-// fiberStartCallable recognizes `$fiber->start(...)`, which only creates a
-// closure and starts nothing.
-func fiberStartCallable(c *syntax.MethodCall) bool {
-	return c.Args.FirstClassCallable()
 }
 
 // fiberStartRebound reports whether the receiver variable of second may hold

@@ -116,3 +116,7 @@ func encodedQueryValue(ctx *analysis.Context, piece syntax.Expr) bool {
 func pieceTainted(ctx *analysis.Context, piece syntax.Expr) bool {
 	return ctx.Flow().Tainted(piece, flow.URL)
 }
+
+// PartialCalls: a partial application binds the arguments it is written
+// with, and every call of the closure passes them to the sink.
+func (rule) PartialCalls() {}

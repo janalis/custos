@@ -41,9 +41,11 @@ func NativeBuiltinName(ctx *analysis.Context, call *syntax.FuncCall) string {
 	return name
 }
 
-// NativeBuiltin proves that a call targets the available named builtin.
+// NativeBuiltin proves that a call targets the available named builtin and
+// yields its result: a partial application (`f(?, 1)`, PHP 8.6) only builds
+// a closure, so it does not count even when a rule traced a value back to it.
 func NativeBuiltin(ctx *analysis.Context, call *syntax.FuncCall, name string) bool {
 	// Most subscribed rules reject this call by name. Only a matching name
 	// needs the available declaration, rather than one lookup per rule.
-	return ctx.GlobalFunctionName(call) == name && NativeBuiltinName(ctx, call) == name
+	return ctx.GlobalFunctionName(call) == name && !call.Args.Partial() && NativeBuiltinName(ctx, call) == name
 }

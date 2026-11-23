@@ -5,6 +5,7 @@ import (
 
 	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/php/syntax"
+	phpversion "github.com/janalis/custos/internal/php/version"
 	"github.com/janalis/custos/internal/semantic/index"
 	"github.com/janalis/custos/internal/semantic/infer"
 	"github.com/janalis/custos/internal/semantic/types"
@@ -295,7 +296,7 @@ func propertyOwner(p *index.Property) string {
 // enclosing class (code in a closure, which may be bound to another scope,
 // writes public properties only), and a readonly property is initialized
 // once, by the only write in its own class's constructor, which does not
-// read it first.
+// read it first, unless a default value initialized it (PHP 8.6).
 func (w propertyWrite) writable(p *index.Property) bool {
 	owner := strings.TrimPrefix(propertyOwner(p), `\`)
 	scope := ""
@@ -307,7 +308,9 @@ func (w propertyWrite) writable(p *index.Property) bool {
 		scope = ""
 	case *syntax.Method:
 		if p.Readonly {
-			return !p.Promoted && !w.modifies && w.this && strings.EqualFold(fn.Name.Value, "__construct") &&
+			// A default value (PHP 8.6) has already initialized it.
+			defaulted := p.HasDefault && w.ctx.PHP.AtLeast(phpversion.PHP86)
+			return !p.Promoted && !defaulted && !w.modifies && w.this && strings.EqualFold(fn.Name.Value, "__construct") &&
 				strings.EqualFold(scope, owner) && onlyWrite(fn, p.Name)
 		}
 	}

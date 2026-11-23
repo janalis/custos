@@ -28,11 +28,8 @@ func (implodeArgumentsOrder) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(call.Args.Args) != 2 || !ctx.IsGlobalFunctionCall(call, "implode") { // D1, E1, E3
 		return
 	}
-	first, ok1 := call.Args.Args[0].(*syntax.Arg)
-	second, ok2 := call.Args.Args[1].(*syntax.Arg)
-	if !ok1 || !ok2 || first.Value == nil || second.Value == nil {
-		return
-	}
+	// placeholders never reach a rule: partial applications are not dispatched
+	first, second := call.Args.Args[0].(*syntax.Arg), call.Args.Args[1].(*syntax.Arg)
 	if first.Name != nil || second.Name != nil || first.Unpack || second.Unpack { // E6
 		return
 	}

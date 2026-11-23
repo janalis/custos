@@ -28,10 +28,6 @@ func (c *pureCompiler) textShape(node *syntax.FuncCall, name string, params []in
 		kind = pureCase
 	case "trim", "ltrim", "rtrim":
 		kind, size = pureTrimChars, 2
-		// Stub metadata may repeat the optional character list per version.
-		if len(params) == 3 && params[2].Name == params[1].Name && params[1].Optional && params[2].Optional {
-			params = params[:2]
-		}
 	default:
 		kind, size, required = pureStrPad, 4, 2
 	}

@@ -38,7 +38,7 @@ rename(Original::class, 'ImportedAlias');
 				}
 				ix.Add(shadow)
 			}
-			for _, ver := range []phpversion.Version{0, phpversion.PHP53, phpversion.PHP85} {
+			for _, ver := range []phpversion.Version{0, phpversion.PHP53, phpversion.Max} {
 				if ix.Constant("FLAG", ver) != nil || ix.Class("Alias", ver) != nil || len(ix.Ancestors("Alias", ver)) != 0 {
 					t.Fatal("cross-file shadow did not suppress declarations and cached hierarchy")
 				}

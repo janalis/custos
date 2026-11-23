@@ -40,7 +40,7 @@ None.
 
 ## PHP versions
 
-Available throughout supported PHP 5.3–8.5 for resolved exception classes. Throwable exists from PHP 7.0; do not infer it on earlier targets. Union catches need PHP 7.1.
+Available on every supported PHP version for resolved exception classes. Throwable exists from PHP 7.0; do not infer it on earlier targets. Union catches need PHP 7.1.
 
 ## Examples
 

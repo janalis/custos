@@ -2,6 +2,7 @@ package flow
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -16,7 +17,8 @@ import (
 func environment(t testing.TB, src string, snapshot *Snapshot) (*Env, *syntax.File) {
 	t.Helper()
 	f := syntax.Parse("test.php", []byte("<?php "+src), syntax.Options{Version: phpversion.Max})
-	if len(f.Errors) > 0 {
+	// Code PHP only rejects when compiling (`f(v: 1, 2)`) is still analyzed.
+	if f.Errors = slices.DeleteFunc(f.Errors, func(e syntax.Error) bool { return e.Compile }); len(f.Errors) > 0 {
 		t.Fatalf("parse: %v", f.Errors)
 	}
 	ix := index.New(stubs.Index())

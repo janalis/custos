@@ -34,9 +34,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // A first-class callable creates a closure and has no result to test; only a
 // plain assignment of the result keeps its value as the tested operand.
 func conditionUse(ctx *analysis.Context, call *syntax.FuncCall, booleanComparisons bool) syntax.Expr {
-	if call.Args.FirstClassCallable() {
-		return nil
-	}
 	var e syntax.Expr = call
 	for {
 		switch p := e.Parent().(type) {

@@ -53,7 +53,7 @@ None.
 
 ## PHP versions
 
-Available in PHP 5.3–8.5 where the referenced API exists. Do not apply extension contracts when the resolved API is unavailable. Gate syntax and version-specific behavior to the configured target.
+Available on every supported PHP version where the referenced API exists. Do not apply extension contracts when the resolved API is unavailable. Gate syntax and version-specific behavior to the configured target.
 
 ## Examples
 

@@ -37,15 +37,15 @@ func (e *Env) TypeOf(x syntax.Expr) types.Type {
 func (e *Env) infer(x syntax.Expr) types.Type {
 	switch n := x.(type) {
 	case *syntax.FuncCall:
-		if n.Args.FirstClassCallable() {
+		if n.Args.Partial() { // f(...), f(?, 1): a closure returning what the call does
 			return e.firstClassCallableType(n)
 		}
 	case *syntax.MethodCall:
-		if n.Args.FirstClassCallable() {
+		if n.Args.Partial() { // f(...), f(?, 1): a closure returning what the call does
 			return e.firstClassCallableType(n)
 		}
 	case *syntax.StaticCall:
-		if n.Args.FirstClassCallable() {
+		if n.Args.Partial() { // f(...), f(?, 1): a closure returning what the call does
 			return e.firstClassCallableType(n)
 		}
 	}

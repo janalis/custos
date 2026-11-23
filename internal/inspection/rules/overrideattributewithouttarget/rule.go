@@ -2,6 +2,7 @@
 package overrideattributewithouttarget
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/janalis/custos/internal/inspection/analysis"
@@ -40,24 +41,38 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if c == nil || !ctx.Index().AncestorsComplete(fqn, ctx.PHP) {
 		return
 	}
-	member := ""
-	property := false
+	var members []string
+	domain := methods
 	switch x := owner.(type) {
 	case *syntax.Method:
-		member = x.Name.Value
 		// Declaring __toString implicitly implements Stringable, which is the target.
-		if strings.EqualFold(member, "__toString") {
+		if strings.EqualFold(x.Name.Value, "__toString") {
 			return
 		}
+		members = []string{x.Name.Value}
 	case *syntax.Property:
 		if ctx.PHP.Below(phpversion.PHP85) || len(x.Props) != 1 {
 			return
 		}
-		member = x.Props[0].Var.Name
-		property = true
+		members, domain = []string{x.Props[0].Var.Name}, properties
+	case *syntax.ClassConst:
+		if ctx.PHP.Below(phpversion.PHP86) {
+			return
+		}
+		for _, item := range x.Consts {
+			members = append(members, item.Name.Value)
+		}
+		domain = constants
+	case *syntax.EnumCase:
+		if ctx.PHP.Below(phpversion.PHP86) {
+			return
+		}
+		members, domain = []string{x.Name.Value}, constants
 	default:
 		return
 	}
+	// Each member of a grouped constant declaration needs its own target.
+	inherited := make([]bool, len(members))
 	for _, anc := range ctx.Index().Ancestors(fqn, ctx.PHP) {
 		if anc.Parent != "" && ctx.Index().Class(anc.Parent, ctx.PHP) == nil {
 			return
@@ -73,20 +88,40 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if len(anc.Traits) > 0 {
 			return
 		}
-		if property {
-			p := ctx.Index().FindProperty(anc.FQN, member, ctx.PHP)
-			if p != nil && p.Visibility != index.Private {
-				return
-			}
-		} else {
-			m := ctx.Index().FindMethod(anc.FQN, member, ctx.PHP)
-			if m != nil && m.Visibility != index.Private {
-				return
-			}
+		for i, member := range members {
+			inherited[i] = inherited[i] || overridable(ctx, domain, anc.FQN, member)
 		}
 	}
-	if len(c.Traits) > 0 {
+	if len(c.Traits) > 0 || !slices.Contains(inherited, false) {
 		return
 	}
 	ctx.ReportNode(a.Parent(), message)
+}
+
+// The separate lookup domains of an overridden member.
+const (
+	methods = iota
+	properties
+	constants // class constants and enum cases (PHP 8.6)
+)
+
+// overridable reports whether class declares or inherits a member of that
+// name in that domain that a subclass may override: any but a private one.
+func overridable(ctx *analysis.Context, domain int, class, member string) bool {
+	vis := index.Private
+	switch domain {
+	case methods:
+		if m := ctx.Index().FindMethod(class, member, ctx.PHP); m != nil {
+			vis = m.Visibility
+		}
+	case properties:
+		if p := ctx.Index().FindProperty(class, member, ctx.PHP); p != nil {
+			vis = p.Visibility
+		}
+	default:
+		if k := ctx.Index().FindConst(class, member, ctx.PHP); k != nil {
+			vis = k.Visibility
+		}
+	}
+	return vis != index.Private
 }

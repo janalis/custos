@@ -64,3 +64,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		ctx.ReportNode(name, "Fix the name or install the package declaring "+fqn+".")
 	}
 }
+
+// PartialCalls: a first-class callable or partial application refers to
+// its callee as a call does.
+func (rule) PartialCalls() {}

@@ -50,7 +50,9 @@ None.
 
 ## PHP versions
 
-Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). The PDO sinks of D4 apply on all of them. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
+Apply only on PHP versions supporting the referenced APIs and syntax (within the supported PHP versions). The PDO sinks of D4 apply on all of them. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
+
+From PHP 8.6 a partial application (`exec($cmd, ...)`) counts as the call each use of the closure makes: the arguments it binds are checked, and an argument left to a `?` or a trailing `...` comes with each call, unknown.
 
 ## Examples
 

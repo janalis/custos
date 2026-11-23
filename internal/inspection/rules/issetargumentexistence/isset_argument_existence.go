@@ -50,7 +50,7 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 	}
 	fn := syntax.EnclosingFuncLike(v)
 	if hook, ok := fn.(*syntax.PropertyHook); ok {
-		if len(ctx.File.Errors) != 0 || hook.Name != nil && strings.EqualFold(hook.Name.Value, "set") && len(hook.Params) == 0 && name == "value" {
+		if ctx.File.Recovered() || hook.Name != nil && strings.EqualFold(hook.Name.Value, "set") && len(hook.Params) == 0 && name == "value" {
 			return
 		}
 	}

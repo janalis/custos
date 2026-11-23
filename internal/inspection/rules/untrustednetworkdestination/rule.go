@@ -252,3 +252,7 @@ func wrapperSink(ctx *analysis.Context, c syntax.Node) bool {
 	}
 	return false
 }
+
+// PartialCalls: a partial application binds the arguments it is written
+// with, and every call of the closure passes them to the sink.
+func (rule) PartialCalls() {}

@@ -27,11 +27,11 @@ func (typeUnsafeArraySearch) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, name) { // D1
 		return
 	}
-	needle, ok1 := call.Args.Args[0].(*syntax.Arg)
-	haystack, ok2 := call.Args.Args[1].(*syntax.Arg)
-	if !ok1 || !ok2 { // `...` placeholder (rejected by PHP after another argument)
+	if call.Args.Partial() {
+		partialSearch(ctx, call)
 		return
 	}
+	needle, haystack := call.Args.Args[0].(*syntax.Arg), call.Args.Args[1].(*syntax.Arg)
 	if needle.Unpack || haystack.Unpack { // D2: a spread passes an unknown number of arguments, strict flag included
 		return
 	}
@@ -50,6 +50,38 @@ func (typeUnsafeArraySearch) Check(ctx *analysis.Context, n syntax.Node) {
 	// exempt (E2).
 	ctx.Report(call.Span(), "Pass a third argument to say whether this search must be type-strict.")
 }
+
+// partialSearch checks a partial application (PHP 8.6) of two positional
+// arguments, `in_array(?, $haystack)`: every call of the closure searches
+// without the strict flag. A trailing `...` or a named placeholder leaves
+// it to the caller.
+func partialSearch(ctx *analysis.Context, call *syntax.FuncCall) {
+	for _, x := range call.Args.Args {
+		switch a := x.(type) {
+		case *syntax.VariadicPlaceholder:
+			return
+		case *syntax.ArgPlaceholder:
+			if a.Name != nil {
+				return
+			}
+		case *syntax.Arg:
+			if a.Name != nil || a.Unpack {
+				return
+			}
+		}
+	}
+	if haystack, ok := call.Args.Args[1].(*syntax.Arg); ok && literalStringHaystack(ctx, haystack.Value) { // E1
+		return
+	}
+	if needle, ok := call.Args.Args[0].(*syntax.Arg); ok && literalStringNeedle(ctx, needle.Value) { // E1
+		return
+	}
+	ctx.Report(call.Span(), "Pass a third argument to say whether this search must be type-strict.")
+}
+
+// PartialCalls: a partial application binds the missing strict flag for
+// every call of the closure.
+func (typeUnsafeArraySearch) PartialCalls() {}
 
 // shapeOf reports whether t is a sealed array shape whose every value has
 // type atom alone (`const MODES = ['a', 'b']` with a string needle).

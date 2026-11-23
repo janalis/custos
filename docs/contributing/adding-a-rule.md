@@ -111,6 +111,16 @@ func (r unnecessarySemicolon) Check(ctx *analysis.Context, n syntax.Node) {
   `ctx.Flow()`. A rule that needs declarations from other files implements
   the `Semantic()` marker (`analysis.SemanticRule`); one that needs
   project-local callable summaries implements `Flow()` (`analysis.FlowRule`).
+- A function, method or static call that only builds a closure (`f(...)`,
+  or a PHP 8.6 partial application such as `f(?, 1)`) calls nothing, so the
+  engine dispatches it only to rules implementing `PartialCalls()`
+  (`analysis.PartialCallRule`), such as ArgumentCountMismatch. The shared
+  call matchers (`GlobalFunctionName`, `NativeBuiltin`, `NativeMethod`)
+  answer the same for every rule, so a rule that finds calls by walking
+  from another node checks `ArgList.Partial()` itself. A rule about the
+  arguments a call binds (an unsafe option, a weak key) may opt in too: a
+  partial application binds the arguments it is written with, and every
+  call of the closure uses them.
 - Keep rule-specific helpers and companion tests in the inspection package.
   Shared helpers live in `astquery`, `flowquery` and `semanticquery`; see
   [Inspection helpers](./architecture#inspection-helpers).

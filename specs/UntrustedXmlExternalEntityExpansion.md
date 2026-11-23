@@ -42,7 +42,7 @@ None.
 
 ## PHP versions
 
-Available throughout supported PHP 5.3–8.5 when DOM/libxml is available. Treat LIBXML_NO_XXE as protection only on PHP 8.4 or later; a numeric no-XXE bit on an earlier target does not suppress the finding. LIBXML_NONET alone does not establish protection against local external resources.
+Available on every supported PHP version when DOM/libxml is available. Treat LIBXML_NO_XXE as protection only on PHP 8.4 or later; a numeric no-XXE bit on an earlier target does not suppress the finding. LIBXML_NONET alone does not establish protection against local external resources.
 
 ## Examples
 

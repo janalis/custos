@@ -40,7 +40,7 @@ None.
 
 ## PHP versions
 
-Apply throughout PHP 5.3–8.5 only where the extension API and syntax exist.  Do not flag API unavailability through this rule. Invalid-input error forms vary by PHP version; the BCMath operand contract is unchanged.
+Apply on every supported PHP version only where the extension API and syntax exist.  Do not flag API unavailability through this rule. Invalid-input error forms vary by PHP version; the BCMath operand contract is unchanged.
 
 ## Examples
 

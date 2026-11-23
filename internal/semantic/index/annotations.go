@@ -459,7 +459,7 @@ func (x *extractor) returnType(n syntax.Expr, attrs []*syntax.AttributeGroup, at
 	}
 	for _, g := range attrs {
 		for _, a := range g.Attrs {
-			if !strings.HasSuffix(a.Name.Value, "LanguageLevelTypeAware") || a.Args == nil {
+			if !x.stubAttribute(a, "LanguageLevelTypeAware") || a.Args == nil {
 				continue
 			}
 			def, hasDef := "", false
@@ -536,7 +536,7 @@ func (x *extractor) avail(attrs []*syntax.AttributeGroup, d *phpdoc.Doc) Avail {
 	var a Avail
 	for _, g := range attrs {
 		for _, at := range g.Attrs {
-			if !strings.HasSuffix(at.Name.Value, "PhpStormStubsElementAvailable") || at.Args == nil {
+			if !x.stubAttribute(at, "PhpStormStubsElementAvailable") || at.Args == nil {
 				continue
 			}
 			for i, arg := range at.Args.Args {
@@ -574,6 +574,17 @@ func (x *extractor) avail(attrs []*syntax.AttributeGroup, d *phpdoc.Doc) Avail {
 		}
 	}
 	return a
+}
+
+// stubAttribute reports whether a is the phpstorm-stubs attribute class
+// named name, written in full or through an import alias
+// (`use ...\PhpStormStubsElementAvailable as ElementAvailable;`).
+func (x *extractor) stubAttribute(a *syntax.Attribute, name string) bool {
+	if strings.HasSuffix(a.Name.Value, name) {
+		return true
+	}
+	// Only the stubs import these attributes under another name.
+	return x.stub && strings.HasSuffix(x.r.Class(a.Name.Value, a.Name.Span().Start), `\`+name)
 }
 
 func firstWord(s string) string {

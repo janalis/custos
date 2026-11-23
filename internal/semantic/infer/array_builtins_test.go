@@ -86,11 +86,14 @@ func TestArrayMapShapeCap(t *testing.T) {
 	checkShape(t, "<?php t('zip', array_map(null"+arrays+")); t('mapped', array_map('intval'"+arrays+"));", map[string]string{"zip": "array", "mapped": "int[]"})
 }
 
+// TestArrayBuiltinRecovery: a trailing `...` after arguments is a partial
+// application (PHP 8.6), whatever the target the broken parse falls back
+// from: the call builds a closure.
 func TestArrayBuiltinRecovery(t *testing.T) {
 	for _, tc := range []struct{ src, want string }{
-		{`array_map('intval', [1], ...)`, "array"},
-		{`array_map(null, [1], ...)`, "array"},
-		{`array_filter([1, null], ...)`, "array"},
+		{`array_map('intval', [1], ...)`, `\Closure(): (array)`},
+		{`array_map(null, [1], ...)`, `\Closure(): (array)`},
+		{`array_filter([1, null], ...)`, `\Closure(): (array)`},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			f := syntax.Parse("arrays.php", []byte("<?php "+tc.src+";"), syntax.Options{Version: phpversion.PHP84})

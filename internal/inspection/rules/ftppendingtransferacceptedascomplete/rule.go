@@ -22,7 +22,7 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+	if ctx.File.Recovered() || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -84,12 +84,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // of the status itself with a boolean has a fixed outcome and selects the
 // branch that always runs.
 func ftpPendingAcceptedBody(call *syntax.FuncCall) syntax.Stmt {
-	// `ftp_nb_get(...)` builds a closure and starts no transfer.
-	for _, arg := range call.Args.Args {
-		if _, ok := arg.(*syntax.VariadicPlaceholder); ok {
-			return nil
-		}
-	}
 	var e syntax.Expr = call
 	truthy, status := true, true
 	for {

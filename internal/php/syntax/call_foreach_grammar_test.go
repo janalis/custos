@@ -12,21 +12,26 @@ func TestCallablePlaceholderGrammar(t *testing.T) {
 		for _, args := range []struct {
 			text  string
 			count int
-			valid bool
+			since phpversion.Version // first version accepting it; 0: none
 		}{
-			{"...", 1, true},
-			{"1, ...", 2, false},
-			{"...$items, ...", 2, false},
-			{"name: 1, ...", 2, false},
+			{"...", 1, phpversion.PHP81},
+			{"1, ...", 2, phpversion.PHP86},
+			{"...$items, ...", 2, 0},
+			{"name: 1, ...", 2, phpversion.PHP86},
+			{"?, ...", 2, phpversion.PHP86},
 		} {
 			t.Run(call+"("+args.text+")", func(t *testing.T) {
 				src := "<?php " + call + "(" + args.text + "); $after = 1;"
-				for _, version := range []phpversion.Version{phpversion.PHP81, phpversion.PHP85} {
+				for _, version := range []phpversion.Version{phpversion.PHP81, phpversion.PHP85, phpversion.Max} {
+					valid := args.since != 0 && version.AtLeast(args.since)
 					f := parse(t, src, version)
-					if (len(f.Errors) == 0) != args.valid {
-						t.Fatalf("%s: errors = %v, valid = %v", version, f.Errors, args.valid)
+					if version.Below(phpversion.PHP86) && strings.HasPrefix(args.text, "?") {
+						continue // `?` is no argument before 8.6: covered by TestPartialApplicationGrammar
 					}
-					if !args.valid && (len(f.Errors) != 1 || string(f.Src[f.Errors[0].Span.Start:f.Errors[0].Span.End]) != "...") {
+					if (len(f.Errors) == 0) != valid {
+						t.Fatalf("%s: errors = %v, valid = %v", version, f.Errors, valid)
+					}
+					if !valid && (len(f.Errors) != 1 || string(f.Src[f.Errors[0].Span.Start:f.Errors[0].Span.End]) != "...") {
 						t.Fatalf("incorrect placeholder error range: %v", f.Errors)
 					}
 					var list *ArgList
@@ -45,8 +50,8 @@ func TestCallablePlaceholderGrammar(t *testing.T) {
 						t.Fatalf("placeholder span = %q", got)
 					}
 					assertFollowingAssignment(t, f)
-					if valid, ok := phpLint(t, version, src); ok && valid != args.valid {
-						t.Fatalf("%s: PHP valid = %v, want %v", version, valid, args.valid)
+					if php, ok := phpLint(t, version, src); ok && php != valid {
+						t.Fatalf("%s: PHP valid = %v, want %v", version, php, valid)
 					}
 				}
 			})
@@ -104,7 +109,7 @@ func TestForeachTargetGrammar(t *testing.T) {
 				t.Fatal("lost value reference marker")
 			}
 			assertFollowingAssignment(t, f)
-			if valid, ok := phpLint(t, phpversion.PHP85, src); ok && valid != (tc.valid && !tc.compile) {
+			if valid, ok := phpLint(t, phpversion.Max, src); ok && valid != (tc.valid && !tc.compile) {
 				t.Fatalf("PHP valid = %v, grammar valid = %v, compile rejection = %v", valid, tc.valid, tc.compile)
 			}
 		})
@@ -112,7 +117,7 @@ func TestForeachTargetGrammar(t *testing.T) {
 }
 
 func TestAdaptiveCallableAndForeachGrammar(t *testing.T) {
-	for _, statement := range []string{"f(1, ...);", "foreach ($items as 123) {}"} {
+	for _, statement := range []string{"f(..., 1);", "foreach ($items as 123) {}"} {
 		f := ParseBest("invalid.php", []byte("<?php "+statement+" $after = 1;"), Options{Version: phpversion.PHP53})
 		checkSpans(t, f)
 		if len(f.Errors) == 0 || f.Version != phpversion.PHP53 {

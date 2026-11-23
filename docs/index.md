@@ -4,7 +4,7 @@ layout: home
 hero:
   name: custos
   text: Fast PHP inspector and fixer
-  tagline: Rules with quick-fixes, from probable bugs to PHP 8.5 migration. One static binary for the command line, CI, your editor and AI agents.
+  tagline: Rules with quick-fixes, from probable bugs to PHP 8.6 migration. One static binary for the command line, CI, your editor and AI agents.
   image:
     src: /logo.png
     alt: custos, an elephant in a police uniform
@@ -22,7 +22,7 @@ hero:
 features:
   - icon: 🔎
     title: Rules for PHP
-    details: From probable bugs and security issues to code style and language level migration, gated on your target PHP version, from 5.3 to 8.5.
+    details: From probable bugs and security issues to code style and language level migration, gated on your target PHP version, from 5.3 to 8.6.
     link: /rules/
     linkText: Rule reference
   - icon: 🛠️

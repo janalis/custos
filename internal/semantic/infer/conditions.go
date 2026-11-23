@@ -188,6 +188,9 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return r
 		}
 	case *syntax.FuncCall:
+		if c.Args.Partial() { // `is_string($x, ...)` is a closure: always true, it checks nothing
+			return t
+		}
 		if truthy && e.needleFound(c, name) {
 			return t.Without("null", "false")
 		}
@@ -204,11 +207,8 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		if r, ok := e.keyExistsCond(t, c, nm, name, truthy); ok {
 			return r
 		}
-		a, ok := c.Args.Args[0].(*syntax.Arg)
+		a := c.Args.Args[0].(*syntax.Arg) // placeholders made the call partial above
 		fn := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
-		if !ok {
-			return t
-		}
 		if x := unlessNull(a.Value); !isVar(a.Value, name) && (fn == "is_null" || x == nil || !isVar(x, name)) {
 			return t
 		}

@@ -195,3 +195,7 @@ var numberBuiltins = map[string]bool{
 	"ord": true, "crc32": true, "levenshtein": true, "similar_text": true,
 	"strspn": true, "strcspn": true, "intdiv": true, "array_sum": true, "array_product": true,
 }
+
+// PartialCalls: a partial application binds the arguments it is written
+// with, and every call of the closure passes them to the sink.
+func (rule) PartialCalls() {}

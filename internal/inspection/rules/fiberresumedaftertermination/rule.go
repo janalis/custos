@@ -23,13 +23,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 func check(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+	if ctx.File.Recovered() || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
 	construct := semanticquery.FiberConstruction(ctx, c, "resume")
 	receiver, local := syntax.UnwrapParens(c.Var).(*syntax.Variable)
-	if construct == nil || !local || fiberResumeCallableOnly(c) || !fiberResumeStarted(ctx, c) || fiberResumeRebound(ctx, c, receiver.Name, construct) {
+	if construct == nil || !local || !fiberResumeStarted(ctx, c) || fiberResumeRebound(ctx, c, receiver.Name, construct) {
 		return
 	}
 	params, body := semanticquery.NativeCallback(ctx, semanticquery.CallArgument(construct.Args, 0, "callback"))
@@ -51,23 +51,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 
 // fiberResumeStarted requires an executed start() before the resume.
 func fiberResumeStarted(ctx *analysis.Context, resume *syntax.MethodCall) bool {
-	for _, start := range semanticquery.EarlierMethodCalls(ctx, resume, resume.Var, "Fiber", "start") {
-		if !fiberResumeCallableOnly(start) {
-			return true
-		}
-	}
-	return false
-}
-
-// fiberResumeCallableOnly recognizes `$fiber->method(...)`, which creates a
-// closure without invoking the method.
-func fiberResumeCallableOnly(c *syntax.MethodCall) bool {
-	for _, arg := range c.Args.Args {
-		if _, ok := arg.(*syntax.VariadicPlaceholder); ok {
-			return true
-		}
-	}
-	return false
+	return len(semanticquery.EarlierMethodCalls(ctx, resume, resume.Var, "Fiber", "start")) > 0
 }
 
 // fiberResumeRebound reports whether the receiver may hold another fiber than

@@ -29,9 +29,11 @@ func IsFuncNamedFold(e syntax.Node, part string) (*syntax.FuncCall, bool) {
 	return funcNamed(e, part, true)
 }
 
+// funcNamed matches a call of the function named part; a partial
+// application (`f(...)`, `f(?, 1)`) calls nothing and matches no call.
 func funcNamed(e syntax.Node, part string, fold bool) (*syntax.FuncCall, bool) {
 	call, ok := e.(*syntax.FuncCall)
-	if !ok {
+	if !ok || call.Args.Partial() {
 		return nil, false
 	}
 	_, p, ok := FuncNamePart(call)

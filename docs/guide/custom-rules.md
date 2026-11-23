@@ -105,6 +105,12 @@ the same code both times.
 | `\sprintf($FORMAT, ...$ARGS)` | `sprintf()` with at least one argument; `$ARGS` holds the others |
 | `$_->save()` | `save()` on anything (`$_` matches without remembering) |
 
+A call pattern also matches a first-class callable or a partial
+application (PHP 8.6) of that function when its arguments match:
+`\dump(...)` matches `dump(...)` and `dump(?, 1)`, which refer to `dump()`.
+A metavariable such as `$X` never matches a `?` placeholder, so to ban a
+function in every form, write its pattern with `...`.
+
 Lowercase variables match that variable only: `$this->x` matches `$this->x`
 and not `$that->x`.
 
@@ -298,7 +304,10 @@ func main() {
 ```
 
 `custos.NewRule` calls the check function for every node of the listed
-kinds. `custos.json` configures such rules like the others, by their ID. The context gives the file's source (`ctx.Text`), resolved names
+kinds. A call that only builds a closure, a first-class callable or a PHP
+8.6 partial application (`f(...)`, `f(?, 1)`), calls nothing and reaches the
+rule only with `PartialCalls: true` in its `custos.Info`; its arguments may
+then be placeholder nodes. `custos.json` configures such rules like the others, by their ID. The context gives the file's source (`ctx.Text`), resolved names
 (`ctx.GlobalFunctionName`, `ctx.Names()`), inferred types (`ctx.TypeOf`) and
 reporting with quick-fixes (`ctx.ReportNode`). The repository's
 `examples/custom-binary` is a complete program.

@@ -237,7 +237,7 @@ func ObjectMethodHistory(ctx *analysis.Context, at, obj syntax.Expr) []*syntax.M
 	out := []*syntax.MethodCall{}
 	for _, record := range calls {
 		c, ok := record.Node.(*syntax.MethodCall)
-		if !ok || c.Span().End >= at.Span().Start || !NativeSameValue(ctx, c.Var, obj) {
+		if !ok || c.Args.Partial() || c.Span().End >= at.Span().Start || !NativeSameValue(ctx, c.Var, obj) {
 			continue
 		}
 		if !NativeDominates(c, at) && !NativeCallSucceeded(ctx, c, at) {

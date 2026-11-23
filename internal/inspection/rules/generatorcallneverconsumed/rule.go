@@ -26,9 +26,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, ok := call.Parent().(*syntax.ExprStmt); !ok {
 		return
 	}
-	if firstClassCallable(call) {
-		return
-	}
 	body := semanticquery.NativeFunctionBody(ctx, call)
 	if !semanticquery.NativeGeneratorBody(body) {
 		return
@@ -36,17 +33,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if deferredEffects(body) {
 		ctx.ReportNode(call, message)
 	}
-}
-
-// firstClassCallable recognizes `f(...)`, which builds a Closure without
-// calling the generator function.
-func firstClassCallable(call *syntax.FuncCall) bool {
-	for _, arg := range call.Args.Args {
-		if _, ok := arg.(*syntax.VariadicPlaceholder); ok {
-			return true
-		}
-	}
-	return false
 }
 
 // deferredEffects reports whether the generator body owns an operation that

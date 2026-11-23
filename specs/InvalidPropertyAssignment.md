@@ -93,7 +93,8 @@ are left to DocumentedPropertyAssignment.
   to that property (any form of D1) and the property not promoted
   (otherwise the write may be a re-initialization). A compound
   assignment, `++`, `--` or a by-reference assignment never initializes a
-  readonly property.
+  readonly property, and from PHP 8.6 neither does any write to one that
+  declares a default value, which already initialized it.
 - E6. Values some of which are accepted: a union with an accepted member,
   `mixed`, `object`, an unknown value, a class that a subclass may turn
   into the expected type, an object with `__toString` for a string

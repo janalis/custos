@@ -7,7 +7,7 @@ editLink: false
 
 # Rules
 
-custos ships **601 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **602 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
 from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
@@ -123,6 +123,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ClassConstantCanBeUsed](./language-level-migration/ClassConstantCanBeUsed) | EA | info | on | ✓ | PHP ≥ 5.5 |
 | [ConstantCanBeUsed](./language-level-migration/ConstantCanBeUsed) | EA | info | on | ✓ | any |
 | [DeprecatedConstructorStyle](./language-level-migration/DeprecatedConstructorStyle) | EA | error | on | ✓ | PHP ≤ 7.4 |
+| [DeprecatedFeature](./language-level-migration/DeprecatedFeature) | native | warning | on |  | PHP ≥ 8.0 |
 | [DirectoryConstantCanBeUsed](./language-level-migration/DirectoryConstantCanBeUsed) | EA | warning | on | ✓ | any |
 | [DynamicCallsToScopeIntrospection](./language-level-migration/DynamicCallsToScopeIntrospection) | EA | warning | on |  | PHP ≥ 7.1 |
 | [ElvisOperatorCanBeUsed](./language-level-migration/ElvisOperatorCanBeUsed) | EA | info | on | ✓ | any |

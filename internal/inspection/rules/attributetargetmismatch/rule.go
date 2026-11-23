@@ -2,6 +2,8 @@
 package attributetargetmismatch
 
 import (
+	"strings"
+
 	"github.com/janalis/custos/internal/inspection/analysis"
 	"github.com/janalis/custos/internal/inspection/semanticquery"
 	"github.com/janalis/custos/internal/php/syntax"
@@ -22,14 +24,23 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if ctx.PHP.Below(phpversion.PHP80) {
 		return
 	}
-	_, flags, known := semanticquery.NativeAttributeFlags(ctx, a)
+	fqn, flags, known := semanticquery.NativeAttributeFlags(ctx, a)
 	if !known {
 		return
 	}
+	// DelayedTargetValidation (PHP 8.5) postpones the check of PHP's own
+	// attributes to reflection, where it reports nothing.
+	if _, builtin := semanticquery.BuiltinAttributeTargets(ctx, fqn); builtin && delayed(ctx, a) {
+		return
+	}
 	var bit int64
-	switch a.Parent().Parent().(type) {
+	switch owner := a.Parent().Parent().(type) {
 	case *syntax.ClassLike:
 		bit = 1
+		// PHP's own Deprecated applies to traits alone among class-likes.
+		if _, builtin := semanticquery.BuiltinAttributeTargets(ctx, fqn); builtin && strings.EqualFold(strings.TrimPrefix(fqn, `\`), "Deprecated") && owner.ClassKind != syntax.KindTrait {
+			bit = 0
+		}
 	case *syntax.Function, *syntax.Closure, *syntax.ArrowFunction:
 		bit = 2
 	case *syntax.Method, *syntax.PropertyHook:
@@ -40,11 +51,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		bit = 16
 	case *syntax.Param:
 		bit = 32
-		if promoted(a.Parent().Parent().(*syntax.Param)) {
+		if promoted(owner) {
 			bit |= 8
 		}
-	default:
-		return
+	default: // the parser attaches attributes to no other node than a global const
+		if ctx.PHP.Below(phpversion.PHP85) {
+			return // a constant takes attributes from PHP 8.5: newer code, not a misplaced one
+		}
+		bit = 64
 	}
 	if flags&bit == 0 {
 		ctx.ReportNode(a.Parent(), message)
@@ -63,4 +77,24 @@ func promoted(param *syntax.Param) bool {
 		}
 	}
 	return false
+}
+
+// delayed reports whether the declaration a applies to also carries PHP's
+// DelayedTargetValidation attribute.
+func delayed(ctx *analysis.Context, a *syntax.Attribute) bool {
+	found := false
+	syntax.Children(a.Parent().Parent(), func(n syntax.Node) {
+		g, ok := n.(*syntax.AttributeGroup)
+		if !ok {
+			return
+		}
+		for _, other := range g.Attrs {
+			name := ctx.Names().Class(other.Name.Value, other.Name.Span().Start)
+			if strings.EqualFold(strings.TrimPrefix(name, `\`), "DelayedTargetValidation") {
+				_, builtin := semanticquery.BuiltinAttributeTargets(ctx, name)
+				found = found || builtin
+			}
+		}
+	})
+	return found
 }

@@ -118,7 +118,7 @@ func TestComparisonAssociativity(t *testing.T) {
 		{"$a < $b && $c < $d", true},
 		{"$a + $b < $c * $d", true},
 	}
-	for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.PHP56, phpversion.PHP74, phpversion.PHP85} {
+	for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.PHP56, phpversion.PHP74, phpversion.Max} {
 		for _, c := range cases {
 			src := "<?php $x = " + c.expr + "; $after = 1;"
 			f := Parse("compare.php", []byte(src), Options{Version: version})

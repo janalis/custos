@@ -286,6 +286,15 @@ func TestBaselineUnicodeAndAmbiguity(t *testing.T) {
 	if err := collect(tmp, snap); err != nil || tmp.Complete {
 		t.Fatal(tmp, err)
 	}
+	// A compile error leaves the file analyzed in full; a parse error not.
+	for errs, complete := range map[string]bool{"compile": true, "parse": false} {
+		e := syntax.Error{Msg: "x", Compile: errs == "compile"}
+		snap := &project.Snapshot{Config: s.snapshots[id].Config, Sources: map[string][]byte{"c.php": []byte("<?php\n")}, Results: []diagnostic.FileResult{{Path: "c.php", Src: []byte("<?php\n"), Errors: []syntax.Error{e}}}}
+		tmp := &checkpoint{Complete: true}
+		if err := collect(tmp, snap); err != nil || tmp.Complete != complete {
+			t.Fatal(errs, tmp.Complete, err)
+		}
+	}
 }
 
 func TestCommitFaultsAndPathSwaps(t *testing.T) {

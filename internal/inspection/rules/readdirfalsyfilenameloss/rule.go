@@ -26,7 +26,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	if !semanticquery.NativeBuiltin(ctx, c, "readdir") || firstClassCallable(c) {
+	if !semanticquery.NativeBuiltin(ctx, c, "readdir") {
 		return
 	}
 	use, entry, truthy := conditionUse(c)
@@ -49,15 +49,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return []diagnostic.TextEdit{{Span: use.Span(), NewText: "(" + ctx.Text(entry) + ")" + op}}
 	}}
 	ctx.ReportNode(use, message, fix)
-}
-
-func firstClassCallable(c *syntax.FuncCall) bool {
-	for _, a := range c.Args.Args {
-		if _, ok := a.(*syntax.VariadicPlaceholder); ok {
-			return true
-		}
-	}
-	return false
 }
 
 // conditionUse climbs from a readdir call to the if/loop condition testing its

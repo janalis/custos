@@ -130,7 +130,7 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 	}
 	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.ConstFetch, *syntax.MagicConst, *syntax.Name, *syntax.ClassConstFetch, *syntax.Identifier,
-		*syntax.StringPart, *syntax.VariadicPlaceholder:
+		*syntax.StringPart, *syntax.VariadicPlaceholder, *syntax.ArgPlaceholder:
 		return 0
 	case *syntax.Literal:
 		return 0

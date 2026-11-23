@@ -268,3 +268,34 @@ func TestInvalidArrayDestructuringKept(t *testing.T) {
 		}
 	}
 }
+
+// TestCompileErrorsFormat: code PHP's grammar accepts but its compiler
+// rejects keeps a whole tree, which formats.
+func TestCompileErrorsFormat(t *testing.T) {
+	src := []byte("<?php\nenum E { case A; public function __toString(): string { return 'a'; } }\nf(a: 1,   2);\n")
+	r := Source("e.php", src, Options{})
+	if r.Skipped != "" || string(r.Output) == string(src) {
+		t.Fatalf("skipped %q, output %q", r.Skipped, r.Output)
+	}
+	if r := Source("b.php", []byte("<?php\nf(a: 1, ,);\n"), Options{}); r.Skipped != "1 syntax error" {
+		t.Fatalf("a parse error still skips: %q", r.Skipped)
+	}
+}
+
+// TestWrappedListKeepsItsComma: a call on one long line that already ends
+// with a trailing comma keeps that comma when wrapped: no edit removes it
+// for the one-line form and adds another after the last argument.
+func TestWrappedListKeepsItsComma(t *testing.T) {
+	long := strings.Repeat("a", 92)
+	src := []byte("<?php\n\nclass T\n{\n    public function a()\n    {\n        $this->assertSame('" + long + "', $this->compiler->compileString('" + long + "'),);\n    }\n}\n")
+	r := Source("t.php", src, Options{})
+	outer := uint32(strings.Index(string(src), "),);")) // the outer list's last argument ends there
+	for _, c := range r.Changes {
+		if (c.Rule == "trailing_comma" || c.Rule == "single_line_trailing_comma") && c.End > outer && c.Start <= outer+2 {
+			t.Errorf("comma change %+v", c)
+		}
+	}
+	if !strings.Contains(string(r.Output), "),\n") {
+		t.Fatalf("lost the comma:\n%s", r.Output)
+	}
+}

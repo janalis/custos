@@ -35,11 +35,11 @@ func TestNoCrashOnCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e, err := analysis.NewEngine(All(), analysis.Config{PHP: phpversion.PHP85, EnableAll: true})
+	e, err := analysis.NewEngine(All(), analysis.Config{PHP: phpversion.Max, EnableAll: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	opt := syntax.Options{Version: phpversion.PHP85}
+	opt := syntax.Options{Version: phpversion.Max}
 	ix := project.BuildIndex(files, opt, infer.Options{})
 	e = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(context.Background(), files, nil, opt, ix, flow.Options{}))
 	crashes := 0

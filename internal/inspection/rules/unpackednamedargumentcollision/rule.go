@@ -56,10 +56,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	for _, node := range args.Args {
-		arg, ok := node.(*syntax.Arg)
-		if !ok {
-			return
-		}
+		arg := node.(*syntax.Arg) // placeholders never reach a rule: partial applications are not dispatched
 		if arg.Unpack {
 			array := semanticquery.NativeArray(ctx, arg.Value)
 			if array == nil {

@@ -412,8 +412,8 @@ func (x *extractor) callback(call *syntax.FuncCall) (body syntax.Node, param, k 
 				return nil, "", method(x.classOf(v.Items[0].Value, call), name)
 			}
 		}
-	case *syntax.FuncCall: // load(...): the namespaced function, else the global one
-		if n, ok := v.Name.(*syntax.Name); ok && v.Args.FirstClassCallable() {
+	case *syntax.FuncCall: // load(...), load(?, $dir): the namespaced function, else the global one
+		if n, ok := v.Name.(*syntax.Name); ok && loaderCallable(v.Args) {
 			fqn, fallback := x.r.Function(n.Value, n.Span().Start)
 			if k = key(fqn); fallback != "" {
 				k += "|" + key(fallback)
@@ -421,17 +421,31 @@ func (x *extractor) callback(call *syntax.FuncCall) (body syntax.Node, param, k 
 			return nil, "", k
 		}
 	case *syntax.MethodCall: // $this->load(...)
-		if id, ok := v.Name.(*syntax.Identifier); ok && !v.NullSafe && v.Args.FirstClassCallable() {
+		if id, ok := v.Name.(*syntax.Identifier); ok && !v.NullSafe && loaderCallable(v.Args) {
 			if self, ok := v.Var.(*syntax.Variable); ok && self.Name == "this" && self.NameExpr == nil {
 				return nil, "", method(x.self(call, objectMark), id.Value)
 			}
 		}
 	case *syntax.StaticCall: // self::load(...), Cls::load(...)
-		if id, ok := v.Name.(*syntax.Identifier); ok && v.Args.FirstClassCallable() {
+		if id, ok := v.Name.(*syntax.Identifier); ok && loaderCallable(v.Args) {
 			return nil, "", method(x.classOf(v.Class, call), id.Value)
 		}
 	}
 	return nil, "", ""
+}
+
+// loaderCallable reports whether args make a closure whose first parameter
+// is the callee's first one: `load(...)`, or a partial application whose
+// first argument is a positional `?` (`load(?, $dir)`, PHP 8.6).
+func loaderCallable(args *syntax.ArgList) bool {
+	if args.FirstClassCallable() {
+		return true
+	}
+	if !args.Partial() {
+		return false
+	}
+	hole, ok := args.Args[0].(*syntax.ArgPlaceholder)
+	return ok && hole.Name == nil
 }
 
 // minAutoloadPrefix is the shortest prefix kept: shorter ones (`\`, `_`)

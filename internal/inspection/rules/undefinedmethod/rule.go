@@ -67,3 +67,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	ctx.ReportNode(name, "Fix the method name: "+label+" declares no "+name.Value+"().")
 }
+
+// PartialCalls: a first-class callable or partial application refers to
+// its callee as a call does.
+func (rule) PartialCalls() {}

@@ -1,7 +1,7 @@
 package syntax
 
 // ExitInvokes reports whether evaluating exit/die calls the function rather
-// than producing its first-class callable.
+// than producing a closure (`exit(...)`, `exit(?)`).
 func ExitInvokes(n *Exit) bool {
 	return exitArgsInvoke(n.Args)
 }
@@ -19,4 +19,4 @@ func ExitInvocation(e Expr) bool {
 	return false
 }
 
-func exitArgsInvoke(args *ArgList) bool { return !args.FirstClassCallable() }
+func exitArgsInvoke(args *ArgList) bool { return !args.Partial() }

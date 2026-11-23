@@ -130,7 +130,7 @@ func TestPrefixIncrementGrammar(t *testing.T) {
 		for _, op := range []string{"++", "--"} {
 			t.Run(op+tc.operand, func(t *testing.T) {
 				src := "<?php " + op + tc.operand + "; $after = 1;"
-				for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.PHP85} {
+				for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.Max} {
 					f := parse(t, src, version)
 					if got := len(f.Errors) == 0; got != tc.valid {
 						t.Fatalf("%s: valid = %v, want %v: %v", version, got, tc.valid, f.Errors)

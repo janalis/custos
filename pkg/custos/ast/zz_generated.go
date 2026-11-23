@@ -8,6 +8,7 @@ import "github.com/janalis/custos/internal/php/syntax"
 type (
 	Arg                 = syntax.Arg
 	ArgList             = syntax.ArgList
+	ArgPlaceholder      = syntax.ArgPlaceholder
 	Array               = syntax.Array
 	ArrayDimFetch       = syntax.ArrayDimFetch
 	ArrayItem           = syntax.ArrayItem
@@ -122,6 +123,7 @@ type (
 const (
 	KArg                    = syntax.KArg
 	KArgList                = syntax.KArgList
+	KArgPlaceholder         = syntax.KArgPlaceholder
 	KArray                  = syntax.KArray
 	KArrayDimFetch          = syntax.KArrayDimFetch
 	KArrayItem              = syntax.KArrayItem

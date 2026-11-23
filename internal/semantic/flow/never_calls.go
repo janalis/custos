@@ -26,7 +26,7 @@ func (e *Env) never(call syntax.Node) bool {
 			return false
 		}
 	}
-	if list.FirstClassCallable() {
+	if list.Partial() {
 		return false
 	}
 	declared, name := "", ""

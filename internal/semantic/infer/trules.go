@@ -87,15 +87,15 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 	e := r.Env
 	switch n := x.(type) {
 	case *syntax.FuncCall:
-		if n.Args.FirstClassCallable() {
+		if n.Args.Partial() {
 			return e.TypeOf(n)
 		}
 	case *syntax.MethodCall:
-		if n.Args.FirstClassCallable() {
+		if n.Args.Partial() {
 			return e.TypeOf(n)
 		}
 	case *syntax.StaticCall:
-		if n.Args.FirstClassCallable() {
+		if n.Args.Partial() {
 			return e.TypeOf(n)
 		}
 	}

@@ -96,3 +96,23 @@ type Config struct {
 	// carrying its ID, so a CPU profile splits the time rules take by rule.
 	LabelRules bool
 }
+
+// PartialCallRule marks rules that also check partial applications
+// (`f(...)`, `f(?, 1)`, `$o->m(?)`): every other rule sees a function,
+// method or static call only when it calls something.
+type PartialCallRule interface {
+	PartialCalls()
+}
+
+// partialCall reports a call node whose arguments make a closure.
+func partialCall(n syntax.Node) bool {
+	switch c := n.(type) {
+	case *syntax.FuncCall:
+		return c.Args.Partial()
+	case *syntax.MethodCall:
+		return c.Args.Partial()
+	case *syntax.StaticCall:
+		return c.Args.Partial()
+	}
+	return false
+}

@@ -46,7 +46,7 @@ None.
 
 ## PHP versions
 
-Available throughout supported PHP 5.3–8.5 where the referenced builtin/extension is available. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
+Available on every supported PHP version where the referenced builtin/extension is available. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
 
 See the [PHP regex capture and offset contract](https://www.php.net/manual/en/function.preg-match.php) for the relevant builtin behavior.
 

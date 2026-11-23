@@ -165,7 +165,7 @@ func TestLexerOracle(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got, _ := Lex(src, LexOptions{Version: phpversion.PHP85})
+		got, _ := Lex(src, LexOptions{Version: phpversion.Max})
 		if msg := compareTokens(src, got, want); msg != "" {
 			bad++
 			if bad <= 15 {

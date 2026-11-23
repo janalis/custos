@@ -48,7 +48,7 @@ available quick-fixes.
 - **Your own rules.** Project-specific checks are PHP code patterns in
   `custos.json`, with quick-fixes and fixture tests, or Go code built into
   your own binary (see [Custom rules](./custom-rules)).
-- **Version-aware.** Rules are gated on your target PHP version (5.3 to 8.5),
+- **Version-aware.** Rules are gated on your target PHP version (5.3 to 8.6),
   from `--php`, `custos.json` or `composer.json` (see
   [Target PHP version](./configuration#target-php-version)).
 

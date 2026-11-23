@@ -46,7 +46,7 @@ No automatic fix: trusted proxy addresses and forwarding-chain policy must be su
 
 ## PHP versions
 
-Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
+Apply only on PHP versions supporting the referenced APIs and syntax (within the supported PHP versions). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
 ## Configure
 

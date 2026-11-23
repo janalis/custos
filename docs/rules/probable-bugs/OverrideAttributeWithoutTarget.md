@@ -29,7 +29,7 @@ Reported:
 
 ## Detection
 
-- Resolve the builtin Override attribute on a method. Report only when the complete parent and interface closure proves there is no overridable method of that name. From PHP 8.5 also check properties against inherited properties; methods and properties are separate lookup domains. A private parent method does not satisfy a method override; abstract interface requirements do.
+- Resolve the builtin Override attribute on a method. Report only when the complete parent and interface closure proves there is no overridable method of that name. From PHP 8.5 also check properties against inherited properties, and from PHP 8.6 class constants and enum cases against inherited class constants (an interface constant is a target, for an enum case too); methods, properties and constants are separate lookup domains. Each constant of a grouped declaration needs its own target. A private parent method or constant does not satisfy an override; abstract interface requirements do.
 - Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or code too complex to analyze. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)

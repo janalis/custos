@@ -34,7 +34,7 @@ func (e *Env) condCall(cond, owner string, tpl *index.FuncTemplates, params []in
 	decided := false
 	var t types.Type
 	cc := condCtx{owner: owner, tpl: tpl}
-	if !(args == nil || args.FirstClassCallable()) {
+	if !(args == nil || args.Partial()) {
 		cc.params, cc.args = params, args
 	}
 	t = e.condType(c, &cc, &decided)

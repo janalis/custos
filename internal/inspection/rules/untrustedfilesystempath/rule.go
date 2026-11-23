@@ -240,3 +240,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 		ctx.ReportNode(c, message)
 	}
 }
+
+// PartialCalls: a partial application binds the arguments it is written
+// with, and every call of the closure passes them to the sink.
+func (rule) PartialCalls() {}

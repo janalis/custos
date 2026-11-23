@@ -116,7 +116,7 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 		}
 		out, n, next := applyParsed(path, res.Source, edits, opt.Parse)
 		res.Iterations++
-		if had := versionOf(f); len(next.Errors) <= len(f.Errors) && tooNewFor(opt.Parse.Version, next, had) {
+		if had := versionOf(f); !next.ParsesWorse(f) && tooNewFor(opt.Parse.Version, next, had) {
 			// Rare: keep only the fixes that are compatible together.
 			left := len(tooNew)
 			out, n, next = compatibleEdits(path, res.Source, f, groups, opt.Parse, had, tooNew)
@@ -127,7 +127,7 @@ func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, 
 				continue // the next analysis skips the fixes left out
 			}
 		}
-		if len(next.Errors) > len(f.Errors) {
+		if next.ParsesWorse(f) {
 			break
 		}
 		res.Applied += n
@@ -247,7 +247,7 @@ func compatibleEdits(path string, src []byte, f *syntax.File, groups []fixGroup,
 	for _, g := range groups {
 		try := slices.Concat(kept, g.edits)
 		o, k, t := applyParsed(path, src, try, opt)
-		if len(t.Errors) > len(f.Errors) {
+		if t.ParsesWorse(f) {
 			continue
 		}
 		if tooNewFor(opt.Version, t, had) {

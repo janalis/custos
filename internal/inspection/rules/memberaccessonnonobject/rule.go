@@ -28,3 +28,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		ctx.ReportNode(receiver, "Access this member on an object, not "+t.String()+".")
 	}
 }
+
+// PartialCalls: a first-class callable or partial application refers to
+// its callee as a call does.
+func (rule) PartialCalls() {}

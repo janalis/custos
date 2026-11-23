@@ -166,7 +166,7 @@ func TestParseConstructs(t *testing.T) {
  N, ` + "`ls $dir`" + `;`,
 		`$x = new class(1) extends Base implements I { public $p; }; $y = new Foo; $z = new $cls['k']->name(); $w = new (trim($n))(); $v = new static; new Foo()->bar();`,
 		`A::$b::c(); A::{$m}(); $obj::CONST; static::f(); parent::__construct(); self::$x[0] = 1; $a->{'b'}(); $a?->b()?->c; $f(...); strlen(...);`,
-		`f(a: 1, b: $c, ...$rest); exit; die(1); exit(); isset($a, $b[0]); empty($x); eval('1;'); unset($a, $b,);`,
+		`f(...$rest, a: 1, b: $c); exit; die(1); exit(); isset($a, $b[0]); empty($x); eval('1;'); unset($a, $b,);`,
 		`global $a, $$b; static $s = 1, $t; goto end; end: echo 1; __halt_compiler(); raw data here`,
 		`$a = clone $b->c; $d = include 'x.php'; require_once __DIR__ . '/y.php'; print 'z'; $e = @file('f'); $g = (object)['a' => 1];`,
 		`const A = 1, B = A * 2; function f($a = null, $b = [1, 2], $c = self::X) {} $x = $y ?: $z; $q ??= 5;`,
@@ -175,7 +175,7 @@ func TestParseConstructs(t *testing.T) {
 		"if ($a) ?>html<?php while (0) ?>x<?php for (;0;) ?>y<?php foreach ($l as $v) ?>z<?php else_part();",
 	}
 	for _, src := range srcs {
-		v := phpversion.PHP85
+		v := phpversion.Max
 		if strings.Contains(src, "$a{0}") {
 			v = phpversion.PHP73
 		}
@@ -237,7 +237,7 @@ func TestParseCorpus(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f := Parse(path, src, Options{Version: phpversion.PHP85})
+		f := Parse(path, src, Options{Version: phpversion.Max})
 		checkSpans(t, f)
 		if len(f.Errors) > 0 {
 			badFiles = append(badFiles, path)
@@ -252,7 +252,7 @@ func TestParseCorpus(t *testing.T) {
 			continue
 		}
 		src, _ := os.ReadFile(path)
-		f := Parse(path, src, Options{Version: phpversion.PHP85})
+		f := Parse(path, src, Options{Version: phpversion.Max})
 		bad++
 		if bad <= 20 {
 			e := f.Errors[0]
@@ -275,7 +275,7 @@ func BenchmarkParse(b *testing.B) {
 	b.SetBytes(int64(len(src)))
 	b.ReportAllocs()
 	for b.Loop() {
-		Parse(path, src, Options{Version: phpversion.PHP85})
+		Parse(path, src, Options{Version: phpversion.Max})
 	}
 }
 
@@ -291,7 +291,7 @@ func BenchmarkLex(b *testing.B) {
 	b.SetBytes(int64(len(src)))
 	b.ReportAllocs()
 	for b.Loop() {
-		Lex(src, LexOptions{Version: phpversion.PHP85})
+		Lex(src, LexOptions{Version: phpversion.Max})
 	}
 }
 
@@ -306,7 +306,7 @@ func FuzzParse(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, s string) {
-		for _, v := range []phpversion.Version{phpversion.PHP56, phpversion.PHP85} {
+		for _, v := range []phpversion.Version{phpversion.PHP56, phpversion.Max} {
 			file := Parse("fuzz.php", []byte(s), Options{Version: v})
 			checkSpans(t, file)
 		}

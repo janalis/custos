@@ -22,12 +22,28 @@ func phpLint(t *testing.T, v phpversion.Version, src string) (valid, ok bool) {
 			return false, false
 		}
 	}
+	if phpBinaryVersion(bin) != v.String() {
+		return false, false // another version than the one asked for
+	}
 	p := filepath.Join(t.TempDir(), "x.php")
 	if err := os.WriteFile(p, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	err := exec.Command(bin, "-n", "-l", p).Run()
 	return err == nil, true
+}
+
+var phpVersions sync.Map // binary path -> "major.minor"
+
+// phpBinaryVersion is the version of the PHP binary at bin, "" when it
+// does not run.
+func phpBinaryVersion(bin string) string {
+	if v, ok := phpVersions.Load(bin); ok {
+		return v.(string)
+	}
+	out, _ := exec.Command(bin, "-n", "-r", `echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;`).Output()
+	phpVersions.Store(bin, string(out))
+	return string(out)
 }
 
 // parseCases exercise rarely used grammar and error recovery. valid is the
@@ -127,10 +143,10 @@ func TestNodeKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if php, ok := phpLint(t, phpversion.PHP85, string(src)); ok && !php {
+	if php, ok := phpLint(t, phpversion.Max, string(src)); ok && !php {
 		t.Fatal("allkinds.php is not valid PHP")
 	}
-	files := []*File{Parse("allkinds.php", src, Options{Version: phpversion.PHP85})}
+	files := []*File{Parse("allkinds.php", src, Options{Version: phpversion.Max})}
 	if errs := files[0].Errors; len(errs) > 0 {
 		t.Fatalf("allkinds.php: %v", errs)
 	}

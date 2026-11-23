@@ -91,6 +91,39 @@ function f(string $s, $u) {
 	checkVer(t, phpversion.PHP74, false, `<?php
 function f($u) { t('unset', (unset) $u); }
 `, map[string]string{"unset": "null"})
+	checkVer(t, phpversion.PHP86, false, `<?php
+class C { function m(int $a, string $b): float { return 1.0; } static function s(string $a, int $b): bool { return true; } }
+/** @phpstan-assert string $x */
+function mustString(mixed $x): void {}
+function g(string $s, C $o, array $a, $u, int|string $v) {
+    mustString($v, ...);
+    t('partialassert', $v);
+    t('partial', str_pad(?, 4));
+    t('partialexit', exit(?));
+    if (is_string($u, ...)) { t('nonarrowed', $u); }
+    if (is_string($u)) { t('narrowed', $u); }
+    $len = strlen(?);
+    t('partialcall', $len('x'));
+    t('pipe1rest', $s |> str_pad(...));
+    t('partialm', $o->m(?, ...));
+    t('rest', str_pad($s, 4, ...));
+    t('pipe1', $s |> str_pad(?, 4));
+    t('pipenamed', 4 |> str_pad($s, length: ?));
+    t('pipem', 'x' |> $o->m(1, ?));
+    t('pipes', 'x' |> C::s(?, 2));
+    t('pipeclone', $o |> clone(?));
+    t('pipeclonefcc', $o |> clone(...));
+    t('pipeclonewith', $o |> clone(?, []));
+    t('pipeclonenamed', $o |> clone(withProperties: [], object: ?));
+    t('pipeclonearg', [] |> clone($o, ?));
+    t('pipetwo', $s |> str_replace(?, ?, $s));
+    t('pipenone', $a |> array_sum(1, ...));
+}
+`, map[string]string{
+		"partial": `\Closure(): (string)`, "partialexit": `\Closure(): (never)`, "partialassert": "int|string", "nonarrowed": "?unknown", "narrowed": "string", "partialcall": "int", "pipe1rest": "string", "partialm": `\Closure(): (float)`, "rest": `\Closure(): (string)`,
+		"pipe1": "string", "pipenamed": "string", "pipem": "float", "pipes": "bool",
+		"pipeclone": `\C`, "pipeclonefcc": `\C`, "pipeclonewith": `\C`, "pipeclonenamed": `\C`, "pipeclonearg": "object", "pipetwo": "string|string[]", "pipenone": "float|int",
+	})
 }
 
 func TestCovDeclarationsAndCalls(t *testing.T) {

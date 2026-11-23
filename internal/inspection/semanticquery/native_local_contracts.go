@@ -84,6 +84,9 @@ func NativeSameValue(ctx *analysis.Context, a, b syntax.Expr) bool {
 // NativeAttributeFlags resolves the independently declared attribute contract.
 func NativeAttributeFlags(ctx *analysis.Context, a *syntax.Attribute) (string, int64, bool) {
 	fqn := ctx.Names().Class(a.Name.Value, a.Name.Span().Start)
+	if flags, ok := BuiltinAttributeTargets(ctx, fqn); ok {
+		return fqn, flags, true
+	}
 	d := ClassDecl(ctx.File, ctx.Index().Class(fqn, ctx.PHP))
 	if d == nil {
 		return fqn, 0, false
@@ -107,6 +110,38 @@ func NativeAttributeFlags(ctx *analysis.Context, a *syntax.Attribute) (string, i
 		}
 	}
 	return fqn, 0, false
+}
+
+// builtinTargets are the targets of PHP's own attributes, as PHP declares
+// them from each version on (newest first): their stubs carry the newest
+// version's only, and PHP checks them when it compiles the declaration.
+var builtinTargets = map[string][]struct {
+	since phpversion.Version
+	flags int64
+}{
+	"attribute":               {{phpversion.PHP80, 1}},
+	"returntypewillchange":    {{phpversion.PHP81, 4}},
+	"allowdynamicproperties":  {{phpversion.PHP82, 1}},
+	"sensitiveparameter":      {{phpversion.PHP82, 32}},
+	"override":                {{phpversion.PHP86, 4 | 8 | 16}, {phpversion.PHP85, 4 | 8}, {phpversion.PHP83, 4}},
+	"deprecated":              {{phpversion.PHP85, 1 | 2 | 4 | 16 | 64}, {phpversion.PHP84, 2 | 4 | 16}},
+	"nodiscard":               {{phpversion.PHP85, 2 | 4}},
+	"delayedtargetvalidation": {{phpversion.PHP85, 127}},
+}
+
+// BuiltinAttributeTargets returns the targets of PHP's own attribute class
+// fqn at the configured version; false for any other class.
+func BuiltinAttributeTargets(ctx *analysis.Context, fqn string) (int64, bool) {
+	c := ctx.Index().Class(fqn, ctx.PHP)
+	if c == nil || !strings.HasPrefix(c.File, "stubs/") {
+		return 0, false
+	}
+	for _, t := range builtinTargets[strings.ToLower(strings.TrimPrefix(fqn, `\`))] {
+		if ctx.PHP.AtLeast(t.since) {
+			return t.flags, true
+		}
+	}
+	return 0, false
 }
 
 // NativeReflectionTarget resolves a known reflected callable declaration.
@@ -526,9 +561,17 @@ func nativeContractScope(ctx *analysis.Context, scope syntax.Node) *nativeContra
 			if n != scope && syntax.IsVariableScope(n) {
 				return false
 			}
-			switch n.(type) {
-			case *syntax.Assign, *syntax.Unset, *syntax.FuncCall, *syntax.MethodCall:
+			switch x := n.(type) {
+			case *syntax.Assign, *syntax.Unset:
 				facts.nodes = append(facts.nodes, n)
+			case *syntax.FuncCall:
+				if !x.Args.Partial() { // `f(...)`, `f(?, 1)` call nothing; calling the closure is its own event
+					facts.nodes = append(facts.nodes, n)
+				}
+			case *syntax.MethodCall:
+				if !x.Args.Partial() {
+					facts.nodes = append(facts.nodes, n)
+				}
 			}
 			return true
 		}

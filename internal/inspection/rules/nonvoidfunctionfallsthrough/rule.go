@@ -27,7 +27,7 @@ func (rule) Kinds() []syntax.NodeKind {
 }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if len(ctx.File.Errors) > 0 || ctx.PHP.Below(phpversion.PHP70) || !semanticquery.NativeCallbackReachable(ctx, n) {
+	if ctx.File.Recovered() || ctx.PHP.Below(phpversion.PHP70) || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	var typ syntax.Expr

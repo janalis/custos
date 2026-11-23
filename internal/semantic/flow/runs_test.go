@@ -309,6 +309,9 @@ func TestSparesMethodsOfExtendedPHPClasses(t *testing.T) {
 		{"function made into a closure", `refill(...);`, true},
 		{"method made into a closure", `$h->insert(...);`, true},
 		{"static method made into a closure", `Closure::fromCallable(...);`, true},
+		{"function partially applied", `refill(?);`, true},
+		{"method partially applied", `$h->insert(?);`, true},
+		{"partial application binding a shared variable", `reads(?, [&$a]);`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			src := declared + `function t($a, Heap $h, DateTime $d, Failure $x, PDOStatement $st, LimitIterator $it, ArrayObject $ao) { ` + tc.call + ` }`

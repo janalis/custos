@@ -675,6 +675,13 @@
     "hasFix": false
   },
   {
+    "id": "DeprecatedFeature",
+    "group": "Language level migration",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "DetachedSignaturePassedToCombinedVerifier",
     "group": "Security",
     "severity": "warning",

@@ -41,9 +41,9 @@ None.
 
 ## PHP versions
 
-Detection applies across PHP 5.3–8.5. The automatic fix requires PHP 5.4 or later, when the flags argument and JSON_BIGINT_AS_STRING became available; see the [PHP 5.4 JSON implementation](https://github.com/php/php-src/blob/PHP-5.4/ext/json/json.c).
+Detection applies on every supported PHP version. The automatic fix requires PHP 5.4 or later, when the flags argument and JSON_BIGINT_AS_STRING became available; see the [PHP 5.4 JSON implementation](https://github.com/php/php-src/blob/PHP-5.4/ext/json/json.c).
 
-Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
+Apply only on PHP versions supporting the referenced APIs and syntax (within the supported PHP versions). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
 ## Examples
 

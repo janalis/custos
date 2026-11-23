@@ -406,12 +406,14 @@ func parseSnippet(text string) (*snippet, error) {
 	var f *syntax.File
 	for _, src := range []string{snippetPrefix + text + ";", snippetPrefix + text} {
 		f = syntax.Parse("pattern.php", []byte(src), syntax.Options{Version: phpversion.Max})
-		if len(f.Errors) == 0 {
+		if !f.Recovered() {
 			break
 		}
 	}
-	if len(f.Errors) > 0 {
-		return nil, fmt.Errorf("not valid PHP: %s", f.Errors[0].Msg)
+	// A compile error (`new C(...)`) leaves the tree whole: a pattern uses
+	// `...` as a wildcard where PHP would not build a closure.
+	if e, recovered := f.RecoveryError(); recovered {
+		return nil, fmt.Errorf("not valid PHP: %s", e.Msg)
 	}
 	stmts := slices.DeleteFunc(slices.Clone(f.Stmts), func(s syntax.Stmt) bool { return s.Kind() == syntax.KNop })
 	if len(stmts) == 0 {

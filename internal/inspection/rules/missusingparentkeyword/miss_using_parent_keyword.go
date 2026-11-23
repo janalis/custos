@@ -119,3 +119,7 @@ func mupkDescendantDeclares(ctx *analysis.Context, c *index.Class, lname string)
 	}
 	return false
 }
+
+// PartialCalls: a first-class callable or partial application refers to
+// its callee as a call does.
+func (missUsingParentKeyword) PartialCalls() {}

@@ -52,7 +52,7 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 // namespace fallback only when this file does not declare its preferred target.
 func (x *extractor) declarationBuiltin(call *syntax.FuncCall, declared map[string]bool) string {
 	name, ok := call.Name.(*syntax.Name)
-	if !ok {
+	if !ok || call.Args.Partial() { // `define(?, 1)` makes a closure and declares nothing
 		return ""
 	}
 	fqn, fallback := x.r.Function(name.Value, name.Span().Start)

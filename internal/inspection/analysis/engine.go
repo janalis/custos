@@ -22,6 +22,7 @@ type activeRule struct {
 	options  map[string]any
 	explicit map[string]bool // options set by the configuration (not defaults)
 	file     bool            // a FileRule: its one check covers the file
+	partial  bool            // a PartialCallRule: it also checks partial applications
 }
 
 // Engine is a configured set of rules. It is safe for concurrent use.
@@ -110,6 +111,7 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 			continue
 		}
 		ar := activeRule{rule: r, meta: m, severity: m.Severity, options: map[string]any{}}
+		_, ar.partial = r.(PartialCallRule)
 		if rc.Severity != "" {
 			ar.severity = rc.Severity
 		}
@@ -300,8 +302,12 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[s
 		e.unlabel()
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			subscribed := e.byKind[n.Kind()]
+			partial := len(subscribed) > 0 && partialCall(n)
 			for _, i := range subscribed {
 				if disabled != nil && disabled[int(i)] {
+					continue
+				}
+				if partial && !e.rules[i].partial {
 					continue
 				}
 				cur = int(i)
@@ -399,8 +405,8 @@ func less(a, b diagnostic.Finding) bool {
 
 func (c *Context) incomplete() []diagnostic.AnalysisIssue {
 	var issues []diagnostic.AnalysisIssue
-	if len(c.File.Errors) > 0 {
-		issues = append(issues, diagnostic.AnalysisIssue{Reason: "syntax-recovery", Span: c.File.Errors[0].Span})
+	if e, ok := c.File.RecoveryError(); ok {
+		issues = append(issues, diagnostic.AnalysisIssue{Reason: "syntax-recovery", Span: e.Span})
 	}
 	if c.types != nil {
 		for _, gap := range c.types.Gaps() {

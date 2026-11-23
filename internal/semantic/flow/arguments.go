@@ -46,10 +46,10 @@ func parameters(list *syntax.ArgList, params []index.Param, positions []int) []i
 	position := 0
 	for _, x := range list.Args {
 		p := position
-		if a, ok := x.(*syntax.Arg); ok && a.Name != nil {
+		if name := argumentName(x); name != nil {
 			p = -1
 			for j, param := range params {
-				if param.Name == a.Name.Value {
+				if param.Name == name.Value {
 					p = j
 					break
 				}
@@ -248,6 +248,18 @@ func (e *Env) localBody(name string) syntax.Node {
 	body := e.localBodies[name]
 	if body != nil && unconditional(body) {
 		return body
+	}
+	return nil
+}
+
+// argumentName is the name of a named argument or named placeholder
+// (`f(name: ?)`), nil for a positional one.
+func argumentName(x syntax.Expr) *syntax.Identifier {
+	switch a := x.(type) {
+	case *syntax.Arg:
+		return a.Name
+	case *syntax.ArgPlaceholder:
+		return a.Name
 	}
 	return nil
 }

@@ -42,7 +42,7 @@ None. Enabling the rule declares the policy stated in Detection; the rule is dis
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
+Available on every supported PHP version. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
 
 ## Examples
 

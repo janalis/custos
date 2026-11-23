@@ -154,13 +154,21 @@ type Arg struct {
 	Unpack bool // ...$args
 }
 
-// VariadicPlaceholder is the `...` of a first-class callable `f(...)`.
+// VariadicPlaceholder is the `...` of a first-class callable `f(...)`, or
+// the trailing `...` of a partial function application `f(1, ...)` (8.6).
 type VariadicPlaceholder struct{ exprBase }
+
+// ArgPlaceholder is a `?` argument of a partial function application
+// (`f(?, 2)`, `f(name: ?)`, 8.6).
+type ArgPlaceholder struct {
+	exprBase
+	Name *Identifier // named placeholder, or nil
+}
 
 // ArgList is a parenthesised argument list.
 type ArgList struct {
 	exprBase
-	Args []Expr // *Arg or *VariadicPlaceholder
+	Args []Expr // *Arg, *ArgPlaceholder or *VariadicPlaceholder
 }
 
 type FuncCall struct {

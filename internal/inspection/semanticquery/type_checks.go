@@ -943,7 +943,7 @@ func ownedComparison(ctx *analysis.Context, cmp, x syntax.Expr, lit string) bool
 		if !astquery.Mentions(ctx.File, key[strings.LastIndex(key, ":")+1:]) {
 			continue // no such call in the file: resolve nothing (a local's value needs flow data)
 		}
-		if key == "xml_parse" && (len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, cmp)) {
+		if key == "xml_parse" && (ctx.File.Recovered() || !NativeCallbackReachable(ctx, cmp)) {
 			continue
 		}
 		if key == "collator::compare" && !flowquery.Reachable(cmp, syntax.EnclosingFuncLike(cmp)) {
@@ -1019,10 +1019,9 @@ func origins(ctx *analysis.Context, x syntax.Expr) []syntax.Expr {
 
 // laterVersions are the PHP versions a builtin's return type is compared
 // at (see versionedOperand).
-var laterVersions = []phpversion.Version{
-	phpversion.PHP70, phpversion.PHP71, phpversion.PHP72, phpversion.PHP73, phpversion.PHP74,
-	phpversion.PHP80, phpversion.PHP81, phpversion.PHP82, phpversion.PHP83, phpversion.PHP84, phpversion.PHP85,
-}
+var laterVersions = slices.DeleteFunc(slices.Clone(phpversion.Releases), func(v phpversion.Version) bool {
+	return v.Below(phpversion.PHP70)
+})
 
 // versionedOperand reports whether x, or a value assigned to local x, is a
 // call to a builtin whose declared return type changes between the target

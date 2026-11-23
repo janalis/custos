@@ -60,7 +60,7 @@ var lexErrorSnippets = []string{
 
 func TestLexErrorSnippets(t *testing.T) {
 	for _, s := range lexErrorSnippets {
-		toks, errs := Lex([]byte(s), LexOptions{Version: phpversion.PHP85})
+		toks, errs := Lex([]byte(s), LexOptions{Version: phpversion.Max})
 		if len(errs) == 0 {
 			t.Errorf("%q: no lexical error", s)
 		}
@@ -75,7 +75,7 @@ func TestLexSnippetsMatchPHP(t *testing.T) {
 	var files []string
 	got := map[string][]Token{}
 	for i, s := range lexSnippets {
-		toks, _ := Lex([]byte(s), LexOptions{Version: phpversion.PHP85})
+		toks, _ := Lex([]byte(s), LexOptions{Version: phpversion.Max})
 		var end uint32
 		for _, tk := range toks {
 			if tk.Start != end {

@@ -9,7 +9,7 @@ import (
 var allVersions = []phpversion.Version{
 	phpversion.PHP53, phpversion.PHP54, phpversion.PHP55, phpversion.PHP56,
 	phpversion.PHP70, phpversion.PHP71, phpversion.PHP72, phpversion.PHP73, phpversion.PHP74,
-	phpversion.PHP80, phpversion.PHP81, phpversion.PHP82, phpversion.PHP83, phpversion.PHP84, phpversion.PHP85,
+	phpversion.PHP80, phpversion.PHP81, phpversion.PHP82, phpversion.PHP83, phpversion.PHP84, phpversion.PHP85, phpversion.PHP86,
 }
 
 func previousVersion(v phpversion.Version) phpversion.Version {
@@ -202,6 +202,40 @@ N;
 	{`$b = clone($a, ['p' => 1]);`, phpversion.PHP85, false},
 	{`$b = clone($a,);`, phpversion.PHP85, false},
 	{`$b = clone(...$a);`, phpversion.PHP85, false},
+	// 8.6
+	{`$f = f(?, 2);`, phpversion.PHP86, false},
+	{`$f = f(1, ...);`, phpversion.PHP86, false},
+	{`$f = f(?, ...);`, phpversion.PHP86, false},
+	{`$f = f(b: ?, a: 1);`, phpversion.PHP86, false},
+	{`$f = $o->m(?, ?);`, phpversion.PHP86, false},
+	{`$f = C::m(?);`, phpversion.PHP86, false},
+	{`$f = clone(?);`, phpversion.PHP86, false},
+	{`$f = f(?,);`, phpversion.PHP86, false},
+	{`class C { public readonly int $p = 1; }`, phpversion.PHP86, false},
+	{`readonly class C { public int $p = 1; }`, phpversion.PHP86, false},
+	{`$o = new class { public readonly int $p = 1; };`, phpversion.PHP86, false},
+	{`O->p = 1;`, phpversion.PHP86, false},
+	{`O->p++;`, phpversion.PHP86, false},
+	{`O->p .= 'x';`, phpversion.PHP86, false},
+	{`O->p ??= 1;`, phpversion.PHP86, false},
+	{`O->a[] = 1;`, phpversion.PHP86, false},
+	{`O->p->q = 1;`, phpversion.PHP86, false},
+	{`\O->p = 1;`, phpversion.PHP86, false},
+	{`unset(O->p);`, phpversion.PHP86, false},
+	{`foreach ([1] as O->p) {}`, phpversion.PHP86, false},
+	{`foreach ([1] as O->k => $v) {}`, phpversion.PHP86, false},
+	{`[O->p] = [1];`, phpversion.PHP86, false},
+	{`[[O->p]] = [[1]];`, phpversion.PHP86, false},
+	{`$r = &O->p;`, phpversion.PHP86, false},
+	{`C::D->p = 1;`, phpversion.PHP86, false},
+	{`C::D->p[0] = 1;`, phpversion.PHP86, false},
+	{`static::D->p = 1;`, phpversion.PHP86, false},
+	{`O[0]->p = 1;`, phpversion.PHP86, false},
+	{`C::K['k']->p = 1;`, phpversion.PHP86, false},
+	{`O[0][1]->p = 1;`, phpversion.PHP86, false},
+	{`O->p[0]->q = 1;`, phpversion.PHP86, false},
+	{`$a = [&O->p];`, phpversion.PHP86, false},
+	{`enum E { case A; public function __debugInfo(): array { return []; } }`, phpversion.PHP86, true},
 }
 
 func TestRequiredVersion(t *testing.T) {
@@ -274,5 +308,19 @@ func BenchmarkRequiredVersion(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		RequiredVersion(f)
+	}
+}
+
+// TestConstantReadVersion: reading through a constant's object, or writing
+// to a variable holding it, needs no PHP 8.6.
+func TestConstantReadVersion(t *testing.T) {
+	for _, src := range []string{
+		`echo O->p;`, `f(O->p);`, `$x = O->p;`, `O->m();`, `$x = C::D->p[0];`, `$o = O; $o->p = 1;`,
+		`O?->p;`, `isset(O->p);`, `$x = [O->p];`, `$a[O->p] = 1;`, `$a->{O->p} = 1;`, `O?->p->q;`, `$a = [&$b->p];`, `$x = O[0]->p;`,
+	} {
+		f := parse(t, "<?php "+src, phpversion.Max)
+		if got, at := RequiredVersion(f); got >= phpversion.PHP86 {
+			t.Errorf("%s: requires %s at %T", src, got, at)
+		}
 	}
 }

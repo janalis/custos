@@ -128,3 +128,7 @@ func removedBy(alias string, ver phpversion.Version) bool {
 	since, ok := aliasRemoved[alias]
 	return ok && ver >= since
 }
+
+// PartialCalls: a first-class callable or partial application refers to
+// its callee as a call does.
+func (aliasFunctionsUsage) PartialCalls() {}

@@ -53,7 +53,6 @@ func TestConditionUse(t *testing.T) {
 		{`for(;$x,($e=readdir($d));){}`, "true"},
 		{`for(;readdir($d),$x;){}`, "false"},
 		{`for(readdir($d);;readdir($d)){}`, "false,false"},
-		{`if(readdir(...)){}`, "false"},
 		{`if($x+=readdir($d)){}`, "false"},
 		{`if($x??=readdir($d)){}`, "false"},
 		{`if($x.=readdir($d)){}`, "false"},

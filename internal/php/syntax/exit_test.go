@@ -20,9 +20,11 @@ func TestExitCallableTermination(t *testing.T) {
 		{`exit(1, 2);`, true},
 		{`exit(...);`, false},
 		{`die(...);`, false},
+		{`exit(?);`, false},
+		{`die('done', ...);`, false},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
-			f := parse(t, "<?php "+tc.src+" next();", phpversion.PHP84)
+			f := parse(t, "<?php "+tc.src+" next();", phpversion.Max)
 			if len(f.Errors) != 0 {
 				t.Fatal(f.Errors)
 			}
@@ -75,9 +77,11 @@ func TestImmediateExitInvocation(t *testing.T) {
 		{`f();`, false},
 		{`(exit())(1);`, false},
 		{`$callback(1);`, false},
+		{`(exit(?))(1);`, true},
+		{`(exit(?))(?);`, false},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
-			f := parse(t, "<?php "+tc.src, phpversion.PHP84)
+			f := parse(t, "<?php "+tc.src, phpversion.Max)
 			if len(f.Errors) != 0 {
 				t.Fatal(f.Errors)
 			}

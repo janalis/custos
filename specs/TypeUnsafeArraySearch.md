@@ -32,6 +32,12 @@ Visit every function call.
   argument 1 (haystack), as written.
 - **D3** Not excluded by E1/E2 → report.
 
+- **D6** A partial application (PHP 8.6) of two positional entries,
+  `in_array(?, $haystack)` or `array_search($needle, ?)`, binds the missing
+  strict flag for every call of the closure: it is reported as such a call,
+  E1 aside. A trailing `...`, a named placeholder or a first-class callable
+  leaves the flag to each call: no report.
+
 ## Exceptions (no report)
 
 - **E1** *Literal string haystack*: `H` is an array literal (`[...]` or
@@ -188,6 +194,8 @@ function pick($code, array $allowed) {
 
 ## Divergences
 
+- **Partial applications (custos addition, D6).** PHP 8.6's partial
+  application postdates upstream, which has no such case.
 - **Constant arrays of one type (custos diverges, E2).** Upstream types a
   class constant `['HTML', 'Markdown']` as a plain array, so a string
   needle searched in it is reported. Every value is a string like the

@@ -15,7 +15,7 @@ func (unusedGotoLabel) Kinds() []syntax.NodeKind { return []syntax.NodeKind{synt
 func (unusedGotoLabel) Check(ctx *analysis.Context, n syntax.Node) {
 	l := n.(*syntax.Label)
 	fn := syntax.EnclosingFuncLike(l) // D1
-	if _, hook := fn.(*syntax.PropertyHook); hook && len(ctx.File.Errors) != 0 {
+	if _, hook := fn.(*syntax.PropertyHook); hook && ctx.File.Recovered() {
 		return
 	}
 	if fn == nil {

@@ -26,7 +26,7 @@ custos reads `custos.json` from the project root. Every key is optional.
 
 | Key | Meaning |
 |---|---|
-| `php` | Target PHP version: 5.3–5.6, 7.0–7.4, or 8.0–8.5. See [Target PHP version](#target-php-version). |
+| `php` | Target PHP version: 5.3–5.6, 7.0–7.4, or 8.0–8.6. See [Target PHP version](#target-php-version). |
 | `comparisonStyle` | `"regular"` (`$x === null`) or `"yoda"` (`null === $x`): the operand order that comparison rules expect and that quick-fixes write. Without it, the project's PHP-CS-Fixer or Mago configuration decides (see [Comparison style](#comparison-style)); otherwise `"regular"`. |
 | `typeCheck` | Choose which type-checking rules run together: `"off"`, `"proven"` (default: mismatches the code alone proves) or `"documented"` (also mismatches against PHPDoc, PHPStan, Psalm and PhpStorm declarations). See [Type checking](#type-checking). |
 | `shortOpenTag` | Treat `<?` as an opening tag, as with PHP's `short_open_tag` setting. Default `false`. |
@@ -152,7 +152,7 @@ The first of these that is set decides:
 
 `custos analyse --stats` shows which version was used and where it came from.
 
-custos supports PHP 5.3 to 8.5. The target is the oldest version the code
+custos supports PHP 5.3 to 8.6. The target is the oldest version the code
 must run on: rules only suggest what that version has, and quick-fixes and
 `custos format` never make a file need a newer version. A fix that would
 (such as `??` in a PHP 5.6 project) is not applied, and the formatter leaves

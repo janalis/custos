@@ -16,14 +16,14 @@ func TestLiteralTextPHPEscapes(t *testing.T) {
 		raw, want string
 		version   phpversion.Version
 	}{
-		{`"\a"`, `\a`, phpversion.PHP85},
-		{`"\b"`, `\b`, phpversion.PHP85},
-		{`"\u0030"`, `\u0030`, phpversion.PHP85},
-		{`"\q"`, `\q`, phpversion.PHP85},
-		{`"\x5fGET"`, `_GET`, phpversion.PHP85},
-		{"<<<TEXT\n\\q\nTEXT\n", `\q`, phpversion.PHP85},
-		{"<<<'TEXT'\n\\e\nTEXT\n", `\e`, phpversion.PHP85},
-		{`b"name"`, `name`, phpversion.PHP85},
+		{`"\a"`, `\a`, phpversion.Max},
+		{`"\b"`, `\b`, phpversion.Max},
+		{`"\u0030"`, `\u0030`, phpversion.Max},
+		{`"\q"`, `\q`, phpversion.Max},
+		{`"\x5fGET"`, `_GET`, phpversion.Max},
+		{"<<<TEXT\n\\q\nTEXT\n", `\q`, phpversion.Max},
+		{"<<<'TEXT'\n\\e\nTEXT\n", `\e`, phpversion.Max},
+		{`b"name"`, `name`, phpversion.Max},
 		{`"\\e"`, `\e`, phpversion.PHP53},
 		{`"\e"`, `\e`, phpversion.PHP53},
 		{`"\e"`, "\x1b", phpversion.PHP54},
@@ -90,7 +90,7 @@ func TestPHPStringKeysKeepIndependentTaint(t *testing.T) {
 }
 
 func TestParsedUnicodeStringKeyVersions(t *testing.T) {
-	for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.PHP70, phpversion.PHP85} {
+	for _, version := range []phpversion.Version{phpversion.PHP53, phpversion.PHP70, phpversion.Max} {
 		t.Run(version.String(), func(t *testing.T) {
 			file := syntax.Parse("literal.php", []byte(`<?php $values=["\u{30}"=>$_GET['x'],0=>'safe'];probe($values["\u{30}"]);`), syntax.Options{Version: version})
 			if len(file.Errors) > 0 {

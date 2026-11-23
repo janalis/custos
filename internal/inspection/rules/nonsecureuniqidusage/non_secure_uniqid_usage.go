@@ -49,10 +49,7 @@ func (r nonSecureUniqidUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	var cb *syntax.Arg
 	var list syntax.Expr // call_user_func_array's argument array
 	for i, a := range call.Args.Args {
-		arg, ok := a.(*syntax.Arg)
-		if !ok {
-			return // first-class callable syntax
-		}
+		arg := a.(*syntax.Arg) // placeholders never reach a rule: partial applications are not dispatched
 		switch {
 		case arg.Unpack:
 			plain = false
@@ -157,10 +154,7 @@ func (nonSecureUniqidUsage) direct(ctx *analysis.Context, call *syntax.FuncCall)
 	// uniqid() (GlobalFunctionName); a call always has an argument list.
 	positional, named, spread := 0, false, false
 	for _, a := range call.Args.Args {
-		arg, ok := a.(*syntax.Arg)
-		if !ok {
-			return // first-class callable syntax
-		}
+		arg := a.(*syntax.Arg) // placeholders never reach a rule: partial applications are not dispatched
 		switch {
 		case arg.Unpack:
 			spread = true

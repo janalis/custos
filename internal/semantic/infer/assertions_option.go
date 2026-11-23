@@ -22,7 +22,7 @@ func (e *Env) BuiltinAssert(call *syntax.FuncCall) bool {
 	if f == nil || !f.Builtin || !strings.EqualFold(f.FQN, "assert") {
 		return false
 	}
-	if call.Args.FirstClassCallable() {
+	if call.Args.Partial() {
 		return false
 	}
 	return true

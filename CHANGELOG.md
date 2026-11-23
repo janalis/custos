@@ -17,6 +17,93 @@ versions follow [Semantic Versioning](https://semver.org/).
   with `CUSTOS_PROJECT_LAUNCHER=1` the project's Composer launcher. With
   `CUSTOS_CROSS_FILE=1`, it also reports the findings that appeared in other
   files of the project since the previous edit.
+- PHP 8.6 is a supported target (`"php": "8.6"`, `--php 8.6`, a
+  `.php-version` file or a Composer constraint). Partial function
+  application parses and formats (`f(?, 2)`, `f(name: ?)`, `f(1, ...)`):
+  such a call only builds a closure, so no rule takes it for a call of its
+  function, a pipe through it (`$s |> str_pad(?, 4)`) gets the function's
+  result type, and the version a file requires accounts for it, as it does
+  for readonly properties with a default value and for writes through an
+  object held by a constant (`O->p = 1`).
+- `ArgumentCountMismatch` checks a partial application as PHP does when it
+  builds the closure: each `?` counts as an argument, a trailing `...`
+  leaves the rest to the call, and extra arguments are reported for
+  functions of the project too.
+- `OverrideAttributeWithoutTarget` checks `#[\Override]` on class constants
+  and enum cases from PHP 8.6, and `AttributeTargetMismatch` reports
+  `#[\Override]` where the target version does not accept it: on a
+  property before 8.5, on a constant before 8.6, on a class or function.
+- `ReadonlyPropertyReassignment` reports, from PHP 8.6, a write to a
+  readonly property whose default value already initialized it, when the
+  property is private or its class final.
+- `DeprecatedFeature`, a new rule, reports what PHP deprecates at the
+  project's target version: PHP's own functions, methods and constants
+  deprecated from PHP 8.0 on (`strftime()`, `utf8_encode()`,
+  `ReflectionProperty::setAccessible()`, `FILTER_SANITIZE_STRING`,
+  `E_STRICT`, `spl_object_hash()`, the `mb_ereg` family, ...), and the
+  language deprecations of PHP 8.6: `define()`'s third argument, a class name given
+  to `is_a()` without `allow_string`, an object walked as an array, a
+  `return` in `finally`, a value returned from a constructor, a nullable
+  `__debugInfo()` return type, and declarations named `let`, `is`,
+  `readonly` or `_`.
+- Syntax errors now include what PHP rejects when it compiles a call or an
+  enum: a placeholder in `new`, after `?->` or in an attribute's arguments,
+  a positional argument or an
+  unpacking after a named one, and the magic methods an enum may not
+  declare (`__toString()`, `__construct()`, ...; `__debugInfo()` before PHP
+  8.6). Such a file is still analyzed in full.
+- `AttributeTargetMismatch` checks PHP's own attributes at the target
+  version: `Attribute`, `AllowDynamicProperties`, `ReturnTypeWillChange`,
+  `SensitiveParameter`, `Deprecated` (on a trait but no other class-like),
+  `NoDiscard` and `Override`, unless `DelayedTargetValidation` accompanies
+  them.
+- Autoloaders registered as a partial application (`load(?, $dir)`) are
+  resolved like `load(...)`, and a partial application's closure returns
+  its function's result type (`$len = strlen(?); $len('x')` is an int).
+- Go API: `ast.ArgPlaceholder` (`?`, `name: ?`) and `ArgList.Partial()`
+  describe partial applications. A rule written in Go receives calls that
+  only build a closure (`f(...)`, `f(?, 1)`) only when its `custos.Info`
+  sets `PartialCalls`; a pattern written as `\f(...)` also matches
+  `f(?, 1)`.
+
+### Fixed
+
+- The PHP declarations custos ships dropped every mention of PHP 8.6:
+  what 8.6 adds (`clamp()`, `Time\Duration`, ...) counted as available at
+  every version, so `UnavailableFunction` missed it in older projects, and
+  a parameter declared differently from 8.6 counted twice, which kept
+  `ArgumentCountMismatch` from checking `trim()`, `rtrim()`, `ltrim()`,
+  `stream_select()` and a dozen more. `ArgumentCountMismatch` and
+  `UnknownNamedArgument` leave `openssl_sign()` and `openssl_verify()`
+  alone, whose PHP 8.6 `$salt_length` the declarations lack.
+- Parameter lists that PHP's declarations version through an aliased
+  marker (much of intl and ldap) listed every version's parameters at once,
+  so `ArgumentCountMismatch` could not check about thirty more functions
+  and methods (`locale_get_display_language()`, `IntlDateFormatter::format()`,
+  ...); they now resolve per version.
+- `exit(?)` and `die('x', ...)` build closures: code after them is no
+  longer taken as unreachable.
+- Wrapping a long call that already ended in a trailing comma reported
+  two quick-fixes that undid each other (remove the comma, add one after
+  the last argument); the comma now stays where it is.
+- A partial application that binds a variable to a reference parameter
+  (`preg_match('/a/', ?, $m)`) keeps it bound by reference: data-flow
+  analysis no longer trusts the variable's earlier value once the closure
+  may have run, and a partial call such as `is_string($x, ...)` no longer
+  narrows `$x` in a condition.
+- `UnknownNamedArgument` checks the name of a named placeholder
+  (`f(typo: ?)`).
+- `UnserializeExploits`, `TypeUnsafeArraySearch` and the untrusted-input
+  rules (shell commands, SQL, filesystem paths, headers, LDAP filters,
+  network destinations, redirects) check a partial application as the call
+  each use of the closure makes: `unserialize(?)` lets any class be
+  created, `in_array(?, $haystack)` searches loosely, and
+  `exec($_GET['cmd'], ...)` runs request data every time.
+- No rule takes a partial application for a call any more, however it
+  finds the call: `if ($zip->open('a.zip', ?))` or `unlink('x', ...)` built
+  closures that rules such as ZipOpenTruthyResult or
+  UnlinkFailureReportedAsSuccess reported, one with a quick-fix that changed
+  the code's meaning.
 
 ## [0.2.5] - 2026-11-22
 

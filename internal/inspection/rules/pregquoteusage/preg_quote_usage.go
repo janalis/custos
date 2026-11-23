@@ -23,9 +23,6 @@ func (pregQuoteUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || call.Args == nil || len(call.Args.Args) != 1 { // D2
 		return
 	}
-	if _, ok := call.Args.Args[0].(*syntax.Arg); !ok {
-		return // first-class callable syntax preg_quote(...)
-	}
 	if !semanticquery.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, "preg_quote") { // D1
 		return
 	}

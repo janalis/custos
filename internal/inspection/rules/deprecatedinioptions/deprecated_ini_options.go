@@ -174,10 +174,7 @@ func (deprecatedIniOptions) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	arg, ok := call.Args.Args[0].(*syntax.Arg)
-	if !ok || arg.Value == nil {
-		return
-	}
+	arg := call.Args.Args[0].(*syntax.Arg)             // placeholders never reach a rule: partial applications are not dispatched
 	raw, ok := astquery.QuotedStringContent(arg.Value) // D2
 	if !ok {
 		return

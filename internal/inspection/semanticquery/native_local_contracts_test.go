@@ -96,7 +96,7 @@ func TestNativeLocalQueries(t *testing.T) {
 		{"reflection", `class A{function f($x):int{return 1;}}probe(new ReflectionMethod(new A(),'f'));`, "1/int/true", ""},
 		{"int", `probe(Attribute::TARGET_ALL);probe(Attribute::IS_REPEATABLE);probe(Attribute::TARGET_CONSTANT);probe(Attribute::TARGET_CLASS|Attribute::TARGET_METHOD);probe($unknown);probe(Missing::C);probe($unknown::C);`, "63/true,64/true,0/false,5/true,0/false,0/false,0/false", "8.4"},
 		{"int", `probe(Attribute::TARGET_ALL);probe(Attribute::IS_REPEATABLE);`, "127/true,128/true", "8.5"},
-		{"attributes", `#[Custom]#[Attribute]class Mark{}#[Mark]class A{}`, "0/false,0/false,127/true", "8.5"},
+		{"attributes", `#[Custom]#[Attribute]class Mark{}#[Mark]class A{}`, "0/false,1/true,127/true", "8.5"},
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($b===null){return;}probe($b);`, "true", ""},
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($b){probe($b);}`, "true", ""},
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($b){}else{probe($b);}`, "false", ""},

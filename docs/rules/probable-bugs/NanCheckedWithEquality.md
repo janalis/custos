@@ -51,7 +51,7 @@ F1. Replace equality with \is_nan(otherOperand), and inequality with !\is_nan(ot
 
 ## PHP versions
 
-Available throughout supported PHP 5.3–8.5. The scalar-type declaration in the example needs PHP 7.0; numeric expression inference can establish a safe fix on earlier versions.
+Available on every supported PHP version. The scalar-type declaration in the example needs PHP 7.0; numeric expression inference can establish a safe fix on earlier versions.
 
 ## Configure
 

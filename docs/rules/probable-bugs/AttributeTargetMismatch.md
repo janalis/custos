@@ -30,6 +30,7 @@ Reported:
 ## Detection
 
 - Resolve the attribute class and its builtin Attribute annotation; constant-fold the target bitmask (default TARGET_ALL). Report an application on a class, function, method, property, class constant or parameter whose corresponding bit is absent. This predicts failure of ReflectionAttribute::newInstance, not immediate parse failure. PHP 8.5 property hooks are method targets.
+- PHP's own attributes are resolved by version rather than from their declarations, which describe the newest version only: `Attribute`, `AllowDynamicProperties` (classes), `ReturnTypeWillChange` (methods), `SensitiveParameter` (parameters), `NoDiscard` (functions and methods, PHP 8.5), `Deprecated` (functions, methods and class constants from PHP 8.4, also traits and global constants from PHP 8.5, but no other class-like) and `Override` (methods, from PHP 8.5 also properties, from PHP 8.6 also class constants and enum cases). Unlike user attributes, a misplaced one fails when the declaration is compiled. A global constant declaration is a constant target.
 - Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
@@ -37,6 +38,7 @@ Reported:
 A constructor-promoted parameter is also a property declaration. Accept attributes permitting either parameter or property targets at that combined declaration. A parameter is promoted when it carries any promoting modifier: a visibility keyword (`public`, `protected`, `private`), `readonly` (PHP 8.1), an asymmetric set-visibility such as `private(set)` (PHP 8.4), or `final` (PHP 8.5). The modifier does not have to be a visibility keyword. A parameter carrying none of these is a plain parameter and needs the parameter target.
 
 - Skip unresolved attribute declarations and unknown bitmasks. Attribute::IS_REPEATABLE is not a target bit.
+- A declaration that also carries PHP's `DelayedTargetValidation` (PHP 8.5): PHP then postpones the check of its own attributes.
 - Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix

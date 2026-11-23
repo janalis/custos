@@ -54,10 +54,7 @@ func (passingByReferenceCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 	}
 	allPlain := true
 	for _, a := range list.Args {
-		arg, ok := a.(*syntax.Arg)
-		if !ok {
-			return // first-class callable syntax
-		}
+		arg := a.(*syntax.Arg) // placeholders never reach a rule: partial applications are not dispatched
 		switch arg.Value.(type) {
 		case *syntax.Variable:
 			continue

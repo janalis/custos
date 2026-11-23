@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/janalis/custos/internal/diagnostic"
+	"github.com/janalis/custos/internal/php/syntax"
 	"github.com/janalis/custos/internal/project"
 	"github.com/janalis/custos/internal/project/config"
 )
@@ -344,7 +346,8 @@ func collect(cp *checkpoint, snap *project.Snapshot) error {
 	evidenceBytes := 0
 	for _, r := range snap.Results {
 		items := diagnostic.Items([]diagnostic.FileResult{r})
-		if r.Err != nil || len(r.Errors) > 0 {
+		// Compile errors (`f(a: 1, 2)`) leave the file analyzed in full.
+		if r.Err != nil || slices.ContainsFunc(r.Errors, func(e syntax.Error) bool { return !e.Compile }) {
 			cp.Complete = false
 		}
 		lines := strings.Split(string(r.Src), "\n")

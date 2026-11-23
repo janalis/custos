@@ -56,6 +56,7 @@ function gen(int|string $a, (A&B)|null $b = null, ?int ...$rest): iterable
     $f = static function &() use (&$x, $y): void {};
     $g = fn($n) => $n * 2;
     $h = strlen(...);
+    $h = str_pad(?, 4, pad_type: ?, ...);
     $m = match ($x) {
         1, 2 => 'a',
         default => 'b',

@@ -20,7 +20,9 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	if semanticquery.NativeBuiltin(ctx, call, "header") {
+	// A partial application of header() is a sink too, so the name is
+	// matched rather than a call yielding header()'s result.
+	if semanticquery.NativeBuiltinName(ctx, call) == "header" {
 		value := semanticquery.CallArgument(call.Args, 0, "header")
 		// The shared taint summary keeps the request source through numeric
 		// results, match subjects and several line-break guards.
@@ -38,3 +40,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 		ctx.ReportNode(c, message)
 	}
 }
+
+// PartialCalls: a partial application binds the arguments it is written
+// with, and every call of the closure passes them to the sink.
+func (rule) PartialCalls() {}
