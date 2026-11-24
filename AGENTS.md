@@ -96,6 +96,7 @@ make stubs          # rebuild embedded PHP stubs index
 make deprecations   # regenerate DeprecatedFeature's table (DEPRECATION_PHP="8.0=/path/php ..."; one binary per release)
 make corpus-baseline / corpus-diff  # record every rule's findings on the pinned bench corpora / fail on any change (CORPORA= filter)
 make typecov        # share of unknown inferred types on the bench corpora, by kind and cause (.cache/typecov/)
+make mutations      # report fixture findings that survive when assigned calls become closures (.cache/mutations.json)
 make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable output (FIXCHECK=php adds php -l samples; FIXCHECK_TIMEOUT=90m for laravel)
 make clean          # remove bin/, dist/ and docs build output
 go generate ./internal/php/syntax  # regenerate node kinds after editing ast.go

@@ -10,7 +10,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 FIXCHECK ?= 1
 FIXCHECK_TIMEOUT ?= 30m
 
-.PHONY: architecture deprecations examples coverage fixcheck formatcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
+.PHONY: architecture deprecations examples coverage fixcheck mutations formatcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -134,6 +134,15 @@ cleanroom:
 # FIXCHECK_TIMEOUT bounds the run (laravel alone takes about an hour).
 fixcheck:
 	CUSTOS_FIXCHECK=$(FIXCHECK) CUSTOS_FIXCHECK_PHP=$(FIXCHECK_PHP) CUSTOS_PHP=$(PHP_BIN) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout $(FIXCHECK_TIMEOUT)
+
+# Report the findings of each rule's own fixtures that survive when the calls
+# assigned to the variables they read only build closures (`f(...)`,
+# `f($a, ...)`): suspects for a rule reading a closure as the call's result.
+# A report to triage, not a gate: .cache/mutations.json (RULE=<ID> to filter).
+mutations:
+	@mkdir -p .cache
+	@CUSTOS_MUTATIONS=1 $(GO) test ./internal/testing/conformance -run TestClosureMutations -v -timeout 60m -rule "$(RULE)" >.cache/mutations.log 2>&1; \
+		rc=$$?; grep -E 'surviving|^(--- FAIL|FAIL|panic)' .cache/mutations.log; exit $$rc
 
 # Record the findings of every rule on the pinned corpora of
 # bench/competitors.json, then compare a later build with that record:
