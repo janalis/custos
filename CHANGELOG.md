@@ -41,17 +41,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   deprecated from PHP 8.0 on (`strftime()`, `utf8_encode()`,
   `ReflectionProperty::setAccessible()`, `FILTER_SANITIZE_STRING`,
   `E_STRICT`, `spl_object_hash()`, the `mb_ereg` family, ...), and the
-  language deprecations of PHP 8.6: `define()`'s third argument, a class name given
-  to `is_a()` without `allow_string`, an object walked as an array, a
-  `return` in `finally`, a value returned from a constructor, a nullable
-  `__debugInfo()` return type, and declarations named `let`, `is`,
+  language deprecations of PHP 8.6: `define()`'s third argument, a class
+  name given to `is_a()` without `allow_string`, an object walked as an
+  array, a `return` in `finally`, a value returned from a constructor, a
+  nullable `__debugInfo()` return type, and declarations named `let`, `is`,
   `readonly` or `_`.
 - Syntax errors now include what PHP rejects when it compiles a call or an
   enum: a placeholder in `new`, after `?->` or in an attribute's arguments,
-  a positional argument or an
-  unpacking after a named one, and the magic methods an enum may not
-  declare (`__toString()`, `__construct()`, ...; `__debugInfo()` before PHP
-  8.6). Such a file is still analyzed in full.
+  a positional argument or an unpacking after a named one, and the magic
+  methods an enum may not declare (`__toString()`, `__construct()`, ...;
+  `__debugInfo()` before PHP 8.6). Such a file is still analyzed in full.
 - `AttributeTargetMismatch` checks PHP's own attributes at the target
   version: `Attribute`, `AllowDynamicProperties`, `ReturnTypeWillChange`,
   `SensitiveParameter`, `Deprecated` (on a trait but no other class-like),
@@ -111,8 +110,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `exec($_GET['cmd'], ...)` runs request data every time.
 - No rule takes a partial application for a call any more, however it
   finds the call: `if ($zip->open('a.zip', ?))` or `unlink('x', ...)` built
-  closures that rules such as ZipOpenTruthyResult or
-  UnlinkFailureReportedAsSuccess reported, one with a quick-fix that changed
+  closures that rules such as `ZipOpenTruthyResult` or
+  `UnlinkFailureReportedAsSuccess` reported, one with a quick-fix that changed
   the code's meaning.
 
 ## [0.2.5] - 2026-11-22
