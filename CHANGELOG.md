@@ -88,8 +88,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   the call's result: rules that follow a value back to the call that
   produced it no longer report a failed or reused result there
   (`StreamOpenFailureUnchecked`, `ExhaustedGeneratorReused`,
-  `SortResultUsedAsArray`, `TempnamDirectoryFallbackUnchecked`,
-  `SodiumSecretboxKeyLengthMismatch`, `WriteToReadOnlyStream` and about
+  `GeneratorReturnBeforeCompletion`, `SortResultUsedAsArray`,
+  `TempnamDirectoryFallbackUnchecked`, `ZipEntryStreamUsedAfterArchiveClose`,
+  `SodiumSecretboxKeyLengthMismatch`, `SodiumSecretboxNonceReused`,
+  `HashContextUsedAfterFinalization`, `WriteToReadOnlyStream` and about
   fifteen more).
 - Wrapping a long call that already ended in a trailing comma reported
   two quick-fixes that undid each other (remove the comma, add one after

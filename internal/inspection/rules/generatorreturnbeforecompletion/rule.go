@@ -53,8 +53,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || local.Name != v.Name {
 		return
 	}
+	// `(function () { ... })(...)` only wraps the closure in another one.
 	closureCall, ok := syntax.UnwrapParens(a.Value).(*syntax.FuncCall)
-	if !ok {
+	if !ok || closureCall.Args.Partial() {
 		return
 	}
 	closure, ok := syntax.UnwrapParens(closureCall.Name).(*syntax.Closure)

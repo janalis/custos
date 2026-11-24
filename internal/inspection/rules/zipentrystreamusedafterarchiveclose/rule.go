@@ -55,8 +55,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || target.Name != variable.Name {
 		return
 	}
+	// `$z->getStream(...)` only builds a closure: it opens no stream.
 	origin, ok := assignment.Value.(*syntax.MethodCall)
-	if !ok || !semanticquery.NativeMethod(ctx, origin, "ZipArchive", "getStream") {
+	if !ok || origin.Args.Partial() || !semanticquery.NativeMethod(ctx, origin, "ZipArchive", "getStream") {
 		return
 	}
 	if astquery.Equivalent(ctx.File, origin.Var, close.Var) {
