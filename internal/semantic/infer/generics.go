@@ -252,6 +252,13 @@ func (e *Env) iterTypesAt(t types.Type, hops int) (key, val types.Type) {
 			if k.IsUnknown() {
 				k = types.Of("int", "string")
 			}
+		case a == "array":
+			// An array beside a Traversable (`$map ?? []`): its keys join the
+			// iterator's; its values stay unknown, as before.
+			k = t.ArrayKey()
+			if k.IsUnknown() {
+				k = types.Of("int", "string")
+			}
 		case a == "iterable":
 			switch args := t.TypeArgs(a); len(args) {
 			case 1:
