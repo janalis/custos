@@ -142,7 +142,7 @@ func NativeValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 	}
 	if _, ok := syntax.UnwrapParens(e).(*syntax.Variable); ok {
 		v, known := ctx.Flow().Resolve(e)
-		if !known {
+		if !known || nativePartial(NativeUnsilenced(v)) {
 			return nil
 		}
 		return NativeUnsilenced(v)
@@ -168,6 +168,21 @@ func NativeValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		return nil
 	}
 	return NativeUnsilenced(values[0])
+}
+
+// nativePartial reports a partial application (`f(...)`, `f(?, 1)`,
+// `$o->m(?)`): a variable assigned one holds a closure, not the call's
+// result, so a rule tracing the variable's value must not read the call.
+func nativePartial(e syntax.Expr) bool {
+	switch c := e.(type) {
+	case *syntax.FuncCall:
+		return c.Args.Partial()
+	case *syntax.MethodCall:
+		return c.Args.Partial()
+	case *syntax.StaticCall:
+		return c.Args.Partial()
+	}
+	return false
 }
 
 // NativeUnsilenced looks through parentheses and the `@` operator: silencing

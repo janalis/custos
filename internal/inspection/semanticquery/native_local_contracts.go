@@ -384,7 +384,16 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 	return nativeLocalValue(ctx, e, "", nil)
 }
 
+// nativeLocalValue never yields a partial application: the variable then
+// holds a closure, whichever write the lexical scan recovered.
 func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
+	if v := nativeLocalValueOf(ctx, e, failure, produced); !nativePartial(v) {
+		return v
+	}
+	return nil
+}
+
+func nativeLocalValueOf(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
 	if ctx.Flow().ProducerBudgetExceeded(e) || ctx.Flow().CompressedOrigins(e) {
 		return nil
 	}
@@ -670,6 +679,9 @@ func NativeLocalBuiltinResults(ctx *analysis.Context, e syntax.Expr, failure str
 }
 
 func nativeBuiltinContract(ctx *analysis.Context, result syntax.Expr, names []string) bool {
+	if nativePartial(result) {
+		return false
+	}
 	if call, ok := result.(*syntax.FuncCall); ok {
 		key := NativeBuiltinName(ctx, call)
 		for _, name := range names {

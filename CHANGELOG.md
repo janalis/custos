@@ -83,6 +83,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   ...); they now resolve per version.
 - `exit(?)` and `die('x', ...)` build closures: code after them is no
   longer taken as unreachable.
+- A variable assigned a first-class callable or a partial application
+  (`$g = items(...)`, `$h = fopen($path, 'r', ...)`) holds a closure, not
+  the call's result: rules that follow a value back to the call that
+  produced it no longer report a failed or reused result there
+  (`StreamOpenFailureUnchecked`, `ExhaustedGeneratorReused`,
+  `SortResultUsedAsArray`, `TempnamDirectoryFallbackUnchecked`,
+  `SodiumSecretboxKeyLengthMismatch`, `WriteToReadOnlyStream` and about
+  fifteen more).
 - Wrapping a long call that already ended in a trailing comma reported
   two quick-fixes that undid each other (remove the comma, add one after
   the last argument); the comma now stays where it is.
