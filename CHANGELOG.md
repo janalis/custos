@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-11-24
+
 ### Added
 
 - A Claude Code plugin: the repository is a plugin marketplace, and its
@@ -1250,7 +1252,8 @@ First public release.
   stay inside the project; `custos fix` never writes through symlinks; the
   language server rejects malformed or oversized messages.
 
-[Unreleased]: https://github.com/janalis/custos/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/janalis/custos/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/janalis/custos/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/janalis/custos/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/janalis/custos/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/janalis/custos/compare/v0.2.2...v0.2.3
