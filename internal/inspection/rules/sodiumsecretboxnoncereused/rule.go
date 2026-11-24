@@ -174,6 +174,9 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	}
 	nonce := semanticquery.CallArgument(c.Args, 1, "nonce")
 	key := semanticquery.CallArgument(c.Args, 2, "key")
+	if semanticquery.HoldsPartialClosure(ctx, nonce) {
+		return
+	}
 	events := semanticquery.ScopeCallEvents(ctx, c)
 	var latestMutation uint32
 	for _, event := range events {

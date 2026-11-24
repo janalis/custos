@@ -134,6 +134,9 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	}
 	c := n.(*syntax.FuncCall)
 	h := semanticquery.CallArgument(c.Args, 0, "context")
+	if semanticquery.HoldsPartialClosure(ctx, h) {
+		return
+	}
 	for _, prior := range semanticquery.ScopeCallEvents(ctx, c) {
 		p, ok := prior.(*syntax.FuncCall)
 		if ok && semanticquery.NativeBuiltin(ctx, p, "hash_final") && semanticquery.NativeDominates(p, c) && semanticquery.SameStableLocal(ctx, semanticquery.CallArgument(p.Args, 0, "context"), h) {

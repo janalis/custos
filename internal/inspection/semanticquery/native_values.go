@@ -170,6 +170,17 @@ func NativeValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 	return NativeUnsilenced(values[0])
 }
 
+// HoldsPartialClosure reports a variable whose one known value is a partial
+// application (`$h = hash_init('md5', ...)`): it holds a closure, so a rule
+// about what the call returns does not apply to it.
+func HoldsPartialClosure(ctx *analysis.Context, e syntax.Expr) bool {
+	if _, ok := syntax.UnwrapParens(e).(*syntax.Variable); !ok {
+		return false
+	}
+	v, known := ctx.Flow().Resolve(e)
+	return known && nativePartial(NativeUnsilenced(v))
+}
+
 // nativePartial reports a partial application (`f(...)`, `f(?, 1)`,
 // `$o->m(?)`): a variable assigned one holds a closure, not the call's
 // result, so a rule tracing the variable's value must not read the call.
