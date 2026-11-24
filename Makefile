@@ -8,6 +8,7 @@ BIN     := bin/custos
 STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
+FIXCHECK_TIMEOUT ?= 30m
 
 .PHONY: architecture deprecations examples coverage fixcheck formatcheck corpus-baseline corpus-diff typecov stubs build test vet fmt fmt-check lint bench compare compare-doc fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
@@ -130,8 +131,9 @@ cleanroom:
 # than the target, and each fix to remove its finding (FIXCHECK=php
 # additionally runs php -l on samples). FIXCHECK_PHP=5.6 sets the target
 # (default: the newest supported version); PHP_BIN is the php binary of that version FIXCHECK=php uses.
+# FIXCHECK_TIMEOUT bounds the run (laravel alone takes about an hour).
 fixcheck:
-	CUSTOS_FIXCHECK=$(FIXCHECK) CUSTOS_FIXCHECK_PHP=$(FIXCHECK_PHP) CUSTOS_PHP=$(PHP_BIN) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout 30m
+	CUSTOS_FIXCHECK=$(FIXCHECK) CUSTOS_FIXCHECK_PHP=$(FIXCHECK_PHP) CUSTOS_PHP=$(PHP_BIN) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout $(FIXCHECK_TIMEOUT)
 
 # Record the findings of every rule on the pinned corpora of
 # bench/competitors.json, then compare a later build with that record:
