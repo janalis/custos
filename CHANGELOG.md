@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-11-24
+
 ### Fixed
 
 - A `foreach` key is `int|string` only when the subject is an array. A
@@ -1267,7 +1269,8 @@ First public release.
   stay inside the project; `custos fix` never writes through symlinks; the
   language server rejects malformed or oversized messages.
 
-[Unreleased]: https://github.com/janalis/custos/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/janalis/custos/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/janalis/custos/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/janalis/custos/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/janalis/custos/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/janalis/custos/compare/v0.2.3...v0.2.4
